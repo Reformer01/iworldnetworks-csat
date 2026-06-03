@@ -21,6 +21,8 @@ import { Button } from '@/components/ui/button';
 import { Switch } from '@/components/ui/switch';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Label } from '@/components/ui/label';
+import { useFirestore } from '@/firebase';
+import { collection, addDoc, serverTimestamp } from 'firebase/firestore';
 
 type Category = 'Reliability' | 'Support' | 'Testimonials' | 'Installation' | 'Billing';
 
@@ -28,6 +30,17 @@ export default function LandingPage() {
   const [activeCategory, setActiveCategory] = useState<Category>('Reliability');
   const [isSubmitted, setIsSubmitted] = useState(false);
   const [ratings, setRatings] = useState<Record<string, number>>({});
+  const [formData, setFormData] = useState({
+    customerName: '',
+    customerEmail: '',
+    servicePlan: 'Standard Residential',
+    location: 'Lagos',
+    comment: '',
+    staffName: '',
+    interviewConsent: 'Maybe'
+  });
+
+  const firestore = useFirestore();
 
   const supportStaff = [
     "Victoria Fokorede",
@@ -75,7 +88,7 @@ export default function LandingPage() {
     Reliability: {
       title: (
         <>
-          Experience <div className="relative h-[72px] w-[140px] rounded-full overflow-hidden inline-block"><Image src={images.fiber.imageUrl} alt="fiber" fill className="object-cover grayscale" /></div> seamless <div className="relative h-[72px] w-[140px] rounded-full overflow-hidden inline-block"><Image src={images.customer.imageUrl} alt="customer" fill className="object-cover" /></div> connectivity.
+          Experience <div className="relative h-[72px] w-[140px] rounded-full overflow-hidden inline-block mx-2"><Image src={images.fiber.imageUrl} alt="fiber" fill className="object-cover grayscale" /></div> seamless <div className="relative h-[72px] w-[140px] rounded-full overflow-hidden inline-block mx-2"><Image src={images.customer.imageUrl} alt="customer" fill className="object-cover" /></div> connectivity.
         </>
       ),
       sub: "Helping you stay connected to what matters most with reliable, high-speed fiber internet.",
@@ -84,7 +97,7 @@ export default function LandingPage() {
     Support: {
       title: (
         <>
-          Support Desk <div className="relative h-[72px] w-[140px] rounded-full overflow-hidden inline-block"><Image src={images.customer.imageUrl} alt="customer" fill className="object-cover" /></div> evaluation <div className="relative h-[72px] w-[140px] rounded-full overflow-hidden inline-block"><Image src={images.tech.imageUrl} alt="tech" fill className="object-cover grayscale" /></div> portal.
+          Support Desk <div className="relative h-[72px] w-[140px] rounded-full overflow-hidden inline-block mx-2"><Image src={images.customer.imageUrl} alt="customer" fill className="object-cover" /></div> service <div className="relative h-[72px] w-[140px] rounded-full overflow-hidden inline-block mx-2"><Image src={images.tech.imageUrl} alt="tech" fill className="object-cover grayscale" /></div> evaluation.
         </>
       ),
       sub: "Your feedback helps us provide better technical assistance for your home or business.",
@@ -93,16 +106,16 @@ export default function LandingPage() {
     Testimonials: {
       title: (
         <>
-          Share your <div className="relative h-[72px] w-[140px] rounded-full overflow-hidden inline-block"><Image src={images.customer.imageUrl} alt="customer" fill className="object-cover" /></div> success <div className="relative h-[72px] w-[140px] rounded-full overflow-hidden inline-block"><Image src={images.workspace.imageUrl} alt="workspace" fill className="object-cover grayscale" /></div> story.
+          Share your <div className="relative h-[72px] w-[140px] rounded-full overflow-hidden inline-block mx-2"><Image src={images.customer.imageUrl} alt="customer" fill className="object-cover" /></div> success <div className="relative h-[72px] w-[140px] rounded-full overflow-hidden inline-block mx-2"><Image src={images.workspace.imageUrl} alt="workspace" fill className="object-cover grayscale" /></div> story.
         </>
       ),
-      sub: "We love hearing how our fast internet has helped you achieve more at home or in the office.",
+      sub: "We love hearing how our internet has helped you achieve more at home or in the office.",
       img: images.workspace
     },
     Installation: {
       title: (
         <>
-          Field <div className="relative h-[72px] w-[140px] rounded-full overflow-hidden inline-block"><Image src={images.tech.imageUrl} alt="tech" fill className="object-cover" /></div> setup & <div className="relative h-[72px] w-[140px] rounded-full overflow-hidden inline-block"><Image src={images.fiber.imageUrl} alt="fiber" fill className="object-cover grayscale" /></div> review.
+          Field <div className="relative h-[72px] w-[140px] rounded-full overflow-hidden inline-block mx-2"><Image src={images.tech.imageUrl} alt="tech" fill className="object-cover" /></div> setup & <div className="relative h-[72px] w-[140px] rounded-full overflow-hidden inline-block mx-2"><Image src={images.fiber.imageUrl} alt="fiber" fill className="object-cover grayscale" /></div> review.
         </>
       ),
       sub: "Help us ensure every customer gets a perfect start with our service and professional setup.",
@@ -111,7 +124,7 @@ export default function LandingPage() {
     Billing: {
       title: (
         <>
-          Billing <div className="relative h-[72px] w-[140px] rounded-full overflow-hidden inline-block"><Image src={images.workspace.imageUrl} alt="workspace" fill className="object-cover grayscale" /></div> feedback & <div className="relative h-[72px] w-[140px] rounded-full overflow-hidden inline-block"><Image src={images.customer.imageUrl} alt="customer" fill className="object-cover" /></div> review.
+          Billing <div className="relative h-[72px] w-[140px] rounded-full overflow-hidden inline-block mx-2"><Image src={images.workspace.imageUrl} alt="workspace" fill className="object-cover grayscale" /></div> feedback & <div className="relative h-[72px] w-[140px] rounded-full overflow-hidden inline-block mx-2"><Image src={images.customer.imageUrl} alt="customer" fill className="object-cover" /></div> experience.
         </>
       ),
       sub: "We aim for clear, accurate, and easy payment experiences for all our customers.",
@@ -127,8 +140,23 @@ export default function LandingPage() {
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
+    if (!firestore) return;
+
+    const feedbackRef = collection(firestore, 'feedbacks');
+    addDoc(feedbackRef, {
+      ...formData,
+      category: activeCategory,
+      ratings,
+      timestamp: Date.now(),
+      status: 'pending'
+    });
+
     setIsSubmitted(true);
-    setTimeout(() => setIsSubmitted(false), 3000);
+    setTimeout(() => {
+      setIsSubmitted(false);
+      setRatings({});
+      setFormData({ ...formData, comment: '' });
+    }, 3000);
   };
 
   const renderRatingGroup = (id: string, label: string, description: string) => (
@@ -162,7 +190,7 @@ export default function LandingPage() {
       <main className="pt-32 pb-24">
         <section className="grid grid-cols-1 md:grid-cols-12 px-margin-mobile md:px-margin-desktop max-w-container-max mx-auto gap-gutter mb-24 min-h-[500px]">
           <div className="md:col-span-7 flex flex-col justify-center">
-            <h1 className="font-display text-display-xl mb-8 leading-[0.9] flex flex-wrap items-center gap-x-4">
+            <h1 className="font-display text-display-xl mb-8 leading-[0.9] flex flex-wrap items-center">
               {activeHero.title}
             </h1>
             <p className="text-on-surface-variant text-body-lg mb-10 max-w-lg">
@@ -222,13 +250,27 @@ export default function LandingPage() {
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
                   <div className="space-y-2">
                     <label className="font-mono text-[12px] uppercase text-on-surface-variant">Full Name</label>
-                    <input required className="w-full bg-transparent border-0 border-b border-border focus:ring-0 focus:border-secondary font-body py-2 px-0" placeholder="e.g. John Doe" type="text" />
+                    <input 
+                      required 
+                      className="w-full bg-transparent border-0 border-b border-border focus:ring-0 focus:border-secondary font-body py-2 px-0" 
+                      placeholder="e.g. John Doe" 
+                      type="text" 
+                      value={formData.customerName}
+                      onChange={(e) => setFormData({...formData, customerName: e.target.value})}
+                    />
                   </div>
                   <div className="space-y-2">
                     <label className="font-mono text-[12px] uppercase text-on-surface-variant">Contact Email</label>
                     <div className="relative">
                       <Mail className="absolute right-0 bottom-3 w-4 h-4 text-on-surface-variant" />
-                      <input required className="w-full bg-transparent border-0 border-b border-border focus:ring-0 focus:border-secondary font-body py-2 px-0" placeholder="your@email.com" type="email" />
+                      <input 
+                        required 
+                        className="w-full bg-transparent border-0 border-b border-border focus:ring-0 focus:border-secondary font-body py-2 px-0" 
+                        placeholder="your@email.com" 
+                        type="email" 
+                        value={formData.customerEmail}
+                        onChange={(e) => setFormData({...formData, customerEmail: e.target.value})}
+                      />
                     </div>
                   </div>
                 </div>
@@ -236,7 +278,11 @@ export default function LandingPage() {
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
                   <div className="space-y-2">
                     <label className="font-mono text-[12px] uppercase text-on-surface-variant">Current Plan</label>
-                    <select className="w-full bg-transparent border-0 border-b border-border focus:ring-0 focus:border-secondary font-body py-2 px-0 appearance-none">
+                    <select 
+                      className="w-full bg-transparent border-0 border-b border-border focus:ring-0 focus:border-secondary font-body py-2 px-0 appearance-none"
+                      value={formData.servicePlan}
+                      onChange={(e) => setFormData({...formData, servicePlan: e.target.value})}
+                    >
                       <option>Fiber Enterprise 1Gbps</option>
                       <option>Fiber Home 500Mbps</option>
                       <option>Standard Residential</option>
@@ -245,7 +291,11 @@ export default function LandingPage() {
                   </div>
                   <div className="space-y-2">
                     <label className="font-mono text-[12px] uppercase text-on-surface-variant">Your Location</label>
-                    <select className="w-full bg-transparent border-0 border-b border-border focus:ring-0 focus:border-secondary font-body py-2 px-0 appearance-none">
+                    <select 
+                      className="w-full bg-transparent border-0 border-b border-border focus:ring-0 focus:border-secondary font-body py-2 px-0 appearance-none"
+                      value={formData.location}
+                      onChange={(e) => setFormData({...formData, location: e.target.value})}
+                    >
                       <option>Lagos</option>
                       <option>Abuja</option>
                       <option>Abeokuta</option>
@@ -280,20 +330,23 @@ export default function LandingPage() {
                     <>
                       <div className="space-y-4">
                         <label className="font-mono text-[12px] uppercase text-on-surface-variant">Assigned Agent</label>
-                        <select className="w-full bg-background p-4 rounded-xl border border-border focus:ring-2 focus:ring-secondary/20 outline-none">
+                        <select 
+                          className="w-full bg-background p-4 rounded-xl border border-border focus:ring-2 focus:ring-secondary/20 outline-none"
+                          onChange={(e) => setFormData({...formData, staffName: e.target.value})}
+                        >
                           <option disabled selected>Select Agent</option>
                           {supportStaff.map(staff => (
                             <option key={staff}>{staff}</option>
                           ))}
                         </select>
                       </div>
-                      {renderRatingGroup("professionalism", "Agent Professionalism", "How professional was the support agent?")}
-                      {renderRatingGroup("clarity", "Communication Clarity", "Were the explanations clear and easy to understand?")}
-                      {renderRatingGroup("effectiveness", "Problem Resolution", "Was your issue fixed to your satisfaction?")}
+                      {renderRatingGroup("professionalism", "Agent Professionalism", "How helpful was the support agent?")}
+                      {renderRatingGroup("clarity", "Communication Clarity", "Were the explanations easy to understand?")}
+                      {renderRatingGroup("effectiveness", "Problem Resolution", "Was your issue fixed properly?")}
                       <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 border-y border-border/30 py-8">
                         <div>
                           <h3 className="font-display text-xl">Were you kept updated?</h3>
-                          <p className="text-on-surface-variant text-sm">Did you receive progress notifications about your ticket?</p>
+                          <p className="text-on-surface-variant text-sm">Did you receive updates about your request?</p>
                         </div>
                         <div className="flex gap-4">
                            {['YES', 'NO'].map(choice => (
@@ -319,7 +372,7 @@ export default function LandingPage() {
                   {activeCategory === 'Testimonials' && (
                     <>
                       <div className="space-y-6">
-                        <h3 className="font-display text-2xl">Star Rating</h3>
+                        <h3 className="font-display text-2xl">Overall Rating</h3>
                         <div className="flex gap-4">
                           {[1, 2, 3, 4, 5].map(star => (
                             <Star 
@@ -334,16 +387,22 @@ export default function LandingPage() {
                         </div>
                       </div>
                       <div className="space-y-4">
-                        <label className="font-display text-2xl block">Share your experience</label>
+                        <label className="font-display text-2xl block">Share your story</label>
                         <textarea 
                           className="w-full bg-background p-6 rounded-[1.5rem] border border-border focus:ring-2 focus:ring-secondary/20 outline-none resize-none min-h-[160px]" 
-                          placeholder="Tell us how our service has helped your work or home life..." 
+                          placeholder="How has our service helped your work or home life?" 
+                          value={formData.comment}
+                          onChange={(e) => setFormData({...formData, comment: e.target.value})}
                         />
                       </div>
                       <div className="space-y-6">
-                        <h3 className="font-display text-2xl">Can we interview you?</h3>
-                        <p className="text-sm text-on-surface-variant mb-4">We'd love to feature your success story in our marketing.</p>
-                        <RadioGroup defaultValue="Maybe" className="flex gap-4">
+                        <h3 className="font-display text-2xl">Can we share your story?</h3>
+                        <p className="text-sm text-on-surface-variant mb-4">We'd love to feature your experience in our updates.</p>
+                        <RadioGroup 
+                          defaultValue="Maybe" 
+                          className="flex gap-4"
+                          onValueChange={(val) => setFormData({...formData, interviewConsent: val})}
+                        >
                           {['Yes', 'No', 'Maybe'].map(opt => (
                             <div key={opt} className="flex items-center space-x-2 border p-4 rounded-xl flex-1 justify-center hover:bg-surface-container cursor-pointer transition-colors">
                               <RadioGroupItem value={opt} id={opt} />
@@ -359,12 +418,15 @@ export default function LandingPage() {
                     <>
                       <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
                         <div className="space-y-2">
-                          <label className="font-mono text-[12px] uppercase text-on-surface-variant">Sales Rep Name</label>
-                          <input className="w-full bg-transparent border-0 border-b border-border focus:ring-0 focus:border-secondary font-body py-2 px-0" placeholder="Full name" type="text" />
+                          <label className="font-mono text-[12px] uppercase text-on-surface-variant">Sales Agent Name</label>
+                          <input className="w-full bg-transparent border-0 border-b border-border focus:ring-0 focus:border-secondary font-body py-2 px-0" placeholder="Agent Name" type="text" />
                         </div>
                         <div className="space-y-2">
                           <label className="font-mono text-[12px] uppercase text-on-surface-variant">Technician Name</label>
-                          <select className="w-full bg-transparent border-0 border-b border-border focus:ring-0 focus:border-secondary font-body py-2 px-0 appearance-none">
+                          <select 
+                            className="w-full bg-transparent border-0 border-b border-border focus:ring-0 focus:border-secondary font-body py-2 px-0 appearance-none"
+                            onChange={(e) => setFormData({...formData, staffName: e.target.value})}
+                          >
                             <option disabled selected>Select Technician</option>
                             {technicians.map(tech => (
                               <option key={tech}>{tech}</option>
@@ -372,36 +434,41 @@ export default function LandingPage() {
                           </select>
                         </div>
                       </div>
-                      {renderRatingGroup("punctuality", "On-Time Arrival", "Did our team arrive at the scheduled time?")}
-                      {renderRatingGroup("quality", "Setup Quality", "How would you rate the neatness and quality of the installation?")}
+                      {renderRatingGroup("punctuality", "On-Time Arrival", "Did our team arrive when scheduled?")}
+                      {renderRatingGroup("quality", "Setup Quality", "How would you rate the neatness of the setup?")}
                     </>
                   )}
 
                   {activeCategory === 'Billing' && (
                     <>
                       {renderRatingGroup("accuracy", "Invoice Accuracy", "How accurate was your last bill?")}
-                      {renderRatingGroup("dispute", "Dispute Handling", "How helpful was our team in fixing any billing issues?")}
-                      {renderRatingGroup("reconnection", "Reconnection Speed", "How fast was your service restored after payment?")}
+                      {renderRatingGroup("dispute", "Dispute Resolution", "How helpful was our team with billing questions?")}
+                      {renderRatingGroup("reconnection", "Reconnection Speed", "How fast was service restored after payment?")}
                       <div className="p-8 bg-primary rounded-2xl text-white flex items-center justify-between">
                         <div>
                           <h4 className="font-display text-xl mb-1">Self-Service Portal</h4>
-                          <p className="opacity-70 text-sm">Did you use our online portal for payments this month?</p>
+                          <p className="opacity-70 text-sm">Did you use our online portal for payments?</p>
                         </div>
                         <Switch className="data-[state=checked]:bg-secondary" />
                       </div>
                     </>
                   )}
 
-                  <div className="space-y-4">
-                    <label className="font-mono text-[12px] uppercase text-on-surface-variant">Anything else?</label>
-                    <textarea 
-                      className="w-full bg-background p-6 rounded-[1.5rem] border border-border focus:ring-2 focus:ring-secondary/20 outline-none resize-none min-h-[160px]" 
-                      placeholder="Your feedback helps us get better every day..." 
-                    />
-                  </div>
+                  {activeCategory !== 'Testimonials' && (
+                    <div className="space-y-4">
+                      <label className="font-mono text-[12px] uppercase text-on-surface-variant">Anything else?</label>
+                      <textarea 
+                        className="w-full bg-background p-6 rounded-[1.5rem] border border-border focus:ring-2 focus:ring-secondary/20 outline-none resize-none min-h-[160px]" 
+                        placeholder="Tell us how we can improve..." 
+                        value={formData.comment}
+                        onChange={(e) => setFormData({...formData, comment: e.target.value})}
+                      />
+                    </div>
+                  )}
 
                   <div className="pt-6">
                     <Button 
+                      type="submit"
                       disabled={isSubmitted}
                       className={cn(
                         "w-full md:w-auto px-12 py-7 rounded-full font-bold hover:scale-[1.02] transition-all flex items-center gap-4 text-white uppercase tracking-widest",
@@ -410,11 +477,11 @@ export default function LandingPage() {
                     >
                       {isSubmitted ? (
                         <>
-                          Feedback Received <CircleCheck className="w-5 h-5" />
+                          Thank You <CircleCheck className="w-5 h-5" />
                         </>
                       ) : (
                         <>
-                          Send My Feedback <ArrowRight className="w-5 h-5" />
+                          Submit Feedback <ArrowRight className="w-5 h-5" />
                         </>
                       )}
                     </Button>

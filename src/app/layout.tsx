@@ -1,10 +1,13 @@
 
 import type { Metadata } from 'next';
 import './globals.css';
+import { FirebaseClientProvider } from '@/firebase';
+import { FirebaseErrorListener } from '@/components/FirebaseErrorListener';
+import { Toaster } from '@/components/ui/toaster';
 
 export const metadata: Metadata = {
   title: 'I-World Networks | Experience Seamless Connectivity',
-  description: 'Precision telemetry for the digital future of West African connectivity.',
+  description: 'Helping you stay connected to what matters most.',
 };
 
 export default function RootLayout({
@@ -21,7 +24,11 @@ export default function RootLayout({
         <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@500&display=swap" rel="stylesheet" />
       </head>
       <body className="font-body antialiased selection:bg-secondary/20 min-h-screen">
-        {children}
+        <FirebaseClientProvider>
+          <FirebaseErrorListener />
+          {children}
+          <Toaster />
+        </FirebaseClientProvider>
       </body>
     </html>
   );

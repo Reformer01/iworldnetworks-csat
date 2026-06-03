@@ -1,0 +1,58 @@
+
+{
+  "entities": {
+    "Feedback": {
+      "title": "Feedback",
+      "description": "Customer satisfaction feedback entry",
+      "type": "object",
+      "properties": {
+        "customerEmail": { "type": "string", "format": "email", "description": "The primary identifier and contact for the customer" },
+        "customerName": { "type": "string" },
+        "category": { "type": "string", "enum": ["Reliability", "Support", "Testimonials", "Installation", "Billing"] },
+        "servicePlan": { "type": "string" },
+        "region": { "type": "string" },
+        "ratings": { "type": "object", "description": "Category-specific numerical ratings" },
+        "comment": { "type": "string" },
+        "timestamp": { "type": "number" },
+        "status": { "type": "string", "enum": ["pending", "reviewed", "escalated"], "default": "pending" }
+      },
+      "required": ["customerEmail", "category", "ratings", "timestamp"]
+    },
+    "Staff": {
+      "title": "Staff",
+      "description": "Internal support staff profile",
+      "type": "object",
+      "properties": {
+        "name": { "type": "string" },
+        "department": { "type": "string" }
+      }
+    },
+    "Technician": {
+      "title": "Technician",
+      "description": "Field technician profile",
+      "type": "object",
+      "properties": {
+        "name": { "type": "string" },
+        "region": { "type": "string" },
+        "location": { "type": "string" }
+      }
+    }
+  },
+  "auth": {
+    "providers": ["google.com", "password"]
+  },
+  "firestore": {
+    "/feedbacks/{feedbackId}": {
+      "schema": "Feedback",
+      "description": "Collection of all customer feedback submissions"
+    },
+    "/staff/{staffId}": {
+      "schema": "Staff",
+      "description": "Reference list of support staff"
+    },
+    "/technicians/{techId}": {
+      "schema": "Technician",
+      "description": "Reference list of field technicians"
+    }
+  }
+}
