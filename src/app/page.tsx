@@ -41,7 +41,7 @@ export default function LandingPage() {
 
   const firestore = useFirestore();
 
-  // Fetch real staff and technicians from Firestore
+  // Fetch real personnel from database
   const staffQuery = useMemo(() => firestore ? query(collection(firestore, 'staff'), orderBy('name')) : null, [firestore]);
   const techQuery = useMemo(() => firestore ? query(collection(firestore, 'technicians'), orderBy('name')) : null, [firestore]);
   
