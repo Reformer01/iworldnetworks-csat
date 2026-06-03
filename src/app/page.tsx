@@ -1,4 +1,3 @@
-
 'use client';
 
 import React, { useState, useMemo } from 'react';
@@ -21,7 +20,7 @@ import { Button } from '@/components/ui/button';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Label } from '@/components/ui/label';
 import { useFirestore, useCollection } from '@/firebase';
-import { collection, addDoc, query, orderBy } from 'firebase/firestore';
+import { collection, addDoc, query, orderBy, where } from 'firebase/firestore';
 
 type Category = 'Reliability' | 'Support' | 'Testimonials' | 'Installation' | 'Billing';
 
@@ -33,7 +32,7 @@ export default function LandingPage() {
     customerName: '',
     customerEmail: '',
     servicePlan: 'Fiber Home',
-    location: 'Lagos',
+    location: 'Abeokuta',
     comment: '',
     staffName: '',
     interviewConsent: 'Maybe'
@@ -41,9 +40,11 @@ export default function LandingPage() {
 
   const firestore = useFirestore();
 
-  // Live Personnel Fetching
+  // Filtered lists for specific regions
+  const validRegions = ['Abeokuta', 'Ibadan', 'Osogbo', 'Akure'];
+
   const staffQuery = useMemo(() => firestore ? query(collection(firestore, 'staff'), orderBy('name')) : null, [firestore]);
-  const techQuery = useMemo(() => firestore ? query(collection(firestore, 'technicians'), orderBy('name')) : null, [firestore]);
+  const techQuery = useMemo(() => firestore ? query(collection(firestore, 'technicians'), where('region', 'in', validRegions)) : null, [firestore]);
   
   const { data: supportStaff } = useCollection(staffQuery);
   const { data: technicians } = useCollection(techQuery);
@@ -69,7 +70,7 @@ export default function LandingPage() {
       title: (
         <>Stay <div className="relative h-[72px] w-[140px] rounded-full overflow-hidden inline-block mx-2 border-2 border-white"><Image src={images.fiber.imageUrl} alt="fiber" fill className="object-cover" /></div> Connected <div className="relative h-[72px] w-[140px] rounded-full overflow-hidden inline-block mx-2 border-2 border-white"><Image src={images.customer.imageUrl} alt="customer" fill className="object-cover" /></div> Always.</>
       ),
-      sub: "Tell us about your internet quality. We want to ensure you have consistent high-speed fiber every single day.",
+      sub: "Help us monitor your internet quality. We want to ensure you have consistent high-speed fiber every single day.",
       img: images.server
     },
     Support: {
@@ -95,9 +96,9 @@ export default function LandingPage() {
     },
     Billing: {
       title: (
-        <>Simple <div className="relative h-[72px] w-[140px] rounded-full overflow-hidden inline-block mx-2 border-2 border-white"><Image src={images.workspace.imageUrl} alt="workspace" fill className="object-cover" /></div> Payments <div className="relative h-[72px] w-[140px] rounded-full overflow-hidden inline-block mx-2 border-2 border-white"><Image src={images.customer.imageUrl} alt="customer" fill className="object-cover" /></div> Matters.</>
+        <>Simple <div className="relative h-[72px] w-[140px] rounded-full overflow-hidden inline-block mx-2 border-2 border-white"><Image src={images.workspace.imageUrl} alt="workspace" fill className="object-cover" /></div> Payments <div className="relative h-[72px] w-[140px] rounded-full overflow-hidden inline-block mx-2 border-2 border-white"><Image src={images.customer.imageUrl} alt="customer" fill className="object-cover" /></div> Matter.</>
       ),
-      sub: "How is our billing process? We want to make sure payments are easy and clear for all our customers.",
+      sub: "How is our payment process? We want to make sure the billing cycle is easy and clear for everyone.",
       img: images.server
     }
   };
@@ -244,14 +245,9 @@ export default function LandingPage() {
                   <div className="space-y-2">
                     <label className="font-mono text-[12px] uppercase text-on-surface-variant">Your Region</label>
                     <select className="w-full bg-transparent border-0 border-b border-border focus:ring-0 focus:border-secondary font-body py-2 px-0 appearance-none outline-none" value={formData.location} onChange={(e) => setFormData({...formData, location: e.target.value})}>
-                      <option>Lagos</option>
-                      <option>Abuja</option>
-                      <option>Ibadan</option>
-                      <option>Akure</option>
-                      <option>Osogbo</option>
-                      <option>Sagamu</option>
-                      <option>Ota</option>
-                      <option>Ijebu Ode</option>
+                      {validRegions.map(region => (
+                        <option key={region} value={region}>{region}</option>
+                      ))}
                     </select>
                   </div>
                 </div>
@@ -367,11 +363,11 @@ export default function LandingPage() {
         <div className="max-w-container-max mx-auto px-margin-mobile md:px-margin-desktop flex flex-col md:flex-row justify-between items-start gap-8">
           <div className="space-y-4">
             <div className="font-mono text-label-mono font-bold text-primary uppercase">I-World Networks</div>
-            <p className="text-on-surface-variant text-sm max-w-xs opacity-70">Reliable connections for your home and business across Nigeria.</p>
-            <div className="font-mono text-[10px] text-on-surface-variant uppercase tracking-tighter">© 2024 I-World Networks.</div>
+            <p className="text-on-surface-variant text-sm max-w-xs opacity-70">Reliable connections for your home and business in Nigeria.</p>
+            <div className="font-mono text-[10px] text-on-surface-variant uppercase tracking-tighter">© 2026 I-World Networks. All rights reserved.</div>
           </div>
           <div className="grid grid-cols-2 md:grid-cols-4 gap-x-12 gap-y-4">
-            {['Lagos', 'Abuja', 'Ibadan', 'Akure', 'Osogbo', 'Sagamu', 'Ota', 'Ijebu Ode'].map(link => (
+            {validRegions.map(link => (
               <a key={link} className="text-on-surface-variant hover:text-secondary transition-colors font-mono text-label-mono" href="#">{link}</a>
             ))}
           </div>

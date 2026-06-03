@@ -1,4 +1,3 @@
-
 'use client';
 
 import React from 'react';
@@ -12,7 +11,8 @@ import {
   Star, 
   Bell, 
   Settings,
-  FileText
+  FileText,
+  ArrowLeft
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
@@ -39,15 +39,17 @@ export function AdminLayout({ children }: AdminLayoutProps) {
     <div className="bg-background min-h-screen">
       {/* Top Bar */}
       <header className="fixed top-0 w-full z-50 glass-nav px-margin-desktop h-20 flex justify-between items-center max-w-container-max mx-auto left-0 right-0 border-b border-border">
-        <div className="flex items-center gap-4">
+        <div className="flex items-center gap-6">
           <Link href="/" className="font-display text-display-lg font-black tracking-tighter text-primary text-[32px]">
             I-World Networks
           </Link>
+          <div className="h-8 w-px bg-border hidden md:block"></div>
+          <Link href="/" className="flex items-center gap-2 text-on-surface-variant font-mono text-xs hover:text-secondary transition-all group">
+            <ArrowLeft className="w-4 h-4 group-hover:-translate-x-1 transition-transform" />
+            Back to Public Portal
+          </Link>
         </div>
         <div className="hidden md:flex gap-8 items-center">
-          <Link href="/" className="text-on-surface-variant font-mono text-label-mono hover:text-secondary transition-all">
-            Public Portal
-          </Link>
           <Link href="/admin/dashboard" className={cn(
             "font-mono text-label-mono transition-all",
             pathname.startsWith('/admin') ? "text-secondary border-b-2 border-secondary pb-1" : "text-on-surface-variant hover:text-secondary"
@@ -105,15 +107,22 @@ export function AdminLayout({ children }: AdminLayoutProps) {
         <div className="max-w-container-max mx-auto px-margin-desktop flex flex-col md:flex-row justify-between items-start gap-8">
           <div className="space-y-4">
             <span className="font-mono text-label-mono font-bold text-primary">I-World Networks</span>
-            <p className="font-mono text-xs text-on-surface-variant">© 2024 I-World Networks.</p>
+            <p className="font-mono text-xs text-on-surface-variant">© 2026 I-World Networks. All rights reserved.</p>
           </div>
           <div className="grid grid-cols-2 md:grid-cols-3 gap-12">
             <div className="space-y-4">
-              <h5 className="font-mono text-xs font-bold uppercase text-primary">Locations</h5>
+              <h5 className="font-mono text-xs font-bold uppercase text-primary">Regional Hubs</h5>
               <nav className="flex flex-col gap-2">
-                {['Lagos', 'Abuja', 'Abeokuta'].map(city => (
+                {['Abeokuta', 'Ibadan', 'Osogbo', 'Akure'].map(city => (
                   <a key={city} className="font-mono text-xs text-on-surface-variant hover:text-secondary" href="#">{city}</a>
                 ))}
+              </nav>
+            </div>
+            <div className="space-y-4">
+              <h5 className="font-mono text-xs font-bold uppercase text-primary">Legal</h5>
+              <nav className="flex flex-col gap-2">
+                <a className="font-mono text-xs text-on-surface-variant hover:text-secondary" href="#">Privacy Policy</a>
+                <a className="font-mono text-xs text-on-surface-variant hover:text-secondary" href="#">Terms of Service</a>
               </nav>
             </div>
           </div>

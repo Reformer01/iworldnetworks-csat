@@ -1,4 +1,3 @@
-
 'use client';
 
 import React, { useState, useEffect } from 'react';
@@ -67,7 +66,7 @@ export default function AdminLoginPage() {
       </div>
 
       <main className="relative z-10 flex items-center justify-center min-h-screen p-margin-mobile">
-        <div className="w-full max-w-lg bg-surface-container-lowest rounded-[48px] p-8 md:p-12 whisper-shadow border border-border/30 flex flex-col gap-10">
+        <div className="w-full max-w-lg bg-white rounded-[48px] p-8 md:p-12 whisper-shadow border border-border/30 flex flex-col gap-10">
           <header className="space-y-4">
             <div className="flex items-center gap-3">
               <div className="w-10 h-10 bg-primary flex items-center justify-center rounded-xl">
@@ -79,7 +78,7 @@ export default function AdminLoginPage() {
               Admin Hub Access
             </h1>
             <p className="font-body-lg text-body-lg text-on-surface-variant max-w-[90%]">
-              Enter your supervisor PIN to access network telemetry and regional analytics.
+              Enter your supervisor PIN to access network monitoring and regional analytics.
             </p>
           </header>
 
@@ -115,7 +114,7 @@ export default function AdminLoginPage() {
               </button>
               <button
                 onClick={handleClear}
-                className="h-16 rounded-2xl flex items-center justify-center hover:bg-error-container/20 transition-colors group"
+                className="h-16 rounded-2xl flex items-center justify-center hover:bg-destructive/10 transition-colors group"
               >
                 <Delete className="w-6 h-6 text-on-surface-variant group-hover:text-destructive transition-colors" />
               </button>
@@ -152,6 +151,9 @@ export default function AdminLoginPage() {
 
       <div className="fixed bottom-margin-desktop right-margin-desktop opacity-5 pointer-events-none hidden md:block">
         <div className="text-[200px] font-black text-primary select-none leading-none tracking-tighter">I-W</div>
+      </div>
+      <div className="fixed bottom-8 left-1/2 -translate-x-1/2 text-on-surface-variant font-mono text-[10px] uppercase opacity-40">
+        © 2026 I-World Networks
       </div>
     </div>
   );
