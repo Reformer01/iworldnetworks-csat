@@ -1,4 +1,5 @@
-import type {Config} from 'tailwindcss';
+
+import type { Config } from 'tailwindcss';
 
 export default {
   darkMode: ['class'],
@@ -10,9 +11,11 @@ export default {
   theme: {
     extend: {
       fontFamily: {
-        body: ['Inter', 'sans-serif'],
-        headline: ['Inter', 'sans-serif'],
-        code: ['monospace'],
+        body: ['Outfit', 'sans-serif'],
+        headline: ['Outfit', 'sans-serif'],
+        code: ['JetBrains Mono', 'monospace'],
+        display: ['Outfit', 'sans-serif'],
+        mono: ['JetBrains Mono', 'monospace'],
       },
       colors: {
         background: 'hsl(var(--background))',
@@ -26,72 +29,86 @@ export default {
           foreground: 'hsl(var(--popover-foreground))',
         },
         primary: {
-          DEFAULT: 'hsl(var(--primary))',
-          foreground: 'hsl(var(--primary-foreground))',
+          DEFAULT: '#000000',
+          foreground: '#ffffff',
         },
         secondary: {
-          DEFAULT: 'hsl(var(--secondary))',
-          foreground: 'hsl(var(--secondary-foreground))',
+          DEFAULT: '#0058be',
+          foreground: '#ffffff',
         },
         muted: {
-          DEFAULT: 'hsl(var(--muted))',
-          foreground: 'hsl(var(--muted-foreground))',
+          DEFAULT: '#f3f4f5',
+          foreground: '#47464b',
         },
         accent: {
-          DEFAULT: 'hsl(var(--accent))',
-          foreground: 'hsl(var(--accent-foreground))',
+          DEFAULT: '#e3e1ec',
+          foreground: '#1a1b22',
         },
         destructive: {
-          DEFAULT: 'hsl(var(--destructive))',
-          foreground: 'hsl(var(--destructive-foreground))',
+          DEFAULT: '#ba1a1a',
+          foreground: '#ffffff',
         },
-        border: 'hsl(var(--border))',
-        input: 'hsl(var(--input))',
-        ring: 'hsl(var(--ring))',
+        border: '#e1e3e4',
+        input: '#edeeef',
+        ring: '#0058be',
+        'surface-dim': '#d9dadb',
+        'surface-container': '#edeeef',
+        'surface-container-low': '#f3f4f5',
+        'surface-container-high': '#e7e8e9',
+        'surface-container-highest': '#e1e3e4',
+        'surface-container-lowest': '#ffffff',
+        'on-surface-variant': '#47464b',
+        'outline-variant': '#c8c5cb',
         chart: {
-          '1': 'hsl(var(--chart-1))',
-          '2': 'hsl(var(--chart-2))',
-          '3': 'hsl(var(--chart-3))',
-          '4': 'hsl(var(--chart-4))',
-          '5': 'hsl(var(--chart-5))',
-        },
-        sidebar: {
-          DEFAULT: 'hsl(var(--sidebar-background))',
-          foreground: 'hsl(var(--sidebar-foreground))',
-          primary: 'hsl(var(--sidebar-primary))',
-          'primary-foreground': 'hsl(var(--sidebar-primary-foreground))',
-          accent: 'hsl(var(--sidebar-accent))',
-          'accent-foreground': 'hsl(var(--sidebar-accent-foreground))',
-          border: 'hsl(var(--sidebar-border))',
-          ring: 'hsl(var(--sidebar-ring))',
+          '1': '#0058be',
+          '2': '#000000',
+          '3': '#77767b',
+          '4': '#adc6ff',
+          '5': '#ba1a1a',
         },
       },
       borderRadius: {
-        lg: 'var(--radius)',
-        md: 'calc(var(--radius) - 2px)',
-        sm: 'calc(var(--radius) - 4px)',
+        lg: '0.5rem',
+        xl: '0.75rem',
+        '2xl': '1rem',
+        '3xl': '1.5rem',
+        '4xl': '2rem',
+        '5xl': '2.5rem',
+        full: '9999px',
+      },
+      spacing: {
+        unit: '8px',
+        gutter: '32px',
+        'margin-desktop': '64px',
+        'margin-mobile': '24px',
+        'container-max': '1440px',
+      },
+      fontSize: {
+        'display-xl': ['80px', { lineHeight: '1.0', letterSpacing: '-0.025em', fontWeight: '900' }],
+        'display-lg': ['64px', { lineHeight: '1.1', letterSpacing: '-0.025em', fontWeight: '800' }],
+        'headline-lg': ['48px', { lineHeight: '1.2', letterSpacing: '-0.015em', fontWeight: '700' }],
+        'body-lg': ['18px', { lineHeight: '1.65', letterSpacing: '0', fontWeight: '400' }],
+        'body-md': ['16px', { lineHeight: '1.65', letterSpacing: '0', fontWeight: '400' }],
+        'label-mono': ['14px', { lineHeight: '1.5', letterSpacing: '0.05em', fontWeight: '500' }],
       },
       keyframes: {
         'accordion-down': {
-          from: {
-            height: '0',
-          },
-          to: {
-            height: 'var(--radix-accordion-content-height)',
-          },
+          from: { height: '0' },
+          to: { height: 'var(--radix-accordion-content-height)' },
         },
         'accordion-up': {
-          from: {
-            height: 'var(--radix-accordion-content-height)',
-          },
-          to: {
-            height: '0',
-          },
+          from: { height: 'var(--radix-accordion-content-height)' },
+          to: { height: '0' },
+        },
+        shimmer: {
+          '0%, 100%': { opacity: '0.5' },
+          '50%': { opacity: '0.8' },
         },
       },
       animation: {
         'accordion-down': 'accordion-down 0.2s ease-out',
         'accordion-up': 'accordion-up 0.2s ease-out',
+        'pulse-shimmer': 'shimmer 4s ease-in-out infinite',
       },
     },
   },

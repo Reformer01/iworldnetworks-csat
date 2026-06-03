@@ -1,3 +1,58 @@
 {
-  "placeholderImages": []
+  "placeholderImages": [
+    {
+      "id": "hero-fiber",
+      "description": "High-speed fiber optic cables glowing with soft blue and white light.",
+      "imageUrl": "https://picsum.photos/seed/fiber1/600/400",
+      "imageHint": "fiber optic"
+    },
+    {
+      "id": "hero-customer",
+      "description": "Professional customer smiling warmly while using a modern tablet device.",
+      "imageUrl": "https://picsum.photos/seed/customer1/600/400",
+      "imageHint": "professional office"
+    },
+    {
+      "id": "server-room",
+      "description": "Abstract high-tech architectural view of a network server room.",
+      "imageUrl": "https://picsum.photos/seed/server1/600/800",
+      "imageHint": "server room"
+    },
+    {
+      "id": "admin-avatar",
+      "description": "Professional headshot of a corporate executive.",
+      "imageUrl": "https://picsum.photos/seed/admin1/100/100",
+      "imageHint": "executive headshot"
+    },
+    {
+      "id": "tech-dave",
+      "description": "Technician Dave Miller professional portrait.",
+      "imageUrl": "https://picsum.photos/seed/tech1/100/100",
+      "imageHint": "technician portrait"
+    },
+    {
+      "id": "tech-samuel",
+      "description": "Technician Samuel Oke professional portrait.",
+      "imageUrl": "https://picsum.photos/seed/tech2/100/100",
+      "imageHint": "professional portrait"
+    },
+    {
+      "id": "network-map",
+      "description": "Minimalist map visualization of Nigeria networking nodes.",
+      "imageUrl": "https://picsum.photos/seed/map1/800/600",
+      "imageHint": "digital map"
+    },
+    {
+      "id": "workspace",
+      "description": "High-contrast black and white tech workspace.",
+      "imageUrl": "https://picsum.photos/seed/space1/800/600",
+      "imageHint": "tech workspace"
+    },
+    {
+      "id": "infra-status",
+      "description": "Tier-3 Lagos Data Center infrastructure.",
+      "imageUrl": "https://picsum.photos/seed/infra1/600/400",
+      "imageHint": "data center"
+    }
+  ]
 }
