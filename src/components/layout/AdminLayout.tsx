@@ -1,8 +1,8 @@
 'use client';
 
-import React from 'react';
+import React, { useEffect } from 'react';
 import Link from 'next/link';
-import { usePathname } from 'next/navigation';
+import { usePathname, useRouter } from 'next/navigation';
 import { 
   LayoutDashboard, 
   Headset, 
@@ -13,12 +13,15 @@ import {
   Settings,
   FileText,
   ArrowLeft,
-  Menu
+  Menu,
+  LogOut
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 import Image from 'next/image';
 import { PlaceHolderImages } from '@/lib/placeholder-images';
+import { useAuth, useUser } from '@/firebase';
+import { signOut } from 'firebase/auth';
 import {
   Sheet,
   SheetContent,
@@ -33,7 +36,23 @@ interface AdminLayoutProps {
 
 export function AdminLayout({ children }: AdminLayoutProps) {
   const pathname = usePathname();
+  const router = useRouter();
+  const auth = useAuth();
+  const { user, loading } = useUser(auth);
   const avatar = PlaceHolderImages.find(img => img.id === 'admin-avatar')!;
+
+  useEffect(() => {
+    if (!loading && !user) {
+      router.push('/admin/login');
+    }
+  }, [user, loading, router]);
+
+  const handleLogout = async () => {
+    if (auth) {
+      await signOut(auth);
+      router.push('/admin/login');
+    }
+  };
 
   const navItems = [
     { name: 'Dashboard', href: '/admin/dashboard', icon: LayoutDashboard },
@@ -43,8 +62,21 @@ export function AdminLayout({ children }: AdminLayoutProps) {
     { name: 'Testimonials', href: '/admin/testimonials', icon: Star },
   ];
 
+  if (loading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-background">
+        <div className="flex flex-col items-center gap-4">
+          <div className="w-12 h-12 border-4 border-secondary/20 border-t-secondary rounded-full animate-spin" />
+          <p className="font-mono text-label-mono text-on-surface-variant uppercase animate-pulse">Verifying Credentials</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (!user) return null;
+
   return (
-    <div className="bg-background min-h-screen">
+    <div className="bg-background min-h-screen flex flex-col">
       {/* Top Bar */}
       <header className="fixed top-0 w-full z-50 glass-nav px-margin-mobile md:px-margin-desktop h-16 md:h-20 flex justify-between items-center max-w-container-max mx-auto left-0 right-0 border-b border-border">
         <div className="flex items-center gap-3 md:gap-6">
@@ -67,8 +99,13 @@ export function AdminLayout({ children }: AdminLayoutProps) {
               Admin Hub
             </Link>
           </div>
-          <Bell className="w-4 h-4 md:w-5 md:h-5 text-on-surface-variant cursor-pointer hover:text-primary transition-colors hidden xs:block" />
-          <Settings className="w-4 h-4 md:w-5 md:h-5 text-on-surface-variant cursor-pointer hover:text-primary transition-colors hidden xs:block" />
+          <div className="hidden xs:flex items-center gap-4">
+            <Bell className="w-4 h-4 md:w-5 md:h-5 text-on-surface-variant cursor-pointer hover:text-primary transition-colors" />
+            <Settings className="w-4 h-4 md:w-5 md:h-5 text-on-surface-variant cursor-pointer hover:text-primary transition-colors" />
+            <button onClick={handleLogout} className="group flex items-center gap-2 text-on-surface-variant hover:text-destructive transition-colors">
+              <LogOut className="w-4 h-4 md:w-5 md:h-5 group-hover:rotate-12 transition-transform" />
+            </button>
+          </div>
           <div className="w-7 h-7 md:w-10 md:h-10 rounded-full overflow-hidden border border-border">
             <Image src={avatar.imageUrl} alt="Admin" width={40} height={40} className="object-cover" />
           </div>
@@ -103,6 +140,13 @@ export function AdminLayout({ children }: AdminLayoutProps) {
                         <span className="font-mono text-xs uppercase tracking-wider">{item.name}</span>
                       </Link>
                     ))}
+                    <button 
+                      onClick={handleLogout}
+                      className="w-full flex items-center gap-4 py-3 px-6 text-destructive hover:bg-destructive/5 transition-all"
+                    >
+                      <LogOut className="w-5 h-5" />
+                      <span className="font-mono text-xs uppercase tracking-wider">Sign Out</span>
+                    </button>
                   </nav>
                   <div className="px-6 pb-10 mt-auto">
                     <Link href="/" className="flex items-center gap-2 text-on-surface-variant font-mono text-[10px] hover:text-secondary transition-all group mb-6 pl-1">
@@ -144,7 +188,7 @@ export function AdminLayout({ children }: AdminLayoutProps) {
             </Link>
           ))}
         </nav>
-        <div className="px-8 mt-auto">
+        <div className="px-8 mt-auto flex flex-col gap-4">
           <Button className="w-full bg-secondary text-white py-6 rounded-lg font-mono text-label-mono hover:bg-secondary-container transition-colors flex items-center justify-center gap-2">
             <FileText className="w-4 h-4" />
             Generate Report
@@ -153,7 +197,7 @@ export function AdminLayout({ children }: AdminLayoutProps) {
       </aside>
 
       {/* Content */}
-      <main className="md:ml-64 pt-20 md:pt-24 px-margin-mobile md:px-margin-desktop min-h-screen">
+      <main className="md:ml-64 pt-20 md:pt-24 px-margin-mobile md:px-margin-desktop flex-1">
         {children}
       </main>
 
