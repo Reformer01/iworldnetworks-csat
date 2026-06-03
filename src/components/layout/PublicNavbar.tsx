@@ -1,16 +1,24 @@
-
 'use client';
 
 import Link from 'next/link';
-import { Bell, Settings } from 'lucide-react';
+import { Bell, Settings, Menu } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import {
+  Sheet,
+  SheetContent,
+  SheetHeader,
+  SheetTitle,
+  SheetTrigger,
+} from "@/components/ui/sheet";
 
 export function PublicNavbar() {
   return (
-    <nav className="fixed top-0 w-full z-50 glass-nav h-20 px-margin-mobile md:px-margin-desktop flex justify-between items-center max-w-container-max mx-auto left-0 right-0">
-      <Link href="/" className="font-display text-[32px] font-black tracking-tighter text-primary">
+    <nav className="fixed top-0 w-full z-50 glass-nav h-20 px-margin-mobile md:px-margin-desktop flex justify-between items-center max-w-container-max mx-auto left-0 right-0 border-b border-border/50">
+      <Link href="/" className="font-display text-[28px] md:text-[32px] font-black tracking-tighter text-primary">
         I-World Networks
       </Link>
+      
+      {/* Desktop Menu */}
       <div className="hidden md:flex gap-8 items-center">
         <Link href="/" className="text-secondary border-b-2 border-secondary pb-1 font-mono text-label-mono">
           Public Portal
@@ -25,6 +33,46 @@ export function PublicNavbar() {
             Sign In
           </Button>
         </div>
+      </div>
+
+      {/* Mobile Menu */}
+      <div className="md:hidden">
+        <Sheet>
+          <SheetTrigger asChild>
+            <Button variant="ghost" size="icon" className="hover:bg-transparent">
+              <Menu className="w-7 h-7 text-primary" />
+            </Button>
+          </SheetTrigger>
+          <SheetContent side="right" className="w-[300px] border-l border-border">
+            <SheetHeader className="mb-10">
+              <SheetTitle className="text-left font-display text-[24px] font-black tracking-tighter text-primary">
+                I-World Networks
+              </SheetTitle>
+            </SheetHeader>
+            <div className="flex flex-col gap-6">
+              <Link href="/" className="text-secondary font-mono text-label-mono border-l-4 border-secondary pl-4 py-1">
+                Public Portal
+              </Link>
+              <Link href="/admin/login" className="text-on-surface-variant font-mono text-label-mono hover:text-secondary transition-all pl-4 py-1">
+                Admin Hub
+              </Link>
+              <hr className="border-border/50 my-2" />
+              <div className="flex flex-col gap-5 pl-4">
+                 <div className="flex items-center gap-4 text-on-surface-variant group cursor-pointer">
+                    <Bell className="w-5 h-5 group-hover:text-secondary transition-colors" />
+                    <span className="font-mono text-xs uppercase tracking-wider">Notifications</span>
+                 </div>
+                 <div className="flex items-center gap-4 text-on-surface-variant group cursor-pointer">
+                    <Settings className="w-5 h-5 group-hover:text-secondary transition-colors" />
+                    <span className="font-mono text-xs uppercase tracking-wider">Settings</span>
+                 </div>
+              </div>
+              <Button variant="default" className="rounded-xl w-full py-7 font-mono text-label-mono bg-primary text-white mt-6 uppercase tracking-widest font-bold">
+                Sign In
+              </Button>
+            </div>
+          </SheetContent>
+        </Sheet>
       </div>
     </nav>
   );
