@@ -3,9 +3,10 @@
 
 import React from 'react';
 import { AdminLayout } from '@/components/layout/AdminLayout';
-import { TrendingUp, Activity, Users, Zap, Clock, Wifi, Support, Wrench } from 'lucide-react';
+import { TrendingUp, Activity, Users, Zap, Clock, Wifi, Headset, Wrench } from 'lucide-react';
 import Image from 'next/image';
 import { PlaceHolderImages } from '@/lib/placeholder-images';
+import { cn } from '@/lib/utils';
 
 export default function AdminDashboard() {
   const infraImg = PlaceHolderImages.find(img => img.id === 'infra-status')!;
@@ -98,7 +99,7 @@ export default function AdminDashboard() {
             <div className="space-y-4">
               {[
                 { title: 'New Subscription - Ikeja North', info: 'Lagos • 2 mins ago', val: '+120Mbps Plan', icon: Wifi },
-                { title: 'Ticket Resolved - Garki II', info: 'Abuja • 14 mins ago', val: 'Closed', icon: Support },
+                { title: 'Ticket Resolved - Garki II', info: 'Abuja • 14 mins ago', val: 'Closed', icon: Headset },
                 { title: 'Maintenance Complete', info: 'Abeokuta • 1h ago', val: 'Node 4A - Stable', icon: Wrench },
               ].map((item, i) => (
                 <div key={i} className="flex items-center justify-between py-3 border-b border-border last:border-0">

@@ -3,10 +3,11 @@
 
 import React from 'react';
 import { AdminLayout } from '@/components/layout/AdminLayout';
-import { Map, List, ChevronRight, Speedometer, CheckCircle, Clock } from 'lucide-react';
+import { Map, List, ChevronRight, CheckCircle, Clock } from 'lucide-react';
 import Image from 'next/image';
 import { PlaceHolderImages } from '@/lib/placeholder-images';
 import { Button } from '@/components/ui/button';
+import { cn } from '@/lib/utils';
 
 export default function AdminInstallation() {
   const techDave = PlaceHolderImages.find(img => img.id === 'tech-dave')!;

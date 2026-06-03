@@ -3,7 +3,7 @@
 
 import React from 'react';
 import { AdminLayout } from '@/components/layout/AdminLayout';
-import { FactCheck, Timer, Devices, TrendingUp, Info } from 'lucide-react';
+import { Timer, Devices, TrendingUp, Info } from 'lucide-react';
 import Image from 'next/image';
 import { PlaceHolderImages } from '@/lib/placeholder-images';
 import { cn } from '@/lib/utils';
@@ -42,6 +42,7 @@ export default function AdminBilling() {
             )}
           >
             <div className="flex justify-between items-start mb-8">
+              {typeof item.icon === 'function' ? <item.icon /> : <item.icon className="w-8 h-8 text-secondary" />}
               <span className="font-mono text-[12px] text-green-600 bg-green-50 px-2 py-1 rounded">{item.trend}</span>
             </div>
             <h3 className="font-mono text-label-mono text-on-surface-variant mb-1 uppercase tracking-wider">{item.label}</h3>
