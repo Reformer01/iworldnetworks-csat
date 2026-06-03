@@ -1,3 +1,4 @@
+
 {
   "entities": {
     "Feedback": {
@@ -14,12 +15,15 @@
           "type": "object",
           "properties": {
             "stability": { "type": "number" },
-            "journey": { "type": "number" },
+            "latency": { "type": "number" },
+            "peakPerformance": { "type": "number" },
             "professionalism": { "type": "number" },
             "clarity": { "type": "number" },
+            "fcr": { "type": "string", "enum": ["Yes", "No"] },
             "signal": { "type": "number" },
             "punctuality": { "type": "number" },
             "quality": { "type": "number" },
+            "explanation": { "type": "number" },
             "accuracy": { "type": "number" },
             "reconnection": { "type": "number" }
           }
@@ -28,7 +32,8 @@
         "staffName": { "type": "string" },
         "timestamp": { "type": "number" },
         "status": { "type": "string", "enum": ["pending", "reviewed", "escalated"], "default": "pending" },
-        "interviewConsent": { "type": "string", "enum": ["Yes", "No", "Maybe"] }
+        "interviewConsent": { "type": "string", "enum": ["Yes", "No", "Maybe"] },
+        "referralSource": { "type": "string" }
       },
       "required": ["customerEmail", "category", "location", "timestamp"]
     },

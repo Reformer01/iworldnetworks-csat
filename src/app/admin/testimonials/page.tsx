@@ -1,8 +1,9 @@
+
 'use client';
 
 import React, { useState, useMemo } from 'react';
 import { AdminLayout } from '@/components/layout/AdminLayout';
-import { Star, Copy, Check } from 'lucide-react';
+import { Star, Copy, Check, MousePointer2 } from 'lucide-react';
 import Image from 'next/image';
 import { PlaceHolderImages } from '@/lib/placeholder-images';
 import { cn } from '@/lib/utils';
@@ -16,17 +17,18 @@ export default function AdminTestimonials() {
   const workspaceImg = PlaceHolderImages.find(img => img.id === 'workspace')!;
   const firestore = useFirestore();
 
-  const testimonialQuery = useMemo(() => {
-    if (!firestore) return null;
-    return query(
-      collection(firestore, 'feedbacks'),
-      where('category', '==', 'Testimonials'),
-      orderBy('timestamp', 'desc'),
-      limit(20)
-    );
-  }, [firestore]);
+  const testimonialQuery = useMemo(() => firestore ? query(collection(firestore, 'feedbacks'), where('category', '==', 'Testimonials'), orderBy('timestamp', 'desc'), limit(50)) : null, [firestore]);
+  const { data: testimonials } = useCollection(testimonialQuery);
 
-  const { data: testimonials, loading } = useCollection(testimonialQuery);
+  const stats = useMemo(() => {
+    if (!testimonials) return { referrals: {} };
+    const referrals: Record<string, number> = {};
+    testimonials.forEach((t: any) => {
+      const source = t.referralSource || 'Unknown';
+      referrals[source] = (referrals[source] || 0) + 1;
+    });
+    return { referrals };
+  }, [testimonials]);
 
   const filteredTestimonials = useMemo(() => {
     if (!testimonials) return [];
@@ -45,78 +47,63 @@ export default function AdminTestimonials() {
 
   return (
     <AdminLayout>
-      <div className="grid grid-cols-12 gap-gutter mb-16">
-        <div className="col-span-12 md:col-span-7">
-          <p className="font-mono text-label-mono text-secondary mb-2 uppercase">Head of Content: Reformer</p>
-          <h1 className="text-primary mb-4 font-display text-display-lg tracking-tight">Success Stories</h1>
-          <p className="font-body-lg text-body-lg text-on-surface-variant">Real stories from our customers. Use these for our marketing updates.</p>
-        </div>
-        <div className="col-span-12 md:col-span-4 md:col-start-9 flex items-end">
-          <div className="border border-border bg-white rounded-full p-1 flex w-full">
-            <button 
-              onClick={() => setFilter('Home')}
-              className={cn("flex-1 py-2 rounded-full font-mono text-label-mono transition-all", filter === 'Home' ? "bg-primary text-white" : "text-on-surface-variant hover:bg-surface-container")}
-            >
-              Residential
-            </button>
-            <button 
-              onClick={() => setFilter('Business')}
-              className={cn("flex-1 py-2 rounded-full font-mono text-label-mono transition-all", filter === 'Business' ? "bg-primary text-white" : "text-on-surface-variant hover:bg-surface-container")}
-            >
-              Corporate
-            </button>
-          </div>
-        </div>
+      <div className="mb-12">
+        <p className="font-mono text-label-mono text-secondary mb-2 uppercase text-[10px]">Head of Content: Reformer</p>
+        <h1 className="text-primary mb-4 font-display text-3xl md:text-display-lg tracking-tight">Success Stories</h1>
+        <p className="font-body-lg text-body-lg text-on-surface-variant">Analyze customer referrals and curate marketing testimonials.</p>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-12 gap-8 items-start mb-24">
-        <div className="md:col-span-7 space-y-8">
-          {filteredTestimonials.slice(0, 5).map((item: any) => (
-            <div key={item.id} className="bg-white border border-border p-8 rounded-xl whisper-shadow group">
+      <div className="grid grid-cols-1 md:grid-cols-12 gap-8 mb-16">
+        <div className="md:col-span-8 space-y-6">
+          <div className="flex border-b border-border mb-8">
+            <button onClick={() => setFilter('Home')} className={cn("px-8 py-4 font-mono text-xs uppercase tracking-widest transition-all", filter === 'Home' ? "border-b-2 border-secondary text-secondary font-bold" : "text-on-surface-variant")}>Residential</button>
+            <button onClick={() => setFilter('Business')} className={cn("px-8 py-4 font-mono text-xs uppercase tracking-widest transition-all", filter === 'Business' ? "border-b-2 border-secondary text-secondary font-bold" : "text-on-surface-variant")}>Corporate</button>
+          </div>
+
+          {filteredTestimonials.map((item: any) => (
+            <div key={item.id} className="bg-white border border-border p-8 rounded-xl whisper-shadow relative group">
               <div className="flex justify-between items-start mb-6">
-                <div className="flex gap-1 text-secondary">
+                <div className="flex gap-1">
                   {[...Array(5)].map((_, i) => (
-                    <Star key={i} className={cn("w-5 h-5", i < (item.ratings?.signal || 0) ? "fill-secondary text-secondary" : "text-border")} />
+                    <Star key={i} className={cn("w-4 h-4", i < (item.ratings?.signal || 5) ? "fill-secondary text-secondary" : "text-border")} />
                   ))}
                 </div>
-                <span className="font-mono uppercase text-secondary text-sm tracking-widest opacity-60">{item.servicePlan}</span>
+                <span className="font-mono text-[10px] uppercase text-secondary font-bold">{item.referralSource || 'Unknown'} Referral</span>
               </div>
-              <blockquote className="text-primary leading-tight mb-8 font-display text-[28px] font-bold">
+              <blockquote className="text-primary leading-tight mb-8 font-display text-2xl font-bold italic">
                 "{item.comment}"
               </blockquote>
-              <div className="flex justify-between items-end">
+              <div className="flex justify-between items-end border-t border-border/50 pt-6">
                 <div>
-                  <p className="font-mono text-label-mono font-bold">{item.customerName}</p>
-                  <p className="text-on-surface-variant text-sm font-mono text-xs opacity-60">{item.location}</p>
+                  <p className="font-mono text-xs font-bold">{item.customerName}</p>
+                  <p className="text-on-surface-variant text-[10px] font-mono opacity-60">{item.location} • {item.servicePlan}</p>
                 </div>
-                <Button 
-                  onClick={() => handleCopy(item.id, item.comment)}
-                  className="bg-primary text-white px-6 py-6 rounded-full font-mono flex items-center gap-2 hover:scale-105 transition-transform active:scale-95 text-label-mono"
-                >
-                  {copiedId === item.id ? <Check className="w-4 h-4" /> : <Copy className="w-4 h-4" />}
-                  {copiedId === item.id ? 'Copied!' : 'Copy for Social'}
+                <Button onClick={() => handleCopy(item.id, item.comment)} size="sm" className="bg-primary text-white rounded-full font-mono text-[10px] px-6">
+                  {copiedId === item.id ? <Check className="w-4 h-4 mr-2" /> : <Copy className="w-4 h-4 mr-2" />}
+                  {copiedId === item.id ? 'Copied' : 'Copy Testimonial'}
                 </Button>
               </div>
             </div>
           ))}
-          {!loading && filteredTestimonials.length === 0 && (
-            <p className="text-on-surface-variant py-20 text-center font-mono">No testimonials found for this category.</p>
-          )}
         </div>
 
-        <div className="md:col-span-5 space-y-8 md:pt-16">
-          <div className="w-full h-80 relative rounded-xl overflow-hidden grayscale contrast-125">
-            <Image 
-              src={workspaceImg.imageUrl} 
-              alt="Workspace" 
-              fill 
-              className="object-cover opacity-60"
-              data-ai-hint="tech workspace"
-            />
+        <div className="md:col-span-4 space-y-6">
+          <div className="bg-white border border-border p-8 rounded-xl whisper-shadow">
+            <h4 className="font-mono text-[10px] uppercase tracking-widest mb-6 text-secondary font-bold">Lead Sources</h4>
+            <div className="space-y-4">
+              {Object.entries(stats.referrals).map(([source, count]: any) => (
+                <div key={source} className="flex justify-between items-center py-2 border-b border-border/50 last:border-0">
+                  <span className="text-xs font-mono">{source}</span>
+                  <span className="bg-muted px-2 py-1 rounded text-xs font-bold">{count}</span>
+                </div>
+              ))}
+            </div>
           </div>
-          <div className="bg-surface-container-highest border border-border p-8 rounded-xl whisper-shadow">
-            <h4 className="font-bold mb-4">Internal Note</h4>
-            <p className="text-sm text-on-surface-variant">These stories are pulled directly from the public feedback portal. Ensure you have consent before using them in public campaigns.</p>
+          <div className="relative h-64 rounded-xl overflow-hidden">
+            <Image src={workspaceImg.imageUrl} alt="Workspace" fill className="object-cover grayscale brightness-75" />
+            <div className="absolute inset-0 flex items-center justify-center bg-primary/20 p-8 text-center">
+              <p className="text-white font-mono text-xs uppercase font-bold">Story Management: 2026</p>
+            </div>
           </div>
         </div>
       </div>
