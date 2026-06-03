@@ -49,7 +49,6 @@ export default function AdminSupport() {
   }, [feedbacks]);
 
   const volumeData = useMemo(() => {
-    // Grouping by day for the chart
     return [
       { date: 'Oct 01', tickets: 45 },
       { date: 'Oct 05', tickets: 52 },
@@ -69,6 +68,7 @@ export default function AdminSupport() {
   return (
     <AdminLayout>
       <div className="mb-12">
+        <p className="font-mono text-label-mono text-secondary mb-2 uppercase">Head of Support: Adeolu</p>
         <h1 className="font-display text-display-lg text-primary tracking-tight mb-2">Support Desk Review</h1>
         <p className="text-on-surface-variant mt-2 max-w-2xl font-body-md">Detailed performance and sentiment analysis for our customer engagement teams.</p>
       </div>

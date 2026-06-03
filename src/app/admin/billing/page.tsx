@@ -2,7 +2,7 @@
 
 import React, { useMemo } from 'react';
 import { AdminLayout } from '@/components/layout/AdminLayout';
-import { Timer, MonitorSmartphone, TrendingUp, CircleCheck, Info } from 'lucide-react';
+import { Timer, MonitorSmartphone, CircleCheck, Info } from 'lucide-react';
 import Image from 'next/image';
 import { PlaceHolderImages } from '@/lib/placeholder-images';
 import { cn } from '@/lib/utils';
@@ -54,14 +54,14 @@ export default function AdminBilling() {
     <AdminLayout>
       <header className="grid grid-cols-12 gap-gutter mb-16 items-end">
         <div className="col-span-12 md:col-span-7">
-          <p className="font-mono text-label-mono text-secondary mb-2 uppercase tracking-[0.2em]">Financials</p>
+          <p className="font-mono text-label-mono text-secondary mb-2 uppercase">Head of Billing: Stella</p>
           <h1 className="text-headline-lg text-primary mb-4 font-display">Revenue Desk</h1>
-          <p className="font-body-lg text-body-lg text-on-surface-variant max-w-xl">Detailed overview of payment satisfaction, invoice accuracy, and portal engagement metrics.</p>
+          <p className="font-body-lg text-body-lg text-on-surface-variant max-w-xl">Overview of payment satisfaction, invoice accuracy, and portal engagement metrics.</p>
         </div>
         <div className="col-span-12 md:col-span-4 md:col-start-9 text-right">
           <div className="inline-flex items-center gap-2 bg-white px-4 py-2 rounded-full border border-border whisper-shadow">
             <span className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></span>
-            <span className="font-mono text-label-mono text-on-surface">Live Telemetry Active</span>
+            <span className="font-mono text-label-mono text-on-surface">Monitoring Active</span>
           </div>
         </div>
       </header>
@@ -148,7 +148,7 @@ export default function AdminBilling() {
             <div className="absolute inset-0 bg-gradient-to-t from-primary to-transparent opacity-60"></div>
             <div className="absolute bottom-6 left-6">
               <span className="font-mono text-white text-[10px] border border-white/30 px-2 py-1 rounded backdrop-blur-md mb-2 inline-block">Status</span>
-              <p className="text-white font-headline text-[18px]">Regional Core Node</p>
+              <p className="text-white font-headline text-[18px]">Regional Hub</p>
             </div>
           </div>
         </div>

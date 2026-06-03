@@ -16,23 +16,35 @@ export default function AdminInstallation() {
 
   const validRegions = ['Abeokuta', 'Ibadan', 'Osogbo', 'Akure'];
 
-  const techQuery = useMemo(() => firestore ? query(collection(firestore, 'technicians'), where('region', 'in', validRegions)) : null, [firestore]);
-  const installFeedbackQuery = useMemo(() => firestore ? query(collection(firestore, 'feedbacks'), where('category', '==', 'Installation'), orderBy('timestamp', 'desc'), limit(500)) : null, [firestore, validRegions]);
+  const techsRoster = [
+    { name: "Lukmon Obasa", region: "Akure" },
+    { name: "Christian Adejo", region: "Akure" },
+    { name: "Habeeb Hussein", region: "Ibadan" },
+    { name: "Joseph Dung N", region: "Ibadan" },
+    { name: "Alowo Temitope", region: "Ibadan" },
+    { name: "Timilehin Alabi", region: "Ibadan" },
+    { name: "Adekunle Ademiju", region: "Ibadan" },
+    { name: "Adebisi Ogusola", region: "Abeokuta" },
+    { name: "Kehinde Itehinola", region: "Abeokuta" },
+    { name: "Olopade Olusegun", region: "Abeokuta" },
+    { name: "Mubarak Raji", region: "Osogbo" }
+  ];
 
-  const { data: techs } = useCollection(techQuery);
+  const installFeedbackQuery = useMemo(() => firestore ? query(collection(firestore, 'feedbacks'), where('category', '==', 'Installation'), orderBy('timestamp', 'desc'), limit(500)) : null, [firestore]);
+
   const { data: installFeedback } = useCollection(installFeedbackQuery);
 
   const techLeaderboard = useMemo(() => {
-    if (!techs || !installFeedback) return [];
+    if (!installFeedback) return techsRoster.map(t => ({ ...t, completions: 0 })).slice(0, 5);
     
-    return techs.map((t: any) => {
+    return techsRoster.map((t: any) => {
       const completions = installFeedback.filter((f: any) => f.staffName === t.name).length;
       return {
         ...t,
         completions
       };
     }).sort((a, b) => b.completions - a.completions).slice(0, 5);
-  }, [techs, installFeedback]);
+  }, [installFeedback]);
 
   const completionRate = useMemo(() => {
     if (!installFeedback || installFeedback.length === 0) return '0';
@@ -53,6 +65,7 @@ export default function AdminInstallation() {
     <AdminLayout>
       <div className="grid grid-cols-12 gap-gutter mb-16">
         <div className="col-span-12 md:col-span-7">
+          <p className="font-mono text-label-mono text-secondary mb-2 uppercase">Head of Installation: Matthew</p>
           <h1 className="font-headline text-headline-lg mb-4 text-primary">Setup Performance</h1>
           <p className="font-body-lg text-body-lg text-on-surface-variant max-w-xl">
             Detailed view of field efficiency, deployment metrics, and regional fiber penetration.
@@ -74,13 +87,13 @@ export default function AdminInstallation() {
           </div>
           <div className="space-y-8">
             {techLeaderboard.map((tech: any) => (
-              <div key={tech.id} className="flex items-center gap-6 group hover:scale-[1.01] transition-transform">
+              <div key={tech.name} className="flex items-center gap-6 group hover:scale-[1.01] transition-transform">
                 <div className="w-12 h-12 rounded-full overflow-hidden border border-border bg-muted flex items-center justify-center font-mono font-bold text-secondary">
                   {tech.name.charAt(0)}
                 </div>
                 <div className="flex-1">
                   <p className="font-bold text-on-surface text-lg">{tech.name}</p>
-                  <p className="font-mono text-sm text-on-surface-variant">{tech.region} • {tech.primaryTerritory || 'General'}</p>
+                  <p className="font-mono text-sm text-on-surface-variant">{tech.region}</p>
                 </div>
                 <div className="text-right">
                   <p className="font-black text-secondary text-xl"><span className="font-mono">{tech.completions}</span></p>
@@ -88,7 +101,6 @@ export default function AdminInstallation() {
                 </div>
               </div>
             ))}
-            {techLeaderboard.length === 0 && <p className="text-on-surface-variant text-sm font-mono">No installation records found for current regions.</p>}
           </div>
         </section>
 

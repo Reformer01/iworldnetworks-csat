@@ -47,6 +47,7 @@ export default function AdminTestimonials() {
     <AdminLayout>
       <div className="grid grid-cols-12 gap-gutter mb-16">
         <div className="col-span-12 md:col-span-7">
+          <p className="font-mono text-label-mono text-secondary mb-2 uppercase">Head of Content: Reformer</p>
           <h1 className="text-primary mb-4 font-display text-display-lg tracking-tight">Success Stories</h1>
           <p className="font-body-lg text-body-lg text-on-surface-variant">Real stories from our customers. Use these for our marketing updates.</p>
         </div>

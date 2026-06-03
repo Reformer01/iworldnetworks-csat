@@ -19,8 +19,8 @@ import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Label } from '@/components/ui/label';
-import { useFirestore, useCollection } from '@/firebase';
-import { collection, addDoc, query, orderBy, where } from 'firebase/firestore';
+import { useFirestore } from '@/firebase';
+import { collection, addDoc } from 'firebase/firestore';
 
 type Category = 'Reliability' | 'Support' | 'Testimonials' | 'Installation' | 'Billing';
 
@@ -40,14 +40,31 @@ export default function LandingPage() {
 
   const firestore = useFirestore();
 
-  // Filtered lists for specific regions
   const validRegions = ['Abeokuta', 'Ibadan', 'Osogbo', 'Akure'];
 
-  const staffQuery = useMemo(() => firestore ? query(collection(firestore, 'staff'), orderBy('name')) : null, [firestore]);
-  const techQuery = useMemo(() => firestore ? query(collection(firestore, 'technicians'), where('region', 'in', validRegions)) : null, [firestore]);
-  
-  const { data: supportStaff } = useCollection(staffQuery);
-  const { data: technicians } = useCollection(techQuery);
+  // Provided Support Staff
+  const supportStaff = [
+    "Victoria Fokorede",
+    "Aishat Hamzat",
+    "Adekomoya Joseph",
+    "Olusegun Oluwanishola",
+    "Babatunde Christianah"
+  ];
+
+  // Provided Technicians mapped to the 4 regions
+  const technicians = [
+    { name: "Lukmon Obasa", region: "Akure" },
+    { name: "Christian Adejo", region: "Akure" },
+    { name: "Habeeb Hussein", region: "Ibadan" },
+    { name: "Joseph Dung N", region: "Ibadan" },
+    { name: "Alowo Temitope", region: "Ibadan" },
+    { name: "Timilehin Alabi", region: "Ibadan" },
+    { name: "Adekunle Ademiju", region: "Ibadan" },
+    { name: "Adebisi Ogusola", region: "Abeokuta" },
+    { name: "Kehinde Itehinola", region: "Abeokuta" },
+    { name: "Olopade Olusegun", region: "Abeokuta" },
+    { name: "Mubarak Raji", region: "Osogbo" }
+  ];
 
   const categories = [
     { name: 'Reliability' as Category, icon: LayoutDashboard, label: 'Internet Quality' },
@@ -126,7 +143,7 @@ export default function LandingPage() {
     setTimeout(() => {
       setIsSubmitted(false);
       setRatings({});
-      setFormData({ ...formData, comment: '' });
+      setFormData({ ...formData, comment: '', customerEmail: '', customerName: '' });
     }, 3000);
   };
 
@@ -278,8 +295,8 @@ export default function LandingPage() {
                         <label className="font-mono text-[12px] uppercase text-on-surface-variant">Who helped you?</label>
                         <select className="w-full bg-background p-4 rounded-xl border border-border focus:ring-2 focus:ring-secondary/20 outline-none" onChange={(e) => setFormData({...formData, staffName: e.target.value})} required>
                           <option value="">Select Support Staff</option>
-                          {supportStaff?.map((staff: any) => (
-                            <option key={staff.id} value={staff.name}>{staff.name}</option>
+                          {supportStaff.map((name) => (
+                            <option key={name} value={name}>{name}</option>
                           ))}
                         </select>
                       </div>
@@ -323,8 +340,8 @@ export default function LandingPage() {
                         <label className="font-mono text-[12px] uppercase text-on-surface-variant">Installation Lead</label>
                         <select className="w-full bg-background p-4 rounded-xl border border-border focus:ring-2 focus:ring-secondary/20 outline-none" onChange={(e) => setFormData({...formData, staffName: e.target.value})} required>
                           <option value="">Select Technician</option>
-                          {technicians?.map((tech: any) => (
-                            <option key={tech.id} value={tech.name}>{tech.name} ({tech.region})</option>
+                          {technicians.map((tech) => (
+                            <option key={tech.name} value={tech.name}>{tech.name} ({tech.region})</option>
                           ))}
                         </select>
                       </div>

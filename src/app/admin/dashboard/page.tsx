@@ -63,7 +63,6 @@ export default function AdminDashboard() {
   }, [feedbacks]);
 
   const timelineData = useMemo(() => {
-    // Simulated activity for visual restoration
     return [
       { name: 'Mon', satisfaction: 85, reliability: 92 },
       { name: 'Tue', satisfaction: 88, reliability: 89 },
@@ -79,8 +78,9 @@ export default function AdminDashboard() {
     <AdminLayout>
       <section className="mb-12 flex justify-between items-end">
         <div className="max-w-2xl">
+          <p className="font-mono text-label-mono text-secondary mb-2 uppercase">Head of NOC: Gyang</p>
           <h1 className="font-display text-display-lg text-primary tracking-tight mb-2">Operational Overview</h1>
-          <p className="text-on-surface-variant font-body-lg">Real-time monitoring for the I-World backbone across regional nodes.</p>
+          <p className="text-on-surface-variant font-body-lg">Real-time monitoring for the I-World backbone across regional hubs.</p>
         </div>
         <div className="flex gap-4 items-center font-mono text-label-mono text-on-surface-variant">
           <span className="flex items-center gap-2 bg-white px-4 py-2 rounded-full border border-border whisper-shadow">
@@ -225,8 +225,8 @@ export default function AdminDashboard() {
           <div className="rounded-xl overflow-hidden h-64 whisper-shadow relative group">
             <Image src={infraImg.imageUrl} alt="Infrastructure" fill className="object-cover grayscale brightness-90 group-hover:grayscale-0 transition-all duration-700" data-ai-hint="data center" />
             <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent flex flex-col justify-end p-6">
-              <p className="text-white font-headline text-[20px]">Regional Data Node</p>
-              <span className="text-white font-mono text-xs uppercase tracking-widest opacity-80">Infrastructure Status: Stable</span>
+              <p className="text-white font-headline text-[20px]">Regional Data Hub</p>
+              <span className="text-white font-mono text-xs uppercase tracking-widest opacity-80">System Status: Normal</span>
             </div>
           </div>
         </div>
