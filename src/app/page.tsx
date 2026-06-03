@@ -1,4 +1,3 @@
-
 'use client';
 
 import React, { useState } from 'react';
@@ -32,7 +31,7 @@ export default function LandingPage() {
   const [formData, setFormData] = useState({
     customerName: '',
     customerEmail: '',
-    servicePlan: 'Fiber Home',
+    servicePlan: 'H-Pro',
     location: 'Abeokuta',
     comment: '',
     staffName: '',
@@ -42,6 +41,9 @@ export default function LandingPage() {
 
   const firestore = useFirestore();
   const validRegions = ['Abeokuta', 'Ibadan', 'Osogbo', 'Akure'];
+
+  const residentialPlans = ['H-Lite', 'H-Pro', 'H-Max', 'H-Custom'];
+  const businessPlans = ['U-Lite', 'U-Pro', 'U-Max', 'U-Custom'];
 
   const supportStaff = ["Victoria Fokorede", "Aishat Hamzat", "Adekomoya Joseph", "Olusegun Oluwanishola", "Babatunde Christianah"];
   const technicians = [
@@ -217,9 +219,12 @@ export default function LandingPage() {
                   <div className="space-y-1">
                     <label className="font-mono text-[10px] uppercase text-on-surface-variant">Service Plan</label>
                     <select className="w-full bg-transparent border-b border-border py-2 outline-none cursor-pointer" value={formData.servicePlan} onChange={e => setFormData({...formData, servicePlan: e.target.value})}>
-                      <option>Fiber Home</option>
-                      <option>Fiber Business</option>
-                      <option>Enterprise Gold</option>
+                      <optgroup label="Residential (Home)">
+                        {residentialPlans.map(plan => <option key={plan} value={plan}>{plan}</option>)}
+                      </optgroup>
+                      <optgroup label="Business (Corporate)">
+                        {businessPlans.map(plan => <option key={plan} value={plan}>{plan}</option>)}
+                      </optgroup>
                     </select>
                   </div>
                 </div>

@@ -1,9 +1,8 @@
-
 'use client';
 
 import React, { useState, useMemo } from 'react';
 import { AdminLayout } from '@/components/layout/AdminLayout';
-import { Star, Copy, Check, MousePointer2 } from 'lucide-react';
+import { Star, Copy, Check } from 'lucide-react';
 import Image from 'next/image';
 import { PlaceHolderImages } from '@/lib/placeholder-images';
 import { cn } from '@/lib/utils';
@@ -32,11 +31,16 @@ export default function AdminTestimonials() {
 
   const filteredTestimonials = useMemo(() => {
     if (!testimonials) return [];
-    return testimonials.filter((t: any) => 
-      filter === 'Home' 
-        ? t.servicePlan?.toLowerCase().includes('home') 
-        : t.servicePlan?.toLowerCase().includes('business') || t.servicePlan?.toLowerCase().includes('enterprise')
-    );
+    return testimonials.filter((t: any) => {
+      const plan = t.servicePlan || '';
+      if (filter === 'Home') {
+        // Residential plans start with 'H-'
+        return plan.startsWith('H-');
+      } else {
+        // Business plans start with 'U-'
+        return plan.startsWith('U-');
+      }
+    });
   }, [testimonials, filter]);
 
   const handleCopy = (id: string, text: string) => {
@@ -56,35 +60,42 @@ export default function AdminTestimonials() {
       <div className="grid grid-cols-1 md:grid-cols-12 gap-8 mb-16">
         <div className="md:col-span-8 space-y-6">
           <div className="flex border-b border-border mb-8">
-            <button onClick={() => setFilter('Home')} className={cn("px-8 py-4 font-mono text-xs uppercase tracking-widest transition-all", filter === 'Home' ? "border-b-2 border-secondary text-secondary font-bold" : "text-on-surface-variant")}>Residential</button>
-            <button onClick={() => setFilter('Business')} className={cn("px-8 py-4 font-mono text-xs uppercase tracking-widest transition-all", filter === 'Business' ? "border-b-2 border-secondary text-secondary font-bold" : "text-on-surface-variant")}>Corporate</button>
+            <button onClick={() => setFilter('Home')} className={cn("px-8 py-4 font-mono text-xs uppercase tracking-widest transition-all", filter === 'Home' ? "border-b-2 border-secondary text-secondary font-bold" : "text-on-surface-variant")}>Residential (H-Series)</button>
+            <button onClick={() => setFilter('Business')} className={cn("px-8 py-4 font-mono text-xs uppercase tracking-widest transition-all", filter === 'Business' ? "border-b-2 border-secondary text-secondary font-bold" : "text-on-surface-variant")}>Corporate (U-Series)</button>
           </div>
 
-          {filteredTestimonials.map((item: any) => (
-            <div key={item.id} className="bg-white border border-border p-8 rounded-xl whisper-shadow relative group">
-              <div className="flex justify-between items-start mb-6">
-                <div className="flex gap-1">
-                  {[...Array(5)].map((_, i) => (
-                    <Star key={i} className={cn("w-4 h-4", i < (item.ratings?.signal || 5) ? "fill-secondary text-secondary" : "text-border")} />
-                  ))}
+          <div className="space-y-6">
+            {filteredTestimonials.map((item: any) => (
+              <div key={item.id} className="bg-white border border-border p-8 rounded-xl whisper-shadow relative group">
+                <div className="flex justify-between items-start mb-6">
+                  <div className="flex gap-1">
+                    {[...Array(5)].map((_, i) => (
+                      <Star key={i} className={cn("w-4 h-4", i < (item.ratings?.signal || 5) ? "fill-secondary text-secondary" : "text-border")} />
+                    ))}
+                  </div>
+                  <span className="font-mono text-[10px] uppercase text-secondary font-bold">{item.referralSource || 'Unknown'} Referral</span>
                 </div>
-                <span className="font-mono text-[10px] uppercase text-secondary font-bold">{item.referralSource || 'Unknown'} Referral</span>
-              </div>
-              <blockquote className="text-primary leading-tight mb-8 font-display text-2xl font-bold italic">
-                "{item.comment}"
-              </blockquote>
-              <div className="flex justify-between items-end border-t border-border/50 pt-6">
-                <div>
-                  <p className="font-mono text-xs font-bold">{item.customerName}</p>
-                  <p className="text-on-surface-variant text-[10px] font-mono opacity-60">{item.location} • {item.servicePlan}</p>
+                <blockquote className="text-primary leading-tight mb-8 font-display text-2xl font-bold italic">
+                  "{item.comment}"
+                </blockquote>
+                <div className="flex justify-between items-end border-t border-border/50 pt-6">
+                  <div>
+                    <p className="font-mono text-xs font-bold">{item.customerName}</p>
+                    <p className="text-on-surface-variant text-[10px] font-mono opacity-60">{item.location} • {item.servicePlan}</p>
+                  </div>
+                  <Button onClick={() => handleCopy(item.id, item.comment)} size="sm" className="bg-primary text-white rounded-full font-mono text-[10px] px-6">
+                    {copiedId === item.id ? <Check className="w-4 h-4 mr-2" /> : <Copy className="w-4 h-4 mr-2" />}
+                    {copiedId === item.id ? 'Copied' : 'Copy Testimonial'}
+                  </Button>
                 </div>
-                <Button onClick={() => handleCopy(item.id, item.comment)} size="sm" className="bg-primary text-white rounded-full font-mono text-[10px] px-6">
-                  {copiedId === item.id ? <Check className="w-4 h-4 mr-2" /> : <Copy className="w-4 h-4 mr-2" />}
-                  {copiedId === item.id ? 'Copied' : 'Copy Testimonial'}
-                </Button>
               </div>
-            </div>
-          ))}
+            ))}
+            {filteredTestimonials.length === 0 && (
+              <div className="text-center py-20 bg-white border border-dashed border-border rounded-xl">
+                <p className="font-mono text-sm text-on-surface-variant">No stories found for this category yet.</p>
+              </div>
+            )}
+          </div>
         </div>
 
         <div className="md:col-span-4 space-y-6">
@@ -97,6 +108,9 @@ export default function AdminTestimonials() {
                   <span className="bg-muted px-2 py-1 rounded text-xs font-bold">{count}</span>
                 </div>
               ))}
+              {Object.keys(stats.referrals).length === 0 && (
+                <p className="text-[10px] font-mono opacity-40">Waiting for data...</p>
+              )}
             </div>
           </div>
           <div className="relative h-64 rounded-xl overflow-hidden">
