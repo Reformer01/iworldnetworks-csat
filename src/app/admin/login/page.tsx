@@ -2,8 +2,7 @@
 
 import React, { useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { Lock, ArrowRight, Mail, Key, Sparkles } from 'lucide-react';
-import { cn } from '@/lib/utils';
+import { Lock, ArrowRight, Mail, Key } from 'lucide-react';
 import { useAuth } from '@/firebase';
 import { signInWithEmailAndPassword } from 'firebase/auth';
 import { Button } from '@/components/ui/button';
@@ -27,39 +26,25 @@ export default function AdminLoginPage() {
       await signInWithEmailAndPassword(auth, email, password);
       toast({
         title: "Access Granted",
-        description: "Welcome back to the I-World Admin Hub.",
+        description: "Welcome to the I-World Management Hub.",
       });
       router.push('/admin/dashboard');
     } catch (error: any) {
       toast({
         variant: "destructive",
         title: "Authentication Failed",
-        description: "Please check your supervisor credentials and try again.",
+        description: "Please check your account details and try again.",
       });
       setIsAuthenticating(false);
     }
   };
 
-  const handleDemoLogin = () => {
-    setEmail('admin@iworld.com');
-    setPassword('password123');
-    toast({
-      title: "Demo Credentials Applied",
-      description: "Click Unlock Dashboard to proceed (Note: requires setup in Firebase Console).",
-    });
-  };
-
   return (
     <div className="bg-background font-body text-on-surface selection:bg-secondary/20 overflow-hidden min-h-screen flex items-center justify-center p-margin-mobile">
-      {/* Background Decorative Skeletons */}
       <div className="fixed inset-0 z-0 pointer-events-none p-margin-desktop opacity-5">
         <div className="grid grid-cols-12 gap-gutter h-full">
           <div className="col-span-2 flex flex-col gap-8 pt-20">
             <div className="h-12 w-12 rounded-full bg-primary"></div>
-            <div className="space-y-4">
-              <div className="h-6 w-32 rounded-lg bg-primary"></div>
-              <div className="h-6 w-40 rounded-lg bg-primary"></div>
-            </div>
           </div>
           <div className="col-span-10 pt-20 flex flex-col justify-end pb-20">
              <div className="text-[240px] font-black text-primary leading-none tracking-tighter opacity-10">I-W</div>
@@ -74,13 +59,13 @@ export default function AdminLoginPage() {
               <div className="w-10 h-10 bg-primary flex items-center justify-center rounded-xl">
                 <Lock className="w-5 h-5 text-white" />
               </div>
-              <span className="font-mono text-[10px] md:text-label-mono uppercase tracking-widest text-on-surface-variant">Security Protocol</span>
+              <span className="font-mono text-[10px] md:text-label-mono uppercase tracking-widest text-on-surface-variant">Management Hub</span>
             </div>
             <h1 className="font-display text-4xl md:text-display-lg text-primary tracking-tighter leading-tight">
-              Admin Hub Access
+              Sign In
             </h1>
             <p className="font-body-md text-on-surface-variant">
-              Sign in with your supervisor account to access network monitoring and regional analytics.
+              Enter your supervisor account details to access network reports and regional information.
             </p>
           </header>
 
@@ -116,42 +101,30 @@ export default function AdminLoginPage() {
               </div>
             </div>
 
-            <div className="flex flex-col gap-3">
-              <Button
-                type="submit"
-                disabled={isAuthenticating}
-                className="w-full h-16 bg-secondary text-white font-bold text-lg rounded-full hover:scale-[1.02] active:scale-95 transition-all duration-300 flex items-center justify-center gap-3 disabled:opacity-50"
-              >
-                {isAuthenticating ? (
-                  <div className="flex items-center gap-3">
-                    <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                    <span>Signing In...</span>
-                  </div>
-                ) : (
-                  <>
-                    <span>Unlock Dashboard</span>
-                    <ArrowRight className="w-6 h-6" />
-                  </>
-                )}
-              </Button>
-              
-              <Button
-                type="button"
-                variant="ghost"
-                onClick={handleDemoLogin}
-                className="w-full text-on-surface-variant font-mono text-[10px] uppercase hover:bg-surface-container py-2 flex items-center justify-center gap-2"
-              >
-                <Sparkles className="w-3 h-3" />
-                Apply Demo Credentials
-              </Button>
-            </div>
+            <Button
+              type="submit"
+              disabled={isAuthenticating}
+              className="w-full h-16 bg-secondary text-white font-bold text-lg rounded-full hover:scale-[1.02] active:scale-95 transition-all duration-300 flex items-center justify-center gap-3 disabled:opacity-50"
+            >
+              {isAuthenticating ? (
+                <div className="flex items-center gap-3">
+                  <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                  <span>Signing In...</span>
+                </div>
+              ) : (
+                <>
+                  <span>Unlock Dashboard</span>
+                  <ArrowRight className="w-6 h-6" />
+                </>
+              )}
+            </Button>
           </form>
 
           <footer className="flex flex-col md:flex-row justify-between items-center gap-4 text-on-surface-variant font-mono text-[10px] md:text-[12px] pt-4 border-t border-border/10">
-            <button type="button" className="hover:text-primary transition-colors">Emergency Bypass</button>
+            <button type="button" className="hover:text-primary transition-colors">Forgot Password?</button>
             <div className="flex items-center gap-2">
-              <div className="w-2 h-2 rounded-full bg-green-500 animate-pulse"></div>
-              <span>Network Secure • 2026</span>
+              <div className="w-2 h-2 rounded-full bg-green-500"></div>
+              <span>System Online • 2026</span>
             </div>
           </footer>
         </div>

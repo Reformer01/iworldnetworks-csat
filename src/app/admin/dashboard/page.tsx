@@ -2,7 +2,7 @@
 
 import React, { useMemo, useEffect, useState } from 'react';
 import { AdminLayout } from '@/components/layout/AdminLayout';
-import { TrendingUp, Headset, Wrench, AlertCircle, Wifi, Activity } from 'lucide-react';
+import { TrendingUp, Wrench, AlertCircle, Activity } from 'lucide-react';
 import Image from 'next/image';
 import { PlaceHolderImages } from '@/lib/placeholder-images';
 import { cn } from '@/lib/utils';
@@ -83,13 +83,13 @@ export default function AdminDashboard() {
     <AdminLayout>
       <section className="mb-8 md:mb-12 flex flex-col md:flex-row justify-between items-start md:items-end gap-6">
         <div className="max-w-2xl">
-          <p className="font-mono text-label-mono text-secondary mb-2 uppercase text-xs">Head of NOC: Gyang</p>
+          <p className="font-mono text-label-mono text-secondary mb-2 uppercase text-xs">Head of Hub: Gyang</p>
           <h1 className="font-display text-3xl md:text-display-lg text-primary tracking-tight mb-2">Operational Overview</h1>
-          <p className="text-on-surface-variant font-body-md text-sm md:text-base">Real-time monitoring for the I-World backbone across regional hubs.</p>
+          <p className="text-on-surface-variant font-body-md text-sm md:text-base">Real-time connection monitoring across regional hubs.</p>
         </div>
         <div className="flex flex-wrap gap-4 items-center font-mono text-label-mono text-on-surface-variant">
           <span className="flex items-center gap-2 bg-white px-3 md:px-4 py-1.5 md:py-2 rounded-full border border-border whisper-shadow text-[10px] md:text-xs">
-            <span className="w-2 h-2 rounded-full bg-green-500 animate-pulse"></span> Network Stable
+            <span className="w-2 h-2 rounded-full bg-green-500"></span> Service Stable
           </span>
           <span className="bg-white px-3 md:px-4 py-1.5 md:py-2 rounded-full border border-border whisper-shadow text-[10px] md:text-xs">
             {mounted ? new Date().toLocaleDateString('en-US', { month: 'short', day: '2-digit' }) + ', 2026' : '---'}
@@ -119,12 +119,12 @@ export default function AdminDashboard() {
         </div>
 
         <div className="bg-white p-6 md:p-8 border border-border whisper-shadow rounded-xl hover:scale-[1.02] transition-transform duration-300">
-          <p className="font-mono text-[10px] md:text-label-mono text-on-surface-variant uppercase mb-4">Network Uptime</p>
+          <p className="font-mono text-[10px] md:text-label-mono text-on-surface-variant uppercase mb-4">Connection Uptime</p>
           <div className="flex items-baseline gap-2">
             <span className="font-mono text-4xl md:text-[56px] leading-none font-bold text-secondary">99.8</span>
             <span className="font-mono text-xl md:text-display-xl text-secondary">%</span>
           </div>
-          <p className="mt-4 md:mt-6 text-on-surface-variant text-sm font-body-md">Core node consistency</p>
+          <p className="mt-4 md:mt-6 text-on-surface-variant text-sm font-body-md">Connection consistency</p>
         </div>
       </section>
 
@@ -134,7 +134,7 @@ export default function AdminDashboard() {
             <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-8 md:mb-12">
               <div>
                 <h3 className="font-headline text-xl md:text-[24px] text-primary font-bold">Performance Trends</h3>
-                <p className="text-on-surface-variant font-mono text-[10px] uppercase tracking-widest">Real-time Node Activity</p>
+                <p className="text-on-surface-variant font-mono text-[10px] uppercase tracking-widest">Real-time Connection Activity</p>
               </div>
               <div className="flex gap-4 md:gap-6">
                 <div className="flex items-center gap-2">
@@ -164,7 +164,7 @@ export default function AdminDashboard() {
           </div>
 
           <div className="bg-white p-6 md:p-8 border border-border whisper-shadow rounded-xl">
-            <h3 className="font-mono text-xs md:text-label-mono uppercase mb-6 md:mb-8">Node Activity Stream</h3>
+            <h3 className="font-mono text-xs md:text-label-mono uppercase mb-6 md:mb-8">Live Customer Activity</h3>
             <div className="space-y-4">
               {feedbacks?.map((item: any) => {
                 const isRisk = Object.values(item.ratings || {}).some((v: any) => Number(v) <= 2);
@@ -230,8 +230,8 @@ export default function AdminDashboard() {
           <div className="rounded-xl overflow-hidden h-[180px] md:h-64 whisper-shadow relative group">
             <Image src={infraImg.imageUrl} alt="Infrastructure" fill className="object-cover grayscale brightness-90 group-hover:grayscale-0 transition-all duration-700" data-ai-hint="data center" />
             <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent flex flex-col justify-end p-4 md:p-6">
-              <p className="text-white font-headline text-lg md:text-[20px]">Regional Data Hub</p>
-              <span className="text-white font-mono text-[10px] uppercase tracking-widest opacity-80">System Status: Normal</span>
+              <p className="text-white font-headline text-lg md:text-[20px]">Regional Hub</p>
+              <span className="text-white font-mono text-[10px] uppercase tracking-widest opacity-80">Status: Normal</span>
             </div>
           </div>
         </div>

@@ -2,7 +2,7 @@
 
 import React, { useMemo } from 'react';
 import { AdminLayout } from '@/components/layout/AdminLayout';
-import { Timer, MonitorSmartphone, CircleCheck, Info } from 'lucide-react';
+import { Timer, MonitorSmartphone, CircleCheck } from 'lucide-react';
 import Image from 'next/image';
 import { PlaceHolderImages } from '@/lib/placeholder-images';
 import { cn } from '@/lib/utils';
@@ -15,8 +15,7 @@ import {
   YAxis, 
   CartesianGrid, 
   Tooltip, 
-  ResponsiveContainer,
-  Cell
+  ResponsiveContainer
 } from 'recharts';
 
 export default function AdminBilling() {
@@ -54,13 +53,13 @@ export default function AdminBilling() {
     <AdminLayout>
       <header className="grid grid-cols-12 gap-gutter mb-16 items-end">
         <div className="col-span-12 md:col-span-7">
-          <p className="font-mono text-label-mono text-secondary mb-2 uppercase">Head of Billing: Stella</p>
-          <h1 className="text-headline-lg text-primary mb-4 font-display">Revenue Desk</h1>
-          <p className="font-body-lg text-body-lg text-on-surface-variant max-w-xl">Overview of payment satisfaction, invoice accuracy, and portal engagement metrics.</p>
+          <p className="font-mono text-label-mono text-secondary mb-2 uppercase text-xs">Head of Billing: Stella</p>
+          <h1 className="text-3xl md:text-headline-lg text-primary mb-4 font-display">Billing Overview</h1>
+          <p className="font-body-lg text-body-lg text-on-surface-variant max-w-xl">Overview of payment satisfaction, invoice accuracy, and portal usage.</p>
         </div>
         <div className="col-span-12 md:col-span-4 md:col-start-9 text-right">
           <div className="inline-flex items-center gap-2 bg-white px-4 py-2 rounded-full border border-border whisper-shadow">
-            <span className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></span>
+            <span className="w-2 h-2 bg-green-500 rounded-full"></span>
             <span className="font-mono text-label-mono text-on-surface">Monitoring Active</span>
           </div>
         </div>
@@ -126,14 +125,14 @@ export default function AdminBilling() {
 
         <div className="col-span-12 lg:col-span-4 flex flex-col gap-gutter">
           <div className="bg-white p-8 rounded-xl whisper-shadow border border-border flex-1 flex flex-col justify-center">
-            <p className="font-mono text-[12px] text-secondary mb-4 uppercase">System Health</p>
-            <h4 className="font-display text-[20px] mb-4 font-bold">Billing Gateway 04</h4>
+            <p className="font-mono text-[12px] text-secondary mb-4 uppercase">System Performance</p>
+            <h4 className="font-display text-[20px] mb-4 font-bold">Payment System</h4>
             <div className="w-full bg-surface-container-high h-2 rounded-full overflow-hidden mb-2">
               <div className="bg-secondary h-full w-[92%]"></div>
             </div>
             <div className="flex justify-between font-mono text-[10px] text-on-surface-variant">
-              <span>Performance: Normal</span>
-              <span>Low Latency</span>
+              <span>Status: Normal</span>
+              <span>Online</span>
             </div>
           </div>
           
@@ -147,8 +146,8 @@ export default function AdminBilling() {
             />
             <div className="absolute inset-0 bg-gradient-to-t from-primary to-transparent opacity-60"></div>
             <div className="absolute bottom-6 left-6">
-              <span className="font-mono text-white text-[10px] border border-white/30 px-2 py-1 rounded backdrop-blur-md mb-2 inline-block">Status</span>
-              <p className="text-white font-headline text-[18px]">Regional Hub</p>
+              <span className="font-mono text-white text-[10px] border border-white/30 px-2 py-1 rounded backdrop-blur-md mb-2 inline-block">Regional Hub</span>
+              <p className="text-white font-headline text-[18px]">Lagos Hub</p>
             </div>
           </div>
         </div>
