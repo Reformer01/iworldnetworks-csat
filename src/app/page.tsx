@@ -42,7 +42,6 @@ export default function LandingPage() {
 
   const validRegions = ['Abeokuta', 'Ibadan', 'Osogbo', 'Akure'];
 
-  // Provided Support Staff
   const supportStaff = [
     "Victoria Fokorede",
     "Aishat Hamzat",
@@ -51,7 +50,6 @@ export default function LandingPage() {
     "Babatunde Christianah"
   ];
 
-  // Provided Technicians mapped to the 4 regions
   const technicians = [
     { name: "Lukmon Obasa", region: "Akure" },
     { name: "Christian Adejo", region: "Akure" },

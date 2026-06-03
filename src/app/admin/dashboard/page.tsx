@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useMemo } from 'react';
+import React, { useMemo, useEffect, useState } from 'react';
 import { AdminLayout } from '@/components/layout/AdminLayout';
 import { TrendingUp, Headset, Wrench, AlertCircle, Wifi, Activity } from 'lucide-react';
 import Image from 'next/image';
@@ -23,8 +23,13 @@ import {
 } from 'recharts';
 
 export default function AdminDashboard() {
+  const [mounted, setMounted] = useState(false);
   const infraImg = PlaceHolderImages.find(img => img.id === 'infra-status')!;
   const firestore = useFirestore();
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
 
   const feedbackQuery = useMemo(() => {
     if (!firestore) return null;
@@ -87,7 +92,7 @@ export default function AdminDashboard() {
             <span className="w-2 h-2 rounded-full bg-green-500 animate-pulse"></span> Network Stable
           </span>
           <span className="bg-white px-4 py-2 rounded-full border border-border whisper-shadow">
-            {new Date().toLocaleDateString('en-US', { month: 'short', day: '2-digit', year: '2026' })}
+            {mounted ? new Date().toLocaleDateString('en-US', { month: 'short', day: '2-digit' }) + ', 2026' : '---'}
           </span>
         </div>
       </section>
