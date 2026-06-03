@@ -1,3 +1,4 @@
+
 'use client';
 
 import React, { useMemo } from 'react';
@@ -16,7 +17,7 @@ export default function AdminDashboard() {
 
   const feedbackQuery = useMemo(() => {
     if (!firestore) return null;
-    return query(collection(firestore, 'feedbacks'), orderBy('timestamp', 'desc'), limit(50));
+    return query(collection(firestore, 'feedbacks'), orderBy('timestamp', 'desc'), limit(100));
   }, [firestore]);
 
   const { data: feedbacks, loading } = useCollection(feedbackQuery);
@@ -26,8 +27,11 @@ export default function AdminDashboard() {
     
     const total = feedbacks.length;
     const highRatings = feedbacks.filter((f: any) => {
-      const avgRating = Object.values(f.ratings || {}).reduce((a: any, b: any) => a + Number(b), 0) / Object.values(f.ratings || {}).length;
-      return avgRating >= 4;
+      // Calculate avg from all numeric ratings provided
+      const ratingVals = Object.values(f.ratings || {}).map(v => Number(v));
+      if (ratingVals.length === 0) return false;
+      const avg = ratingVals.reduce((a, b) => a + b, 0) / ratingVals.length;
+      return avg >= 4;
     }).length;
 
     return {
@@ -38,11 +42,10 @@ export default function AdminDashboard() {
   }, [feedbacks]);
 
   const regionalData = useMemo(() => {
-    if (!feedbacks) return { Lagos: 0, Abuja: 0, Others: 0 };
-    const counts: Record<string, number> = { Lagos: 0, Abuja: 0, Others: 0 };
+    const counts: Record<string, number> = { Lagos: 0, Abuja: 0, Ibadan: 0, Others: 0 };
+    if (!feedbacks) return counts;
     feedbacks.forEach((f: any) => {
-      if (f.location === 'Lagos') counts.Lagos++;
-      else if (f.location === 'Abuja') counts.Abuja++;
+      if (counts[f.location] !== undefined) counts[f.location]++;
       else counts.Others++;
     });
     return counts;
@@ -53,20 +56,17 @@ export default function AdminDashboard() {
       <section className="mb-12 flex justify-between items-end">
         <div className="max-w-2xl">
           <h1 className="font-display text-display-lg text-primary tracking-tight mb-2">Overview</h1>
-          <p className="text-on-surface-variant font-body-lg">Monitoring customer satisfaction across all national service areas.</p>
+          <p className="text-on-surface-variant font-body-lg">Monitoring customer happiness and network performance across all hubs.</p>
         </div>
         <div className="flex gap-4 items-center font-mono text-label-mono text-on-surface-variant">
           <span className="flex items-center gap-2 bg-white px-4 py-2 rounded-full border border-border whisper-shadow">
             <span className="w-2 h-2 rounded-full bg-green-500 animate-pulse"></span> Network Stable
           </span>
-          <span className="bg-white px-4 py-2 rounded-full border border-border whisper-shadow">
-            {new Date().toLocaleDateString('en-US', { month: 'short', day: '2-digit', year: 'numeric' })}
-          </span>
         </div>
       </section>
 
-      <section className="grid grid-cols-12 gap-gutter mb-gutter">
-        <div className="col-span-12 md:col-span-4 bg-white p-8 border border-border whisper-shadow rounded-xl hover:scale-[1.02] transition-transform duration-300">
+      <section className="grid grid-cols-1 md:grid-cols-3 gap-gutter mb-gutter">
+        <div className="bg-white p-8 border border-border whisper-shadow rounded-xl">
           <p className="font-mono text-label-mono text-on-surface-variant uppercase mb-4">CSAT Index</p>
           <div className="flex items-baseline gap-2">
             <span className="font-mono text-[56px] leading-none font-bold text-primary">{stats.csat}</span>
@@ -74,30 +74,30 @@ export default function AdminDashboard() {
           </div>
           <div className="mt-6 flex items-center gap-2 text-secondary">
             <TrendingUp className="w-5 h-5" />
-            <span className="font-mono text-label-mono">{stats.growth} vs last month</span>
+            <span className="font-mono text-label-mono">{stats.growth} this month</span>
           </div>
         </div>
 
-        <div className="col-span-12 md:col-span-4 bg-white p-8 border border-border whisper-shadow rounded-xl hover:scale-[1.02] transition-transform duration-300">
+        <div className="bg-white p-8 border border-border whisper-shadow rounded-xl">
           <p className="font-mono text-label-mono text-on-surface-variant uppercase mb-4">Total Responses</p>
           <div className="flex items-baseline gap-1">
             <span className="font-mono text-[56px] leading-none font-bold text-primary">{stats.total}</span>
           </div>
-          <p className="mt-6 text-on-surface-variant font-body-md">Submissions collected</p>
+          <p className="mt-6 text-on-surface-variant font-body-md">Real customer evaluations</p>
         </div>
 
-        <div className="col-span-12 md:col-span-4 bg-white p-8 border border-border whisper-shadow rounded-xl hover:scale-[1.02] transition-transform duration-300">
-          <p className="font-mono text-label-mono text-on-surface-variant uppercase mb-4">Service Reliability</p>
+        <div className="bg-white p-8 border border-border whisper-shadow rounded-xl">
+          <p className="font-mono text-label-mono text-on-surface-variant uppercase mb-4">Uptime</p>
           <div className="flex items-baseline gap-2">
             <span className="font-mono text-[56px] leading-none font-bold text-secondary">99.8</span>
             <span className="font-mono text-display-xl text-secondary">%</span>
           </div>
-          <p className="mt-6 text-on-surface-variant font-body-md">Network uptime monitoring</p>
+          <p className="mt-6 text-on-surface-variant font-body-md">Network consistency</p>
         </div>
       </section>
 
       <section className="grid grid-cols-12 gap-gutter mt-16 pb-24">
-        <div className="col-span-12 lg:col-span-7 space-y-gutter">
+        <div className="col-span-12 lg:col-span-7">
           <div className="bg-white p-8 border border-border whisper-shadow rounded-xl">
             <h3 className="font-mono text-label-mono uppercase mb-8">Recent Feed</h3>
             <div className="space-y-4">
@@ -128,7 +128,7 @@ export default function AdminDashboard() {
                 );
               })}
               {(!feedbacks || feedbacks.length === 0) && !loading && (
-                <p className="text-center text-on-surface-variant py-12 font-mono text-sm">Waiting for new data...</p>
+                <p className="text-center text-on-surface-variant py-12 font-mono text-sm">No feedback records found yet.</p>
               )}
             </div>
           </div>
@@ -136,24 +136,12 @@ export default function AdminDashboard() {
 
         <div className="col-span-12 lg:col-span-4 lg:col-start-9 space-y-gutter">
           <div className="bg-white p-8 border border-border whisper-shadow rounded-xl">
-            <h4 className="font-mono text-label-mono uppercase mb-8">Data by Region</h4>
-            <div className="relative w-48 h-48 mx-auto mb-8">
-              <div className="absolute inset-0 rounded-full border-[16px] border-surface-container"></div>
-              <div 
-                className="absolute inset-0 rounded-full border-[16px] border-secondary border-t-transparent border-l-transparent" 
-                style={{ transform: `rotate(${Math.min(360, (regionalData.Lagos / stats.total) * 360)}deg)` }}
-              ></div>
-              <div className="absolute inset-0 flex flex-col items-center justify-center">
-                <span className="font-mono text-2xl font-bold">
-                  {stats.total > 0 ? ((regionalData.Lagos / stats.total) * 100).toFixed(0) : 0}%
-                </span>
-                <span className="text-[10px] text-on-surface-variant uppercase">Lagos</span>
-              </div>
-            </div>
+            <h4 className="font-mono text-label-mono uppercase mb-8">Volume by Region</h4>
             <div className="space-y-3">
               {[
                 { label: 'Lagos', color: 'bg-secondary', count: regionalData.Lagos },
                 { label: 'Abuja', color: 'bg-primary', count: regionalData.Abuja },
+                { label: 'Ibadan', color: 'bg-orange-500', count: regionalData.Ibadan },
                 { label: 'Others', color: 'bg-muted-foreground', count: regionalData.Others },
               ].map(item => (
                 <div key={item.label} className="flex justify-between text-xs font-mono">
@@ -167,8 +155,8 @@ export default function AdminDashboard() {
           <div className="rounded-xl overflow-hidden h-64 whisper-shadow relative group">
             <Image src={infraImg.imageUrl} alt="Infrastructure" fill className="object-cover grayscale brightness-90 group-hover:grayscale-0 transition-all duration-700" data-ai-hint="data center" />
             <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent flex flex-col justify-end p-6">
-              <span className="text-white font-mono text-xs uppercase tracking-widest opacity-80 mb-1">Status</span>
-              <p className="text-white font-headline text-[20px]">Lagos Hub Hub-01</p>
+              <p className="text-white font-headline text-[20px]">Lagos Central Hub</p>
+              <span className="text-white font-mono text-xs uppercase tracking-widest opacity-80">Network Status: Online</span>
             </div>
           </div>
         </div>

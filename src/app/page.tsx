@@ -1,3 +1,4 @@
+
 'use client';
 
 import React, { useState, useMemo } from 'react';
@@ -17,7 +18,6 @@ import {
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
-import { Switch } from '@/components/ui/switch';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Label } from '@/components/ui/label';
 import { useFirestore, useCollection } from '@/firebase';
@@ -32,7 +32,7 @@ export default function LandingPage() {
   const [formData, setFormData] = useState({
     customerName: '',
     customerEmail: '',
-    servicePlan: 'Standard Home',
+    servicePlan: 'Fiber Home',
     location: 'Lagos',
     comment: '',
     staffName: '',
@@ -41,7 +41,7 @@ export default function LandingPage() {
 
   const firestore = useFirestore();
 
-  // Fetch real personnel from database
+  // Live Personnel Fetching
   const staffQuery = useMemo(() => firestore ? query(collection(firestore, 'staff'), orderBy('name')) : null, [firestore]);
   const techQuery = useMemo(() => firestore ? query(collection(firestore, 'technicians'), orderBy('name')) : null, [firestore]);
   
@@ -67,47 +67,37 @@ export default function LandingPage() {
   const heroContent: Record<Category, { title: React.ReactNode, sub: string, img: any }> = {
     Reliability: {
       title: (
-        <>
-          Get <div className="relative h-[72px] w-[140px] rounded-full overflow-hidden inline-block mx-2 border-2 border-white"><Image src={images.fiber.imageUrl} alt="fiber" fill className="object-cover" /></div> consistent <div className="relative h-[72px] w-[140px] rounded-full overflow-hidden inline-block mx-2 border-2 border-white"><Image src={images.customer.imageUrl} alt="customer" fill className="object-cover" /></div> connections.
-        </>
+        <>Stay <div className="relative h-[72px] w-[140px] rounded-full overflow-hidden inline-block mx-2 border-2 border-white"><Image src={images.fiber.imageUrl} alt="fiber" fill className="object-cover" /></div> Connected <div className="relative h-[72px] w-[140px] rounded-full overflow-hidden inline-block mx-2 border-2 border-white"><Image src={images.customer.imageUrl} alt="customer" fill className="object-cover" /></div> Always.</>
       ),
-      sub: "We're committed to keeping you online with high-speed fiber you can count on every day.",
+      sub: "Tell us about your internet quality. We want to ensure you have consistent high-speed fiber every single day.",
       img: images.server
     },
     Support: {
       title: (
-        <>
-          Friendly <div className="relative h-[72px] w-[140px] rounded-full overflow-hidden inline-block mx-2 border-2 border-white"><Image src={images.customer.imageUrl} alt="customer" fill className="object-cover" /></div> help <div className="relative h-[72px] w-[140px] rounded-full overflow-hidden inline-block mx-2 border-2 border-white"><Image src={images.tech.imageUrl} alt="tech" fill className="object-cover grayscale" /></div> when you need it.
-        </>
+        <>Fast <div className="relative h-[72px] w-[140px] rounded-full overflow-hidden inline-block mx-2 border-2 border-white"><Image src={images.customer.imageUrl} alt="customer" fill className="object-cover" /></div> Answers <div className="relative h-[72px] w-[140px] rounded-full overflow-hidden inline-block mx-2 border-2 border-white"><Image src={images.tech.imageUrl} alt="tech" fill className="object-cover" /></div> Locally.</>
       ),
-      sub: "Tell us how our support team did today so we can keep improving our service for you.",
+      sub: "How was your experience with our support team? We're here to help and value your honest feedback.",
       img: images.tech
     },
     Testimonials: {
       title: (
-        <>
-          Share your <div className="relative h-[72px] w-[140px] rounded-full overflow-hidden inline-block mx-2 border-2 border-white"><Image src={images.customer.imageUrl} alt="customer" fill className="object-cover" /></div> personal <div className="relative h-[72px] w-[140px] rounded-full overflow-hidden inline-block mx-2 border-2 border-white"><Image src={images.workspace.imageUrl} alt="workspace" fill className="object-cover grayscale" /></div> success story.
-        </>
+        <>Real <div className="relative h-[72px] w-[140px] rounded-full overflow-hidden inline-block mx-2 border-2 border-white"><Image src={images.customer.imageUrl} alt="customer" fill className="object-cover" /></div> Stories <div className="relative h-[72px] w-[140px] rounded-full overflow-hidden inline-block mx-2 border-2 border-white"><Image src={images.workspace.imageUrl} alt="workspace" fill className="object-cover" /></div> Shared.</>
       ),
-      sub: "How has our internet helped your home or business reach new goals? We'd love to know.",
+      sub: "Has I-World helped your home or business? Share your success story with us and the community.",
       img: images.workspace
     },
     Installation: {
       title: (
-        <>
-          Professional <div className="relative h-[72px] w-[140px] rounded-full overflow-hidden inline-block mx-2 border-2 border-white"><Image src={images.tech.imageUrl} alt="tech" fill className="object-cover" /></div> setup <div className="relative h-[72px] w-[140px] rounded-full overflow-hidden inline-block mx-2 border-2 border-white"><Image src={images.fiber.imageUrl} alt="fiber" fill className="object-cover grayscale" /></div> review.
-        </>
+        <>Professional <div className="relative h-[72px] w-[140px] rounded-full overflow-hidden inline-block mx-2 border-2 border-white"><Image src={images.tech.imageUrl} alt="tech" fill className="object-cover" /></div> Fiber <div className="relative h-[72px] w-[140px] rounded-full overflow-hidden inline-block mx-2 border-2 border-white"><Image src={images.fiber.imageUrl} alt="fiber" fill className="object-cover" /></div> Setup.</>
       ),
-      sub: "We want every installation to be perfect. Let us know how your setup experience went.",
+      sub: "Tell us about your installation. We aim for a neat, quick, and professional experience every time.",
       img: images.tech
     },
     Billing: {
       title: (
-        <>
-          Simple <div className="relative h-[72px] w-[140px] rounded-full overflow-hidden inline-block mx-2 border-2 border-white"><Image src={images.workspace.imageUrl} alt="workspace" fill className="object-cover grayscale" /></div> payments <div className="relative h-[72px] w-[140px] rounded-full overflow-hidden inline-block mx-2 border-2 border-white"><Image src={images.customer.imageUrl} alt="customer" fill className="object-cover" /></div> feedback.
-        </>
+        <>Simple <div className="relative h-[72px] w-[140px] rounded-full overflow-hidden inline-block mx-2 border-2 border-white"><Image src={images.workspace.imageUrl} alt="workspace" fill className="object-cover" /></div> Payments <div className="relative h-[72px] w-[140px] rounded-full overflow-hidden inline-block mx-2 border-2 border-white"><Image src={images.customer.imageUrl} alt="customer" fill className="object-cover" /></div> Matters.</>
       ),
-      sub: "We aim for clear and easy billing. Tell us about your experience with our payment tools.",
+      sub: "How is our billing process? We want to make sure payments are easy and clear for all our customers.",
       img: images.server
     }
   };
@@ -194,7 +184,7 @@ export default function LandingPage() {
                 src={activeHero.img.imageUrl} 
                 alt="Feedback category" 
                 fill 
-                className="object-cover grayscale hover:grayscale-0 transition-all duration-1000 animate-in fade-in zoom-in-95" 
+                className="object-cover grayscale hover:grayscale-0 transition-all duration-1000" 
                 data-ai-hint="professional service" 
               />
             </div>
@@ -230,59 +220,38 @@ export default function LandingPage() {
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
                   <div className="space-y-2">
                     <label className="font-mono text-[12px] uppercase text-on-surface-variant">Full Name</label>
-                    <input 
-                      required 
-                      className="w-full bg-transparent border-0 border-b border-border focus:ring-0 focus:border-secondary font-body py-2 px-0 outline-none" 
-                      placeholder="e.g. John Doe" 
-                      type="text" 
-                      value={formData.customerName}
-                      onChange={(e) => setFormData({...formData, customerName: e.target.value})}
-                    />
+                    <input required className="w-full bg-transparent border-0 border-b border-border focus:ring-0 focus:border-secondary font-body py-2 px-0 outline-none" placeholder="e.g. John Doe" type="text" value={formData.customerName} onChange={(e) => setFormData({...formData, customerName: e.target.value})} />
                   </div>
                   <div className="space-y-2">
                     <label className="font-mono text-[12px] uppercase text-on-surface-variant">Contact Email</label>
                     <div className="relative">
                       <Mail className="absolute right-0 bottom-3 w-4 h-4 text-on-surface-variant" />
-                      <input 
-                        required 
-                        className="w-full bg-transparent border-0 border-b border-border focus:ring-0 focus:border-secondary font-body py-2 px-0 outline-none" 
-                        placeholder="your@email.com" 
-                        type="email" 
-                        value={formData.customerEmail}
-                        onChange={(e) => setFormData({...formData, customerEmail: e.target.value})}
-                      />
+                      <input required className="w-full bg-transparent border-0 border-b border-border focus:ring-0 focus:border-secondary font-body py-2 px-0 outline-none" placeholder="your@email.com" type="email" value={formData.customerEmail} onChange={(e) => setFormData({...formData, customerEmail: e.target.value})} />
                     </div>
                   </div>
                 </div>
 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
                   <div className="space-y-2">
-                    <label className="font-mono text-[12px] uppercase text-on-surface-variant">Current Plan</label>
-                    <select 
-                      className="w-full bg-transparent border-0 border-b border-border focus:ring-0 focus:border-secondary font-body py-2 px-0 appearance-none outline-none"
-                      value={formData.servicePlan}
-                      onChange={(e) => setFormData({...formData, servicePlan: e.target.value})}
-                    >
-                      <option>Fiber Enterprise 1Gbps</option>
-                      <option>Fiber Home 500Mbps</option>
-                      <option>Standard Home</option>
-                      <option>Dedicated SME</option>
+                    <label className="font-mono text-[12px] uppercase text-on-surface-variant">Service Plan</label>
+                    <select className="w-full bg-transparent border-0 border-b border-border focus:ring-0 focus:border-secondary font-body py-2 px-0 appearance-none outline-none" value={formData.servicePlan} onChange={(e) => setFormData({...formData, servicePlan: e.target.value})}>
+                      <option>Fiber Home</option>
+                      <option>Fiber Business</option>
+                      <option>Enterprise Gold</option>
+                      <option>SME Dedicated</option>
                     </select>
                   </div>
                   <div className="space-y-2">
-                    <label className="font-mono text-[12px] uppercase text-on-surface-variant">Your Location</label>
-                    <select 
-                      className="w-full bg-transparent border-0 border-b border-border focus:ring-0 focus:border-secondary font-body py-2 px-0 appearance-none outline-none"
-                      value={formData.location}
-                      onChange={(e) => setFormData({...formData, location: e.target.value})}
-                    >
+                    <label className="font-mono text-[12px] uppercase text-on-surface-variant">Your Region</label>
+                    <select className="w-full bg-transparent border-0 border-b border-border focus:ring-0 focus:border-secondary font-body py-2 px-0 appearance-none outline-none" value={formData.location} onChange={(e) => setFormData({...formData, location: e.target.value})}>
                       <option>Lagos</option>
                       <option>Abuja</option>
-                      <option>Abeokuta</option>
                       <option>Ibadan</option>
                       <option>Akure</option>
                       <option>Osogbo</option>
                       <option>Sagamu</option>
+                      <option>Ota</option>
+                      <option>Ijebu Ode</option>
                     </select>
                   </div>
                 </div>
@@ -293,15 +262,15 @@ export default function LandingPage() {
                   {activeCategory === 'Reliability' && (
                     <>
                       {renderRatingGroup("stability", "Connection Stability", "How stable was your internet over the last 30 days?")}
-                      {renderRatingGroup("journey", "Overall Experience", "How would you rate your overall network experience today?")}
+                      {renderRatingGroup("journey", "Overall Experience", "How would you rate your network experience today?")}
                       <div className="space-y-4">
                         <label className="font-mono text-[12px] uppercase text-on-surface-variant">Main Concern (if any)</label>
                         <select className="w-full bg-background p-4 rounded-xl border border-border focus:ring-2 focus:ring-secondary/20 outline-none">
-                          <option>None / Everything is great</option>
-                          <option>Speed & Latency</option>
+                          <option>Everything is great</option>
+                          <option>Speed issues</option>
                           <option>Wait times</option>
                           <option>Connection drops</option>
-                          <option>Technical Error</option>
+                          <option>Hardware error</option>
                         </select>
                       </div>
                     </>
@@ -311,81 +280,36 @@ export default function LandingPage() {
                     <>
                       <div className="space-y-4">
                         <label className="font-mono text-[12px] uppercase text-on-surface-variant">Who helped you?</label>
-                        <select 
-                          className="w-full bg-background p-4 rounded-xl border border-border focus:ring-2 focus:ring-secondary/20 outline-none"
-                          onChange={(e) => setFormData({...formData, staffName: e.target.value})}
-                          required
-                        >
-                          <option value="">Select Agent</option>
+                        <select className="w-full bg-background p-4 rounded-xl border border-border focus:ring-2 focus:ring-secondary/20 outline-none" onChange={(e) => setFormData({...formData, staffName: e.target.value})} required>
+                          <option value="">Select Support Staff</option>
                           {supportStaff?.map((staff: any) => (
                             <option key={staff.id} value={staff.name}>{staff.name}</option>
                           ))}
                         </select>
                       </div>
-                      {renderRatingGroup("professionalism", "Helpfulness", "How helpful was our support agent?")}
-                      {renderRatingGroup("clarity", "Communication", "Were the explanations easy to understand?")}
-                      {renderRatingGroup("effectiveness", "Problem Resolution", "Was your issue fixed properly?")}
-                      <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 border-y border-border/30 py-8">
-                        <div>
-                          <h3 className="font-display text-xl">Were you kept updated?</h3>
-                          <p className="text-on-surface-variant text-sm">Did you receive progress notifications?</p>
-                        </div>
-                        <div className="flex gap-4">
-                           {['YES', 'NO'].map(choice => (
-                             <button 
-                               key={choice} 
-                               type="button" 
-                               onClick={() => handleRating('updates', choice === 'YES' ? 1 : 0)}
-                               className={cn(
-                                 "px-8 py-3 border border-border rounded-xl font-mono text-sm transition-all",
-                                 (ratings['updates'] === 1 && choice === 'YES') || (ratings['updates'] === 0 && choice === 'NO')
-                                  ? "bg-primary text-white" 
-                                  : "hover:bg-surface-container"
-                               )}
-                             >
-                               {choice}
-                             </button>
-                           ))}
-                        </div>
-                      </div>
+                      {renderRatingGroup("professionalism", "Staff Helpfulness", "How helpful was our support agent?")}
+                      {renderRatingGroup("clarity", "Communication", "Were the explanations clear and easy to understand?")}
                     </>
                   )}
 
                   {activeCategory === 'Testimonials' && (
                     <>
                       <div className="space-y-6">
-                        <h3 className="font-display text-2xl">Overall Rating</h3>
+                        <h3 className="font-display text-2xl">Overall Satisfaction</h3>
                         <div className="flex gap-4">
                           {[1, 2, 3, 4, 5].map(star => (
-                            <Star 
-                              key={star} 
-                              onClick={() => handleRating('signal', star)}
-                              className={cn(
-                                "w-10 h-10 cursor-pointer transition-all",
-                                (ratings['signal'] || 0) >= star ? "fill-secondary text-secondary" : "text-border hover:text-secondary/50"
-                              )} 
-                            />
+                            <Star key={star} onClick={() => handleRating('signal', star)} className={cn("w-10 h-10 cursor-pointer transition-all", (ratings['signal'] || 0) >= star ? "fill-secondary text-secondary" : "text-border hover:text-secondary/50")} />
                           ))}
                         </div>
                       </div>
                       <div className="space-y-4">
                         <label className="font-display text-2xl block">Share your story</label>
-                        <textarea 
-                          className="w-full bg-background p-6 rounded-[1.5rem] border border-border focus:ring-2 focus:ring-secondary/20 outline-none resize-none min-h-[160px]" 
-                          placeholder="How has our service helped your work or home life?" 
-                          value={formData.comment}
-                          onChange={(e) => setFormData({...formData, comment: e.target.value})}
-                          required
-                        />
+                        <textarea className="w-full bg-background p-6 rounded-[1.5rem] border border-border focus:ring-2 focus:ring-secondary/20 outline-none resize-none min-h-[160px]" placeholder="Tell us how our service has helped you..." value={formData.comment} onChange={(e) => setFormData({...formData, comment: e.target.value})} required />
                       </div>
                       <div className="space-y-6">
                         <h3 className="font-display text-2xl">Can we share your story?</h3>
-                        <p className="text-sm text-on-surface-variant mb-4">We'd love to feature your experience on our website.</p>
-                        <RadioGroup 
-                          defaultValue="Maybe" 
-                          className="flex gap-4"
-                          onValueChange={(val) => setFormData({...formData, interviewConsent: val})}
-                        >
+                        <p className="text-sm text-on-surface-variant mb-4">We'd love to feature your experience on our community updates.</p>
+                        <RadioGroup defaultValue="Maybe" className="flex gap-4" onValueChange={(val) => setFormData({...formData, interviewConsent: val})}>
                           {['Yes', 'No', 'Maybe'].map(opt => (
                             <div key={opt} className="flex items-center space-x-2 border p-4 rounded-xl flex-1 justify-center hover:bg-surface-container cursor-pointer transition-colors">
                               <RadioGroupItem value={opt} id={opt} />
@@ -399,75 +323,37 @@ export default function LandingPage() {
 
                   {activeCategory === 'Installation' && (
                     <>
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-                        <div className="space-y-2">
-                          <label className="font-mono text-[12px] uppercase text-on-surface-variant">Sales Agent Name</label>
-                          <input className="w-full bg-transparent border-0 border-b border-border focus:ring-0 focus:border-secondary font-body py-2 px-0 outline-none" placeholder="Who sold you the plan?" type="text" />
-                        </div>
-                        <div className="space-y-2">
-                          <label className="font-mono text-[12px] uppercase text-on-surface-variant">Installation Lead</label>
-                          <select 
-                            className="w-full bg-transparent border-0 border-b border-border focus:ring-0 focus:border-secondary font-body py-2 px-0 appearance-none outline-none"
-                            onChange={(e) => setFormData({...formData, staffName: e.target.value})}
-                            required
-                          >
-                            <option value="">Select Technician</option>
-                            {technicians?.map((tech: any) => (
-                              <option key={tech.id} value={tech.name}>{tech.name}</option>
-                            ))}
-                          </select>
-                        </div>
+                      <div className="space-y-4">
+                        <label className="font-mono text-[12px] uppercase text-on-surface-variant">Installation Lead</label>
+                        <select className="w-full bg-background p-4 rounded-xl border border-border focus:ring-2 focus:ring-secondary/20 outline-none" onChange={(e) => setFormData({...formData, staffName: e.target.value})} required>
+                          <option value="">Select Technician</option>
+                          {technicians?.map((tech: any) => (
+                            <option key={tech.id} value={tech.name}>{tech.name} ({tech.region})</option>
+                          ))}
+                        </select>
                       </div>
-                      {renderRatingGroup("punctuality", "Punctuality", "Did our team arrive when they said they would?")}
-                      {renderRatingGroup("quality", "Setup Quality", "How would you rate the neatness of the setup?")}
+                      {renderRatingGroup("punctuality", "Punctuality", "Did our team arrive at the scheduled time?")}
+                      {renderRatingGroup("quality", "Setup Quality", "How would you rate the neatness of the equipment setup?")}
                     </>
                   )}
 
                   {activeCategory === 'Billing' && (
                     <>
-                      {renderRatingGroup("accuracy", "Invoice Accuracy", "How accurate was your last bill?")}
-                      {renderRatingGroup("dispute", "Helpfulness", "How helpful was our team with billing questions?")}
-                      {renderRatingGroup("reconnection", "Reconnection Speed", "How fast was service restored after payment?")}
-                      <div className="p-8 bg-primary rounded-2xl text-white flex items-center justify-between">
-                        <div>
-                          <h4 className="font-display text-xl mb-1">Online Payment Portal</h4>
-                          <p className="opacity-70 text-sm">Did you use our website portal for payments?</p>
-                        </div>
-                        <Switch className="data-[state=checked]:bg-secondary" />
-                      </div>
+                      {renderRatingGroup("accuracy", "Invoice Accuracy", "Was your last bill correct and easy to read?")}
+                      {renderRatingGroup("reconnection", "Reconnection Speed", "How fast was service restored after your payment?")}
                     </>
                   )}
 
                   {activeCategory !== 'Testimonials' && (
                     <div className="space-y-4">
-                      <label className="font-mono text-[12px] uppercase text-on-surface-variant">Additional Comments</label>
-                      <textarea 
-                        className="w-full bg-background p-6 rounded-[1.5rem] border border-border focus:ring-2 focus:ring-secondary/20 outline-none resize-none min-h-[160px]" 
-                        placeholder="Tell us anything else you'd like us to know..." 
-                        value={formData.comment}
-                        onChange={(e) => setFormData({...formData, comment: e.target.value})}
-                      />
+                      <label className="font-mono text-[12px] uppercase text-on-surface-variant">Anything else to share?</label>
+                      <textarea className="w-full bg-background p-6 rounded-[1.5rem] border border-border focus:ring-2 focus:ring-secondary/20 outline-none resize-none min-h-[160px]" placeholder="Tell us more about your experience..." value={formData.comment} onChange={(e) => setFormData({...formData, comment: e.target.value})} />
                     </div>
                   )}
 
                   <div className="pt-6">
-                    <Button 
-                      type="submit"
-                      disabled={isSubmitted}
-                      className={cn(
-                        "w-full md:w-auto px-12 py-7 rounded-full font-bold hover:scale-[1.02] transition-all flex items-center gap-4 text-white uppercase tracking-widest",
-                        isSubmitted ? "bg-green-600" : "bg-primary"
-                      )}
-                    >
-                      {isSubmitted ? (
-                        <>
-                          Thank You <CircleCheck className="w-5 h-5" />
-                        </>
-                      ) : (
-                        <>
-                          Submit Feedback <ArrowRight className="w-5 h-5" />
-                        </>
-                      )}
+                    <Button type="submit" disabled={isSubmitted} className={cn("w-full md:w-auto px-12 py-7 rounded-full font-bold hover:scale-[1.02] transition-all flex items-center gap-4 text-white uppercase tracking-widest", isSubmitted ? "bg-green-600" : "bg-primary")}>
+                      {isSubmitted ? <>Feedback Received <CircleCheck className="w-5 h-5" /></> : <>Submit Feedback <ArrowRight className="w-5 h-5" /></>}
                     </Button>
                   </div>
                 </div>
@@ -481,15 +367,11 @@ export default function LandingPage() {
         <div className="max-w-container-max mx-auto px-margin-mobile md:px-margin-desktop flex flex-col md:flex-row justify-between items-start gap-8">
           <div className="space-y-4">
             <div className="font-mono text-label-mono font-bold text-primary uppercase">I-World Networks</div>
-            <p className="text-on-surface-variant text-sm max-w-xs opacity-70">
-              Reliable fiber internet for Nigeria's leading business hubs.
-            </p>
-            <div className="font-mono text-[10px] text-on-surface-variant uppercase tracking-tighter">
-              © 2024 I-World Networks.
-            </div>
+            <p className="text-on-surface-variant text-sm max-w-xs opacity-70">Reliable connections for your home and business across Nigeria.</p>
+            <div className="font-mono text-[10px] text-on-surface-variant uppercase tracking-tighter">© 2024 I-World Networks.</div>
           </div>
-          <div className="grid grid-cols-2 md:grid-cols-3 gap-x-12 gap-y-4">
-            {['Lagos', 'Ibadan', 'Abuja', 'Akure', 'Osogbo', 'Sagamu', 'Abeokuta', 'Privacy', 'Terms'].map(link => (
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-x-12 gap-y-4">
+            {['Lagos', 'Abuja', 'Ibadan', 'Akure', 'Osogbo', 'Sagamu', 'Ota', 'Ijebu Ode'].map(link => (
               <a key={link} className="text-on-surface-variant hover:text-secondary transition-colors font-mono text-label-mono" href="#">{link}</a>
             ))}
           </div>

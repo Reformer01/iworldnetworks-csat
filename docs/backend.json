@@ -1,3 +1,4 @@
+
 {
   "entities": {
     "Feedback": {
@@ -31,12 +32,13 @@
     },
     "Technician": {
       "title": "Technician",
-      "description": "Field technician profile",
+      "description": "Field technician profile with territory details",
       "type": "object",
       "properties": {
         "name": { "type": "string" },
+        "partner": { "type": "string", "description": "Tech territory partner" },
         "region": { "type": "string" },
-        "territory": { "type": "string" }
+        "primaryTerritory": { "type": "string" }
       },
       "required": ["name", "region"]
     }
