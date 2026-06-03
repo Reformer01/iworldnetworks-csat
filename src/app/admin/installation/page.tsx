@@ -3,7 +3,7 @@
 
 import React from 'react';
 import { AdminLayout } from '@/components/layout/AdminLayout';
-import { Map, List, ChevronRight, CheckCircle, Clock } from 'lucide-react';
+import { Map, List, ChevronRight, CircleCheck, Clock } from 'lucide-react';
 import Image from 'next/image';
 import { PlaceHolderImages } from '@/lib/placeholder-images';
 import { Button } from '@/components/ui/button';
@@ -38,7 +38,7 @@ export default function AdminInstallation() {
         <section className="col-span-12 md:col-span-5 bg-surface-container-lowest whisper-shadow rounded-xl p-8 border border-border">
           <div className="flex justify-between items-center mb-10">
             <h3 className="font-headline text-[24px] font-bold">Field Technician Leaderboard</h3>
-            <CheckCircle className="w-6 h-6 text-secondary" />
+            <CircleCheck className="w-6 h-6 text-secondary" />
           </div>
           <div className="space-y-8">
             {[
@@ -108,7 +108,7 @@ export default function AdminInstallation() {
       <div className="grid grid-cols-1 md:grid-cols-3 gap-gutter mt-16 mb-24">
         {[
           { label: 'Fastest Deploy', val: '22m', info: 'Technician: R. Musa', icon: Clock },
-          { label: 'Completion Rate', val: '98.4%', info: 'Global Quality', icon: CheckCircle },
+          { label: 'Completion Rate', val: '98.4%', info: 'Global Quality', icon: CircleCheck },
           { label: 'Pending Installs', val: '2,419', info: 'Q4 Backlog', icon: List, primary: true },
         ].map((item, i) => (
           <div key={i} className={cn("p-8 rounded-xl", item.primary ? "bg-secondary text-white" : "bg-surface-container-highest")}>

@@ -12,7 +12,7 @@ import {
   Wrench, 
   CreditCard, 
   ArrowRight,
-  CheckCircle2,
+  CircleCheck,
   Sparkles
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
@@ -294,7 +294,7 @@ export default function LandingPage() {
                     >
                       {isSubmitted ? (
                         <>
-                          Feedback Logged <CheckCircle2 className="w-5 h-5" />
+                          Feedback Logged <CircleCheck className="w-5 h-5" />
                         </>
                       ) : (
                         <>

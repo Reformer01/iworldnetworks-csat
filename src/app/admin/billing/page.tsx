@@ -3,11 +3,10 @@
 
 import React from 'react';
 import { AdminLayout } from '@/components/layout/AdminLayout';
-import { Timer, Devices, TrendingUp, Info } from 'lucide-react';
+import { Timer, MonitorSmartphone, TrendingUp, Info } from 'lucide-react';
 import Image from 'next/image';
 import { PlaceHolderImages } from '@/lib/placeholder-images';
 import { cn } from '@/lib/utils';
-import { Switch } from '@/components/ui/switch';
 
 export default function AdminBilling() {
   const serverImg = PlaceHolderImages.find(img => img.id === 'infra-status')!;
@@ -32,7 +31,7 @@ export default function AdminBilling() {
         {[
           { label: 'Invoice Accuracy', val: '99.1', unit: '%', trend: '+0.2% vs LW', icon: FactCheck },
           { label: 'Dispute Closure Time', val: '4.2', unit: 'h', trend: 'Target: < 5h', icon: Timer, staggered: true },
-          { label: 'Portal Adoption Rate', val: '64', unit: '%', trend: 'Active Now', icon: Devices },
+          { label: 'Portal Adoption Rate', val: '64', unit: '%', trend: 'Active Now', icon: MonitorSmartphone },
         ].map((item, i) => (
           <div 
             key={i} 
