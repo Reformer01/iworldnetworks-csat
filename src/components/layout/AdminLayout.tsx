@@ -80,7 +80,7 @@ export function AdminLayout({ children }: AdminLayoutProps) {
       {/* Top Bar */}
       <header className="fixed top-0 w-full z-50 glass-nav px-margin-mobile md:px-margin-desktop h-16 md:h-20 flex justify-between items-center max-w-container-max mx-auto left-0 right-0 border-b border-border">
         <div className="flex items-center gap-3 md:gap-6">
-          <Link href="/" className="font-display text-xl md:text-[32px] font-black tracking-tighter text-primary">
+          <Link href="/" className="font-mono text-lg md:text-xl font-bold tracking-tighter text-primary uppercase">
             I-World
           </Link>
           <div className="h-6 md:h-8 w-px bg-border hidden sm:block"></div>
@@ -121,7 +121,7 @@ export function AdminLayout({ children }: AdminLayoutProps) {
               <SheetContent side="left" className="w-[280px] p-0 border-r border-border">
                 <div className="h-full flex flex-col pt-10">
                   <SheetHeader className="px-6 mb-8 text-left">
-                    <SheetTitle className="font-display text-2xl text-primary font-bold">Admin Hub</SheetTitle>
+                    <SheetTitle className="font-mono text-lg font-bold tracking-tighter text-primary uppercase">I-World Admin</SheetTitle>
                     <p className="font-mono text-[10px] text-on-surface-variant opacity-60 uppercase tracking-widest">Management Hub</p>
                   </SheetHeader>
                   <nav className="flex-1 space-y-1">
@@ -168,7 +168,7 @@ export function AdminLayout({ children }: AdminLayoutProps) {
       {/* Sidebar (Desktop only) */}
       <aside className="fixed left-0 top-0 h-full w-64 bg-background border-r border-border pt-24 pb-8 flex flex-col z-40 hidden md:flex">
         <div className="px-8 mb-12">
-          <h2 className="font-display text-[24px] text-primary font-bold">Admin Hub</h2>
+          <h2 className="font-mono text-lg font-bold text-primary uppercase tracking-tighter">I-World Networks</h2>
           <p className="font-mono text-[12px] text-on-surface-variant opacity-60 uppercase tracking-widest">Management Hub</p>
         </div>
         <nav className="flex-1 space-y-1">
@@ -205,7 +205,7 @@ export function AdminLayout({ children }: AdminLayoutProps) {
       <footer className="md:ml-64 bg-surface-bright border-t border-border py-8 md:py-12 relative z-50">
         <div className="max-w-container-max mx-auto px-margin-mobile md:px-margin-desktop flex flex-col md:flex-row justify-between items-start gap-8">
           <div className="space-y-4 text-center md:text-left">
-            <span className="font-mono text-xs md:text-label-mono font-bold text-primary">I-World Networks</span>
+            <span className="font-mono text-label-mono font-bold text-primary uppercase">I-World Networks</span>
             <p className="font-mono text-[10px] text-on-surface-variant">© 2026 I-World Networks. All rights reserved.</p>
           </div>
           <div className="grid grid-cols-2 md:grid-cols-3 gap-8 md:gap-12 w-full md:w-auto">

@@ -13,8 +13,8 @@ import {
 
 export function PublicNavbar() {
   return (
-    <nav className="fixed top-0 w-full z-50 glass-nav h-20 px-margin-mobile md:px-margin-desktop flex justify-between items-center max-w-container-max mx-auto left-0 right-0 border-b border-border/50">
-      <Link href="/" className="font-display text-[28px] md:text-[32px] font-black tracking-tighter text-primary">
+    <nav className="fixed top-0 w-full z-50 glass-nav h-16 md:h-20 px-margin-mobile md:px-margin-desktop flex justify-between items-center max-w-container-max mx-auto left-0 right-0 border-b border-border/50">
+      <Link href="/" className="font-mono text-lg md:text-xl font-bold tracking-tighter text-primary uppercase">
         I-World Networks
       </Link>
       
@@ -45,7 +45,7 @@ export function PublicNavbar() {
           </SheetTrigger>
           <SheetContent side="right" className="w-[300px] border-l border-border">
             <SheetHeader className="mb-10">
-              <SheetTitle className="text-left font-display text-[24px] font-black tracking-tighter text-primary">
+              <SheetTitle className="text-left font-mono text-lg font-bold tracking-tighter text-primary uppercase">
                 I-World Networks
               </SheetTitle>
             </SheetHeader>
