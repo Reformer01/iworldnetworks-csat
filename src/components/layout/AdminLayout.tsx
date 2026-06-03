@@ -46,15 +46,15 @@ export function AdminLayout({ children }: AdminLayoutProps) {
   return (
     <div className="bg-background min-h-screen">
       {/* Top Bar */}
-      <header className="fixed top-0 w-full z-50 glass-nav px-margin-mobile md:px-margin-desktop h-20 flex justify-between items-center max-w-container-max mx-auto left-0 right-0 border-b border-border">
-        <div className="flex items-center gap-4 md:gap-6">
-          <Link href="/" className="font-display text-[24px] md:text-[32px] font-black tracking-tighter text-primary">
+      <header className="fixed top-0 w-full z-50 glass-nav px-margin-mobile md:px-margin-desktop h-16 md:h-20 flex justify-between items-center max-w-container-max mx-auto left-0 right-0 border-b border-border">
+        <div className="flex items-center gap-3 md:gap-6">
+          <Link href="/" className="font-display text-xl md:text-[32px] font-black tracking-tighter text-primary">
             I-World
           </Link>
-          <div className="h-8 w-px bg-border hidden md:block"></div>
-          <Link href="/" className="hidden md:flex items-center gap-2 text-on-surface-variant font-mono text-xs hover:text-secondary transition-all group">
-            <ArrowLeft className="w-4 h-4 group-hover:-translate-x-1 transition-transform" />
-            Back to Public Portal
+          <div className="h-6 md:h-8 w-px bg-border hidden sm:block"></div>
+          <Link href="/" className="hidden sm:flex items-center gap-2 text-on-surface-variant font-mono text-[10px] md:text-xs hover:text-secondary transition-all group">
+            <ArrowLeft className="w-3 h-3 md:w-4 md:h-4 group-hover:-translate-x-1 transition-transform" />
+            Public Portal
           </Link>
         </div>
 
@@ -67,25 +67,25 @@ export function AdminLayout({ children }: AdminLayoutProps) {
               Admin Hub
             </Link>
           </div>
-          <Bell className="w-5 h-5 text-on-surface-variant cursor-pointer hover:text-primary transition-colors hidden sm:block" />
-          <Settings className="w-5 h-5 text-on-surface-variant cursor-pointer hover:text-primary transition-colors hidden sm:block" />
-          <div className="w-8 h-8 md:w-10 md:h-10 rounded-full overflow-hidden border border-border">
+          <Bell className="w-4 h-4 md:w-5 md:h-5 text-on-surface-variant cursor-pointer hover:text-primary transition-colors hidden xs:block" />
+          <Settings className="w-4 h-4 md:w-5 md:h-5 text-on-surface-variant cursor-pointer hover:text-primary transition-colors hidden xs:block" />
+          <div className="w-7 h-7 md:w-10 md:h-10 rounded-full overflow-hidden border border-border">
             <Image src={avatar.imageUrl} alt="Admin" width={40} height={40} className="object-cover" />
           </div>
           
           {/* Mobile Menu Trigger */}
-          <div className="md:hidden ml-2">
+          <div className="md:hidden ml-1">
             <Sheet>
               <SheetTrigger asChild>
-                <Button variant="ghost" size="icon" className="hover:bg-transparent">
-                  <Menu className="w-7 h-7 text-primary" />
+                <Button variant="ghost" size="icon" className="hover:bg-transparent h-9 w-9">
+                  <Menu className="w-6 h-6 text-primary" />
                 </Button>
               </SheetTrigger>
-              <SheetContent side="left" className="w-[300px] p-0 border-r border-border">
-                <div className="h-full flex flex-col pt-12">
-                  <SheetHeader className="px-8 mb-12 text-left">
-                    <SheetTitle className="font-display text-[24px] text-primary font-bold">Admin Hub</SheetTitle>
-                    <p className="font-mono text-[12px] text-on-surface-variant opacity-60 uppercase tracking-widest">Management Hub</p>
+              <SheetContent side="left" className="w-[280px] p-0 border-r border-border">
+                <div className="h-full flex flex-col pt-10">
+                  <SheetHeader className="px-6 mb-8 text-left">
+                    <SheetTitle className="font-display text-2xl text-primary font-bold">Admin Hub</SheetTitle>
+                    <p className="font-mono text-[10px] text-on-surface-variant opacity-60 uppercase tracking-widest">Management Hub</p>
                   </SheetHeader>
                   <nav className="flex-1 space-y-1">
                     {navItems.map((item) => (
@@ -93,24 +93,24 @@ export function AdminLayout({ children }: AdminLayoutProps) {
                         key={item.href}
                         href={item.href}
                         className={cn(
-                          "flex items-center gap-4 py-3 px-8 transition-all group",
+                          "flex items-center gap-4 py-3 px-6 transition-all group",
                           pathname === item.href 
                             ? "text-primary font-bold active-pill bg-surface-container-low" 
                             : "text-on-surface-variant hover:bg-surface-container-low"
                         )}
                       >
                         <item.icon className={cn("w-5 h-5 transition-colors", pathname === item.href ? "text-secondary" : "group-hover:text-secondary")} />
-                        <span className="font-mono text-label-mono">{item.name}</span>
+                        <span className="font-mono text-xs uppercase tracking-wider">{item.name}</span>
                       </Link>
                     ))}
                   </nav>
-                  <div className="px-8 pb-12 mt-auto">
-                    <Link href="/" className="flex items-center gap-2 text-on-surface-variant font-mono text-xs hover:text-secondary transition-all group mb-8 pl-1">
+                  <div className="px-6 pb-10 mt-auto">
+                    <Link href="/" className="flex items-center gap-2 text-on-surface-variant font-mono text-[10px] hover:text-secondary transition-all group mb-6 pl-1">
                       <ArrowLeft className="w-4 h-4" />
                       Back to Public Portal
                     </Link>
-                    <Button className="w-full bg-secondary text-white py-7 rounded-xl font-mono text-label-mono flex items-center justify-center gap-3 uppercase tracking-widest font-bold">
-                      <FileText className="w-5 h-5" />
+                    <Button className="w-full bg-secondary text-white py-6 rounded-xl font-mono text-[10px] flex items-center justify-center gap-3 uppercase tracking-widest font-bold">
+                      <FileText className="w-4 h-4" />
                       Generate Report
                     </Button>
                   </div>
@@ -153,31 +153,31 @@ export function AdminLayout({ children }: AdminLayoutProps) {
       </aside>
 
       {/* Content */}
-      <main className="md:ml-64 pt-24 px-margin-mobile md:px-margin-desktop min-h-screen">
+      <main className="md:ml-64 pt-20 md:pt-24 px-margin-mobile md:px-margin-desktop min-h-screen">
         {children}
       </main>
 
       {/* Footer */}
-      <footer className="md:ml-64 bg-surface-bright border-t border-border py-12 relative z-50">
+      <footer className="md:ml-64 bg-surface-bright border-t border-border py-8 md:py-12 relative z-50">
         <div className="max-w-container-max mx-auto px-margin-mobile md:px-margin-desktop flex flex-col md:flex-row justify-between items-start gap-8">
           <div className="space-y-4 text-center md:text-left">
-            <span className="font-mono text-label-mono font-bold text-primary">I-World Networks</span>
-            <p className="font-mono text-xs text-on-surface-variant">© 2026 I-World Networks. All rights reserved.</p>
+            <span className="font-mono text-xs md:text-label-mono font-bold text-primary">I-World Networks</span>
+            <p className="font-mono text-[10px] text-on-surface-variant">© 2026 I-World Networks. All rights reserved.</p>
           </div>
-          <div className="grid grid-cols-2 md:grid-cols-3 gap-12 w-full md:w-auto">
+          <div className="grid grid-cols-2 md:grid-cols-3 gap-8 md:gap-12 w-full md:w-auto">
             <div className="space-y-4">
-              <h5 className="font-mono text-xs font-bold uppercase text-primary">Regional Hubs</h5>
-              <nav className="flex flex-col gap-2">
+              <h5 className="font-mono text-[10px] font-bold uppercase text-primary">Regional Hubs</h5>
+              <nav className="flex flex-col gap-1.5 md:gap-2">
                 {['Abeokuta', 'Ibadan', 'Osogbo', 'Akure'].map(city => (
-                  <a key={city} className="font-mono text-xs text-on-surface-variant hover:text-secondary" href="#">{city}</a>
+                  <a key={city} className="font-mono text-[10px] text-on-surface-variant hover:text-secondary" href="#">{city}</a>
                 ))}
               </nav>
             </div>
             <div className="space-y-4">
-              <h5 className="font-mono text-xs font-bold uppercase text-primary">Legal</h5>
-              <nav className="flex flex-col gap-2">
-                <a className="font-mono text-xs text-on-surface-variant hover:text-secondary" href="#">Privacy Policy</a>
-                <a className="font-mono text-xs text-on-surface-variant hover:text-secondary" href="#">Terms of Service</a>
+              <h5 className="font-mono text-[10px] font-bold uppercase text-primary">Legal</h5>
+              <nav className="flex flex-col gap-1.5 md:gap-2">
+                <a className="font-mono text-[10px] text-on-surface-variant hover:text-secondary" href="#">Privacy Policy</a>
+                <a className="font-mono text-[10px] text-on-surface-variant hover:text-secondary" href="#">Terms</a>
               </nav>
             </div>
           </div>
