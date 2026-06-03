@@ -83,10 +83,10 @@ export function AdminLayout({ children }: AdminLayoutProps) {
               </SheetTrigger>
               <SheetContent side="left" className="w-[300px] p-0 border-r border-border">
                 <div className="h-full flex flex-col pt-12">
-                  <div className="px-8 mb-12">
-                    <h2 className="font-display text-[24px] text-primary font-bold">Admin Hub</h2>
+                  <SheetHeader className="px-8 mb-12 text-left">
+                    <SheetTitle className="font-display text-[24px] text-primary font-bold">Admin Hub</SheetTitle>
                     <p className="font-mono text-[12px] text-on-surface-variant opacity-60 uppercase tracking-widest">Management Hub</p>
-                  </div>
+                  </SheetHeader>
                   <nav className="flex-1 space-y-1">
                     {navItems.map((item) => (
                       <Link
