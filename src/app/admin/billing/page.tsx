@@ -3,7 +3,7 @@
 
 import React from 'react';
 import { AdminLayout } from '@/components/layout/AdminLayout';
-import { Timer, MonitorSmartphone, TrendingUp, Info } from 'lucide-react';
+import { Timer, MonitorSmartphone, TrendingUp, Info, CircleCheck } from 'lucide-react';
 import Image from 'next/image';
 import { PlaceHolderImages } from '@/lib/placeholder-images';
 import { cn } from '@/lib/utils';
@@ -29,7 +29,7 @@ export default function AdminBilling() {
 
       <div className="grid grid-cols-1 md:grid-cols-3 gap-gutter mb-20">
         {[
-          { label: 'Invoice Accuracy', val: '99.1', unit: '%', trend: '+0.2% vs LW', icon: FactCheck },
+          { label: 'Invoice Accuracy', val: '99.1', unit: '%', trend: '+0.2% vs LW', icon: CircleCheck },
           { label: 'Dispute Closure Time', val: '4.2', unit: 'h', trend: 'Target: < 5h', icon: Timer, staggered: true },
           { label: 'Portal Adoption Rate', val: '64', unit: '%', trend: 'Active Now', icon: MonitorSmartphone },
         ].map((item, i) => (
@@ -41,7 +41,7 @@ export default function AdminBilling() {
             )}
           >
             <div className="flex justify-between items-start mb-8">
-              {typeof item.icon === 'function' ? <item.icon /> : <item.icon className="w-8 h-8 text-secondary" />}
+              <item.icon className="w-8 h-8 text-secondary" />
               <span className="font-mono text-[12px] text-green-600 bg-green-50 px-2 py-1 rounded">{item.trend}</span>
             </div>
             <h3 className="font-mono text-label-mono text-on-surface-variant mb-1 uppercase tracking-wider">{item.label}</h3>
@@ -115,6 +115,3 @@ export default function AdminBilling() {
   );
 }
 
-// Mocked Icons for internal use if lucide doesn't have them
-function FactCheck(props: any) { return <div className="w-8 h-8 rounded-lg bg-secondary/10 flex items-center justify-center"><CheckCircle className="w-5 h-5 text-secondary" {...props} /></div> }
-function CheckCircle(props: any) { return <svg {...props} xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="lucide lucide-check-circle-2"><path d="M12 22c5.523 0 10-4.477 10-10S17.523 2 12 2 2 6.477 2 12s4.477 10 10 10z"/><path d="m9 12 2 2 4-4"/></svg> }

@@ -13,27 +13,39 @@ import {
   CreditCard, 
   ArrowRight,
   CircleCheck,
-  Sparkles
+  Sparkles,
+  Wifi,
+  Smartphone,
+  Gauge
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { Switch } from '@/components/ui/switch';
+import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
+import { Label } from '@/components/ui/label';
+
+type Category = 'Reliability' | 'Support' | 'Testimonials' | 'Installation' | 'Billing';
 
 export default function LandingPage() {
-  const [activeCategory, setActiveCategory] = useState('Reliability');
+  const [activeCategory, setActiveCategory] = useState<Category>('Reliability');
   const [isSubmitted, setIsSubmitted] = useState(false);
+  const [ratings, setRatings] = useState<Record<string, number>>({});
 
   const categories = [
-    { name: 'Reliability', icon: LayoutDashboard, label: 'Reliability' },
-    { name: 'Support', icon: Headset, label: 'Support' },
-    { name: 'Testimonials', icon: Star, label: 'Testimonials' },
-    { name: 'Installation', icon: Wrench, label: 'Installation' },
-    { name: 'Billing', icon: CreditCard, label: 'Billing' },
+    { name: 'Reliability' as Category, icon: LayoutDashboard, label: 'Reliability' },
+    { name: 'Support' as Category, icon: Headset, label: 'Support' },
+    { name: 'Testimonials' as Category, icon: Star, label: 'Testimonials' },
+    { name: 'Installation' as Category, icon: Wrench, label: 'Installation' },
+    { name: 'Billing' as Category, icon: CreditCard, label: 'Billing' },
   ];
 
   const heroFiber = PlaceHolderImages.find(img => img.id === 'hero-fiber')!;
   const heroCustomer = PlaceHolderImages.find(img => img.id === 'hero-customer')!;
   const serverRoom = PlaceHolderImages.find(img => img.id === 'server-room')!;
+
+  const handleRating = (key: string, val: number) => {
+    setRatings(prev => ({ ...prev, [key]: val }));
+  };
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -41,7 +53,7 @@ export default function LandingPage() {
     setTimeout(() => setIsSubmitted(false), 3000);
   };
 
-  const renderRating = (label: string, description: string) => (
+  const renderRatingGroup = (id: string, label: string, description: string) => (
     <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
       <div>
         <h3 className="font-display text-2xl">{label}</h3>
@@ -52,7 +64,11 @@ export default function LandingPage() {
           <button 
             key={num} 
             type="button"
-            className="w-12 h-12 rounded-full border border-border flex items-center justify-center hover:bg-secondary hover:text-white transition-colors focus:bg-secondary focus:text-white"
+            onClick={() => handleRating(id, num)}
+            className={cn(
+              "w-12 h-12 rounded-full border border-border flex items-center justify-center transition-all duration-200",
+              ratings[id] === num ? "bg-secondary text-white border-secondary scale-110" : "hover:bg-surface-container text-on-surface"
+            )}
           >
             {num}
           </button>
@@ -62,7 +78,7 @@ export default function LandingPage() {
   );
 
   return (
-    <div className="canvas-bg min-h-screen">
+    <div className="canvas-bg min-h-screen font-body">
       <PublicNavbar />
       
       <main className="pt-32 pb-24">
@@ -76,7 +92,7 @@ export default function LandingPage() {
                   src={heroFiber.imageUrl} 
                   alt={heroFiber.description} 
                   fill 
-                  className="object-cover"
+                  className="object-cover grayscale"
                   data-ai-hint={heroFiber.imageHint}
                 />
               </div>
@@ -137,7 +153,7 @@ export default function LandingPage() {
               ))}
               
               <div className="mt-12 p-8 bg-surface-container-low rounded-2xl hidden lg:block">
-                <LayoutDashboard className="text-secondary w-12 h-12 mb-4" />
+                <Smartphone className="text-secondary w-12 h-12 mb-4" />
                 <p className="font-body-md italic text-on-surface-variant">"Precision telemetry is the silent foundation of digital progress."</p>
               </div>
             </div>
@@ -184,8 +200,8 @@ export default function LandingPage() {
                 <div className="space-y-12">
                   {activeCategory === 'Reliability' && (
                     <>
-                      {renderRating("Line Stability", "Rate your connection uptime over the last 30 days.")}
-                      {renderRating("Journey Experience", "How seamless was your overall network journey today?")}
+                      {renderRatingGroup("stability", "Line Stability", "Rate your connection uptime over the last 30 days.")}
+                      {renderRatingGroup("journey", "Journey Experience", "How seamless was your overall network journey today?")}
                       <div className="space-y-4">
                         <label className="font-mono text-[12px] uppercase text-on-surface-variant">Issue Category</label>
                         <select className="w-full bg-background p-4 rounded-xl border border-border focus:ring-2 focus:ring-secondary/20 outline-none">
@@ -200,9 +216,9 @@ export default function LandingPage() {
 
                   {activeCategory === 'Support' && (
                     <>
-                      {renderRating("Technical Professionalism", "Evaluate the support agent's demeanor and command.")}
-                      {renderRating("Communication Clarity", "How clear were the explanations provided?")}
-                      {renderRating("Resolving Effectiveness", "Was your issue successfully resolved?")}
+                      {renderRatingGroup("professionalism", "Technical Professionalism", "Evaluate the support agent's demeanor and command.")}
+                      {renderRatingGroup("clarity", "Communication Clarity", "How clear were the explanations provided?")}
+                      {renderRatingGroup("effectiveness", "Resolving Effectiveness", "Was your issue successfully resolved?")}
                       <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 border-y border-border/30 py-8">
                         <div>
                           <h3 className="font-display text-xl">Timely Updates Provided?</h3>
@@ -223,7 +239,14 @@ export default function LandingPage() {
                         <h3 className="font-display text-2xl">How does the signal feel?</h3>
                         <div className="flex gap-4">
                           {[1, 2, 3, 4, 5].map(star => (
-                            <Star key={star} className="w-10 h-10 text-border hover:text-secondary cursor-pointer" />
+                            <Star 
+                              key={star} 
+                              onClick={() => handleRating('signal', star)}
+                              className={cn(
+                                "w-10 h-10 cursor-pointer transition-all",
+                                (ratings['signal'] || 0) >= star ? "fill-secondary text-secondary" : "text-border hover:text-secondary/50"
+                              )} 
+                            />
                           ))}
                         </div>
                         <p className="font-mono text-xs text-on-surface-variant uppercase">Select Star Rating</p>
@@ -234,6 +257,17 @@ export default function LandingPage() {
                           className="w-full bg-background p-6 rounded-[1.5rem] border border-border focus:ring-2 focus:ring-secondary/20 outline-none resize-none min-h-[160px]" 
                           placeholder="The speed was transformative for our remote architecture studio..." 
                         />
+                      </div>
+                      <div className="space-y-6">
+                        <h3 className="font-display text-2xl">Spotlight Interview?</h3>
+                        <RadioGroup defaultValue="Maybe" className="flex gap-4">
+                          {['Yes', 'No', 'Maybe'].map(opt => (
+                            <div key={opt} className="flex items-center space-x-2 border p-4 rounded-xl flex-1 justify-center hover:bg-surface-container cursor-pointer transition-colors">
+                              <RadioGroupItem value={opt} id={opt} />
+                              <Label htmlFor={opt} className="cursor-pointer">{opt}</Label>
+                            </div>
+                          ))}
+                        </RadioGroup>
                       </div>
                     </>
                   )}
@@ -254,15 +288,16 @@ export default function LandingPage() {
                           </select>
                         </div>
                       </div>
-                      {renderRating("Installation Punctuality", "Rate the arrival time of our technical team.")}
-                      {renderRating("Installation Quality", "Evaluation of technical setup and cable management.")}
+                      {renderRatingGroup("punctuality", "Installation Punctuality", "Rate the arrival time of our technical team.")}
+                      {renderRatingGroup("quality", "Installation Quality", "Evaluation of technical setup and cable management.")}
                     </>
                   )}
 
                   {activeCategory === 'Billing' && (
                     <>
-                      {renderRating("Invoice Accuracy Rating", "Objective evaluation of recent financial statements.")}
-                      {renderRating("Dispute Resolution", "Effectiveness of revenue desk in resolving conflicts.")}
+                      {renderRatingGroup("accuracy", "Invoice Accuracy Rating", "Objective evaluation of recent financial statements.")}
+                      {renderRatingGroup("dispute", "Dispute Resolution", "Effectiveness of revenue desk in resolving conflicts.")}
+                      {renderRatingGroup("reconnection", "Reconnection Speed", "System response time for post-payment restoration.")}
                       <div className="p-8 bg-primary rounded-2xl text-white flex items-center justify-between">
                         <div>
                           <h4 className="font-display text-xl mb-1 flex items-center gap-2">
@@ -271,7 +306,7 @@ export default function LandingPage() {
                           </h4>
                           <p className="opacity-70 text-sm">Utilized self-service billing tools this quarter?</p>
                         </div>
-                        <Switch />
+                        <Switch className="data-[state=checked]:bg-secondary" />
                       </div>
                     </>
                   )}
@@ -288,13 +323,13 @@ export default function LandingPage() {
                     <Button 
                       disabled={isSubmitted}
                       className={cn(
-                        "w-full md:w-auto px-12 py-7 rounded-full font-bold hover:scale-[1.02] transition-all flex items-center gap-4 text-white",
+                        "w-full md:w-auto px-12 py-7 rounded-full font-bold hover:scale-[1.02] transition-all flex items-center gap-4 text-white uppercase tracking-widest",
                         isSubmitted ? "bg-green-600" : "bg-primary"
                       )}
                     >
                       {isSubmitted ? (
                         <>
-                          Feedback Logged <CircleCheck className="w-5 h-5" />
+                          Evaluation Logged <CircleCheck className="w-5 h-5" />
                         </>
                       ) : (
                         <>
@@ -331,3 +366,4 @@ export default function LandingPage() {
     </div>
   );
 }
+
