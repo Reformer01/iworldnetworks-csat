@@ -28,7 +28,7 @@ export function AdminLayout({ children }: AdminLayoutProps) {
   const avatar = PlaceHolderImages.find(img => img.id === 'admin-avatar')!;
 
   const navItems = [
-    { name: 'Overview', href: '/admin/dashboard', icon: LayoutDashboard },
+    { name: 'Dashboard', href: '/admin/dashboard', icon: LayoutDashboard },
     { name: 'Support', href: '/admin/support', icon: Headset },
     { name: 'Installation', href: '/admin/installation', icon: Wrench },
     { name: 'Billing', href: '/admin/billing', icon: CreditCard },
@@ -68,7 +68,7 @@ export function AdminLayout({ children }: AdminLayoutProps) {
       <aside className="fixed left-0 top-0 h-full w-64 bg-background border-r border-border pt-24 pb-8 flex flex-col z-40 hidden md:flex">
         <div className="px-8 mb-12">
           <h2 className="font-display text-[24px] text-primary font-bold">Admin Hub</h2>
-          <p className="font-mono text-[12px] text-on-surface-variant opacity-60 uppercase tracking-widest">Telemetry & Control</p>
+          <p className="font-mono text-[12px] text-on-surface-variant opacity-60 uppercase tracking-widest">Management Hub</p>
         </div>
         <nav className="flex-1 space-y-1">
           {navItems.map((item) => (
@@ -105,11 +105,11 @@ export function AdminLayout({ children }: AdminLayoutProps) {
         <div className="max-w-container-max mx-auto px-margin-desktop flex flex-col md:flex-row justify-between items-start gap-8">
           <div className="space-y-4">
             <span className="font-mono text-label-mono font-bold text-primary">I-World Networks</span>
-            <p className="font-mono text-xs text-on-surface-variant">© 2024 I-World Networks. All rights reserved.</p>
+            <p className="font-mono text-xs text-on-surface-variant">© 2024 I-World Networks.</p>
           </div>
           <div className="grid grid-cols-2 md:grid-cols-3 gap-12">
             <div className="space-y-4">
-              <h5 className="font-mono text-xs font-bold uppercase text-primary">Regional Hubs</h5>
+              <h5 className="font-mono text-xs font-bold uppercase text-primary">Locations</h5>
               <nav className="flex flex-col gap-2">
                 {['Lagos', 'Abuja', 'Abeokuta'].map(city => (
                   <a key={city} className="font-mono text-xs text-on-surface-variant hover:text-secondary" href="#">{city}</a>

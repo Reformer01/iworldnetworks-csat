@@ -13,9 +13,8 @@ import {
   CreditCard, 
   ArrowRight,
   CircleCheck,
-  Sparkles,
   Smartphone,
-  Check
+  Mail
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
@@ -57,16 +56,70 @@ export default function LandingPage() {
   ];
 
   const categories = [
-    { name: 'Reliability' as Category, icon: LayoutDashboard, label: 'Reliability' },
-    { name: 'Support' as Category, icon: Headset, label: 'Support' },
-    { name: 'Testimonials' as Category, icon: Star, label: 'Testimonials' },
+    { name: 'Reliability' as Category, icon: LayoutDashboard, label: 'Internet Quality' },
+    { name: 'Support' as Category, icon: Headset, label: 'Customer Support' },
+    { name: 'Testimonials' as Category, icon: Star, label: 'Share Your Story' },
     { name: 'Installation' as Category, icon: Wrench, label: 'Installation' },
-    { name: 'Billing' as Category, icon: CreditCard, label: 'Billing' },
+    { name: 'Billing' as Category, icon: CreditCard, label: 'Payments & Billing' },
   ];
 
-  const heroFiber = PlaceHolderImages.find(img => img.id === 'hero-fiber')!;
-  const heroCustomer = PlaceHolderImages.find(img => img.id === 'hero-customer')!;
-  const serverRoom = PlaceHolderImages.find(img => img.id === 'server-room')!;
+  const images = {
+    fiber: PlaceHolderImages.find(img => img.id === 'hero-fiber')!,
+    customer: PlaceHolderImages.find(img => img.id === 'hero-customer')!,
+    server: PlaceHolderImages.find(img => img.id === 'server-room')!,
+    tech: PlaceHolderImages.find(img => img.id === 'tech-samuel')!,
+    workspace: PlaceHolderImages.find(img => img.id === 'workspace')!,
+  };
+
+  const heroContent: Record<Category, { title: React.ReactNode, sub: string, img: any }> = {
+    Reliability: {
+      title: (
+        <>
+          Experience <div className="relative h-[72px] w-[140px] rounded-full overflow-hidden inline-block"><Image src={images.fiber.imageUrl} alt="fiber" fill className="object-cover grayscale" /></div> seamless <div className="relative h-[72px] w-[140px] rounded-full overflow-hidden inline-block"><Image src={images.customer.imageUrl} alt="customer" fill className="object-cover" /></div> connectivity.
+        </>
+      ),
+      sub: "Helping you stay connected to what matters most with reliable, high-speed fiber internet.",
+      img: images.server
+    },
+    Support: {
+      title: (
+        <>
+          Support Desk <div className="relative h-[72px] w-[140px] rounded-full overflow-hidden inline-block"><Image src={images.customer.imageUrl} alt="customer" fill className="object-cover" /></div> evaluation <div className="relative h-[72px] w-[140px] rounded-full overflow-hidden inline-block"><Image src={images.tech.imageUrl} alt="tech" fill className="object-cover grayscale" /></div> portal.
+        </>
+      ),
+      sub: "Your feedback helps us provide better technical assistance for your home or business.",
+      img: images.tech
+    },
+    Testimonials: {
+      title: (
+        <>
+          Share your <div className="relative h-[72px] w-[140px] rounded-full overflow-hidden inline-block"><Image src={images.customer.imageUrl} alt="customer" fill className="object-cover" /></div> success <div className="relative h-[72px] w-[140px] rounded-full overflow-hidden inline-block"><Image src={images.workspace.imageUrl} alt="workspace" fill className="object-cover grayscale" /></div> story.
+        </>
+      ),
+      sub: "We love hearing how our fast internet has helped you achieve more at home or in the office.",
+      img: images.workspace
+    },
+    Installation: {
+      title: (
+        <>
+          Field <div className="relative h-[72px] w-[140px] rounded-full overflow-hidden inline-block"><Image src={images.tech.imageUrl} alt="tech" fill className="object-cover" /></div> setup & <div className="relative h-[72px] w-[140px] rounded-full overflow-hidden inline-block"><Image src={images.fiber.imageUrl} alt="fiber" fill className="object-cover grayscale" /></div> review.
+        </>
+      ),
+      sub: "Help us ensure every customer gets a perfect start with our service and professional setup.",
+      img: images.tech
+    },
+    Billing: {
+      title: (
+        <>
+          Billing <div className="relative h-[72px] w-[140px] rounded-full overflow-hidden inline-block"><Image src={images.workspace.imageUrl} alt="workspace" fill className="object-cover grayscale" /></div> feedback & <div className="relative h-[72px] w-[140px] rounded-full overflow-hidden inline-block"><Image src={images.customer.imageUrl} alt="customer" fill className="object-cover" /></div> review.
+        </>
+      ),
+      sub: "We aim for clear, accurate, and easy payment experiences for all our customers.",
+      img: images.server
+    }
+  };
+
+  const activeHero = heroContent[activeCategory];
 
   const handleRating = (key: string, val: number) => {
     setRatings(prev => ({ ...prev, [key]: val }));
@@ -107,19 +160,14 @@ export default function LandingPage() {
       <PublicNavbar />
       
       <main className="pt-32 pb-24">
-        <section className="grid grid-cols-1 md:grid-cols-12 px-margin-mobile md:px-margin-desktop max-w-container-max mx-auto gap-gutter mb-24">
+        <section className="grid grid-cols-1 md:grid-cols-12 px-margin-mobile md:px-margin-desktop max-w-container-max mx-auto gap-gutter mb-24 min-h-[500px]">
           <div className="md:col-span-7 flex flex-col justify-center">
             <h1 className="font-display text-display-xl mb-8 leading-[0.9] flex flex-wrap items-center gap-x-4">
-              Experience 
-              <div className="relative h-[72px] w-[140px] rounded-full overflow-hidden inline-block">
-                <Image src={heroFiber.imageUrl} alt={heroFiber.description} fill className="object-cover grayscale" data-ai-hint="fiber optics" />
-              </div>
-              seamless 
-              <div className="relative h-[72px] w-[140px] rounded-full overflow-hidden inline-block">
-                <Image src={heroCustomer.imageUrl} alt={heroCustomer.description} fill className="object-cover" data-ai-hint="satisfied customer" />
-              </div>
-              connectivity.
+              {activeHero.title}
             </h1>
+            <p className="text-on-surface-variant text-body-lg mb-10 max-w-lg">
+              {activeHero.sub}
+            </p>
             <div className="flex items-center gap-8 mt-4">
               <Button 
                 size="lg" 
@@ -133,7 +181,14 @@ export default function LandingPage() {
           </div>
           <div className="md:col-span-4 md:col-start-9 relative translate-y-16 hidden md:block">
             <div className="aspect-[3/4] bg-surface-container-high rounded-[2.5rem] overflow-hidden whisper-shadow relative">
-              <Image src={serverRoom.imageUrl} alt={serverRoom.description} fill className="object-cover grayscale hover:grayscale-0 transition-all duration-1000" data-ai-hint="server room" />
+              <Image 
+                key={activeCategory}
+                src={activeHero.img.imageUrl} 
+                alt="Hero" 
+                fill 
+                className="object-cover grayscale hover:grayscale-0 transition-all duration-1000 animate-in fade-in zoom-in-95" 
+                data-ai-hint={activeHero.img.imageHint} 
+              />
             </div>
           </div>
         </section>
@@ -141,7 +196,7 @@ export default function LandingPage() {
         <section id="feedback-portal" className="px-margin-mobile md:px-margin-desktop max-w-container-max mx-auto">
           <div className="bg-surface-container-lowest rounded-[2.5rem] p-8 md:p-12 whisper-shadow border border-border grid grid-cols-1 lg:grid-cols-12 gap-12">
             <div className="lg:col-span-3 flex flex-col gap-2">
-              <p className="font-mono text-label-mono text-on-surface-variant mb-6 uppercase tracking-widest">Feedback Categories</p>
+              <p className="font-mono text-label-mono text-on-surface-variant mb-6 uppercase tracking-widest">Select Category</p>
               {categories.map((cat) => (
                 <button
                   key={cat.name}
@@ -158,7 +213,7 @@ export default function LandingPage() {
               
               <div className="mt-12 p-8 bg-surface-container-low rounded-2xl hidden lg:block">
                 <Smartphone className="text-secondary w-12 h-12 mb-4" />
-                <p className="font-body-md italic text-on-surface-variant">"Precision telemetry is the silent foundation of digital progress."</p>
+                <p className="font-body-md italic text-on-surface-variant">"Reliable internet is the foundation of your success."</p>
               </div>
             </div>
 
@@ -166,18 +221,21 @@ export default function LandingPage() {
               <form onSubmit={handleSubmit} className="space-y-10">
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
                   <div className="space-y-2">
-                    <label className="font-mono text-[12px] uppercase text-on-surface-variant">Customer Name</label>
-                    <input required className="w-full bg-transparent border-0 border-b border-border focus:ring-0 focus:border-secondary font-body py-2 px-0" placeholder="e.g. Adewale Sterling" type="text" />
+                    <label className="font-mono text-[12px] uppercase text-on-surface-variant">Full Name</label>
+                    <input required className="w-full bg-transparent border-0 border-b border-border focus:ring-0 focus:border-secondary font-body py-2 px-0" placeholder="e.g. John Doe" type="text" />
                   </div>
                   <div className="space-y-2">
-                    <label className="font-mono text-[12px] uppercase text-on-surface-variant">Customer ID</label>
-                    <input required className="w-full bg-transparent border-0 border-b border-border focus:ring-0 focus:border-secondary font-body py-2 px-0" placeholder="IW-XXXX-XXXX" type="text" />
+                    <label className="font-mono text-[12px] uppercase text-on-surface-variant">Contact Email</label>
+                    <div className="relative">
+                      <Mail className="absolute right-0 bottom-3 w-4 h-4 text-on-surface-variant" />
+                      <input required className="w-full bg-transparent border-0 border-b border-border focus:ring-0 focus:border-secondary font-body py-2 px-0" placeholder="your@email.com" type="email" />
+                    </div>
                   </div>
                 </div>
 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
                   <div className="space-y-2">
-                    <label className="font-mono text-[12px] uppercase text-on-surface-variant">Service Plan</label>
+                    <label className="font-mono text-[12px] uppercase text-on-surface-variant">Current Plan</label>
                     <select className="w-full bg-transparent border-0 border-b border-border focus:ring-0 focus:border-secondary font-body py-2 px-0 appearance-none">
                       <option>Fiber Enterprise 1Gbps</option>
                       <option>Fiber Home 500Mbps</option>
@@ -186,14 +244,14 @@ export default function LandingPage() {
                     </select>
                   </div>
                   <div className="space-y-2">
-                    <label className="font-mono text-[12px] uppercase text-on-surface-variant">Region</label>
+                    <label className="font-mono text-[12px] uppercase text-on-surface-variant">Your Location</label>
                     <select className="w-full bg-transparent border-0 border-b border-border focus:ring-0 focus:border-secondary font-body py-2 px-0 appearance-none">
-                      <option>Lagos Metropolis</option>
-                      <option>Abuja Capital</option>
-                      <option>Abeokuta North</option>
-                      <option>Ibadan Node</option>
-                      <option>Akure Hub</option>
-                      <option>Osogbo Office</option>
+                      <option>Lagos</option>
+                      <option>Abuja</option>
+                      <option>Abeokuta</option>
+                      <option>Ibadan</option>
+                      <option>Akure</option>
+                      <option>Osogbo</option>
                       <option>Sagamu / Ota</option>
                     </select>
                   </div>
@@ -204,10 +262,10 @@ export default function LandingPage() {
                 <div className="space-y-12">
                   {activeCategory === 'Reliability' && (
                     <>
-                      {renderRatingGroup("stability", "Line Stability", "Rate your connection uptime over the last 30 days.")}
-                      {renderRatingGroup("journey", "Journey Experience", "How seamless was your overall network journey today?")}
+                      {renderRatingGroup("stability", "Connection Stability", "How stable was your internet over the last 30 days?")}
+                      {renderRatingGroup("journey", "Overall Experience", "How would you rate your overall network experience today?")}
                       <div className="space-y-4">
-                        <label className="font-mono text-[12px] uppercase text-on-surface-variant">Issue Category</label>
+                        <label className="font-mono text-[12px] uppercase text-on-surface-variant">Main Concern (if any)</label>
                         <select className="w-full bg-background p-4 rounded-xl border border-border focus:ring-2 focus:ring-secondary/20 outline-none">
                           <option>Speed & Latency</option>
                           <option>Staff Politeness</option>
@@ -221,7 +279,7 @@ export default function LandingPage() {
                   {activeCategory === 'Support' && (
                     <>
                       <div className="space-y-4">
-                        <label className="font-mono text-[12px] uppercase text-on-surface-variant">Assigned Support Agent</label>
+                        <label className="font-mono text-[12px] uppercase text-on-surface-variant">Assigned Agent</label>
                         <select className="w-full bg-background p-4 rounded-xl border border-border focus:ring-2 focus:ring-secondary/20 outline-none">
                           <option disabled selected>Select Agent</option>
                           {supportStaff.map(staff => (
@@ -229,14 +287,13 @@ export default function LandingPage() {
                           ))}
                         </select>
                       </div>
-                      {renderRatingGroup("professionalism", "Technical Professionalism", "Evaluate the support agent's demeanor and command.")}
-                      {renderRatingGroup("clarity", "Communication Clarity", "How clear were the explanations provided?")}
-                      {renderRatingGroup("effectiveness", "Resolving Effectiveness", "Was your issue successfully resolved?")}
-                      {renderRatingGroup("recommend", "Recommendation Likelihood", "Likelihood to recommend I-World based on this experience.")}
+                      {renderRatingGroup("professionalism", "Agent Professionalism", "How professional was the support agent?")}
+                      {renderRatingGroup("clarity", "Communication Clarity", "Were the explanations clear and easy to understand?")}
+                      {renderRatingGroup("effectiveness", "Problem Resolution", "Was your issue fixed to your satisfaction?")}
                       <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 border-y border-border/30 py-8">
                         <div>
-                          <h3 className="font-display text-xl">Timely Updates Provided?</h3>
-                          <p className="text-on-surface-variant text-sm">Did you receive progress notifications?</p>
+                          <h3 className="font-display text-xl">Were you kept updated?</h3>
+                          <p className="text-on-surface-variant text-sm">Did you receive progress notifications about your ticket?</p>
                         </div>
                         <div className="flex gap-4">
                            {['YES', 'NO'].map(choice => (
@@ -262,7 +319,7 @@ export default function LandingPage() {
                   {activeCategory === 'Testimonials' && (
                     <>
                       <div className="space-y-6">
-                        <h3 className="font-display text-2xl">How does the signal feel?</h3>
+                        <h3 className="font-display text-2xl">Star Rating</h3>
                         <div className="flex gap-4">
                           {[1, 2, 3, 4, 5].map(star => (
                             <Star 
@@ -275,17 +332,17 @@ export default function LandingPage() {
                             />
                           ))}
                         </div>
-                        <p className="font-mono text-xs text-on-surface-variant uppercase">Select Star Rating</p>
                       </div>
                       <div className="space-y-4">
-                        <label className="font-display text-2xl block">Share your connection success story</label>
+                        <label className="font-display text-2xl block">Share your experience</label>
                         <textarea 
                           className="w-full bg-background p-6 rounded-[1.5rem] border border-border focus:ring-2 focus:ring-secondary/20 outline-none resize-none min-h-[160px]" 
-                          placeholder="The speed was transformative for our remote architecture studio..." 
+                          placeholder="Tell us how our service has helped your work or home life..." 
                         />
                       </div>
                       <div className="space-y-6">
-                        <h3 className="font-display text-2xl">Spotlight Interview?</h3>
+                        <h3 className="font-display text-2xl">Can we interview you?</h3>
+                        <p className="text-sm text-on-surface-variant mb-4">We'd love to feature your success story in our marketing.</p>
                         <RadioGroup defaultValue="Maybe" className="flex gap-4">
                           {['Yes', 'No', 'Maybe'].map(opt => (
                             <div key={opt} className="flex items-center space-x-2 border p-4 rounded-xl flex-1 justify-center hover:bg-surface-container cursor-pointer transition-colors">
@@ -302,11 +359,11 @@ export default function LandingPage() {
                     <>
                       <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
                         <div className="space-y-2">
-                          <label className="font-mono text-[12px] uppercase text-on-surface-variant">Sales Representative</label>
+                          <label className="font-mono text-[12px] uppercase text-on-surface-variant">Sales Rep Name</label>
                           <input className="w-full bg-transparent border-0 border-b border-border focus:ring-0 focus:border-secondary font-body py-2 px-0" placeholder="Full name" type="text" />
                         </div>
                         <div className="space-y-2">
-                          <label className="font-mono text-[12px] uppercase text-on-surface-variant">Assigned Technician</label>
+                          <label className="font-mono text-[12px] uppercase text-on-surface-variant">Technician Name</label>
                           <select className="w-full bg-transparent border-0 border-b border-border focus:ring-0 focus:border-secondary font-body py-2 px-0 appearance-none">
                             <option disabled selected>Select Technician</option>
                             {technicians.map(tech => (
@@ -315,23 +372,20 @@ export default function LandingPage() {
                           </select>
                         </div>
                       </div>
-                      {renderRatingGroup("punctuality", "Installation Punctuality", "Rate the arrival time of our technical team.")}
-                      {renderRatingGroup("quality", "Installation Quality", "Evaluation of technical setup and cable management.")}
+                      {renderRatingGroup("punctuality", "On-Time Arrival", "Did our team arrive at the scheduled time?")}
+                      {renderRatingGroup("quality", "Setup Quality", "How would you rate the neatness and quality of the installation?")}
                     </>
                   )}
 
                   {activeCategory === 'Billing' && (
                     <>
-                      {renderRatingGroup("accuracy", "Invoice Accuracy Rating", "Objective evaluation of recent financial statements.")}
-                      {renderRatingGroup("dispute", "Dispute Resolution", "Effectiveness of revenue desk in resolving conflicts.")}
-                      {renderRatingGroup("reconnection", "Reconnection Speed", "System response time for post-payment restoration.")}
+                      {renderRatingGroup("accuracy", "Invoice Accuracy", "How accurate was your last bill?")}
+                      {renderRatingGroup("dispute", "Dispute Handling", "How helpful was our team in fixing any billing issues?")}
+                      {renderRatingGroup("reconnection", "Reconnection Speed", "How fast was your service restored after payment?")}
                       <div className="p-8 bg-primary rounded-2xl text-white flex items-center justify-between">
                         <div>
-                          <h4 className="font-display text-xl mb-1 flex items-center gap-2">
-                            <Sparkles className="w-5 h-5 text-secondary" />
-                            Web Portal Invoice Tools
-                          </h4>
-                          <p className="opacity-70 text-sm">Utilized self-service billing tools this quarter?</p>
+                          <h4 className="font-display text-xl mb-1">Self-Service Portal</h4>
+                          <p className="opacity-70 text-sm">Did you use our online portal for payments this month?</p>
                         </div>
                         <Switch className="data-[state=checked]:bg-secondary" />
                       </div>
@@ -339,10 +393,10 @@ export default function LandingPage() {
                   )}
 
                   <div className="space-y-4">
-                    <label className="font-mono text-[12px] uppercase text-on-surface-variant">Additional Comments</label>
+                    <label className="font-mono text-[12px] uppercase text-on-surface-variant">Anything else?</label>
                     <textarea 
                       className="w-full bg-background p-6 rounded-[1.5rem] border border-border focus:ring-2 focus:ring-secondary/20 outline-none resize-none min-h-[160px]" 
-                      placeholder="Your experience matters..." 
+                      placeholder="Your feedback helps us get better every day..." 
                     />
                   </div>
 
@@ -356,11 +410,11 @@ export default function LandingPage() {
                     >
                       {isSubmitted ? (
                         <>
-                          Evaluation Logged <CircleCheck className="w-5 h-5" />
+                          Feedback Received <CircleCheck className="w-5 h-5" />
                         </>
                       ) : (
                         <>
-                          Submit Feedback <ArrowRight className="w-5 h-5" />
+                          Send My Feedback <ArrowRight className="w-5 h-5" />
                         </>
                       )}
                     </Button>
@@ -377,14 +431,14 @@ export default function LandingPage() {
           <div className="space-y-4">
             <div className="font-mono text-label-mono font-bold text-primary uppercase">I-World Networks</div>
             <p className="text-on-surface-variant text-sm max-w-xs opacity-70">
-              Delivering precision connectivity across Nigeria's leading commercial hubs.
+              Reliable fiber internet for Nigeria's major business hubs.
             </p>
             <div className="font-mono text-[10px] text-on-surface-variant uppercase tracking-tighter">
-              © 2024 I-World Networks. All rights reserved.
+              © 2024 I-World Networks.
             </div>
           </div>
           <div className="grid grid-cols-2 md:grid-cols-3 gap-x-12 gap-y-4">
-            {['Lagos', 'Ibadan', 'Abuja', 'Akure', 'Osogbo', 'Abeokuta', 'Privacy Policy', 'Terms of Service'].map(link => (
+            {['Lagos', 'Ibadan', 'Abuja', 'Akure', 'Osogbo', 'Abeokuta', 'Privacy', 'Terms'].map(link => (
               <a key={link} className="text-on-surface-variant hover:text-secondary transition-colors font-mono text-label-mono" href="#">{link}</a>
             ))}
           </div>
