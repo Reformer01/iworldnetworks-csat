@@ -1,31 +1,33 @@
-
 {
   "entities": {
     "Feedback": {
       "title": "Feedback",
-      "description": "Customer satisfaction feedback entry",
+      "description": "Customer feedback entry from the public portal",
       "type": "object",
       "properties": {
-        "customerEmail": { "type": "string", "format": "email", "description": "The primary identifier and contact for the customer" },
         "customerName": { "type": "string" },
+        "customerEmail": { "type": "string", "format": "email" },
         "category": { "type": "string", "enum": ["Reliability", "Support", "Testimonials", "Installation", "Billing"] },
         "servicePlan": { "type": "string" },
-        "region": { "type": "string" },
-        "ratings": { "type": "object", "description": "Category-specific numerical ratings" },
+        "location": { "type": "string" },
+        "ratings": { "type": "object" },
         "comment": { "type": "string" },
+        "staffName": { "type": "string", "description": "Name of the helping staff member or technician" },
         "timestamp": { "type": "number" },
-        "status": { "type": "string", "enum": ["pending", "reviewed", "escalated"], "default": "pending" }
+        "status": { "type": "string", "enum": ["pending", "reviewed", "escalated"] },
+        "interviewConsent": { "type": "string", "enum": ["Yes", "No", "Maybe"] }
       },
-      "required": ["customerEmail", "category", "ratings", "timestamp"]
+      "required": ["customerEmail", "category", "timestamp"]
     },
     "Staff": {
       "title": "Staff",
-      "description": "Internal support staff profile",
+      "description": "Internal support staff member",
       "type": "object",
       "properties": {
         "name": { "type": "string" },
-        "department": { "type": "string" }
-      }
+        "department": { "type": "string", "default": "Customer Support" }
+      },
+      "required": ["name"]
     },
     "Technician": {
       "title": "Technician",
@@ -34,8 +36,9 @@
       "properties": {
         "name": { "type": "string" },
         "region": { "type": "string" },
-        "location": { "type": "string" }
-      }
+        "territory": { "type": "string" }
+      },
+      "required": ["name", "region"]
     }
   },
   "auth": {
@@ -44,15 +47,15 @@
   "firestore": {
     "/feedbacks/{feedbackId}": {
       "schema": "Feedback",
-      "description": "Collection of all customer feedback submissions"
+      "description": "Collection of all customer feedback"
     },
     "/staff/{staffId}": {
       "schema": "Staff",
-      "description": "Reference list of support staff"
+      "description": "Registry of support staff"
     },
     "/technicians/{techId}": {
       "schema": "Technician",
-      "description": "Reference list of field technicians"
+      "description": "Registry of field technicians"
     }
   }
 }

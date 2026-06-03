@@ -1,7 +1,6 @@
-
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import Image from 'next/image';
 import { PublicNavbar } from '@/components/layout/PublicNavbar';
 import { PlaceHolderImages } from '@/lib/placeholder-images';
@@ -21,8 +20,8 @@ import { Button } from '@/components/ui/button';
 import { Switch } from '@/components/ui/switch';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Label } from '@/components/ui/label';
-import { useFirestore } from '@/firebase';
-import { collection, addDoc, serverTimestamp } from 'firebase/firestore';
+import { useFirestore, useCollection } from '@/firebase';
+import { collection, addDoc, query, orderBy } from 'firebase/firestore';
 
 type Category = 'Reliability' | 'Support' | 'Testimonials' | 'Installation' | 'Billing';
 
@@ -33,7 +32,7 @@ export default function LandingPage() {
   const [formData, setFormData] = useState({
     customerName: '',
     customerEmail: '',
-    servicePlan: 'Standard Residential',
+    servicePlan: 'Standard Home',
     location: 'Lagos',
     comment: '',
     staffName: '',
@@ -42,37 +41,18 @@ export default function LandingPage() {
 
   const firestore = useFirestore();
 
-  const supportStaff = [
-    "Victoria Fokorede",
-    "Aishat Hamzat",
-    "Adekomoya Joseph",
-    "Olusegun Oluwanishola",
-    "Babatunde Christianah"
-  ];
-
-  const technicians = [
-    "Lukmon Obasa (Akure)",
-    "Christian Adejo (Akure)",
-    "Habeeb Hussein (Ibadan)",
-    "Joseph Dung N (Ibadan)",
-    "Alowo Temitope (Ibadan)",
-    "Timilehin Alabi (Ibadan)",
-    "Adekunle Ademiju (Ibadan)",
-    "Michael Awodein (Sagamu)",
-    "Abiodun Kameyo (Sagamu)",
-    "Adebisi Ogusola (Abeokuta)",
-    "Kehinde Itehinola (Abeokuta)",
-    "Olopade Olusegun (Abeokuta)",
-    "Mubarak Raji (Osogbo)",
-    "Inyene Udo (Ijebu Ode)",
-    "Joseph Gbesoevi (Ota)"
-  ];
+  // Fetch real staff and technicians from Firestore
+  const staffQuery = useMemo(() => firestore ? query(collection(firestore, 'staff'), orderBy('name')) : null, [firestore]);
+  const techQuery = useMemo(() => firestore ? query(collection(firestore, 'technicians'), orderBy('name')) : null, [firestore]);
+  
+  const { data: supportStaff } = useCollection(staffQuery);
+  const { data: technicians } = useCollection(techQuery);
 
   const categories = [
     { name: 'Reliability' as Category, icon: LayoutDashboard, label: 'Internet Quality' },
     { name: 'Support' as Category, icon: Headset, label: 'Customer Support' },
     { name: 'Testimonials' as Category, icon: Star, label: 'Share Your Story' },
-    { name: 'Installation' as Category, icon: Wrench, label: 'Installation' },
+    { name: 'Installation' as Category, icon: Wrench, label: 'Setup Experience' },
     { name: 'Billing' as Category, icon: CreditCard, label: 'Payments & Billing' },
   ];
 
@@ -88,46 +68,46 @@ export default function LandingPage() {
     Reliability: {
       title: (
         <>
-          Experience <div className="relative h-[72px] w-[140px] rounded-full overflow-hidden inline-block mx-2"><Image src={images.fiber.imageUrl} alt="fiber" fill className="object-cover grayscale" /></div> seamless <div className="relative h-[72px] w-[140px] rounded-full overflow-hidden inline-block mx-2"><Image src={images.customer.imageUrl} alt="customer" fill className="object-cover" /></div> connectivity.
+          Get <div className="relative h-[72px] w-[140px] rounded-full overflow-hidden inline-block mx-2 border-2 border-white"><Image src={images.fiber.imageUrl} alt="fiber" fill className="object-cover" /></div> consistent <div className="relative h-[72px] w-[140px] rounded-full overflow-hidden inline-block mx-2 border-2 border-white"><Image src={images.customer.imageUrl} alt="customer" fill className="object-cover" /></div> connections.
         </>
       ),
-      sub: "Helping you stay connected to what matters most with reliable, high-speed fiber internet.",
+      sub: "We're committed to keeping you online with high-speed fiber you can count on every day.",
       img: images.server
     },
     Support: {
       title: (
         <>
-          Support Desk <div className="relative h-[72px] w-[140px] rounded-full overflow-hidden inline-block mx-2"><Image src={images.customer.imageUrl} alt="customer" fill className="object-cover" /></div> service <div className="relative h-[72px] w-[140px] rounded-full overflow-hidden inline-block mx-2"><Image src={images.tech.imageUrl} alt="tech" fill className="object-cover grayscale" /></div> evaluation.
+          Friendly <div className="relative h-[72px] w-[140px] rounded-full overflow-hidden inline-block mx-2 border-2 border-white"><Image src={images.customer.imageUrl} alt="customer" fill className="object-cover" /></div> help <div className="relative h-[72px] w-[140px] rounded-full overflow-hidden inline-block mx-2 border-2 border-white"><Image src={images.tech.imageUrl} alt="tech" fill className="object-cover grayscale" /></div> when you need it.
         </>
       ),
-      sub: "Your feedback helps us provide better technical assistance for your home or business.",
+      sub: "Tell us how our support team did today so we can keep improving our service for you.",
       img: images.tech
     },
     Testimonials: {
       title: (
         <>
-          Share your <div className="relative h-[72px] w-[140px] rounded-full overflow-hidden inline-block mx-2"><Image src={images.customer.imageUrl} alt="customer" fill className="object-cover" /></div> success <div className="relative h-[72px] w-[140px] rounded-full overflow-hidden inline-block mx-2"><Image src={images.workspace.imageUrl} alt="workspace" fill className="object-cover grayscale" /></div> story.
+          Share your <div className="relative h-[72px] w-[140px] rounded-full overflow-hidden inline-block mx-2 border-2 border-white"><Image src={images.customer.imageUrl} alt="customer" fill className="object-cover" /></div> personal <div className="relative h-[72px] w-[140px] rounded-full overflow-hidden inline-block mx-2 border-2 border-white"><Image src={images.workspace.imageUrl} alt="workspace" fill className="object-cover grayscale" /></div> success story.
         </>
       ),
-      sub: "We love hearing how our internet has helped you achieve more at home or in the office.",
+      sub: "How has our internet helped your home or business reach new goals? We'd love to know.",
       img: images.workspace
     },
     Installation: {
       title: (
         <>
-          Field <div className="relative h-[72px] w-[140px] rounded-full overflow-hidden inline-block mx-2"><Image src={images.tech.imageUrl} alt="tech" fill className="object-cover" /></div> setup & <div className="relative h-[72px] w-[140px] rounded-full overflow-hidden inline-block mx-2"><Image src={images.fiber.imageUrl} alt="fiber" fill className="object-cover grayscale" /></div> review.
+          Professional <div className="relative h-[72px] w-[140px] rounded-full overflow-hidden inline-block mx-2 border-2 border-white"><Image src={images.tech.imageUrl} alt="tech" fill className="object-cover" /></div> setup <div className="relative h-[72px] w-[140px] rounded-full overflow-hidden inline-block mx-2 border-2 border-white"><Image src={images.fiber.imageUrl} alt="fiber" fill className="object-cover grayscale" /></div> review.
         </>
       ),
-      sub: "Help us ensure every customer gets a perfect start with our service and professional setup.",
+      sub: "We want every installation to be perfect. Let us know how your setup experience went.",
       img: images.tech
     },
     Billing: {
       title: (
         <>
-          Billing <div className="relative h-[72px] w-[140px] rounded-full overflow-hidden inline-block mx-2"><Image src={images.workspace.imageUrl} alt="workspace" fill className="object-cover grayscale" /></div> feedback & <div className="relative h-[72px] w-[140px] rounded-full overflow-hidden inline-block mx-2"><Image src={images.customer.imageUrl} alt="customer" fill className="object-cover" /></div> experience.
+          Simple <div className="relative h-[72px] w-[140px] rounded-full overflow-hidden inline-block mx-2 border-2 border-white"><Image src={images.workspace.imageUrl} alt="workspace" fill className="object-cover grayscale" /></div> payments <div className="relative h-[72px] w-[140px] rounded-full overflow-hidden inline-block mx-2 border-2 border-white"><Image src={images.customer.imageUrl} alt="customer" fill className="object-cover" /></div> feedback.
         </>
       ),
-      sub: "We aim for clear, accurate, and easy payment experiences for all our customers.",
+      sub: "We aim for clear and easy billing. Tell us about your experience with our payment tools.",
       img: images.server
     }
   };
@@ -212,10 +192,10 @@ export default function LandingPage() {
               <Image 
                 key={activeCategory}
                 src={activeHero.img.imageUrl} 
-                alt="Hero" 
+                alt="Feedback category" 
                 fill 
                 className="object-cover grayscale hover:grayscale-0 transition-all duration-1000 animate-in fade-in zoom-in-95" 
-                data-ai-hint={activeHero.img.imageHint} 
+                data-ai-hint="professional service" 
               />
             </div>
           </div>
@@ -252,7 +232,7 @@ export default function LandingPage() {
                     <label className="font-mono text-[12px] uppercase text-on-surface-variant">Full Name</label>
                     <input 
                       required 
-                      className="w-full bg-transparent border-0 border-b border-border focus:ring-0 focus:border-secondary font-body py-2 px-0" 
+                      className="w-full bg-transparent border-0 border-b border-border focus:ring-0 focus:border-secondary font-body py-2 px-0 outline-none" 
                       placeholder="e.g. John Doe" 
                       type="text" 
                       value={formData.customerName}
@@ -265,7 +245,7 @@ export default function LandingPage() {
                       <Mail className="absolute right-0 bottom-3 w-4 h-4 text-on-surface-variant" />
                       <input 
                         required 
-                        className="w-full bg-transparent border-0 border-b border-border focus:ring-0 focus:border-secondary font-body py-2 px-0" 
+                        className="w-full bg-transparent border-0 border-b border-border focus:ring-0 focus:border-secondary font-body py-2 px-0 outline-none" 
                         placeholder="your@email.com" 
                         type="email" 
                         value={formData.customerEmail}
@@ -279,20 +259,20 @@ export default function LandingPage() {
                   <div className="space-y-2">
                     <label className="font-mono text-[12px] uppercase text-on-surface-variant">Current Plan</label>
                     <select 
-                      className="w-full bg-transparent border-0 border-b border-border focus:ring-0 focus:border-secondary font-body py-2 px-0 appearance-none"
+                      className="w-full bg-transparent border-0 border-b border-border focus:ring-0 focus:border-secondary font-body py-2 px-0 appearance-none outline-none"
                       value={formData.servicePlan}
                       onChange={(e) => setFormData({...formData, servicePlan: e.target.value})}
                     >
                       <option>Fiber Enterprise 1Gbps</option>
                       <option>Fiber Home 500Mbps</option>
-                      <option>Standard Residential</option>
-                      <option>Dedicated SME Transit</option>
+                      <option>Standard Home</option>
+                      <option>Dedicated SME</option>
                     </select>
                   </div>
                   <div className="space-y-2">
                     <label className="font-mono text-[12px] uppercase text-on-surface-variant">Your Location</label>
                     <select 
-                      className="w-full bg-transparent border-0 border-b border-border focus:ring-0 focus:border-secondary font-body py-2 px-0 appearance-none"
+                      className="w-full bg-transparent border-0 border-b border-border focus:ring-0 focus:border-secondary font-body py-2 px-0 appearance-none outline-none"
                       value={formData.location}
                       onChange={(e) => setFormData({...formData, location: e.target.value})}
                     >
@@ -302,7 +282,7 @@ export default function LandingPage() {
                       <option>Ibadan</option>
                       <option>Akure</option>
                       <option>Osogbo</option>
-                      <option>Sagamu / Ota</option>
+                      <option>Sagamu</option>
                     </select>
                   </div>
                 </div>
@@ -317,9 +297,10 @@ export default function LandingPage() {
                       <div className="space-y-4">
                         <label className="font-mono text-[12px] uppercase text-on-surface-variant">Main Concern (if any)</label>
                         <select className="w-full bg-background p-4 rounded-xl border border-border focus:ring-2 focus:ring-secondary/20 outline-none">
+                          <option>None / Everything is great</option>
                           <option>Speed & Latency</option>
-                          <option>Staff Politeness</option>
-                          <option>Total Downtime</option>
+                          <option>Wait times</option>
+                          <option>Connection drops</option>
                           <option>Technical Error</option>
                         </select>
                       </div>
@@ -329,24 +310,25 @@ export default function LandingPage() {
                   {activeCategory === 'Support' && (
                     <>
                       <div className="space-y-4">
-                        <label className="font-mono text-[12px] uppercase text-on-surface-variant">Assigned Agent</label>
+                        <label className="font-mono text-[12px] uppercase text-on-surface-variant">Who helped you?</label>
                         <select 
                           className="w-full bg-background p-4 rounded-xl border border-border focus:ring-2 focus:ring-secondary/20 outline-none"
                           onChange={(e) => setFormData({...formData, staffName: e.target.value})}
+                          required
                         >
-                          <option disabled selected>Select Agent</option>
-                          {supportStaff.map(staff => (
-                            <option key={staff}>{staff}</option>
+                          <option value="">Select Agent</option>
+                          {supportStaff?.map((staff: any) => (
+                            <option key={staff.id} value={staff.name}>{staff.name}</option>
                           ))}
                         </select>
                       </div>
-                      {renderRatingGroup("professionalism", "Agent Professionalism", "How helpful was the support agent?")}
-                      {renderRatingGroup("clarity", "Communication Clarity", "Were the explanations easy to understand?")}
+                      {renderRatingGroup("professionalism", "Helpfulness", "How helpful was our support agent?")}
+                      {renderRatingGroup("clarity", "Communication", "Were the explanations easy to understand?")}
                       {renderRatingGroup("effectiveness", "Problem Resolution", "Was your issue fixed properly?")}
                       <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 border-y border-border/30 py-8">
                         <div>
                           <h3 className="font-display text-xl">Were you kept updated?</h3>
-                          <p className="text-on-surface-variant text-sm">Did you receive updates about your request?</p>
+                          <p className="text-on-surface-variant text-sm">Did you receive progress notifications?</p>
                         </div>
                         <div className="flex gap-4">
                            {['YES', 'NO'].map(choice => (
@@ -393,11 +375,12 @@ export default function LandingPage() {
                           placeholder="How has our service helped your work or home life?" 
                           value={formData.comment}
                           onChange={(e) => setFormData({...formData, comment: e.target.value})}
+                          required
                         />
                       </div>
                       <div className="space-y-6">
                         <h3 className="font-display text-2xl">Can we share your story?</h3>
-                        <p className="text-sm text-on-surface-variant mb-4">We'd love to feature your experience in our updates.</p>
+                        <p className="text-sm text-on-surface-variant mb-4">We'd love to feature your experience on our website.</p>
                         <RadioGroup 
                           defaultValue="Maybe" 
                           className="flex gap-4"
@@ -419,22 +402,23 @@ export default function LandingPage() {
                       <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
                         <div className="space-y-2">
                           <label className="font-mono text-[12px] uppercase text-on-surface-variant">Sales Agent Name</label>
-                          <input className="w-full bg-transparent border-0 border-b border-border focus:ring-0 focus:border-secondary font-body py-2 px-0" placeholder="Agent Name" type="text" />
+                          <input className="w-full bg-transparent border-0 border-b border-border focus:ring-0 focus:border-secondary font-body py-2 px-0 outline-none" placeholder="Who sold you the plan?" type="text" />
                         </div>
                         <div className="space-y-2">
-                          <label className="font-mono text-[12px] uppercase text-on-surface-variant">Technician Name</label>
+                          <label className="font-mono text-[12px] uppercase text-on-surface-variant">Installation Lead</label>
                           <select 
-                            className="w-full bg-transparent border-0 border-b border-border focus:ring-0 focus:border-secondary font-body py-2 px-0 appearance-none"
+                            className="w-full bg-transparent border-0 border-b border-border focus:ring-0 focus:border-secondary font-body py-2 px-0 appearance-none outline-none"
                             onChange={(e) => setFormData({...formData, staffName: e.target.value})}
+                            required
                           >
-                            <option disabled selected>Select Technician</option>
-                            {technicians.map(tech => (
-                              <option key={tech}>{tech}</option>
+                            <option value="">Select Technician</option>
+                            {technicians?.map((tech: any) => (
+                              <option key={tech.id} value={tech.name}>{tech.name}</option>
                             ))}
                           </select>
                         </div>
                       </div>
-                      {renderRatingGroup("punctuality", "On-Time Arrival", "Did our team arrive when scheduled?")}
+                      {renderRatingGroup("punctuality", "Punctuality", "Did our team arrive when they said they would?")}
                       {renderRatingGroup("quality", "Setup Quality", "How would you rate the neatness of the setup?")}
                     </>
                   )}
@@ -442,12 +426,12 @@ export default function LandingPage() {
                   {activeCategory === 'Billing' && (
                     <>
                       {renderRatingGroup("accuracy", "Invoice Accuracy", "How accurate was your last bill?")}
-                      {renderRatingGroup("dispute", "Dispute Resolution", "How helpful was our team with billing questions?")}
+                      {renderRatingGroup("dispute", "Helpfulness", "How helpful was our team with billing questions?")}
                       {renderRatingGroup("reconnection", "Reconnection Speed", "How fast was service restored after payment?")}
                       <div className="p-8 bg-primary rounded-2xl text-white flex items-center justify-between">
                         <div>
-                          <h4 className="font-display text-xl mb-1">Self-Service Portal</h4>
-                          <p className="opacity-70 text-sm">Did you use our online portal for payments?</p>
+                          <h4 className="font-display text-xl mb-1">Online Payment Portal</h4>
+                          <p className="opacity-70 text-sm">Did you use our website portal for payments?</p>
                         </div>
                         <Switch className="data-[state=checked]:bg-secondary" />
                       </div>
@@ -456,10 +440,10 @@ export default function LandingPage() {
 
                   {activeCategory !== 'Testimonials' && (
                     <div className="space-y-4">
-                      <label className="font-mono text-[12px] uppercase text-on-surface-variant">Anything else?</label>
+                      <label className="font-mono text-[12px] uppercase text-on-surface-variant">Additional Comments</label>
                       <textarea 
                         className="w-full bg-background p-6 rounded-[1.5rem] border border-border focus:ring-2 focus:ring-secondary/20 outline-none resize-none min-h-[160px]" 
-                        placeholder="Tell us how we can improve..." 
+                        placeholder="Tell us anything else you'd like us to know..." 
                         value={formData.comment}
                         onChange={(e) => setFormData({...formData, comment: e.target.value})}
                       />
@@ -498,14 +482,14 @@ export default function LandingPage() {
           <div className="space-y-4">
             <div className="font-mono text-label-mono font-bold text-primary uppercase">I-World Networks</div>
             <p className="text-on-surface-variant text-sm max-w-xs opacity-70">
-              Reliable fiber internet for Nigeria's major business hubs.
+              Reliable fiber internet for Nigeria's leading business hubs.
             </p>
             <div className="font-mono text-[10px] text-on-surface-variant uppercase tracking-tighter">
               © 2024 I-World Networks.
             </div>
           </div>
           <div className="grid grid-cols-2 md:grid-cols-3 gap-x-12 gap-y-4">
-            {['Lagos', 'Ibadan', 'Abuja', 'Akure', 'Osogbo', 'Abeokuta', 'Privacy', 'Terms'].map(link => (
+            {['Lagos', 'Ibadan', 'Abuja', 'Akure', 'Osogbo', 'Sagamu', 'Abeokuta', 'Privacy', 'Terms'].map(link => (
               <a key={link} className="text-on-surface-variant hover:text-secondary transition-colors font-mono text-label-mono" href="#">{link}</a>
             ))}
           </div>

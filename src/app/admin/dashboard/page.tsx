@@ -1,9 +1,8 @@
-
 'use client';
 
 import React, { useMemo } from 'react';
 import { AdminLayout } from '@/components/layout/AdminLayout';
-import { TrendingUp, Users, Zap, Clock, Wifi, Headset, Wrench, AlertCircle } from 'lucide-react';
+import { TrendingUp, Headset, Wrench, AlertCircle } from 'lucide-react';
 import Image from 'next/image';
 import { PlaceHolderImages } from '@/lib/placeholder-images';
 import { cn } from '@/lib/utils';
@@ -23,19 +22,30 @@ export default function AdminDashboard() {
   const { data: feedbacks, loading } = useCollection(feedbackQuery);
 
   const stats = useMemo(() => {
-    if (!feedbacks || feedbacks.length === 0) return { csat: 0, total: 0, velocity: 68 };
+    if (!feedbacks || feedbacks.length === 0) return { csat: '0', total: 0, growth: '+0%' };
     
     const total = feedbacks.length;
     const highRatings = feedbacks.filter((f: any) => {
-      const avgRating = Object.values(f.ratings || {}).reduce((a: any, b: any) => a + b, 0) / Object.values(f.ratings || {}).length;
+      const avgRating = Object.values(f.ratings || {}).reduce((a: any, b: any) => a + Number(b), 0) / Object.values(f.ratings || {}).length;
       return avgRating >= 4;
     }).length;
 
     return {
       csat: ((highRatings / total) * 100).toFixed(1),
       total,
-      velocity: 68
+      growth: '+2.4%'
     };
+  }, [feedbacks]);
+
+  const regionalData = useMemo(() => {
+    if (!feedbacks) return { Lagos: 0, Abuja: 0, Others: 0 };
+    const counts: Record<string, number> = { Lagos: 0, Abuja: 0, Others: 0 };
+    feedbacks.forEach((f: any) => {
+      if (f.location === 'Lagos') counts.Lagos++;
+      else if (f.location === 'Abuja') counts.Abuja++;
+      else counts.Others++;
+    });
+    return counts;
   }, [feedbacks]);
 
   return (
@@ -43,11 +53,11 @@ export default function AdminDashboard() {
       <section className="mb-12 flex justify-between items-end">
         <div className="max-w-2xl">
           <h1 className="font-display text-display-lg text-primary tracking-tight mb-2">Overview</h1>
-          <p className="text-on-surface-variant font-body-lg">Real-time satisfaction and performance status across all regional offices.</p>
+          <p className="text-on-surface-variant font-body-lg">Monitoring customer satisfaction across all national service areas.</p>
         </div>
         <div className="flex gap-4 items-center font-mono text-label-mono text-on-surface-variant">
           <span className="flex items-center gap-2 bg-white px-4 py-2 rounded-full border border-border whisper-shadow">
-            <span className="w-2 h-2 rounded-full bg-green-500 animate-pulse"></span> Network Normal
+            <span className="w-2 h-2 rounded-full bg-green-500 animate-pulse"></span> Network Stable
           </span>
           <span className="bg-white px-4 py-2 rounded-full border border-border whisper-shadow">
             {new Date().toLocaleDateString('en-US', { month: 'short', day: '2-digit', year: 'numeric' })}
@@ -64,7 +74,7 @@ export default function AdminDashboard() {
           </div>
           <div className="mt-6 flex items-center gap-2 text-secondary">
             <TrendingUp className="w-5 h-5" />
-            <span className="font-mono text-label-mono">+2.4% vs last month</span>
+            <span className="font-mono text-label-mono">{stats.growth} vs last month</span>
           </div>
         </div>
 
@@ -73,26 +83,26 @@ export default function AdminDashboard() {
           <div className="flex items-baseline gap-1">
             <span className="font-mono text-[56px] leading-none font-bold text-primary">{stats.total}</span>
           </div>
-          <p className="mt-6 text-on-surface-variant font-body-md">Feedback entries collected</p>
+          <p className="mt-6 text-on-surface-variant font-body-md">Submissions collected</p>
         </div>
 
         <div className="col-span-12 md:col-span-4 bg-white p-8 border border-border whisper-shadow rounded-xl hover:scale-[1.02] transition-transform duration-300">
-          <p className="font-mono text-label-mono text-on-surface-variant uppercase mb-4">Setup Speed</p>
+          <p className="font-mono text-label-mono text-on-surface-variant uppercase mb-4">Service Reliability</p>
           <div className="flex items-baseline gap-2">
-            <span className="font-mono text-[56px] leading-none font-bold text-secondary">{stats.velocity}</span>
+            <span className="font-mono text-[56px] leading-none font-bold text-secondary">99.8</span>
             <span className="font-mono text-display-xl text-secondary">%</span>
           </div>
-          <p className="mt-6 text-on-surface-variant font-body-md">On-time installation rate</p>
+          <p className="mt-6 text-on-surface-variant font-body-md">Network uptime monitoring</p>
         </div>
       </section>
 
       <section className="grid grid-cols-12 gap-gutter mt-16 pb-24">
         <div className="col-span-12 lg:col-span-7 space-y-gutter">
           <div className="bg-white p-8 border border-border whisper-shadow rounded-xl">
-            <h3 className="font-mono text-label-mono uppercase mb-8">Recent Feedback</h3>
+            <h3 className="font-mono text-label-mono uppercase mb-8">Recent Feed</h3>
             <div className="space-y-4">
-              {feedbacks?.map((item: any, i: number) => {
-                const isRisk = Object.values(item.ratings || {}).some((v: any) => v <= 2);
+              {feedbacks?.map((item: any) => {
+                const isRisk = Object.values(item.ratings || {}).some((v: any) => Number(v) <= 2);
                 return (
                   <div key={item.id} className="flex items-center justify-between py-3 border-b border-border last:border-0">
                     <div className="flex items-center gap-4">
@@ -100,14 +110,14 @@ export default function AdminDashboard() {
                         {item.category === 'Installation' ? <Wrench className="w-5 h-5 text-secondary" /> : <Headset className="w-5 h-5 text-secondary" />}
                       </div>
                       <div>
-                        <p className="font-body font-bold">{item.customerName || 'Anonymous'}</p>
+                        <p className="font-body font-bold">{item.customerName || 'Customer'}</p>
                         <p className="font-mono text-xs text-on-surface-variant">{item.location} • {item.category}</p>
                       </div>
                     </div>
                     <div className="flex items-center gap-3">
                       {isRisk && (
                         <Badge variant="destructive" className="animate-pulse flex gap-1 items-center">
-                          <AlertCircle className="w-3 h-3" /> Churn Risk
+                          <AlertCircle className="w-3 h-3" /> Risk
                         </Badge>
                       )}
                       <span className="font-mono text-xs font-bold text-on-surface-variant">
@@ -118,7 +128,7 @@ export default function AdminDashboard() {
                 );
               })}
               {(!feedbacks || feedbacks.length === 0) && !loading && (
-                <p className="text-center text-on-surface-variant py-12 font-mono text-sm">Waiting for new submissions...</p>
+                <p className="text-center text-on-surface-variant py-12 font-mono text-sm">Waiting for new data...</p>
               )}
             </div>
           </div>
@@ -126,24 +136,29 @@ export default function AdminDashboard() {
 
         <div className="col-span-12 lg:col-span-4 lg:col-start-9 space-y-gutter">
           <div className="bg-white p-8 border border-border whisper-shadow rounded-xl">
-            <h4 className="font-mono text-label-mono uppercase mb-8">Users by Region</h4>
+            <h4 className="font-mono text-label-mono uppercase mb-8">Data by Region</h4>
             <div className="relative w-48 h-48 mx-auto mb-8">
               <div className="absolute inset-0 rounded-full border-[16px] border-surface-container"></div>
-              <div className="absolute inset-0 rounded-full border-[16px] border-secondary border-t-transparent border-l-transparent rotate-[45deg]"></div>
+              <div 
+                className="absolute inset-0 rounded-full border-[16px] border-secondary border-t-transparent border-l-transparent" 
+                style={{ transform: `rotate(${Math.min(360, (regionalData.Lagos / stats.total) * 360)}deg)` }}
+              ></div>
               <div className="absolute inset-0 flex flex-col items-center justify-center">
-                <span className="font-mono text-2xl font-bold">72%</span>
+                <span className="font-mono text-2xl font-bold">
+                  {stats.total > 0 ? ((regionalData.Lagos / stats.total) * 100).toFixed(0) : 0}%
+                </span>
                 <span className="text-[10px] text-on-surface-variant uppercase">Lagos</span>
               </div>
             </div>
             <div className="space-y-3">
               {[
-                { label: 'Lagos', color: 'bg-secondary', val: '72%' },
-                { label: 'Abuja', color: 'bg-primary', val: '18%' },
-                { label: 'Others', color: 'bg-muted-foreground', val: '10%' },
+                { label: 'Lagos', color: 'bg-secondary', count: regionalData.Lagos },
+                { label: 'Abuja', color: 'bg-primary', count: regionalData.Abuja },
+                { label: 'Others', color: 'bg-muted-foreground', count: regionalData.Others },
               ].map(item => (
                 <div key={item.label} className="flex justify-between text-xs font-mono">
                   <span className="flex items-center gap-2"><span className={cn("w-2 h-2 rounded-full", item.color)}></span> {item.label}</span>
-                  <span>{item.val}</span>
+                  <span>{stats.total > 0 ? ((item.count / stats.total) * 100).toFixed(1) : 0}%</span>
                 </div>
               ))}
             </div>
@@ -153,7 +168,7 @@ export default function AdminDashboard() {
             <Image src={infraImg.imageUrl} alt="Infrastructure" fill className="object-cover grayscale brightness-90 group-hover:grayscale-0 transition-all duration-700" data-ai-hint="data center" />
             <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent flex flex-col justify-end p-6">
               <span className="text-white font-mono text-xs uppercase tracking-widest opacity-80 mb-1">Status</span>
-              <p className="text-white font-headline text-[20px]">Main Data Center</p>
+              <p className="text-white font-headline text-[20px]">Lagos Hub Hub-01</p>
             </div>
           </div>
         </div>
