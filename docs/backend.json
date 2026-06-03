@@ -1,4 +1,3 @@
-
 {
   "entities": {
     "Feedback": {
@@ -10,15 +9,28 @@
         "customerEmail": { "type": "string", "format": "email" },
         "category": { "type": "string", "enum": ["Reliability", "Support", "Testimonials", "Installation", "Billing"] },
         "servicePlan": { "type": "string" },
-        "location": { "type": "string" },
-        "ratings": { "type": "object" },
+        "location": { "type": "string", "enum": ["Abeokuta", "Ibadan", "Osogbo", "Akure"] },
+        "ratings": { 
+          "type": "object",
+          "properties": {
+            "stability": { "type": "number" },
+            "journey": { "type": "number" },
+            "professionalism": { "type": "number" },
+            "clarity": { "type": "number" },
+            "signal": { "type": "number" },
+            "punctuality": { "type": "number" },
+            "quality": { "type": "number" },
+            "accuracy": { "type": "number" },
+            "reconnection": { "type": "number" }
+          }
+        },
         "comment": { "type": "string" },
-        "staffName": { "type": "string", "description": "Name of the helping staff member or technician" },
+        "staffName": { "type": "string" },
         "timestamp": { "type": "number" },
-        "status": { "type": "string", "enum": ["pending", "reviewed", "escalated"] },
+        "status": { "type": "string", "enum": ["pending", "reviewed", "escalated"], "default": "pending" },
         "interviewConsent": { "type": "string", "enum": ["Yes", "No", "Maybe"] }
       },
-      "required": ["customerEmail", "category", "timestamp"]
+      "required": ["customerEmail", "category", "location", "timestamp"]
     },
     "Staff": {
       "title": "Staff",
@@ -36,8 +48,8 @@
       "type": "object",
       "properties": {
         "name": { "type": "string" },
-        "partner": { "type": "string", "description": "Tech territory partner" },
-        "region": { "type": "string" },
+        "partner": { "type": "string" },
+        "region": { "type": "string", "enum": ["Abeokuta", "Ibadan", "Osogbo", "Akure"] },
         "primaryTerritory": { "type": "string" }
       },
       "required": ["name", "region"]

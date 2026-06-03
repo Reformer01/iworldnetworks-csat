@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useMemo } from 'react';
+import React, { useState } from 'react';
 import Image from 'next/image';
 import { PublicNavbar } from '@/components/layout/PublicNavbar';
 import { PlaceHolderImages } from '@/lib/placeholder-images';
@@ -21,6 +21,8 @@ import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Label } from '@/components/ui/label';
 import { useFirestore } from '@/firebase';
 import { collection, addDoc } from 'firebase/firestore';
+import { errorEmitter } from '@/firebase/error-emitter';
+import { FirestorePermissionError } from '@/firebase/errors';
 
 type Category = 'Reliability' | 'Support' | 'Testimonials' | 'Installation' | 'Billing';
 
@@ -83,35 +85,35 @@ export default function LandingPage() {
   const heroContent: Record<Category, { title: React.ReactNode, sub: string, img: any }> = {
     Reliability: {
       title: (
-        <>Stay <div className="relative h-[40px] w-[80px] md:h-[72px] md:w-[140px] rounded-full overflow-hidden inline-block mx-1 md:mx-2 border-2 border-white"><Image src={images.fiber.imageUrl} alt="fiber" fill className="object-cover" /></div> Connected <div className="relative h-[40px] w-[80px] md:h-[72px] md:w-[140px] rounded-full overflow-hidden inline-block mx-1 md:mx-2 border-2 border-white"><Image src={images.customer.imageUrl} alt="customer" fill className="object-cover" /></div> Always.</>
+        <>Stay <div className="relative h-[24px] w-[50px] md:h-[72px] md:w-[140px] rounded-full overflow-hidden inline-block mx-1 md:mx-2 border-2 border-white"><Image src={images.fiber.imageUrl} alt="fiber" fill className="object-cover" /></div> Connected <div className="relative h-[24px] w-[50px] md:h-[72px] md:w-[140px] rounded-full overflow-hidden inline-block mx-1 md:mx-2 border-2 border-white"><Image src={images.customer.imageUrl} alt="customer" fill className="object-cover" /></div> Always.</>
       ),
       sub: "Help us monitor your internet quality. We want to ensure you have consistent high-speed fiber every single day.",
       img: images.server
     },
     Support: {
       title: (
-        <>Fast <div className="relative h-[40px] w-[80px] md:h-[72px] md:w-[140px] rounded-full overflow-hidden inline-block mx-1 md:mx-2 border-2 border-white"><Image src={images.customer.imageUrl} alt="customer" fill className="object-cover" /></div> Answers <div className="relative h-[40px] w-[80px] md:h-[72px] md:w-[140px] rounded-full overflow-hidden inline-block mx-1 md:mx-2 border-2 border-white"><Image src={images.tech.imageUrl} alt="tech" fill className="object-cover" /></div> Locally.</>
+        <>Fast <div className="relative h-[24px] w-[50px] md:h-[72px] md:w-[140px] rounded-full overflow-hidden inline-block mx-1 md:mx-2 border-2 border-white"><Image src={images.customer.imageUrl} alt="customer" fill className="object-cover" /></div> Answers <div className="relative h-[24px] w-[50px] md:h-[72px] md:w-[140px] rounded-full overflow-hidden inline-block mx-1 md:mx-2 border-2 border-white"><Image src={images.tech.imageUrl} alt="tech" fill className="object-cover" /></div> Locally.</>
       ),
       sub: "How was your experience with our support team? We're here to help and value your honest feedback.",
       img: images.tech
     },
     Testimonials: {
       title: (
-        <>Real <div className="relative h-[40px] w-[80px] md:h-[72px] md:w-[140px] rounded-full overflow-hidden inline-block mx-1 md:mx-2 border-2 border-white"><Image src={images.customer.imageUrl} alt="customer" fill className="object-cover" /></div> Stories <div className="relative h-[40px] w-[80px] md:h-[72px] md:w-[140px] rounded-full overflow-hidden inline-block mx-1 md:mx-2 border-2 border-white"><Image src={images.workspace.imageUrl} alt="workspace" fill className="object-cover" /></div> Shared.</>
+        <>Real <div className="relative h-[24px] w-[50px] md:h-[72px] md:w-[140px] rounded-full overflow-hidden inline-block mx-1 md:mx-2 border-2 border-white"><Image src={images.customer.imageUrl} alt="customer" fill className="object-cover" /></div> Stories <div className="relative h-[24px] w-[50px] md:h-[72px] md:w-[140px] rounded-full overflow-hidden inline-block mx-1 md:mx-2 border-2 border-white"><Image src={images.workspace.imageUrl} alt="workspace" fill className="object-cover" /></div> Shared.</>
       ),
       sub: "Has I-World helped your home or business? Share your success story with us and the community.",
       img: images.workspace
     },
     Installation: {
       title: (
-        <>Professional <div className="relative h-[40px] w-[80px] md:h-[72px] md:w-[140px] rounded-full overflow-hidden inline-block mx-1 md:mx-2 border-2 border-white"><Image src={images.tech.imageUrl} alt="tech" fill className="object-cover" /></div> Fiber <div className="relative h-[40px] w-[80px] md:h-[72px] md:w-[140px] rounded-full overflow-hidden inline-block mx-1 md:mx-2 border-2 border-white"><Image src={images.fiber.imageUrl} alt="fiber" fill className="object-cover" /></div> Setup.</>
+        <>Professional <div className="relative h-[24px] w-[50px] md:h-[72px] md:w-[140px] rounded-full overflow-hidden inline-block mx-1 md:mx-2 border-2 border-white"><Image src={images.tech.imageUrl} alt="tech" fill className="object-cover" /></div> Fiber <div className="relative h-[24px] w-[50px] md:h-[72px] md:w-[140px] rounded-full overflow-hidden inline-block mx-1 md:mx-2 border-2 border-white"><Image src={images.fiber.imageUrl} alt="fiber" fill className="object-cover" /></div> Setup.</>
       ),
       sub: "Tell us about your installation. We aim for a neat, quick, and professional experience every time.",
       img: images.tech
     },
     Billing: {
       title: (
-        <>Simple <div className="relative h-[40px] w-[80px] md:h-[72px] md:w-[140px] rounded-full overflow-hidden inline-block mx-1 md:mx-2 border-2 border-white"><Image src={images.workspace.imageUrl} alt="workspace" fill className="object-cover" /></div> Payments <div className="relative h-[40px] w-[80px] md:h-[72px] md:w-[140px] rounded-full overflow-hidden inline-block mx-1 md:mx-2 border-2 border-white"><Image src={images.customer.imageUrl} alt="customer" fill className="object-cover" /></div> Matter.</>
+        <>Simple <div className="relative h-[24px] w-[50px] md:h-[72px] md:w-[140px] rounded-full overflow-hidden inline-block mx-1 md:mx-2 border-2 border-white"><Image src={images.workspace.imageUrl} alt="workspace" fill className="object-cover" /></div> Payments <div className="relative h-[24px] w-[50px] md:h-[72px] md:w-[140px] rounded-full overflow-hidden inline-block mx-1 md:mx-2 border-2 border-white"><Image src={images.customer.imageUrl} alt="customer" fill className="object-cover" /></div> Matter.</>
       ),
       sub: "How is our payment process? We want to make sure the billing cycle is easy and clear for everyone.",
       img: images.server
@@ -128,27 +130,38 @@ export default function LandingPage() {
     e.preventDefault();
     if (!firestore) return;
 
-    const feedbackRef = collection(firestore, 'feedbacks');
-    addDoc(feedbackRef, {
+    const feedbackData = {
       ...formData,
       category: activeCategory,
       ratings,
       timestamp: Date.now(),
       status: 'pending'
-    });
+    };
 
-    setIsSubmitted(true);
-    setTimeout(() => {
-      setIsSubmitted(false);
-      setRatings({});
-      setFormData({ ...formData, comment: '', customerEmail: '', customerName: '' });
-    }, 3000);
+    const feedbackRef = collection(firestore, 'feedbacks');
+    addDoc(feedbackRef, feedbackData)
+      .then(() => {
+        setIsSubmitted(true);
+        setTimeout(() => {
+          setIsSubmitted(false);
+          setRatings({});
+          setFormData({ ...formData, comment: '', customerEmail: '', customerName: '' });
+        }, 3000);
+      })
+      .catch(async (serverError) => {
+        const permissionError = new FirestorePermissionError({
+          path: feedbackRef.path,
+          operation: 'create',
+          requestResourceData: feedbackData,
+        });
+        errorEmitter.emit('permission-error', permissionError);
+      });
   };
 
   const renderRatingGroup = (id: string, label: string, description: string) => (
     <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
       <div>
-        <h3 className="font-display text-xl md:text-2xl text-primary">{label}</h3>
+        <h3 className="font-display text-lg md:text-2xl text-primary">{label}</h3>
         <p className="text-on-surface-variant text-sm">{description}</p>
       </div>
       <div className="flex gap-2">
@@ -158,7 +171,7 @@ export default function LandingPage() {
             type="button"
             onClick={() => handleRating(id, num)}
             className={cn(
-              "w-10 h-10 md:w-12 md:h-12 rounded-full border border-border flex items-center justify-center transition-all duration-200 font-mono text-sm",
+              "w-8 h-8 md:w-12 md:h-12 rounded-full border border-border flex items-center justify-center transition-all duration-200 font-mono text-xs md:text-sm",
               ratings[id] === num ? "bg-secondary text-white border-secondary scale-110" : "hover:bg-surface-container text-on-surface"
             )}
           >
@@ -170,31 +183,30 @@ export default function LandingPage() {
   );
 
   return (
-    <div className="canvas-bg min-h-screen font-body">
+    <div className="canvas-bg min-h-screen font-body overflow-x-hidden">
       <PublicNavbar />
       
-      <main className="pt-24 md:pt-32 pb-16 md:pb-24">
-        <section className="grid grid-cols-1 md:grid-cols-12 px-margin-mobile md:px-margin-desktop max-w-container-max mx-auto gap-gutter mb-16 md:mb-24 min-h-[400px] md:min-h-[500px]">
+      <main className="pt-20 md:pt-32 pb-16 md:pb-24">
+        <section className="grid grid-cols-1 md:grid-cols-12 px-margin-mobile md:px-margin-desktop max-w-container-max mx-auto gap-gutter mb-12 md:mb-24">
           <div className="md:col-span-7 flex flex-col justify-center">
-            <h1 className="font-display text-4xl md:text-display-xl mb-6 md:mb-8 leading-[1.1] md:leading-[0.9] flex flex-wrap items-center">
+            <h1 className="font-display text-2xl md:text-display-xl mb-4 md:mb-8 leading-tight flex flex-wrap items-center">
               {activeHero.title}
             </h1>
-            <p className="text-on-surface-variant text-base md:text-body-lg mb-8 md:mb-10 max-w-lg">
+            <p className="text-on-surface-variant text-sm md:text-body-lg mb-6 md:mb-10 max-w-lg">
               {activeHero.sub}
             </p>
-            <div className="flex items-center gap-6 md:gap-8 mt-4">
+            <div className="flex items-center gap-4 md:gap-8">
               <Button 
                 size="lg" 
-                className="bg-secondary text-white px-8 md:px-10 py-6 md:py-8 rounded-full font-bold text-base md:text-body-lg hover:scale-[1.02] transition-transform duration-300"
+                className="bg-secondary text-white px-6 md:px-10 py-5 md:py-8 rounded-full font-bold text-sm md:text-body-lg hover:scale-[1.02] transition-transform duration-300"
                 onClick={() => document.getElementById('feedback-portal')?.scrollIntoView({ behavior: 'smooth' })}
               >
                 Share Your Feedback
               </Button>
-              <div className="h-px w-16 md:w-24 bg-border hidden md:block"></div>
             </div>
           </div>
-          <div className="md:col-span-4 md:col-start-9 relative translate-y-16 hidden md:block">
-            <div className="aspect-[3/4] bg-surface-container-high rounded-[2rem] md:rounded-[2.5rem] overflow-hidden whisper-shadow relative">
+          <div className="md:col-span-4 md:col-start-9 relative hidden md:block">
+            <div className="aspect-[3/4] bg-surface-container-high rounded-3xl md:rounded-[2.5rem] overflow-hidden whisper-shadow relative">
               <Image 
                 key={activeCategory}
                 src={activeHero.img.imageUrl} 
@@ -208,60 +220,52 @@ export default function LandingPage() {
         </section>
 
         <section id="feedback-portal" className="px-margin-mobile md:px-margin-desktop max-w-container-max mx-auto">
-          <div className="bg-surface-container-lowest rounded-[1.5rem] md:rounded-[2.5rem] p-6 md:p-12 whisper-shadow border border-border grid grid-cols-1 lg:grid-cols-12 gap-8 md:gap-12">
+          <div className="bg-surface-container-lowest rounded-2xl md:rounded-[2.5rem] p-5 md:p-12 whisper-shadow border border-border grid grid-cols-1 lg:grid-cols-12 gap-8 md:gap-12">
             <div className="lg:col-span-3 flex flex-col gap-2">
-              <p className="font-mono text-label-mono text-on-surface-variant mb-4 md:mb-6 uppercase tracking-widest text-xs md:text-sm">Select Category</p>
-              <div className="flex flex-row lg:flex-col overflow-x-auto lg:overflow-visible gap-2 pb-4 lg:pb-0 scrollbar-hide">
+              <p className="font-mono text-[10px] md:text-label-mono text-on-surface-variant mb-3 md:mb-6 uppercase tracking-widest">Select Category</p>
+              <div className="flex flex-row lg:flex-col overflow-x-auto lg:overflow-visible gap-2 pb-2 lg:pb-0 scrollbar-hide">
                 {categories.map((cat) => (
                   <button
                     key={cat.name}
                     onClick={() => setActiveCategory(cat.name)}
                     className={cn(
-                      "flex items-center gap-3 md:gap-4 px-4 md:px-6 py-3 md:py-4 rounded-xl transition-all text-left group whitespace-nowrap",
+                      "flex items-center gap-2 md:gap-4 px-3 md:px-6 py-2 md:py-4 rounded-xl transition-all text-left group whitespace-nowrap",
                       activeCategory === cat.name ? "active-tab" : "text-on-surface-variant hover:bg-surface-container"
                     )}
                   >
                     <cat.icon className={cn("w-4 h-4 md:w-5 md:h-5", activeCategory === cat.name ? "text-secondary" : "group-hover:text-secondary")} />
-                    <span className="font-mono text-label-mono text-xs md:text-sm">{cat.label}</span>
+                    <span className="font-mono text-[10px] md:text-sm">{cat.label}</span>
                   </button>
                 ))}
-              </div>
-              
-              <div className="mt-8 md:mt-12 p-6 md:p-8 bg-surface-container-low rounded-2xl hidden lg:block">
-                <Smartphone className="text-secondary w-10 h-10 md:w-12 md:h-12 mb-4" />
-                <p className="font-body-md italic text-on-surface-variant text-sm">"Reliable internet is the foundation of your success."</p>
               </div>
             </div>
 
             <div className="lg:col-span-8 lg:col-start-5">
-              <form onSubmit={handleSubmit} className="space-y-8 md:space-y-10">
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6 md:gap-8">
-                  <div className="space-y-2">
-                    <label className="font-mono text-[10px] md:text-[12px] uppercase text-on-surface-variant">Full Name</label>
-                    <input required className="w-full bg-transparent border-0 border-b border-border focus:ring-0 focus:border-secondary font-body py-2 px-0 outline-none text-sm md:text-base" placeholder="e.g. John Doe" type="text" value={formData.customerName} onChange={(e) => setFormData({...formData, customerName: e.target.value})} />
+              <form onSubmit={handleSubmit} className="space-y-6 md:space-y-10">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 md:gap-8">
+                  <div className="space-y-1">
+                    <label className="font-mono text-[10px] uppercase text-on-surface-variant">Full Name</label>
+                    <input required className="w-full bg-transparent border-0 border-b border-border focus:ring-0 focus:border-secondary font-body py-1 px-0 outline-none text-sm md:text-base" placeholder="e.g. John Doe" type="text" value={formData.customerName} onChange={(e) => setFormData({...formData, customerName: e.target.value})} />
                   </div>
-                  <div className="space-y-2">
-                    <label className="font-mono text-[10px] md:text-[12px] uppercase text-on-surface-variant">Contact Email</label>
-                    <div className="relative">
-                      <Mail className="absolute right-0 bottom-3 w-4 h-4 text-on-surface-variant" />
-                      <input required className="w-full bg-transparent border-0 border-b border-border focus:ring-0 focus:border-secondary font-body py-2 px-0 outline-none text-sm md:text-base" placeholder="your@email.com" type="email" value={formData.customerEmail} onChange={(e) => setFormData({...formData, customerEmail: e.target.value})} />
-                    </div>
+                  <div className="space-y-1">
+                    <label className="font-mono text-[10px] uppercase text-on-surface-variant">Contact Email</label>
+                    <input required className="w-full bg-transparent border-0 border-b border-border focus:ring-0 focus:border-secondary font-body py-1 px-0 outline-none text-sm md:text-base" placeholder="your@email.com" type="email" value={formData.customerEmail} onChange={(e) => setFormData({...formData, customerEmail: e.target.value})} />
                   </div>
                 </div>
 
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6 md:gap-8">
-                  <div className="space-y-2">
-                    <label className="font-mono text-[10px] md:text-[12px] uppercase text-on-surface-variant">Service Plan</label>
-                    <select className="w-full bg-transparent border-0 border-b border-border focus:ring-0 focus:border-secondary font-body py-2 px-0 appearance-none outline-none text-sm md:text-base" value={formData.servicePlan} onChange={(e) => setFormData({...formData, servicePlan: e.target.value})}>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 md:gap-8">
+                  <div className="space-y-1">
+                    <label className="font-mono text-[10px] uppercase text-on-surface-variant">Service Plan</label>
+                    <select className="w-full bg-transparent border-0 border-b border-border focus:ring-0 focus:border-secondary font-body py-1 px-0 appearance-none outline-none text-sm md:text-base" value={formData.servicePlan} onChange={(e) => setFormData({...formData, servicePlan: e.target.value})}>
                       <option>Fiber Home</option>
                       <option>Fiber Business</option>
                       <option>Enterprise Gold</option>
                       <option>SME Dedicated</option>
                     </select>
                   </div>
-                  <div className="space-y-2">
-                    <label className="font-mono text-[10px] md:text-[12px] uppercase text-on-surface-variant">Your Region</label>
-                    <select className="w-full bg-transparent border-0 border-b border-border focus:ring-0 focus:border-secondary font-body py-2 px-0 appearance-none outline-none text-sm md:text-base" value={formData.location} onChange={(e) => setFormData({...formData, location: e.target.value})}>
+                  <div className="space-y-1">
+                    <label className="font-mono text-[10px] uppercase text-on-surface-variant">Your Region</label>
+                    <select className="w-full bg-transparent border-0 border-b border-border focus:ring-0 focus:border-secondary font-body py-1 px-0 appearance-none outline-none text-sm md:text-base" value={formData.location} onChange={(e) => setFormData({...formData, location: e.target.value})}>
                       {validRegions.map(region => (
                         <option key={region} value={region}>{region}</option>
                       ))}
@@ -269,31 +273,21 @@ export default function LandingPage() {
                   </div>
                 </div>
 
-                <div className="h-px w-full bg-surface-container-high my-8 md:my-12"></div>
+                <div className="h-px w-full bg-surface-container-high my-6 md:my-10"></div>
 
-                <div className="space-y-10 md:space-y-12">
+                <div className="space-y-8 md:space-y-12">
                   {activeCategory === 'Reliability' && (
                     <>
                       {renderRatingGroup("stability", "Connection Stability", "How stable was your internet over the last 30 days?")}
                       {renderRatingGroup("journey", "Overall Experience", "How would you rate your network experience today?")}
-                      <div className="space-y-4">
-                        <label className="font-mono text-[10px] md:text-[12px] uppercase text-on-surface-variant">Main Concern (if any)</label>
-                        <select className="w-full bg-background p-3 md:p-4 rounded-xl border border-border focus:ring-2 focus:ring-secondary/20 outline-none text-sm md:text-base">
-                          <option>Everything is great</option>
-                          <option>Speed issues</option>
-                          <option>Wait times</option>
-                          <option>Connection drops</option>
-                          <option>Hardware error</option>
-                        </select>
-                      </div>
                     </>
                   )}
 
                   {activeCategory === 'Support' && (
                     <>
-                      <div className="space-y-4">
-                        <label className="font-mono text-[10px] md:text-[12px] uppercase text-on-surface-variant">Who helped you?</label>
-                        <select className="w-full bg-background p-3 md:p-4 rounded-xl border border-border focus:ring-2 focus:ring-secondary/20 outline-none text-sm md:text-base" onChange={(e) => setFormData({...formData, staffName: e.target.value})} required>
+                      <div className="space-y-3">
+                        <label className="font-mono text-[10px] uppercase text-on-surface-variant">Who helped you?</label>
+                        <select className="w-full bg-background p-3 rounded-xl border border-border focus:ring-2 focus:ring-secondary/20 outline-none text-sm" onChange={(e) => setFormData({...formData, staffName: e.target.value})} required>
                           <option value="">Select Support Staff</option>
                           {supportStaff.map((name) => (
                             <option key={name} value={name}>{name}</option>
@@ -307,26 +301,25 @@ export default function LandingPage() {
 
                   {activeCategory === 'Testimonials' && (
                     <>
-                      <div className="space-y-6">
-                        <h3 className="font-display text-xl md:text-2xl">Overall Satisfaction</h3>
-                        <div className="flex gap-4">
+                      <div className="space-y-4">
+                        <h3 className="font-display text-lg md:text-2xl">Overall Satisfaction</h3>
+                        <div className="flex gap-3">
                           {[1, 2, 3, 4, 5].map(star => (
-                            <Star key={star} onClick={() => handleRating('signal', star)} className={cn("w-8 h-8 md:w-10 md:h-10 cursor-pointer transition-all", (ratings['signal'] || 0) >= star ? "fill-secondary text-secondary" : "text-border hover:text-secondary/50")} />
+                            <Star key={star} onClick={() => handleRating('signal', star)} className={cn("w-6 h-6 md:w-10 md:h-10 cursor-pointer transition-all", (ratings['signal'] || 0) >= star ? "fill-secondary text-secondary" : "text-border hover:text-secondary/50")} />
                           ))}
                         </div>
                       </div>
-                      <div className="space-y-4">
-                        <label className="font-display text-xl md:text-2xl block">Share your story</label>
-                        <textarea className="w-full bg-background p-4 md:p-6 rounded-[1.2rem] md:rounded-[1.5rem] border border-border focus:ring-2 focus:ring-secondary/20 outline-none resize-none min-h-[140px] md:min-h-[160px] text-sm md:text-base" placeholder="Tell us how our service has helped you..." value={formData.comment} onChange={(e) => setFormData({...formData, comment: e.target.value})} required />
+                      <div className="space-y-3">
+                        <label className="font-display text-lg md:text-2xl block">Share your story</label>
+                        <textarea className="w-full bg-background p-4 rounded-xl border border-border focus:ring-2 focus:ring-secondary/20 outline-none resize-none min-h-[120px] text-sm" placeholder="Tell us how our service has helped you..." value={formData.comment} onChange={(e) => setFormData({...formData, comment: e.target.value})} required />
                       </div>
-                      <div className="space-y-6">
-                        <h3 className="font-display text-xl md:text-2xl">Can we share your story?</h3>
-                        <p className="text-xs md:text-sm text-on-surface-variant mb-4">We'd love to feature your experience on our community updates.</p>
-                        <RadioGroup defaultValue="Maybe" className="flex flex-col md:flex-row gap-3 md:gap-4" onValueChange={(val) => setFormData({...formData, interviewConsent: val})}>
+                      <div className="space-y-4">
+                        <h3 className="font-display text-lg md:text-2xl">Can we share your story?</h3>
+                        <RadioGroup defaultValue="Maybe" className="flex flex-col md:flex-row gap-2" onValueChange={(val) => setFormData({...formData, interviewConsent: val})}>
                           {['Yes', 'No', 'Maybe'].map(opt => (
-                            <div key={opt} className="flex items-center space-x-2 border p-3 md:p-4 rounded-xl flex-1 justify-center hover:bg-surface-container cursor-pointer transition-colors">
+                            <div key={opt} className="flex items-center space-x-2 border p-3 rounded-xl flex-1 justify-center hover:bg-surface-container cursor-pointer transition-colors">
                               <RadioGroupItem value={opt} id={opt} />
-                              <Label htmlFor={opt} className="cursor-pointer text-sm md:text-base">{opt}</Label>
+                              <Label htmlFor={opt} className="cursor-pointer text-xs md:text-sm">{opt}</Label>
                             </div>
                           ))}
                         </RadioGroup>
@@ -336,12 +329,12 @@ export default function LandingPage() {
 
                   {activeCategory === 'Installation' && (
                     <>
-                      <div className="space-y-4">
-                        <label className="font-mono text-[10px] md:text-[12px] uppercase text-on-surface-variant">Installation Lead</label>
-                        <select className="w-full bg-background p-3 md:p-4 rounded-xl border border-border focus:ring-2 focus:ring-secondary/20 outline-none text-sm md:text-base" onChange={(e) => setFormData({...formData, staffName: e.target.value})} required>
+                      <div className="space-y-3">
+                        <label className="font-mono text-[10px] uppercase text-on-surface-variant">Installation Lead</label>
+                        <select className="w-full bg-background p-3 rounded-xl border border-border focus:ring-2 focus:ring-secondary/20 outline-none text-sm" onChange={(e) => setFormData({...formData, staffName: e.target.value})} required>
                           <option value="">Select Technician</option>
                           {technicians.map((tech) => (
-                            <option key={tech.name} value={tech.name}>{tech.name} ({tech.region})</option>
+                            <option key={tech.name} value={tech.name}>{tech.name}</option>
                           ))}
                         </select>
                       </div>
@@ -358,14 +351,14 @@ export default function LandingPage() {
                   )}
 
                   {activeCategory !== 'Testimonials' && (
-                    <div className="space-y-4">
-                      <label className="font-mono text-[10px] md:text-[12px] uppercase text-on-surface-variant">Anything else to share?</label>
-                      <textarea className="w-full bg-background p-4 md:p-6 rounded-[1.2rem] md:rounded-[1.5rem] border border-border focus:ring-2 focus:ring-secondary/20 outline-none resize-none min-h-[140px] md:min-h-[160px] text-sm md:text-base" placeholder="Tell us more about your experience..." value={formData.comment} onChange={(e) => setFormData({...formData, comment: e.target.value})} />
+                    <div className="space-y-2">
+                      <label className="font-mono text-[10px] uppercase text-on-surface-variant">Anything else to share?</label>
+                      <textarea className="w-full bg-background p-4 rounded-xl border border-border focus:ring-2 focus:ring-secondary/20 outline-none resize-none min-h-[120px] text-sm" placeholder="Tell us more about your experience..." value={formData.comment} onChange={(e) => setFormData({...formData, comment: e.target.value})} />
                     </div>
                   )}
 
-                  <div className="pt-4 md:pt-6">
-                    <Button type="submit" disabled={isSubmitted} className={cn("w-full md:w-auto px-10 md:px-12 py-5 md:py-7 rounded-full font-bold hover:scale-[1.02] transition-all flex items-center justify-center gap-3 md:gap-4 text-white uppercase tracking-widest text-xs md:text-sm", isSubmitted ? "bg-green-600" : "bg-primary")}>
+                  <div className="pt-4">
+                    <Button type="submit" disabled={isSubmitted} className={cn("w-full md:w-auto px-8 md:px-12 py-4 md:py-7 rounded-full font-bold hover:scale-[1.02] transition-all flex items-center justify-center gap-3 text-white uppercase tracking-widest text-[10px] md:text-sm", isSubmitted ? "bg-green-600" : "bg-primary")}>
                       {isSubmitted ? <>Feedback Received <CircleCheck className="w-4 h-4 md:w-5 md:h-5" /></> : <>Submit Feedback <ArrowRight className="w-4 h-4 md:w-5 md:h-5" /></>}
                     </Button>
                   </div>

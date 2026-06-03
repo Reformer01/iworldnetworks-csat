@@ -84,8 +84,8 @@ export default function AdminDashboard() {
       <section className="mb-8 md:mb-12 flex flex-col md:flex-row justify-between items-start md:items-end gap-6">
         <div className="max-w-2xl">
           <p className="font-mono text-label-mono text-secondary mb-2 uppercase text-xs">Head of Hub: Gyang</p>
-          <h1 className="font-display text-3xl md:text-display-lg text-primary tracking-tight mb-2">Operational Overview</h1>
-          <p className="text-on-surface-variant font-body-md text-sm md:text-base">Real-time connection monitoring across regional hubs.</p>
+          <h1 className="font-display text-2xl md:text-display-lg text-primary tracking-tight mb-2">Operational Overview</h1>
+          <p className="text-on-surface-variant font-body-md text-xs md:text-base">Real-time connection monitoring across regional hubs.</p>
         </div>
         <div className="flex flex-wrap gap-4 items-center font-mono text-label-mono text-on-surface-variant">
           <span className="flex items-center gap-2 bg-white px-3 md:px-4 py-1.5 md:py-2 rounded-full border border-border whisper-shadow text-[10px] md:text-xs">
@@ -97,7 +97,7 @@ export default function AdminDashboard() {
         </div>
       </section>
 
-      <section className="grid grid-cols-1 md:grid-cols-3 gap-6 md:gap-gutter mb-6 md:mb-gutter">
+      <section className="grid grid-cols-1 md:grid-cols-3 gap-4 md:gap-gutter mb-6 md:mb-gutter">
         <div className="bg-white p-6 md:p-8 border border-border whisper-shadow rounded-xl hover:scale-[1.02] transition-transform duration-300">
           <p className="font-mono text-[10px] md:text-label-mono text-on-surface-variant uppercase mb-4">CSAT Index</p>
           <div className="flex items-baseline gap-2">
@@ -115,7 +115,7 @@ export default function AdminDashboard() {
           <div className="flex items-baseline gap-1">
             <span className="font-mono text-4xl md:text-[56px] leading-none font-bold text-primary">{stats.total}</span>
           </div>
-          <p className="mt-4 md:mt-6 text-on-surface-variant text-sm font-body-md">Active feedback cycles</p>
+          <p className="mt-4 md:mt-6 text-on-surface-variant text-xs md:text-sm font-body-md">Active feedback cycles</p>
         </div>
 
         <div className="bg-white p-6 md:p-8 border border-border whisper-shadow rounded-xl hover:scale-[1.02] transition-transform duration-300">
@@ -124,30 +124,20 @@ export default function AdminDashboard() {
             <span className="font-mono text-4xl md:text-[56px] leading-none font-bold text-secondary">99.8</span>
             <span className="font-mono text-xl md:text-display-xl text-secondary">%</span>
           </div>
-          <p className="mt-4 md:mt-6 text-on-surface-variant text-sm font-body-md">Connection consistency</p>
+          <p className="mt-4 md:mt-6 text-on-surface-variant text-xs md:text-sm font-body-md">Connection consistency</p>
         </div>
       </section>
 
-      <section className="grid grid-cols-12 gap-6 md:gap-gutter mt-8 md:mt-16 pb-16 md:pb-24">
-        <div className="col-span-12 lg:col-span-8 space-y-6 md:space-y-gutter">
-          <div className="bg-white p-6 md:p-10 border border-border whisper-shadow rounded-xl min-h-[400px] md:h-[500px] flex flex-col">
-            <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-8 md:mb-12">
+      <section className="grid grid-cols-12 gap-4 md:gap-gutter mt-8 md:mt-16 pb-16 md:pb-24">
+        <div className="col-span-12 lg:col-span-8 space-y-4 md:space-y-gutter">
+          <div className="bg-white p-6 md:p-10 border border-border whisper-shadow rounded-xl min-h-[300px] md:h-[500px] flex flex-col">
+            <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-6 md:mb-12">
               <div>
-                <h3 className="font-headline text-xl md:text-[24px] text-primary font-bold">Performance Trends</h3>
+                <h3 className="font-headline text-lg md:text-[24px] text-primary font-bold">Performance Trends</h3>
                 <p className="text-on-surface-variant font-mono text-[10px] uppercase tracking-widest">Real-time Connection Activity</p>
               </div>
-              <div className="flex gap-4 md:gap-6">
-                <div className="flex items-center gap-2">
-                  <div className="w-2 md:w-3 h-2 md:h-3 rounded-full bg-secondary"></div>
-                  <span className="font-mono text-[10px]">Reliability</span>
-                </div>
-                <div className="flex items-center gap-2">
-                  <div className="w-2 md:w-3 h-2 md:h-3 rounded-full bg-primary"></div>
-                  <span className="font-mono text-[10px]">Satisfaction</span>
-                </div>
-              </div>
             </div>
-            <div className="flex-1 min-h-[250px]">
+            <div className="flex-1 min-h-[200px]">
               <ResponsiveContainer width="100%" height="100%">
                 <LineChart data={timelineData}>
                   <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#eee" />
@@ -164,29 +154,29 @@ export default function AdminDashboard() {
           </div>
 
           <div className="bg-white p-6 md:p-8 border border-border whisper-shadow rounded-xl">
-            <h3 className="font-mono text-xs md:text-label-mono uppercase mb-6 md:mb-8">Live Customer Activity</h3>
-            <div className="space-y-4">
+            <h3 className="font-mono text-[10px] md:text-label-mono uppercase mb-4 md:mb-8">Live Customer Activity</h3>
+            <div className="space-y-3">
               {feedbacks?.map((item: any) => {
                 const isRisk = Object.values(item.ratings || {}).some((v: any) => Number(v) <= 2);
                 return (
-                  <div key={item.id} className="flex items-center justify-between py-3 border-b border-border last:border-0">
+                  <div key={item.id} className="flex items-center justify-between py-2 md:py-3 border-b border-border last:border-0">
                     <div className="flex items-center gap-3 md:gap-4">
                       <div className="w-8 h-8 md:w-10 md:h-10 rounded-full bg-surface-container flex items-center justify-center">
                         {item.category === 'Installation' ? <Wrench className="w-4 h-4 md:w-5 md:h-5 text-secondary" /> : <Activity className="w-4 h-4 md:w-5 md:h-5 text-secondary" />}
                       </div>
                       <div>
-                        <p className="text-sm md:text-base font-body font-bold truncate max-w-[120px] md:max-w-none">{item.customerName || 'Subscriber'}</p>
-                        <p className="font-mono text-[10px] text-on-surface-variant">{item.location} • {item.category}</p>
+                        <p className="text-xs md:text-base font-body font-bold truncate max-w-[100px] md:max-w-none">{item.customerName || 'Subscriber'}</p>
+                        <p className="font-mono text-[8px] md:text-[10px] text-on-surface-variant">{item.location} • {item.category}</p>
                       </div>
                     </div>
-                    <div className="flex flex-col md:flex-row items-end md:items-center gap-2 md:gap-3 text-right">
+                    <div className="flex flex-col md:flex-row items-end md:items-center gap-1 md:gap-3 text-right">
                       {isRisk && (
-                        <Badge variant="destructive" className="animate-pulse flex gap-1 items-center bg-destructive text-white rounded-full text-[8px] md:text-[10px] px-2 py-0">
-                          <AlertCircle className="w-2 h-2 md:w-3 md:h-3" /> Risk
+                        <Badge variant="destructive" className="animate-pulse flex gap-1 items-center bg-destructive text-white rounded-full text-[8px] px-1 md:px-2 py-0">
+                          <AlertCircle className="w-2 h-2" /> Risk
                         </Badge>
                       )}
-                      <span className="font-mono text-[10px] font-bold text-on-surface-variant">
-                        {new Date(item.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                      <span className="font-mono text-[8px] md:text-[10px] font-bold text-on-surface-variant">
+                        {mounted ? new Date(item.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '--:--'}
                       </span>
                     </div>
                   </div>
@@ -199,15 +189,15 @@ export default function AdminDashboard() {
           </div>
         </div>
 
-        <div className="col-span-12 lg:col-span-4 space-y-6 md:space-y-gutter">
+        <div className="col-span-12 lg:col-span-4 space-y-4 md:space-y-gutter">
           <div className="bg-white p-6 md:p-8 border border-border whisper-shadow rounded-xl">
-            <h4 className="font-mono text-xs md:text-label-mono uppercase mb-6 md:mb-8">Volume by Region</h4>
-            <div className="h-[200px] md:h-64 mb-6 md:mb-8">
+            <h4 className="font-mono text-[10px] md:text-label-mono uppercase mb-4 md:mb-8">Volume by Region</h4>
+            <div className="h-[180px] md:h-64 mb-4 md:mb-8">
               <ResponsiveContainer width="100%" height="100%">
                 <BarChart data={regionalChartData} layout="vertical">
                   <CartesianGrid strokeDasharray="3 3" horizontal={false} stroke="#eee" />
                   <XAxis type="number" hide />
-                  <YAxis dataKey="name" type="category" axisLine={false} tickLine={false} tick={{ fontSize: 10, fill: '#333', fontWeight: 'bold' }} width={80} />
+                  <YAxis dataKey="name" type="category" axisLine={false} tickLine={false} tick={{ fontSize: 10, fill: '#333', fontWeight: 'bold' }} width={70} />
                   <Tooltip cursor={{ fill: 'transparent' }} />
                   <Bar dataKey="value" radius={[0, 4, 4, 0]} barSize={20}>
                     {regionalChartData.map((entry, index) => (
@@ -217,7 +207,7 @@ export default function AdminDashboard() {
                 </BarChart>
               </ResponsiveContainer>
             </div>
-            <div className="space-y-3">
+            <div className="space-y-2">
               {regionalChartData.map((item, i) => (
                 <div key={item.name} className="flex justify-between text-[10px] font-mono">
                   <span className="flex items-center gap-2"><span className={cn("w-2 h-2 rounded-full", i === 0 ? "bg-secondary" : "bg-primary")}></span> {item.name}</span>
@@ -227,11 +217,11 @@ export default function AdminDashboard() {
             </div>
           </div>
 
-          <div className="rounded-xl overflow-hidden h-[180px] md:h-64 whisper-shadow relative group">
+          <div className="rounded-xl overflow-hidden h-[150px] md:h-64 whisper-shadow relative group">
             <Image src={infraImg.imageUrl} alt="Infrastructure" fill className="object-cover grayscale brightness-90 group-hover:grayscale-0 transition-all duration-700" data-ai-hint="data center" />
             <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent flex flex-col justify-end p-4 md:p-6">
-              <p className="text-white font-headline text-lg md:text-[20px]">Regional Hub</p>
-              <span className="text-white font-mono text-[10px] uppercase tracking-widest opacity-80">Status: Normal</span>
+              <p className="text-white font-headline text-base md:text-[20px]">Regional Hub Status</p>
+              <span className="text-white font-mono text-[8px] md:text-[10px] uppercase tracking-widest opacity-80">Monitoring: Stable</span>
             </div>
           </div>
         </div>
