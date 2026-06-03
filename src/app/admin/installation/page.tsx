@@ -10,9 +10,18 @@ import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 
 export default function AdminInstallation() {
-  const techDave = PlaceHolderImages.find(img => img.id === 'tech-dave')!;
-  const techSamuel = PlaceHolderImages.find(img => img.id === 'tech-samuel')!;
+  const techPortraits = [
+    PlaceHolderImages.find(img => img.id === 'tech-dave')!,
+    PlaceHolderImages.find(img => img.id === 'tech-samuel')!,
+    PlaceHolderImages.find(img => img.id === 'admin-avatar')!,
+  ];
   const networkMap = PlaceHolderImages.find(img => img.id === 'network-map')!;
+
+  const leadTechs = [
+    { name: 'Lukmon Obasa', role: 'Lead Tech • Akure Hub', completions: 156, time: '41m', img: techPortraits[0] },
+    { name: 'Habeeb Hussein', role: 'Senior Tech • Ibadan Node', completions: 142, time: '38m', img: techPortraits[1] },
+    { name: 'Kehinde Itehinola', role: 'Lead Tech • Abeokuta Office', completions: 128, time: '44m', img: techPortraits[2] },
+  ];
 
   return (
     <AdminLayout>
@@ -20,7 +29,7 @@ export default function AdminInstallation() {
         <div className="col-span-12 md:col-span-7">
           <h1 className="font-headline text-headline-lg mb-4 text-primary">Installation Team Performance</h1>
           <p className="font-body-lg text-body-lg text-on-surface-variant max-w-xl">
-            A clinical breakdown of field efficiency, deployment metrics, and regional fiber penetration. Precision tracking for a seamless network expansion.
+            A clinical breakdown of field efficiency, deployment metrics, and regional fiber penetration. Precision tracking for a seamless network expansion across the West African frontier.
           </p>
         </div>
         <div className="col-span-12 md:col-span-4 md:col-start-9 flex flex-col justify-end">
@@ -41,10 +50,7 @@ export default function AdminInstallation() {
             <CircleCheck className="w-6 h-6 text-secondary" />
           </div>
           <div className="space-y-8">
-            {[
-              { name: 'Dave Miller', role: 'Lead Installer • Lagos', completions: 142, time: '38m', img: techDave },
-              { name: 'Samuel Oke', role: 'Senior Tech • Abuja', completions: 128, time: '42m', img: techSamuel },
-            ].map(tech => (
+            {leadTechs.map(tech => (
               <div key={tech.name} className="flex items-center gap-6 group hover:scale-[1.01] transition-transform duration-200">
                 <div className="w-12 h-12 rounded-full overflow-hidden border border-border">
                   <Image src={tech.img.imageUrl} alt={tech.name} width={48} height={48} className="object-cover" />
@@ -65,9 +71,9 @@ export default function AdminInstallation() {
             ))}
             <button className="flex items-center w-full gap-6 opacity-60 grayscale hover:grayscale-0 hover:opacity-100 transition-all duration-300">
               <div className="w-12 h-12 rounded-full flex items-center justify-center border-2 border-dashed border-border font-mono text-on-surface-variant">
-                +18
+                +12
               </div>
-              <p className="font-mono text-sm">View Full Performance Roster</p>
+              <p className="font-mono text-sm">View Full Regional Roster</p>
               <ChevronRight className="w-5 h-5 ml-auto" />
             </button>
           </div>
@@ -77,7 +83,7 @@ export default function AdminInstallation() {
           <div className="flex justify-between items-start mb-8">
             <div>
               <h3 className="font-headline text-[24px] font-bold">Regional Fiber Drops</h3>
-              <p className="font-mono text-sm text-on-surface-variant mt-1">Real-time hotspots across key clusters.</p>
+              <p className="font-mono text-sm text-on-surface-variant mt-1">Real-time hotspots across Lagos, Ibadan, Akure, and Abeokuta.</p>
             </div>
             <div className="flex gap-2">
               <Button variant="outline" size="icon" className="w-10 h-10"><Map className="w-5 h-5" /></Button>
@@ -90,7 +96,7 @@ export default function AdminInstallation() {
               alt="Network Map" 
               fill 
               className="object-cover grayscale contrast-[1.1] opacity-40 mix-blend-multiply transition-transform duration-1000 group-hover:scale-105"
-              data-ai-hint={networkMap.imageHint}
+              data-ai-hint="network map"
             />
             {/* Markers */}
             <div className="absolute top-1/4 left-1/4 group/marker cursor-pointer">
@@ -98,6 +104,10 @@ export default function AdminInstallation() {
               <div className="w-4 h-4 bg-secondary rounded-full relative border-2 border-white"></div>
             </div>
             <div className="absolute top-1/2 right-1/3 group/marker cursor-pointer">
+              <div className="w-4 h-4 bg-secondary rounded-full animate-ping absolute"></div>
+              <div className="w-4 h-4 bg-secondary rounded-full relative border-2 border-white"></div>
+            </div>
+            <div className="absolute bottom-1/4 left-1/2 group/marker cursor-pointer">
               <div className="w-4 h-4 bg-secondary rounded-full animate-ping absolute"></div>
               <div className="w-4 h-4 bg-secondary rounded-full relative border-2 border-white"></div>
             </div>

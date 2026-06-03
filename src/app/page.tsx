@@ -14,9 +14,8 @@ import {
   ArrowRight,
   CircleCheck,
   Sparkles,
-  Wifi,
   Smartphone,
-  Gauge
+  Check
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
@@ -30,6 +29,32 @@ export default function LandingPage() {
   const [activeCategory, setActiveCategory] = useState<Category>('Reliability');
   const [isSubmitted, setIsSubmitted] = useState(false);
   const [ratings, setRatings] = useState<Record<string, number>>({});
+
+  const supportStaff = [
+    "Victoria Fokorede",
+    "Aishat Hamzat",
+    "Adekomoya Joseph",
+    "Olusegun Oluwanishola",
+    "Babatunde Christianah"
+  ];
+
+  const technicians = [
+    "Lukmon Obasa (Akure)",
+    "Christian Adejo (Akure)",
+    "Habeeb Hussein (Ibadan)",
+    "Joseph Dung N (Ibadan)",
+    "Alowo Temitope (Ibadan)",
+    "Timilehin Alabi (Ibadan)",
+    "Adekunle Ademiju (Ibadan)",
+    "Michael Awodein (Sagamu)",
+    "Abiodun Kameyo (Sagamu)",
+    "Adebisi Ogusola (Abeokuta)",
+    "Kehinde Itehinola (Abeokuta)",
+    "Olopade Olusegun (Abeokuta)",
+    "Mubarak Raji (Osogbo)",
+    "Inyene Udo (Ijebu Ode)",
+    "Joseph Gbesoevi (Ota)"
+  ];
 
   const categories = [
     { name: 'Reliability' as Category, icon: LayoutDashboard, label: 'Reliability' },
@@ -56,7 +81,7 @@ export default function LandingPage() {
   const renderRatingGroup = (id: string, label: string, description: string) => (
     <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
       <div>
-        <h3 className="font-display text-2xl">{label}</h3>
+        <h3 className="font-display text-2xl text-primary">{label}</h3>
         <p className="text-on-surface-variant text-sm">{description}</p>
       </div>
       <div className="flex gap-2">
@@ -66,7 +91,7 @@ export default function LandingPage() {
             type="button"
             onClick={() => handleRating(id, num)}
             className={cn(
-              "w-12 h-12 rounded-full border border-border flex items-center justify-center transition-all duration-200",
+              "w-12 h-12 rounded-full border border-border flex items-center justify-center transition-all duration-200 font-mono",
               ratings[id] === num ? "bg-secondary text-white border-secondary scale-110" : "hover:bg-surface-container text-on-surface"
             )}
           >
@@ -82,29 +107,16 @@ export default function LandingPage() {
       <PublicNavbar />
       
       <main className="pt-32 pb-24">
-        {/* Hero Section */}
         <section className="grid grid-cols-1 md:grid-cols-12 px-margin-mobile md:px-margin-desktop max-w-container-max mx-auto gap-gutter mb-24">
           <div className="md:col-span-7 flex flex-col justify-center">
             <h1 className="font-display text-display-xl mb-8 leading-[0.9] flex flex-wrap items-center gap-x-4">
               Experience 
               <div className="relative h-[72px] w-[140px] rounded-full overflow-hidden inline-block">
-                <Image 
-                  src={heroFiber.imageUrl} 
-                  alt={heroFiber.description} 
-                  fill 
-                  className="object-cover grayscale"
-                  data-ai-hint={heroFiber.imageHint}
-                />
+                <Image src={heroFiber.imageUrl} alt={heroFiber.description} fill className="object-cover grayscale" data-ai-hint="fiber optics" />
               </div>
               seamless 
               <div className="relative h-[72px] w-[140px] rounded-full overflow-hidden inline-block">
-                <Image 
-                  src={heroCustomer.imageUrl} 
-                  alt={heroCustomer.description} 
-                  fill 
-                  className="object-cover"
-                  data-ai-hint={heroCustomer.imageHint}
-                />
+                <Image src={heroCustomer.imageUrl} alt={heroCustomer.description} fill className="object-cover" data-ai-hint="satisfied customer" />
               </div>
               connectivity.
             </h1>
@@ -121,21 +133,13 @@ export default function LandingPage() {
           </div>
           <div className="md:col-span-4 md:col-start-9 relative translate-y-16 hidden md:block">
             <div className="aspect-[3/4] bg-surface-container-high rounded-[2.5rem] overflow-hidden whisper-shadow relative">
-              <Image 
-                src={serverRoom.imageUrl} 
-                alt={serverRoom.description} 
-                fill 
-                className="object-cover grayscale hover:grayscale-0 transition-all duration-1000"
-                data-ai-hint={serverRoom.imageHint}
-              />
+              <Image src={serverRoom.imageUrl} alt={serverRoom.description} fill className="object-cover grayscale hover:grayscale-0 transition-all duration-1000" data-ai-hint="server room" />
             </div>
           </div>
         </section>
 
-        {/* Form Area */}
         <section id="feedback-portal" className="px-margin-mobile md:px-margin-desktop max-w-container-max mx-auto">
           <div className="bg-surface-container-lowest rounded-[2.5rem] p-8 md:p-12 whisper-shadow border border-border grid grid-cols-1 lg:grid-cols-12 gap-12">
-            {/* Sidebar Tab Selector */}
             <div className="lg:col-span-3 flex flex-col gap-2">
               <p className="font-mono text-label-mono text-on-surface-variant mb-6 uppercase tracking-widest">Feedback Categories</p>
               {categories.map((cat) => (
@@ -158,10 +162,8 @@ export default function LandingPage() {
               </div>
             </div>
 
-            {/* Main Form Canvas */}
             <div className="lg:col-span-8 lg:col-start-5">
               <form onSubmit={handleSubmit} className="space-y-10">
-                {/* Metadata Row */}
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
                   <div className="space-y-2">
                     <label className="font-mono text-[12px] uppercase text-on-surface-variant">Customer Name</label>
@@ -186,17 +188,19 @@ export default function LandingPage() {
                   <div className="space-y-2">
                     <label className="font-mono text-[12px] uppercase text-on-surface-variant">Region</label>
                     <select className="w-full bg-transparent border-0 border-b border-border focus:ring-0 focus:border-secondary font-body py-2 px-0 appearance-none">
-                      <option>Lagos Central</option>
+                      <option>Lagos Metropolis</option>
                       <option>Abuja Capital</option>
                       <option>Abeokuta North</option>
-                      <option>Port Harcourt</option>
+                      <option>Ibadan Node</option>
+                      <option>Akure Hub</option>
+                      <option>Osogbo Office</option>
+                      <option>Sagamu / Ota</option>
                     </select>
                   </div>
                 </div>
 
                 <div className="h-px w-full bg-surface-container-high my-12"></div>
 
-                {/* Category Specific Content */}
                 <div className="space-y-12">
                   {activeCategory === 'Reliability' && (
                     <>
@@ -216,9 +220,19 @@ export default function LandingPage() {
 
                   {activeCategory === 'Support' && (
                     <>
+                      <div className="space-y-4">
+                        <label className="font-mono text-[12px] uppercase text-on-surface-variant">Assigned Support Agent</label>
+                        <select className="w-full bg-background p-4 rounded-xl border border-border focus:ring-2 focus:ring-secondary/20 outline-none">
+                          <option disabled selected>Select Agent</option>
+                          {supportStaff.map(staff => (
+                            <option key={staff}>{staff}</option>
+                          ))}
+                        </select>
+                      </div>
                       {renderRatingGroup("professionalism", "Technical Professionalism", "Evaluate the support agent's demeanor and command.")}
                       {renderRatingGroup("clarity", "Communication Clarity", "How clear were the explanations provided?")}
                       {renderRatingGroup("effectiveness", "Resolving Effectiveness", "Was your issue successfully resolved?")}
+                      {renderRatingGroup("recommend", "Recommendation Likelihood", "Likelihood to recommend I-World based on this experience.")}
                       <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 border-y border-border/30 py-8">
                         <div>
                           <h3 className="font-display text-xl">Timely Updates Provided?</h3>
@@ -226,7 +240,19 @@ export default function LandingPage() {
                         </div>
                         <div className="flex gap-4">
                            {['YES', 'NO'].map(choice => (
-                             <button key={choice} type="button" className="px-8 py-3 border border-border rounded-xl font-mono text-sm hover:bg-secondary hover:text-white transition-all">{choice}</button>
+                             <button 
+                               key={choice} 
+                               type="button" 
+                               onClick={() => handleRating('updates', choice === 'YES' ? 1 : 0)}
+                               className={cn(
+                                 "px-8 py-3 border border-border rounded-xl font-mono text-sm transition-all",
+                                 (ratings['updates'] === 1 && choice === 'YES') || (ratings['updates'] === 0 && choice === 'NO')
+                                  ? "bg-primary text-white" 
+                                  : "hover:bg-surface-container"
+                               )}
+                             >
+                               {choice}
+                             </button>
                            ))}
                         </div>
                       </div>
@@ -282,9 +308,10 @@ export default function LandingPage() {
                         <div className="space-y-2">
                           <label className="font-mono text-[12px] uppercase text-on-surface-variant">Assigned Technician</label>
                           <select className="w-full bg-transparent border-0 border-b border-border focus:ring-0 focus:border-secondary font-body py-2 px-0 appearance-none">
-                            <option>Adebayo O. (T-492)</option>
-                            <option>Chinelo E. (T-211)</option>
-                            <option>Mustapha K. (T-105)</option>
+                            <option disabled selected>Select Technician</option>
+                            {technicians.map(tech => (
+                              <option key={tech}>{tech}</option>
+                            ))}
                           </select>
                         </div>
                       </div>
@@ -348,7 +375,7 @@ export default function LandingPage() {
       <footer className="bg-surface-bright border-t border-border py-12">
         <div className="max-w-container-max mx-auto px-margin-mobile md:px-margin-desktop flex flex-col md:flex-row justify-between items-start gap-8">
           <div className="space-y-4">
-            <div className="font-mono text-label-mono font-bold text-primary">I-World Networks</div>
+            <div className="font-mono text-label-mono font-bold text-primary uppercase">I-World Networks</div>
             <p className="text-on-surface-variant text-sm max-w-xs opacity-70">
               Delivering precision connectivity across Nigeria's leading commercial hubs.
             </p>
@@ -357,7 +384,7 @@ export default function LandingPage() {
             </div>
           </div>
           <div className="grid grid-cols-2 md:grid-cols-3 gap-x-12 gap-y-4">
-            {['Lagos', 'Abuja', 'Abeokuta', 'Privacy Policy', 'Terms of Service'].map(link => (
+            {['Lagos', 'Ibadan', 'Abuja', 'Akure', 'Osogbo', 'Abeokuta', 'Privacy Policy', 'Terms of Service'].map(link => (
               <a key={link} className="text-on-surface-variant hover:text-secondary transition-colors font-mono text-label-mono" href="#">{link}</a>
             ))}
           </div>
@@ -366,4 +393,3 @@ export default function LandingPage() {
     </div>
   );
 }
-

@@ -16,7 +16,7 @@ export default function AdminDashboard() {
       <section className="mb-12 flex justify-between items-end">
         <div className="max-w-2xl">
           <h1 className="font-display text-display-lg text-primary tracking-tight mb-2">Operational Overview</h1>
-          <p className="text-on-surface-variant font-body-lg">Precision telemetry for the I-World backbone. Real-time satisfaction metrics across national nodes.</p>
+          <p className="text-on-surface-variant font-body-lg">Precision telemetry for the I-World backbone. Real-time satisfaction metrics across national nodes including Akure, Ibadan, and Lagos.</p>
         </div>
         <div className="flex gap-4 items-center font-mono text-label-mono text-on-surface-variant">
           <span className="flex items-center gap-2 bg-white px-4 py-2 rounded-full border border-border whisper-shadow">
@@ -90,7 +90,7 @@ export default function AdminDashboard() {
           <div className="bg-white p-8 border border-border whisper-shadow rounded-xl">
             <h3 className="font-mono text-label-mono uppercase mb-8">Node Activity Stream</h3>
             <div className="flex gap-3 mb-6">
-              {['All Cities', 'Lagos', 'Abuja', 'Abeokuta'].map((city, i) => (
+              {['All Nodes', 'Lagos', 'Ibadan', 'Akure', 'Abeokuta'].map((city, i) => (
                 <button key={city} className={cn("px-4 py-1.5 rounded-full border text-xs font-mono transition-colors", i === 0 ? "border-secondary text-secondary" : "border-border text-on-surface-variant hover:border-secondary")}>
                   {city}
                 </button>
@@ -98,9 +98,9 @@ export default function AdminDashboard() {
             </div>
             <div className="space-y-4">
               {[
-                { title: 'New Subscription - Ikeja North', info: 'Lagos • 2 mins ago', val: '+120Mbps Plan', icon: Wifi },
-                { title: 'Ticket Resolved - Garki II', info: 'Abuja • 14 mins ago', val: 'Closed', icon: Headset },
-                { title: 'Maintenance Complete', info: 'Abeokuta • 1h ago', val: 'Node 4A - Stable', icon: Wrench },
+                { title: 'New Subscription - Akure Alagbaka', info: 'Akure Hub • 2 mins ago', val: '+120Mbps Plan', icon: Wifi },
+                { title: 'Ticket Resolved - Ibadan Moniya', info: 'Ibadan Node • 14 mins ago', val: 'Closed', icon: Headset },
+                { title: 'Maintenance Complete - Obada Oko', info: 'Abeokuta Office • 1h ago', val: 'Node 4A - Stable', icon: Wrench },
               ].map((item, i) => (
                 <div key={i} className="flex items-center justify-between py-3 border-b border-border last:border-0">
                   <div className="flex items-center gap-4">
@@ -133,8 +133,8 @@ export default function AdminDashboard() {
             <div className="space-y-3">
               {[
                 { label: 'Lagos', color: 'bg-secondary', val: '72%' },
-                { label: 'Abuja', color: 'bg-primary', val: '18%' },
-                { label: 'Others', color: 'bg-muted-foreground', val: '10%' },
+                { label: 'Ibadan', color: 'bg-primary', val: '18%' },
+                { label: 'Akure', color: 'bg-muted-foreground', val: '10%' },
               ].map(item => (
                 <div key={item.label} className="flex justify-between text-xs font-mono">
                   <span className="flex items-center gap-2"><span className={cn("w-2 h-2 rounded-full", item.color)}></span> {item.label}</span>
@@ -166,13 +166,7 @@ export default function AdminDashboard() {
           </div>
 
           <div className="rounded-xl overflow-hidden h-64 whisper-shadow relative group">
-            <Image 
-              src={infraImg.imageUrl} 
-              alt="Infrastructure" 
-              fill 
-              className="object-cover grayscale brightness-90 group-hover:grayscale-0 transition-all duration-700"
-              data-ai-hint={infraImg.imageHint}
-            />
+            <Image src={infraImg.imageUrl} alt="Infrastructure" fill className="object-cover grayscale brightness-90 group-hover:grayscale-0 transition-all duration-700" data-ai-hint="data center" />
             <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent flex flex-col justify-end p-6">
               <span className="text-white font-mono text-xs uppercase tracking-widest opacity-80 mb-1">Infrastructure Status</span>
               <p className="text-white font-headline text-[20px]">Tier-3 Lagos Data Center</p>
@@ -183,4 +177,3 @@ export default function AdminDashboard() {
     </AdminLayout>
   );
 }
-
