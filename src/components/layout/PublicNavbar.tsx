@@ -14,7 +14,7 @@ import {
 export function PublicNavbar() {
   return (
     <nav className="fixed top-0 w-full z-50 glass-nav h-16 md:h-20 px-margin-mobile md:px-margin-desktop flex justify-between items-center max-w-container-max mx-auto left-0 right-0 border-b border-border/50">
-      <Link href="/" className="font-mono text-lg md:text-xl font-bold tracking-tighter text-primary uppercase">
+      <Link href="/" className="font-mono text-sm md:text-base font-bold text-primary uppercase tracking-tight">
         I-World Networks
       </Link>
       
@@ -45,7 +45,7 @@ export function PublicNavbar() {
           </SheetTrigger>
           <SheetContent side="right" className="w-[300px] border-l border-border">
             <SheetHeader className="mb-10">
-              <SheetTitle className="text-left font-mono text-lg font-bold tracking-tighter text-primary uppercase">
+              <SheetTitle className="text-left font-mono text-sm font-bold text-primary uppercase">
                 I-World Networks
               </SheetTitle>
             </SheetHeader>
@@ -60,11 +60,11 @@ export function PublicNavbar() {
               <div className="flex flex-col gap-5 pl-4">
                  <div className="flex items-center gap-4 text-on-surface-variant group cursor-pointer">
                     <Bell className="w-5 h-5 group-hover:text-secondary transition-colors" />
-                    <span className="font-mono text-xs uppercase tracking-wider">Notifications</span>
+                    <span className="font-mono text-[10px] uppercase tracking-wider">Notifications</span>
                  </div>
                  <div className="flex items-center gap-4 text-on-surface-variant group cursor-pointer">
                     <Settings className="w-5 h-5 group-hover:text-secondary transition-colors" />
-                    <span className="font-mono text-xs uppercase tracking-wider">Settings</span>
+                    <span className="font-mono text-[10px] uppercase tracking-wider">Settings</span>
                  </div>
               </div>
               <Button variant="default" className="rounded-xl w-full py-7 font-mono text-label-mono bg-primary text-white mt-6 uppercase tracking-widest font-bold">

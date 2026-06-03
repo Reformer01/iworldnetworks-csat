@@ -80,8 +80,8 @@ export function AdminLayout({ children }: AdminLayoutProps) {
       {/* Top Bar */}
       <header className="fixed top-0 w-full z-50 glass-nav px-margin-mobile md:px-margin-desktop h-16 md:h-20 flex justify-between items-center max-w-container-max mx-auto left-0 right-0 border-b border-border">
         <div className="flex items-center gap-3 md:gap-6">
-          <Link href="/" className="font-mono text-lg md:text-xl font-bold tracking-tighter text-primary uppercase">
-            I-World
+          <Link href="/" className="font-mono text-sm md:text-base font-bold text-primary uppercase tracking-tight">
+            I-World Networks
           </Link>
           <div className="h-6 md:h-8 w-px bg-border hidden sm:block"></div>
           <Link href="/" className="hidden sm:flex items-center gap-2 text-on-surface-variant font-mono text-[10px] md:text-xs hover:text-secondary transition-all group">
@@ -121,7 +121,7 @@ export function AdminLayout({ children }: AdminLayoutProps) {
               <SheetContent side="left" className="w-[280px] p-0 border-r border-border">
                 <div className="h-full flex flex-col pt-10">
                   <SheetHeader className="px-6 mb-8 text-left">
-                    <SheetTitle className="font-mono text-lg font-bold tracking-tighter text-primary uppercase">I-World Admin</SheetTitle>
+                    <SheetTitle className="font-mono text-sm font-bold text-primary uppercase">I-World Networks</SheetTitle>
                     <p className="font-mono text-[10px] text-on-surface-variant opacity-60 uppercase tracking-widest">Management Hub</p>
                   </SheetHeader>
                   <nav className="flex-1 space-y-1">
@@ -137,7 +137,7 @@ export function AdminLayout({ children }: AdminLayoutProps) {
                         )}
                       >
                         <item.icon className={cn("w-5 h-5 transition-colors", pathname === item.href ? "text-secondary" : "group-hover:text-secondary")} />
-                        <span className="font-mono text-xs uppercase tracking-wider">{item.name}</span>
+                        <span className="font-mono text-[10px] uppercase tracking-wider">{item.name}</span>
                       </Link>
                     ))}
                     <button 
@@ -145,7 +145,7 @@ export function AdminLayout({ children }: AdminLayoutProps) {
                       className="w-full flex items-center gap-4 py-3 px-6 text-destructive hover:bg-destructive/5 transition-all"
                     >
                       <LogOut className="w-5 h-5" />
-                      <span className="font-mono text-xs uppercase tracking-wider">Sign Out</span>
+                      <span className="font-mono text-[10px] uppercase tracking-wider">Sign Out</span>
                     </button>
                   </nav>
                   <div className="px-6 pb-10 mt-auto">
@@ -168,8 +168,8 @@ export function AdminLayout({ children }: AdminLayoutProps) {
       {/* Sidebar (Desktop only) */}
       <aside className="fixed left-0 top-0 h-full w-64 bg-background border-r border-border pt-24 pb-8 flex flex-col z-40 hidden md:flex">
         <div className="px-8 mb-12">
-          <h2 className="font-mono text-lg font-bold text-primary uppercase tracking-tighter">I-World Networks</h2>
-          <p className="font-mono text-[12px] text-on-surface-variant opacity-60 uppercase tracking-widest">Management Hub</p>
+          <h2 className="font-mono text-sm font-bold text-primary uppercase tracking-tight">I-World Networks</h2>
+          <p className="font-mono text-[10px] text-on-surface-variant opacity-60 uppercase tracking-widest">Management Hub</p>
         </div>
         <nav className="flex-1 space-y-1">
           {navItems.map((item) => (

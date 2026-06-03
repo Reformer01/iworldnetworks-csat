@@ -2,7 +2,7 @@
 
 import React, { useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { Lock, ArrowRight, Mail, Key } from 'lucide-react';
+import { Lock, ArrowRight, Mail, Key, Sparkles } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useAuth } from '@/firebase';
 import { signInWithEmailAndPassword } from 'firebase/auth';
@@ -38,6 +38,15 @@ export default function AdminLoginPage() {
       });
       setIsAuthenticating(false);
     }
+  };
+
+  const handleDemoLogin = () => {
+    setEmail('admin@iworld.com');
+    setPassword('password123');
+    toast({
+      title: "Demo Credentials Applied",
+      description: "Click Unlock Dashboard to proceed (Note: requires setup in Firebase Console).",
+    });
   };
 
   return (
@@ -107,23 +116,35 @@ export default function AdminLoginPage() {
               </div>
             </div>
 
-            <Button
-              type="submit"
-              disabled={isAuthenticating}
-              className="w-full h-16 bg-secondary text-white font-bold text-lg rounded-full hover:scale-[1.02] active:scale-95 transition-all duration-300 flex items-center justify-center gap-3 disabled:opacity-50"
-            >
-              {isAuthenticating ? (
-                <div className="flex items-center gap-3">
-                  <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                  <span>Signing In...</span>
-                </div>
-              ) : (
-                <>
-                  <span>Unlock Dashboard</span>
-                  <ArrowRight className="w-6 h-6" />
-                </>
-              )}
-            </Button>
+            <div className="flex flex-col gap-3">
+              <Button
+                type="submit"
+                disabled={isAuthenticating}
+                className="w-full h-16 bg-secondary text-white font-bold text-lg rounded-full hover:scale-[1.02] active:scale-95 transition-all duration-300 flex items-center justify-center gap-3 disabled:opacity-50"
+              >
+                {isAuthenticating ? (
+                  <div className="flex items-center gap-3">
+                    <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                    <span>Signing In...</span>
+                  </div>
+                ) : (
+                  <>
+                    <span>Unlock Dashboard</span>
+                    <ArrowRight className="w-6 h-6" />
+                  </>
+                )}
+              </Button>
+              
+              <Button
+                type="button"
+                variant="ghost"
+                onClick={handleDemoLogin}
+                className="w-full text-on-surface-variant font-mono text-[10px] uppercase hover:bg-surface-container py-2 flex items-center justify-center gap-2"
+              >
+                <Sparkles className="w-3 h-3" />
+                Apply Demo Credentials
+              </Button>
+            </div>
           </form>
 
           <footer className="flex flex-col md:flex-row justify-between items-center gap-4 text-on-surface-variant font-mono text-[10px] md:text-[12px] pt-4 border-t border-border/10">
