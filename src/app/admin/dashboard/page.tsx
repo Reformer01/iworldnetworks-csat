@@ -3,7 +3,7 @@
 
 import React, { useMemo, useState } from 'react';
 import { AdminLayout } from '@/components/layout/AdminLayout';
-import { TrendingUp, Users, Activity, BarChart3, AlertTriangle, Calendar, Sparkles, Loader2, Clock, CheckCircle2, MoreVertical, MessageSquare } from 'lucide-react';
+import { TrendingUp, Users, Activity, AlertTriangle, Sparkles, Loader2, CheckCircle2, MessageSquare, History } from 'lucide-react';
 import { useFirestore, useCollection, useAuth, useUser } from '@/firebase';
 import { collection, query, orderBy, limit, doc, updateDoc } from 'firebase/firestore';
 import { 
@@ -62,11 +62,9 @@ export default function AdminDashboard() {
     
     const pending = filteredFeedbacks.filter((f: any) => f.status === 'pending').length;
     
-    // CSAT calculation
     const allRatings = filteredFeedbacks.flatMap((f: any) => Object.values(f.ratings || {}).filter(v => typeof v === 'number'));
     const csat = allRatings.length > 0 ? Math.round((allRatings.reduce((a: any, b: any) => a + b, 0) / (allRatings.length * 5)) * 100) : 0;
 
-    // NPS calculation (Testimonials)
     const promoters = filteredFeedbacks.filter((f: any) => {
       const scores = Object.values(f.ratings || {}).filter(v => typeof v === 'number') as number[];
       return scores.some(s => s === 5);
@@ -79,7 +77,6 @@ export default function AdminDashboard() {
 
     const nps = total > 0 ? Math.round(((promoters - detractors) / total) * 100) : 0;
 
-    // CES calculation (Ease of resolution)
     const fcrYes = filteredFeedbacks.filter((f: any) => f.ratings?.fcr === 'Yes').length;
     const ces = total > 0 ? Math.round((fcrYes / total) * 100) : 0;
 
@@ -88,17 +85,13 @@ export default function AdminDashboard() {
 
   const chartData = useMemo(() => {
     if (filteredFeedbacks.length === 0) return [];
-    
     const groups: Record<string, { csat: number, count: number }> = {};
     
-    // Group by date for the trend chart
     filteredFeedbacks.slice(0, 30).forEach((f: any) => {
       const date = new Date(f.timestamp);
       const label = date.toLocaleDateString([], { month: 'short', day: 'numeric' });
-      
       const ratings = Object.values(f.ratings || {}).filter(v => typeof v === 'number') as number[];
       const avg = ratings.length > 0 ? ratings.reduce((a, b) => a + b, 0) / (ratings.length * 5) * 100 : 75;
-      
       if (!groups[label]) groups[label] = { csat: 0, count: 0 };
       groups[label].csat += avg;
       groups[label].count += 1;
@@ -127,14 +120,9 @@ export default function AdminDashboard() {
 
   const handleGenerateReport = async () => {
     if (filteredFeedbacks.length === 0) {
-      toast({
-        variant: "destructive",
-        title: "Insufficient Data",
-        description: "No records found in this time range.",
-      });
+      toast({ variant: "destructive", title: "Insufficient Data", description: "No records found in this time range." });
       return;
     }
-
     setIsGeneratingReport(true);
     setAiReport(null);
     try {
@@ -145,11 +133,7 @@ export default function AdminDashboard() {
         comment: f.comment,
         serviceDate: f.serviceDate
       }));
-
-      const result = await generateReportExecutiveSummary({ 
-        operationalData: JSON.stringify(summaryData) 
-      });
-      
+      const result = await generateReportExecutiveSummary({ operationalData: JSON.stringify(summaryData) });
       setAiReport(result.summary);
       toast({ title: "Intelligence Report Generated" });
     } catch (error) {
@@ -166,9 +150,7 @@ export default function AdminDashboard() {
           <h1 className="text-3xl font-display font-bold text-primary uppercase tracking-tight">Enterprise Telemetry Hub</h1>
           <div className="flex items-center gap-2 mt-2 opacity-60">
             <Activity className="w-3 h-3 text-secondary" />
-            <p className="text-on-surface-variant font-mono text-[10px] uppercase tracking-widest font-bold">
-              Real-time Satisfaction Engine Active
-            </p>
+            <p className="text-on-surface-variant font-mono text-[10px] uppercase tracking-widest font-bold">Real-time Satisfaction Engine Active</p>
           </div>
         </div>
         <div className="flex items-center gap-4">
@@ -183,11 +165,7 @@ export default function AdminDashboard() {
               <SelectItem value="1y">Annual Insight</SelectItem>
             </SelectContent>
           </Select>
-          <Button 
-            onClick={handleGenerateReport} 
-            disabled={isGeneratingReport}
-            className="rounded-full bg-secondary text-white font-mono text-[10px] uppercase font-bold px-8 shadow-lg hover:scale-105 transition-transform"
-          >
+          <Button onClick={handleGenerateReport} disabled={isGeneratingReport} className="rounded-full bg-secondary text-white font-mono text-[10px] uppercase font-bold px-8 shadow-lg hover:scale-105 transition-transform">
             {isGeneratingReport ? <Loader2 className="w-3 h-3 animate-spin mr-2" /> : <Sparkles className="w-3 h-3 mr-2" />}
             AI Report
           </Button>
@@ -197,17 +175,13 @@ export default function AdminDashboard() {
       {aiReport && (
         <div className="mb-12 bg-primary text-white p-10 rounded-3xl whisper-shadow border border-white/10 animate-in fade-in slide-in-from-top-4 duration-700">
           <div className="flex items-center gap-4 mb-8">
-            <div className="p-3 bg-secondary rounded-2xl">
-              <Sparkles className="w-6 h-6 text-white" />
-            </div>
+            <div className="p-3 bg-secondary rounded-2xl"><Sparkles className="w-6 h-6 text-white" /></div>
             <div>
               <h3 className="font-display font-bold text-xl uppercase tracking-widest">AI Strategic Summary</h3>
               <p className="font-mono text-[10px] text-white/40 uppercase font-bold">Period: {timeRange}</p>
             </div>
           </div>
-          <p className="font-body-md text-white/80 leading-relaxed italic text-lg max-w-4xl">
-            "{aiReport}"
-          </p>
+          <p className="font-body-md text-white/80 leading-relaxed italic text-lg max-w-4xl">"{aiReport}"</p>
           <Button variant="ghost" className="mt-10 text-[10px] font-mono uppercase font-bold text-secondary hover:text-white" onClick={() => setAiReport(null)}>Dismiss Analysis</Button>
         </div>
       )}
@@ -238,12 +212,7 @@ export default function AdminDashboard() {
 
       <div className="grid grid-cols-12 gap-gutter mb-12">
         <div className="col-span-12 lg:col-span-8 bg-white p-8 rounded-2xl whisper-shadow border border-border h-[400px]">
-          <div className="flex justify-between items-center mb-8">
-            <div>
-              <h3 className="font-display font-bold text-lg uppercase tracking-tight">Satisfaction Trends</h3>
-              <p className="font-mono text-[10px] opacity-40 uppercase font-bold mt-1">Daily Satisfaction Mapping</p>
-            </div>
-          </div>
+          <h3 className="font-display font-bold text-lg uppercase tracking-tight mb-8">Satisfaction Trends</h3>
           <div className="h-64">
             <ResponsiveContainer width="100%" height="100%">
               <AreaChart data={chartData}>
@@ -276,7 +245,7 @@ export default function AdminDashboard() {
                     <span className="text-secondary">{count} Feedbacks</span>
                   </div>
                   <div className="w-full bg-muted h-1.5 rounded-full overflow-hidden">
-                    <div className="bg-primary h-full transition-all duration-1000" style={{ width: `${percent}%` }}></div>
+                    <div className="bg-primary h-full" style={{ width: `${percent}%` }}></div>
                   </div>
                 </div>
               );
@@ -286,10 +255,13 @@ export default function AdminDashboard() {
       </div>
 
       <div className="bg-white rounded-2xl whisper-shadow border border-border p-8 mb-24">
-        <h3 className="font-display font-bold text-lg uppercase tracking-tight mb-8">Resolution Center</h3>
+        <div className="flex items-center gap-3 mb-8">
+          <History className="w-5 h-5 text-secondary" />
+          <h3 className="font-display font-bold text-lg uppercase tracking-tight">Resolution Center & Action Log</h3>
+        </div>
         <div className="space-y-4">
           {filteredFeedbacks.slice(0, 10).map((f: any) => (
-            <div key={f.id} className="group p-6 border border-border rounded-xl hover:border-secondary transition-all flex flex-col md:flex-row justify-between items-start md:items-center gap-6">
+            <div key={f.id} className="group p-6 border border-border rounded-xl hover:border-secondary transition-all flex flex-col md:flex-row justify-between items-start md:items-center gap-6 bg-surface-container-lowest">
               <div className="flex-1">
                 <div className="flex items-center gap-3 mb-2">
                   <span className={cn(
@@ -302,11 +274,14 @@ export default function AdminDashboard() {
                   <span className="font-mono text-[10px] text-on-surface-variant uppercase font-bold">{f.category}</span>
                   <span className="text-[10px] text-on-surface-variant/40">{new Date(f.timestamp).toLocaleDateString()}</span>
                 </div>
-                <p className="font-bold text-primary mb-1">{f.customerName}</p>
+                <p className="font-bold text-primary mb-1">{f.customerName} <span className="font-mono text-[10px] font-normal opacity-40 ml-2">({f.location})</span></p>
                 <p className="text-sm text-on-surface-variant line-clamp-2 italic">"{f.comment}"</p>
                 {f.resolutionNotes && (
-                  <div className="mt-4 p-3 bg-muted rounded-lg text-xs font-mono border-l-4 border-secondary">
-                    <span className="font-bold text-secondary uppercase block mb-1">Resolution Detail</span>
+                  <div className="mt-4 p-4 bg-muted rounded-xl text-xs font-mono border-l-4 border-secondary shadow-sm">
+                    <div className="flex items-center gap-2 mb-2 text-secondary font-bold uppercase tracking-wider">
+                      <CheckCircle2 className="w-3 h-3" />
+                      Supervisor Action taken
+                    </div>
                     {f.resolutionNotes}
                   </div>
                 )}
@@ -314,14 +289,7 @@ export default function AdminDashboard() {
               <div className="flex items-center gap-3">
                 <Dialog>
                   <DialogTrigger asChild>
-                    <Button 
-                      variant="outline" 
-                      className="rounded-full px-6 font-mono text-[10px] uppercase font-bold"
-                      onClick={() => {
-                        setSelectedFeedback(f);
-                        setResNotes(f.resolutionNotes || '');
-                      }}
-                    >
+                    <Button variant="outline" className="rounded-full px-6 font-mono text-[10px] uppercase font-bold" onClick={() => { setSelectedFeedback(f); setResNotes(f.resolutionNotes || ''); }}>
                       <MessageSquare className="w-3 h-3 mr-2" /> Action Loop
                     </Button>
                   </DialogTrigger>
@@ -330,31 +298,15 @@ export default function AdminDashboard() {
                       <DialogTitle className="font-display uppercase tracking-tight">Close the Loop</DialogTitle>
                     </DialogHeader>
                     <div className="space-y-6 py-4">
-                      <div className="p-4 bg-muted rounded-xl text-sm italic">
-                        "{f.comment}"
-                      </div>
+                      <div className="p-4 bg-muted rounded-xl text-sm italic">"{f.comment}"</div>
                       <div className="space-y-2">
                         <label className="font-mono text-[10px] uppercase font-bold text-on-surface-variant">Supervisor Resolution Notes</label>
-                        <Textarea 
-                          placeholder="What actions were taken? How was the customer restored?" 
-                          className="min-h-[120px] rounded-2xl"
-                          value={resNotes}
-                          onChange={(e) => setResNotes(e.target.value)}
-                        />
+                        <Textarea placeholder="What actions were taken? How was the customer restored?" className="min-h-[120px] rounded-2xl" value={resNotes} onChange={(e) => setResNotes(e.target.value)} />
                       </div>
                     </div>
                     <DialogFooter className="flex gap-2">
-                      <Button 
-                        variant="outline" 
-                        className="rounded-full font-mono text-[10px] uppercase font-bold"
-                        onClick={() => handleUpdateStatus(f.id, 'escalated')}
-                      >
-                        Escalate
-                      </Button>
-                      <Button 
-                        className="rounded-full bg-secondary text-white font-mono text-[10px] uppercase font-bold px-8"
-                        onClick={() => handleUpdateStatus(f.id, 'resolved')}
-                      >
+                      <Button variant="outline" className="rounded-full font-mono text-[10px] uppercase font-bold" onClick={() => handleUpdateStatus(f.id, 'escalated')}>Escalate</Button>
+                      <Button className="rounded-full bg-secondary text-white font-mono text-[10px] uppercase font-bold px-8" onClick={() => handleUpdateStatus(f.id, 'resolved')}>
                         <CheckCircle2 className="w-3 h-3 mr-2" /> Mark Resolved
                       </Button>
                     </DialogFooter>
