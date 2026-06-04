@@ -3,7 +3,7 @@
 
 import React, { useMemo, useState } from 'react';
 import { AdminLayout } from '@/components/layout/AdminLayout';
-import { TrendingUp, Users, Activity, BarChart3, AlertTriangle, Calendar, Sparkles, Loader2 } from 'lucide-react';
+import { TrendingUp, Users, Activity, BarChart3, AlertTriangle, Calendar, Sparkles, Loader2, Clock } from 'lucide-react';
 import { useFirestore, useCollection, useAuth, useUser } from '@/firebase';
 import { collection, query, orderBy, limit } from 'firebase/firestore';
 import { 
@@ -59,11 +59,9 @@ export default function AdminDashboard() {
     
     const pending = filteredFeedbacks.filter((f: any) => f.status === 'pending').length;
     
-    // CSAT: Average of all ratings
     const allRatings = filteredFeedbacks.flatMap((f: any) => Object.values(f.ratings || {}).filter(v => typeof v === 'number'));
     const csat = allRatings.length > 0 ? Math.round((allRatings.reduce((a: any, b: any) => a + b, 0) / (allRatings.length * 5)) * 100) : 0;
 
-    // NPS: (Promoters % - Detractors %)
     const promoters = filteredFeedbacks.filter((f: any) => {
       const scores = Object.values(f.ratings || {}).filter(v => typeof v === 'number') as number[];
       return scores.some(s => s >= 4);
@@ -76,7 +74,6 @@ export default function AdminDashboard() {
 
     const nps = Math.round(((promoters - detractors) / total) * 100);
 
-    // CES (Customer Effort Score): Based on FCR %
     const fcrYes = filteredFeedbacks.filter((f: any) => f.ratings?.fcr === 'Yes').length;
     const ces = Math.round((fcrYes / total) * 100);
 
@@ -124,7 +121,8 @@ export default function AdminDashboard() {
         category: f.category,
         sentiment: f.aiAnalysis?.sentiment,
         comment: f.comment,
-        date: new Date(f.timestamp).toLocaleDateString()
+        serviceDate: f.serviceDate,
+        serviceTime: f.serviceTime
       }));
 
       const result = await generateReportExecutiveSummary({ 
@@ -284,9 +282,14 @@ export default function AdminDashboard() {
                   "w-2 h-2 rounded-full",
                   f.status === 'pending' ? "bg-destructive animate-pulse" : "bg-green-500"
                 )}></div>
-                <div>
+                <div className="flex flex-col">
                   <p className="font-bold text-sm uppercase tracking-tight">{f.customerName}</p>
-                  <p className="font-mono text-[9px] text-on-surface-variant font-bold uppercase">{f.location} • {f.category} • {f.servicePlan}</p>
+                  <div className="flex items-center gap-2 font-mono text-[9px] text-on-surface-variant font-bold uppercase">
+                    <span>{f.location} • {f.category} • {f.servicePlan}</span>
+                    <span className="flex items-center gap-1 text-secondary">
+                      <Clock className="w-2.5 h-2.5" /> {f.serviceDate} {f.serviceTime}
+                    </span>
+                  </div>
                 </div>
               </div>
               <div className="text-right flex items-center gap-8">
@@ -303,8 +306,8 @@ export default function AdminDashboard() {
                   <p className="font-mono text-[10px] font-bold">
                     {new Date(f.timestamp).toLocaleDateString([], { month: 'short', day: 'numeric' })}
                   </p>
-                  <p className="font-mono text-[9px] text-on-surface-variant opacity-60">
-                    {new Date(f.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                  <p className="font-mono text-[9px] text-on-surface-variant opacity-60 uppercase">
+                    SUBMITTED
                   </p>
                 </div>
               </div>

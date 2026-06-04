@@ -1,7 +1,7 @@
 
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import Image from 'next/image';
 import { PublicNavbar } from '@/components/layout/PublicNavbar';
 import { PlaceHolderImages } from '@/lib/placeholder-images';
@@ -13,7 +13,9 @@ import {
   CreditCard, 
   ArrowRight,
   CircleCheck,
-  Loader2
+  Loader2,
+  CalendarDays,
+  Clock
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
@@ -39,7 +41,9 @@ export default function LandingPage() {
     comment: '',
     staffName: '',
     referralSource: 'Social Media',
-    spotlightInterview: 'Maybe'
+    spotlightInterview: 'Maybe',
+    serviceDate: '',
+    serviceTime: ''
   });
 
   const firestore = useFirestore();
@@ -108,6 +112,15 @@ export default function LandingPage() {
     }
   };
 
+  useEffect(() => {
+    // Initialize defaults on client to avoid hydration mismatch
+    setFormData(prev => ({
+      ...prev,
+      serviceDate: new Date().toISOString().split('T')[0],
+      serviceTime: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: false })
+    }));
+  }, []);
+
   const handleRating = (key: string, val: any) => {
     setRatings(prev => ({ ...prev, [key]: val }));
   };
@@ -128,14 +141,12 @@ export default function LandingPage() {
         }
       }
 
-      // BACKGROUND DATE RECORDING
-      const now = new Date();
       const feedbackData = {
         ...formData,
         category: activeCategory,
         ratings,
-        timestamp: Date.now(), // Background Unix timestamp
-        dateFormatted: now.toISOString(), // Background ISO string
+        timestamp: Date.now(),
+        dateFormatted: new Date().toISOString(),
         status: 'pending',
         aiAnalysis
       };
@@ -159,7 +170,9 @@ export default function LandingPage() {
           comment: '',
           staffName: '',
           referralSource: 'Social Media',
-          spotlightInterview: 'Maybe'
+          spotlightInterview: 'Maybe',
+          serviceDate: new Date().toISOString().split('T')[0],
+          serviceTime: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: false })
         });
       }, 3000);
 
@@ -241,6 +254,21 @@ export default function LandingPage() {
                   <div className="space-y-1">
                     <label className="font-mono text-[10px] uppercase text-on-surface-variant font-bold">Email Address</label>
                     <input required type="email" className="w-full bg-transparent border-b border-border py-2 outline-none focus:border-secondary transition-colors font-bold" placeholder="your@email.com" value={formData.customerEmail} onChange={e => setFormData({...formData, customerEmail: e.target.value})} />
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                  <div className="space-y-1">
+                    <label className="font-mono text-[10px] uppercase text-on-surface-variant font-bold flex items-center gap-2">
+                      <CalendarDays className="w-3 h-3" /> Date of Experience
+                    </label>
+                    <input required type="date" className="w-full bg-transparent border-b border-border py-2 outline-none focus:border-secondary transition-colors font-bold" value={formData.serviceDate} onChange={e => setFormData({...formData, serviceDate: e.target.value})} />
+                  </div>
+                  <div className="space-y-1">
+                    <label className="font-mono text-[10px] uppercase text-on-surface-variant font-bold flex items-center gap-2">
+                      <Clock className="w-3 h-3" /> Approximate Time
+                    </label>
+                    <input required type="time" className="w-full bg-transparent border-b border-border py-2 outline-none focus:border-secondary transition-colors font-bold" value={formData.serviceTime} onChange={e => setFormData({...formData, serviceTime: e.target.value})} />
                   </div>
                 </div>
 
