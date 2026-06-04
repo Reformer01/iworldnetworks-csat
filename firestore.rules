@@ -2,20 +2,14 @@
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
-    // Check if the user is an authenticated supervisor with a verified corporate email
-    function isVerifiedSupervisor() {
-      return request.auth != null && 
-             request.auth.token.email_verified == true && 
-             request.auth.token.email.endsWith('@iworldnetworks.net');
-    }
-
     match /feedbacks/{feedbackId} {
-      // Public can submit feedback without authentication or verification
-      // This is the absolute requirement for the landing page report submission
+      // Public can always submit feedback
       allow create: if true;
       
-      // Only verified corporate supervisors can read or manage the feedback
-      allow read, update, delete: if isVerifiedSupervisor();
+      // Only verified supervisors can read or manage data
+      allow read, update, delete: if request.auth != null && 
+                                    request.auth.token.email_verified == true && 
+                                    request.auth.token.email.endsWith('@iworldnetworks.net');
     }
   }
 }

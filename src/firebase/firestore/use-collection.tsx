@@ -3,8 +3,6 @@
 
 import { useState, useEffect, useRef } from 'react';
 import { Query, onSnapshot, QuerySnapshot, DocumentData, FirestoreError } from 'firebase/firestore';
-import { errorEmitter } from '../error-emitter';
-import { FirestorePermissionError } from '../errors';
 
 export function useCollection<T = DocumentData>(query: Query<T> | null) {
   const [data, setData] = useState<T[] | null>(null);
@@ -35,14 +33,12 @@ export function useCollection<T = DocumentData>(query: Query<T> | null) {
         setLoading(false);
         setError(null);
       },
-      async (err: FirestoreError) => {
+      (err: FirestoreError) => {
         if (!isMounted.current) return;
         
-        // Permanent Fix: Silence permission errors during the auth handshake.
-        // We do NOT emit a global error here to avoid crashing the Next.js UI.
-        // The AdminLayout will handle the visual state for unverified users.
+        // Silent error handling for permission denials during auth state sync
         if (err.code === 'permission-denied') {
-          console.warn('Firestore: Transient permission denial. Waiting for auth state sync...');
+          console.warn('Firestore: Permission denied. Waiting for auth state sync...');
           setData(null);
         } else {
           setError(err);

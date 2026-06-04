@@ -126,8 +126,7 @@ export default function LandingPage() {
 
     const feedbackRef = collection(firestore, 'feedbacks');
     
-    // PUBLIC SUBMISSION: Simple toast error handling. 
-    // We do NOT emit a global FirestorePermissionError here to avoid crashing the landing page.
+    // PUBLIC SUBMISSION: Handled without throwing a global error
     addDoc(feedbackRef, feedbackData)
       .then(() => {
         setIsSubmitted(true);
@@ -146,7 +145,7 @@ export default function LandingPage() {
         toast({
           variant: "destructive",
           title: "Submission Failed",
-          description: "We encountered a permission error. Please try again in a few moments.",
+          description: "We could not save your report. Please check your connection and try again.",
         });
       })
       .finally(() => {
