@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect, useRef } from 'react';
-import { DocumentReference, onSnapshot, DocumentSnapshot, DocumentData } from 'firebase/firestore';
+import { DocumentReference, onSnapshot, DocumentSnapshot, DocumentData, FirestoreError } from 'firebase/firestore';
 import { errorEmitter } from '../error-emitter';
 import { FirestorePermissionError } from '../errors';
 
@@ -32,7 +32,7 @@ export function useDoc<T = DocumentData>(docRef: DocumentReference<T> | null) {
           setLoading(false);
           setError(null);
         },
-        async (err) => {
+        async (err: FirestoreError) => {
           if (!isMounted.current) return;
           
           if (err.code === 'permission-denied') {

@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect, useRef } from 'react';
-import { Query, onSnapshot, QuerySnapshot, DocumentData } from 'firebase/firestore';
+import { Query, onSnapshot, QuerySnapshot, DocumentData, FirestoreError } from 'firebase/firestore';
 import { errorEmitter } from '../error-emitter';
 import { FirestorePermissionError } from '../errors';
 
@@ -21,7 +21,6 @@ export function useCollection<T = DocumentData>(query: Query<T> | null) {
     }
 
     setLoading(true);
-    
     let unsubscribe: (() => void) | undefined;
 
     try {
@@ -37,7 +36,7 @@ export function useCollection<T = DocumentData>(query: Query<T> | null) {
           setLoading(false);
           setError(null);
         },
-        async (err) => {
+        async (err: FirestoreError) => {
           if (!isMounted.current) return;
           
           if (err.code === 'permission-denied') {
