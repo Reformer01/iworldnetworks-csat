@@ -1,3 +1,4 @@
+
 'use client';
 
 import React, { useState } from 'react';
@@ -8,7 +9,6 @@ import { signInWithEmailAndPassword, sendEmailVerification, User } from 'firebas
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { useToast } from '@/hooks/use-toast';
-import { cn } from '@/lib/utils';
 
 export default function AdminLoginPage() {
   const [email, setEmail] = useState('');
@@ -27,8 +27,8 @@ export default function AdminLoginPage() {
     if (!email.endsWith('@iworldnetworks.net')) {
       toast({
         variant: "destructive",
-        title: "Invalid Domain",
-        description: "Administrative access requires an official @iworldnetworks.net account.",
+        title: "Domain Restriction",
+        description: "Administrative access is strictly for @iworldnetworks.net accounts.",
       });
       return;
     }
@@ -43,23 +43,20 @@ export default function AdminLoginPage() {
         setUnverifiedUser(userCredential.user);
         toast({
           variant: "destructive",
-          title: "Verification Required",
-          description: "Your account exists but your email has not been verified yet.",
+          title: "Account Verification Required",
+          description: "Please verify your corporate email to unlock the hub.",
         });
         setIsAuthenticating(false);
         return;
       }
 
-      toast({
-        title: "Access Granted",
-        description: "Regional Management Hub unlocked.",
-      });
+      toast({ title: "Authorized", description: "Regional Hub Unlocked." });
       router.push('/admin/dashboard');
     } catch (error: any) {
       toast({
         variant: "destructive",
-        title: "Sign In Failed",
-        description: "Invalid credentials or unauthorized attempt.",
+        title: "Access Denied",
+        description: "Invalid credentials or unauthorized login attempt.",
       });
       setIsAuthenticating(false);
     }
@@ -72,13 +69,13 @@ export default function AdminLoginPage() {
       await sendEmailVerification(unverifiedUser);
       toast({
         title: "Verification Sent",
-        description: `A link has been sent to ${unverifiedUser.email}. Please check your inbox and spam folder.`,
+        description: `A secure link has been sent to ${unverifiedUser.email}.`,
       });
     } catch (error: any) {
       toast({
         variant: "destructive",
-        title: "Error",
-        description: "Could not send verification email. Please try again later.",
+        title: "System Error",
+        description: "Could not send verification email. Please contact IT.",
       });
     } finally {
       setIsSendingVerification(false);
@@ -86,53 +83,47 @@ export default function AdminLoginPage() {
   };
 
   return (
-    <div className="bg-background font-body text-on-surface selection:bg-secondary/20 overflow-hidden min-h-screen flex items-center justify-center p-margin-mobile">
-      <div className="fixed inset-0 z-0 pointer-events-none p-margin-desktop opacity-5">
-        <div className="grid grid-cols-12 gap-gutter h-full">
-          <div className="col-span-12 flex items-center justify-center">
-             <div className="text-[240px] font-bold text-primary font-mono leading-none tracking-tighter opacity-10 uppercase">ADMIN</div>
-          </div>
-        </div>
+    <div className="bg-background min-h-screen flex items-center justify-center p-6 relative overflow-hidden">
+      <div className="absolute inset-0 opacity-[0.03] pointer-events-none select-none flex items-center justify-center">
+        <div className="text-[20vw] font-black font-mono">ADMIN</div>
       </div>
 
-      <main className="relative z-10 w-full max-w-lg">
-        <div className="bg-white rounded-[2rem] md:rounded-[3rem] p-8 md:p-12 whisper-shadow border border-border/30 flex flex-col gap-10">
-          <header className="space-y-4 text-center md:text-left">
-            <div className="flex items-center justify-center md:justify-start gap-3">
-              <div className="w-10 h-10 bg-primary flex items-center justify-center rounded-xl">
-                <Lock className="w-5 h-5 text-white" />
+      <main className="w-full max-w-lg z-10">
+        <div className="bg-white rounded-3xl p-8 md:p-12 whisper-shadow border border-border">
+          <header className="mb-10 text-center md:text-left">
+            <div className="flex items-center gap-3 mb-4">
+              <div className="p-2 bg-primary rounded-lg text-white">
+                <Lock className="w-5 h-5" />
               </div>
-              <span className="font-mono text-[10px] uppercase tracking-widest text-on-surface-variant font-bold">Secure Gateway</span>
+              <span className="font-mono text-[10px] uppercase font-bold tracking-widest text-on-surface-variant">Secure Gateway</span>
             </div>
-            <h1 className="font-display text-4xl md:text-[48px] text-primary tracking-tighter leading-tight font-bold">
-              Management Hub
-            </h1>
+            <h1 className="text-3xl font-display font-bold text-primary tracking-tight">Management Hub</h1>
           </header>
 
           <form onSubmit={handleAuth} className="space-y-6">
             <div className="space-y-4">
-              <div className="space-y-2">
-                <label className="font-mono text-[10px] uppercase text-on-surface-variant ml-1 font-bold">Corporate Email</label>
+              <div className="space-y-1">
+                <label className="font-mono text-[10px] uppercase font-bold ml-1 text-on-surface-variant">Corporate ID</label>
                 <div className="relative">
-                  <Mail className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-on-surface-variant" />
+                  <Mail className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 opacity-40" />
                   <Input 
                     type="email" 
-                    placeholder="username@iworldnetworks.net" 
-                    className="pl-12 h-14 rounded-2xl border-border/50 focus:ring-secondary/20 font-bold"
+                    placeholder="name@iworldnetworks.net" 
+                    className="pl-12 h-14 rounded-2xl"
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
                     required
                   />
                 </div>
               </div>
-              <div className="space-y-2">
-                <label className="font-mono text-[10px] uppercase text-on-surface-variant ml-1 font-bold">Secure Password</label>
+              <div className="space-y-1">
+                <label className="font-mono text-[10px] uppercase font-bold ml-1 text-on-surface-variant">Secure Token</label>
                 <div className="relative">
-                  <Key className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-on-surface-variant" />
+                  <Key className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 opacity-40" />
                   <Input 
                     type="password" 
                     placeholder="••••••••" 
-                    className="pl-12 h-14 rounded-2xl border-border/50 focus:ring-secondary/20 font-bold"
+                    className="pl-12 h-14 rounded-2xl"
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
                     required
@@ -144,37 +135,23 @@ export default function AdminLoginPage() {
             <Button
               type="submit"
               disabled={isAuthenticating}
-              className="w-full h-16 bg-primary text-white font-bold text-lg rounded-full hover:scale-[1.02] active:scale-95 transition-all duration-300 flex items-center justify-center gap-3 disabled:opacity-50"
+              className="w-full h-16 bg-primary text-white rounded-full font-bold text-lg hover:scale-[1.01] transition-all flex gap-3"
             >
-              {isAuthenticating ? (
-                <div className="flex items-center gap-3">
-                  <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                  <span className="font-mono text-sm uppercase">Verifying...</span>
-                </div>
-              ) : (
-                <>
-                  <span className="font-mono text-sm uppercase">Authorize Access</span>
-                  <ArrowRight className="w-6 h-6" />
-                </>
-              )}
+              {isAuthenticating ? "Verifying..." : "Authorize Access"}
+              {!isAuthenticating && <ArrowRight className="w-5 h-5" />}
             </Button>
           </form>
 
           {unverifiedUser && (
-            <div className="pt-4 border-t border-border/50 text-center space-y-4 animate-in fade-in slide-in-from-top-2">
-              <p className="text-xs text-on-surface-variant font-bold uppercase">Email not verified?</p>
+            <div className="mt-8 pt-8 border-t border-border flex flex-col gap-4 text-center">
+              <p className="font-mono text-[10px] uppercase font-bold text-on-surface-variant">Email not verified?</p>
               <Button
                 variant="outline"
                 onClick={handleSendVerification}
                 disabled={isSendingVerification}
-                className="w-full h-12 rounded-xl font-mono text-[10px] uppercase tracking-widest gap-2"
+                className="w-full h-12 rounded-xl font-mono text-[10px] uppercase font-bold"
               >
-                {isSendingVerification ? (
-                  <div className="w-4 h-4 border-2 border-primary/30 border-t-primary rounded-full animate-spin" />
-                ) : (
-                  <Send className="w-4 h-4" />
-                )}
-                Send Verification Link
+                {isSendingVerification ? "Sending..." : "Request New Verification Link"}
               </Button>
             </div>
           )}

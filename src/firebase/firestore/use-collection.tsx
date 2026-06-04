@@ -36,10 +36,11 @@ export function useCollection<T = DocumentData>(query: Query<T> | null) {
       (err: FirestoreError) => {
         if (!isMounted.current) return;
         
-        // PERMANENT FIX: Silence permission denied errors during auth handshake.
-        // This prevents the Next.js crash overlay while the session stabilizes.
+        // SILENT HANDSHAKE: Do not crash on permission errors.
+        // This usually happens during the brief window when a user logs in 
+        // but the security rules haven't synced with the new token.
         if (err.code === 'permission-denied') {
-          console.warn('Firestore: Permission denied. Waiting for authorized session state.');
+          console.warn('Firestore: Waiting for authorized session synchronization.');
           setData(null);
         } else {
           console.error('Firestore Error:', err);
