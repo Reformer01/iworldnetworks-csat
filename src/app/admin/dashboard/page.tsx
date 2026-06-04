@@ -1,3 +1,4 @@
+
 'use client';
 
 import React, { useMemo, useEffect, useState } from 'react';
@@ -33,9 +34,9 @@ export default function AdminDashboard() {
     setMounted(true);
   }, []);
 
+  // Skill-based stability: Memoize query and only run when authenticated
   const feedbackQuery = useMemo(() => {
-    // Only query if user is actually authenticated to prevent permission errors during session init
-    if (!firestore || !user) return null;
+    if (!firestore || !user || !user.email?.endsWith('@iworld.com')) return null;
     return query(collection(firestore, 'feedbacks'), orderBy('timestamp', 'desc'), limit(100));
   }, [firestore, user]);
 
@@ -86,7 +87,7 @@ export default function AdminDashboard() {
     <AdminLayout>
       <section className="mb-8 md:mb-12 flex flex-col md:flex-row justify-between items-start md:items-end gap-6">
         <div className="max-w-2xl">
-          <p className="font-mono text-label-mono text-secondary mb-2 uppercase text-xs font-bold">Head of Hub: Gyang</p>
+          <p className="font-mono text-label-mono text-secondary mb-2 uppercase text-xs font-bold">Regional Head: Gyang</p>
           <h1 className="font-display text-[32px] md:text-display-lg text-primary tracking-tight mb-2 font-bold uppercase">Operational Overview</h1>
           <p className="text-on-surface-variant font-body-md text-sm md:text-base font-bold uppercase opacity-70">Real-time connection monitoring across regional hubs.</p>
         </div>

@@ -2,15 +2,21 @@
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
-    function isAuthenticated() {
-      return request.auth != null;
+    // Check if the user is authenticated and has a corporate email
+    function isVerifiedSupervisor() {
+      return request.auth != null && 
+             request.auth.token.email_verified == true && 
+             request.auth.token.email.matches('.*@iworld\\.com$');
     }
 
     match /feedbacks/{feedbackId} {
+      // Public can only create with basic data validation
       allow create: if request.resource.data.customerEmail is string && 
                       request.resource.data.category in ["Reliability", "Support", "Testimonials", "Installation", "Billing"] &&
                       request.resource.data.location in ["Abeokuta", "Ibadan", "Osogbo", "Akure"];
-      allow read, update, delete: if isAuthenticated();
+      
+      // Only verified supervisors can read, update, or delete
+      allow read, update, delete: if isVerifiedSupervisor();
     }
   }
 }

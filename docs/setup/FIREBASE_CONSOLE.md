@@ -14,33 +14,24 @@ Follow these steps to provision the backend services for the I-World Networks Ma
 3. Under the **Sign-in method** tab, select **Email/Password**.
 4. Enable the **Email/Password** switch and click **Save**.
 
-### 🔒 Managing Supervisors (Manual Provisioning)
-Public registration is disabled for security. To grant access to a staff member:
+### 🔒 Secure Supervisor Provisioning
+Administrative access is restricted to **verified @iworld.com email addresses**. To grant access:
 1. Go to the **Users** tab in the Authentication section.
 2. Click **Add user**.
-3. Enter the supervisor's work email and a temporary secure password.
-4. Share these credentials with the supervisor. They can now sign in at `/admin/login`.
+3. **CRITICAL**: Use a corporate email (e.g., `gyang@iworld.com`) and a strong password.
+4. The supervisor must verify their email before accessing the dashboard (the login page will prompt them if needed).
 
 ## 3. Enable Firestore Database
 1. In the left sidebar, click **Build** > **Firestore Database**.
 2. Click **Create database**.
 3. Select **Start in production mode**.
-4. Choose a location (e.g., `europe-west` or `us-central`).
+4. Choose a regional location (e.g., `europe-west`).
 5. Click **Enable**.
 
 ## 4. Enable AI Services (Gemini)
-1. In the left sidebar, look for **Build** > **AI Logic** or **Vertex AI for Firebase**.
-2. Click **Get Started**.
-3. Follow the prompts to enable the **Gemini Developer API**.
-4. Note: Using `gemini-flash-latest` ensures high-performance sentiment analysis for customer feedback.
+1. Ensure you have the Gemini API enabled.
+2. The app uses `gemini-flash-latest` for high-performance sentiment analysis.
 
-## 5. Register the Web Application
-1. Click the **Project Overview** (gear icon) -> **Project settings**.
-2. Under the **General** tab, scroll to **Your apps**.
-3. Click the **Web icon (</>)**.
-4. Register the app as `I-World Management Hub`.
-5. Copy the `firebaseConfig` values to your local `.env` file (see `ENVIRONMENT_VARIABLES.md`).
-
-## 6. Deployment of Security Rules
-The application includes `firestore.rules`. Ensure these are deployed to protect regional data:
+## 5. Deployment of Security Rules
+The application includes `firestore.rules` which enforce the corporate domain restriction. Ensure these are deployed:
 `npx -y firebase-tools@latest deploy --only firestore:rules`

@@ -3,12 +3,13 @@
 
 import React, { useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { Lock, ArrowRight, Mail, Key } from 'lucide-react';
+import { Lock, ArrowRight, Mail, Key, ShieldAlert } from 'lucide-react';
 import { useAuth } from '@/firebase';
 import { signInWithEmailAndPassword } from 'firebase/auth';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { useToast } from '@/hooks/use-toast';
+import { cn } from '@/lib/utils';
 
 export default function AdminLoginPage() {
   const [email, setEmail] = useState('');
@@ -22,19 +23,40 @@ export default function AdminLoginPage() {
     e.preventDefault();
     if (!auth) return;
 
+    // Skill-based security: check domain client-side before attempt
+    if (!email.endsWith('@iworld.com')) {
+      toast({
+        variant: "destructive",
+        title: "Invalid Domain",
+        description: "Administrative access requires an official @iworld.com account.",
+      });
+      return;
+    }
+
     setIsAuthenticating(true);
     try {
-      await signInWithEmailAndPassword(auth, email, password);
+      const userCredential = await signInWithEmailAndPassword(auth, email, password);
+      
+      if (!userCredential.user.emailVerified) {
+        toast({
+          variant: "destructive",
+          title: "Verification Required",
+          description: "Please check your inbox and verify your corporate email to proceed.",
+        });
+        setIsAuthenticating(false);
+        return;
+      }
+
       toast({
         title: "Access Granted",
-        description: "Welcome back to the Management Hub.",
+        description: "Regional Management Hub unlocked.",
       });
       router.push('/admin/dashboard');
     } catch (error: any) {
       toast({
         variant: "destructive",
         title: "Sign In Failed",
-        description: "Invalid credentials or unauthorized access. Please contact the administrator.",
+        description: "Invalid credentials or unauthorized attempt. All access is logged.",
       });
       setIsAuthenticating(false);
     }
@@ -44,11 +66,8 @@ export default function AdminLoginPage() {
     <div className="bg-background font-body text-on-surface selection:bg-secondary/20 overflow-hidden min-h-screen flex items-center justify-center p-margin-mobile">
       <div className="fixed inset-0 z-0 pointer-events-none p-margin-desktop opacity-5">
         <div className="grid grid-cols-12 gap-gutter h-full">
-          <div className="col-span-2 flex flex-col gap-8 pt-20">
-            <div className="h-12 w-12 rounded-full bg-primary"></div>
-          </div>
-          <div className="col-span-10 pt-20 flex flex-col justify-end pb-20">
-             <div className="text-[240px] font-bold text-primary font-mono leading-none tracking-tighter opacity-10 uppercase">I-W</div>
+          <div className="col-span-12 flex items-center justify-center">
+             <div className="text-[240px] font-bold text-primary font-mono leading-none tracking-tighter opacity-10 uppercase">ADMIN</div>
           </div>
         </div>
       </div>
@@ -60,25 +79,25 @@ export default function AdminLoginPage() {
               <div className="w-10 h-10 bg-primary flex items-center justify-center rounded-xl">
                 <Lock className="w-5 h-5 text-white" />
               </div>
-              <span className="font-mono text-[10px] uppercase tracking-widest text-on-surface-variant font-bold">Internal Management</span>
+              <span className="font-mono text-[10px] uppercase tracking-widest text-on-surface-variant font-bold">Secure Gateway</span>
             </div>
             <h1 className="font-display text-4xl md:text-[48px] text-primary tracking-tighter leading-tight font-bold">
               Management Hub
             </h1>
             <p className="font-body-md text-on-surface-variant font-bold uppercase opacity-70">
-              Authorized supervisor access only. Enter your credentials to unlock regional reports.
+              Internal Corporate Access Only. Sign in with your @iworld.com credentials.
             </p>
           </header>
 
           <form onSubmit={handleAuth} className="space-y-6">
             <div className="space-y-4">
               <div className="space-y-2">
-                <label className="font-mono text-[10px] uppercase text-on-surface-variant ml-1 font-bold">Supervisor Email</label>
+                <label className="font-mono text-[10px] uppercase text-on-surface-variant ml-1 font-bold">Corporate Email</label>
                 <div className="relative">
                   <Mail className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-on-surface-variant" />
                   <Input 
                     type="email" 
-                    placeholder="name@iworld.com" 
+                    placeholder="username@iworld.com" 
                     className="pl-12 h-14 rounded-2xl border-border/50 focus:ring-secondary/20 font-bold"
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
@@ -105,34 +124,28 @@ export default function AdminLoginPage() {
             <Button
               type="submit"
               disabled={isAuthenticating}
-              className="w-full h-16 bg-secondary text-white font-bold text-lg rounded-full hover:scale-[1.02] active:scale-95 transition-all duration-300 flex items-center justify-center gap-3 disabled:opacity-50"
+              className="w-full h-16 bg-primary text-white font-bold text-lg rounded-full hover:scale-[1.02] active:scale-95 transition-all duration-300 flex items-center justify-center gap-3 disabled:opacity-50"
             >
               {isAuthenticating ? (
                 <div className="flex items-center gap-3">
                   <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                  <span className="font-mono text-sm uppercase">Authenticating...</span>
+                  <span className="font-mono text-sm uppercase">Verifying...</span>
                 </div>
               ) : (
                 <>
-                  <span className="font-mono text-sm uppercase">Unlock Dashboard</span>
+                  <span className="font-mono text-sm uppercase">Authorize Access</span>
                   <ArrowRight className="w-6 h-6" />
                 </>
               )}
             </Button>
           </form>
 
-          <footer className="flex flex-col md:flex-row justify-between items-center gap-4 text-on-surface-variant font-mono text-[10px] pt-4 border-t border-border/10">
-            <div className="text-center md:text-left opacity-40 uppercase font-bold">
-              Access is managed via Firebase Console
-            </div>
-            <div className="flex items-center gap-2 font-bold uppercase">
-              <div className="w-2 h-2 rounded-full bg-green-500"></div>
-              <span>System Online • 2026</span>
-            </div>
+          <footer className="flex items-start gap-4 p-6 bg-red-50 rounded-2xl border border-red-100">
+            <ShieldAlert className="w-5 h-5 text-red-600 shrink-0" />
+            <p className="font-mono text-[10px] leading-relaxed text-red-900 font-bold uppercase">
+              Unauthorized access to this portal is strictly prohibited and monitored. Ensure your @iworld.com account is verified.
+            </p>
           </footer>
-        </div>
-        <div className="mt-8 text-center text-on-surface-variant font-mono text-[10px] uppercase opacity-40 font-bold">
-          © 2026 I-World Networks • All Access Logged
         </div>
       </main>
     </div>

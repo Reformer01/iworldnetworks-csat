@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useState, useEffect, useRef } from 'react';
@@ -21,48 +22,38 @@ export function useCollection<T = DocumentData>(query: Query<T> | null) {
     }
 
     setLoading(true);
-    let unsubscribe: (() => void) | undefined;
-
-    try {
-      unsubscribe = onSnapshot(
-        query,
-        (snapshot: QuerySnapshot<T>) => {
-          if (!isMounted.current) return;
-          const items = snapshot.docs.map((doc) => ({
-            ...(doc.data() as any),
-            id: doc.id,
-          }));
-          setData(items);
-          setLoading(false);
-          setError(null);
-        },
-        async (err: FirestoreError) => {
-          if (!isMounted.current) return;
-          
-          if (err.code === 'permission-denied') {
-            const permissionError = new FirestorePermissionError({
-              path: (query as any)._query?.path?.toString() || 'unknown',
-              operation: 'list',
-            });
-            errorEmitter.emit('permission-error', permissionError);
-          }
-          
-          setError(err);
-          setLoading(false);
+    
+    const unsubscribe = onSnapshot(
+      query,
+      (snapshot: QuerySnapshot<T>) => {
+        if (!isMounted.current) return;
+        const items = snapshot.docs.map((doc) => ({
+          ...(doc.data() as any),
+          id: doc.id,
+        }));
+        setData(items);
+        setLoading(false);
+        setError(null);
+      },
+      async (err: FirestoreError) => {
+        if (!isMounted.current) return;
+        
+        if (err.code === 'permission-denied') {
+          const permissionError = new FirestorePermissionError({
+            path: 'feedbacks', // Using static path name for consistent error reporting
+            operation: 'list',
+          });
+          errorEmitter.emit('permission-error', permissionError);
         }
-      );
-    } catch (e: any) {
-      if (isMounted.current) {
-        setError(e);
+        
+        setError(err);
         setLoading(false);
       }
-    }
+    );
 
     return () => {
       isMounted.current = false;
-      if (unsubscribe) {
-        unsubscribe();
-      }
+      unsubscribe();
     };
   }, [query]);
 
