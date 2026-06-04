@@ -1,8 +1,9 @@
+
 'use client';
 
 import React, { useMemo, useState, useEffect } from 'react';
 import { AdminLayout } from '@/components/layout/AdminLayout';
-import { Activity, ArrowDown } from 'lucide-react';
+import { Activity, ArrowDown, Calendar } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useFirestore, useCollection, useAuth, useUser } from '@/firebase';
 import { collection, query, where, orderBy, limit } from 'firebase/firestore';
@@ -32,7 +33,7 @@ export default function AdminStability() {
       collection(firestore, 'feedbacks'), 
       where('category', '==', 'Reliability'),
       orderBy('timestamp', 'desc'), 
-      limit(100)
+      limit(200)
     );
   }, [firestore, user, authLoading]);
 
@@ -56,7 +57,8 @@ export default function AdminStability() {
 
   const chartData = useMemo(() => {
     if (!feedbacks) return [];
-    return feedbacks.slice(0, 20).reverse().map((f: any) => ({
+    return feedbacks.slice(0, 30).reverse().map((f: any) => ({
+      date: mounted ? new Date(f.timestamp).toLocaleDateString([], { month: 'short', day: 'numeric' }) : '--/--',
       time: mounted ? new Date(f.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '--:--',
       latency: 70 - (Number(f.ratings?.latency || 4) * 10),
       stability: 95 + (Number(f.ratings?.stability || 4))
@@ -64,9 +66,9 @@ export default function AdminStability() {
   }, [feedbacks, mounted]);
 
   const nodeHealth = useMemo(() => {
-    const regions = ['Lagos', 'Ibadan', 'Akure', 'Osogbo'];
+    const regions = ['Ibadan', 'Abeokuta', 'Akure', 'Osogbo'];
     return regions.map(region => {
-      const regionData = feedbacks?.filter((f: any) => f.location === (region === 'Lagos' ? 'Ibadan' : region)) || [];
+      const regionData = feedbacks?.filter((f: any) => f.location === region) || [];
       const avg = regionData.length > 0 
         ? regionData.reduce((acc, f: any) => acc + Number(f.ratings?.stability || 5), 0) / regionData.length 
         : 5;
@@ -75,7 +77,7 @@ export default function AdminStability() {
         name: `${region} Cluster`,
         status: avg >= 4 ? 'STABLE' : avg >= 2.5 ? 'BUSY' : 'CRITICAL',
         latency: Math.round(15 + (5 - avg) * 5),
-        type: region === 'Lagos' ? 'BACKBONE PRIMARY' : 'REGIONAL NODE'
+        type: region === 'Ibadan' ? 'PRIMARY BACKBONE' : 'REGIONAL NODE'
       };
     });
   }, [feedbacks]);
@@ -86,9 +88,9 @@ export default function AdminStability() {
         <header className="grid grid-cols-12 gap-gutter mb-16 items-end">
           <div className="col-span-12 md:col-span-7">
             <h2 className="font-display text-[32px] md:text-display-lg text-primary tracking-tight font-bold uppercase">Stability & Telemetry</h2>
-            <p className="font-body-lg text-body-lg text-on-surface-variant mt-4 max-w-xl">
-              Real-time visualization of the I-World backbone. High-frequency monitoring of latency patterns and node health derived from customer experience telemetry.
-            </p>
+            <div className="flex items-center gap-2 mt-2 text-on-surface-variant font-mono text-[10px] font-bold uppercase tracking-widest">
+              <Calendar className="w-3 h-3 text-secondary" /> Performance over time
+            </div>
           </div>
           <div className="col-span-12 md:col-span-5 flex justify-end">
              <div className="flex items-center gap-2 bg-secondary/10 px-4 py-2 rounded-full border border-secondary/20 whisper-shadow">
@@ -135,18 +137,8 @@ export default function AdminStability() {
           <div className="col-span-12 lg:col-span-8 bg-white p-8 border border-border whisper-shadow rounded-xl h-[450px] flex flex-col">
             <div className="flex justify-between items-center mb-10">
               <div>
-                <h3 className="font-display text-xl text-primary font-bold uppercase">Latency Over Time</h3>
-                <p className="font-mono text-[10px] text-on-surface-variant uppercase font-bold opacity-60">Live Experience Stream</p>
-              </div>
-              <div className="flex gap-6">
-                <div className="flex items-center gap-2">
-                  <span className="w-3 h-3 bg-secondary rounded-full"></span>
-                  <span className="font-mono text-[10px] uppercase font-bold">Latency</span>
-                </div>
-                <div className="flex items-center gap-2">
-                  <span className="w-3 h-3 bg-primary rounded-full"></span>
-                  <span className="font-mono text-[10px] uppercase font-bold">Uptime</span>
-                </div>
+                <h3 className="font-display text-xl text-primary font-bold uppercase">Latency Trend</h3>
+                <p className="font-mono text-[10px] text-on-surface-variant uppercase font-bold opacity-60">Historical performance visualization</p>
               </div>
             </div>
             <div className="flex-1">
@@ -159,11 +151,11 @@ export default function AdminStability() {
                     </linearGradient>
                   </defs>
                   <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#eee" />
-                  <XAxis dataKey="time" axisLine={false} tickLine={false} tick={{ fontSize: 10, fill: '#666', fontWeight: 'bold' }} />
+                  <XAxis dataKey="date" axisLine={false} tickLine={false} tick={{ fontSize: 10, fill: '#666', fontWeight: 'bold' }} />
                   <YAxis axisLine={false} tickLine={false} tick={{ fontSize: 10, fill: '#666', fontWeight: 'bold' }} />
-                  <Tooltip contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 10px 15px -3px rgba(0,0,0,0.1)' }} />
-                  <Area type="monotone" dataKey="latency" stroke="#0058be" fill="url(#colorLat)" strokeWidth={3} />
-                  <Area type="monotone" dataKey="stability" stroke="#000000" fill="transparent" strokeWidth={1} strokeDasharray="5 5" />
+                  <Tooltip labelFormatter={(label) => `Date: ${label}`} contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 10px 15px -3px rgba(0,0,0,0.1)' }} />
+                  <Area type="monotone" dataKey="latency" stroke="#0058be" fill="url(#colorLat)" strokeWidth={3} name="Latency (ms)" />
+                  <Area type="monotone" dataKey="stability" stroke="#000000" fill="transparent" strokeWidth={1} strokeDasharray="5 5" name="Stability Score" />
                 </AreaChart>
               </ResponsiveContainer>
             </div>
@@ -199,7 +191,6 @@ export default function AdminStability() {
                 <h4 className="text-white font-display text-lg font-bold uppercase">Infrastructure v4.2</h4>
               </div>
               <Activity className="w-12 h-12 text-white/20 group-hover:text-secondary transition-colors duration-500 relative z-10" />
-              <div className="absolute inset-0 bg-gradient-to-r from-secondary/20 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500"></div>
             </div>
           </div>
         </div>
@@ -207,30 +198,30 @@ export default function AdminStability() {
         <div className="grid grid-cols-12 gap-gutter mb-24">
           <div className="col-span-12 bg-white border border-border whisper-shadow rounded-xl p-10">
             <div className="flex justify-between items-end mb-10 border-b border-border pb-6">
-              <h3 className="font-display text-2xl text-primary font-bold uppercase tracking-tight">Live Event Log</h3>
-              <button className="font-mono text-[10px] text-secondary border-b border-secondary pb-1 hover:opacity-60 transition-opacity font-bold uppercase tracking-widest">
-                System Telemetry
+              <h3 className="font-display text-2xl text-primary font-bold uppercase tracking-tight">Live Performance Log</h3>
+              <button className="font-mono text-[10px] text-secondary border-b border-secondary pb-1 font-bold uppercase tracking-widest">
+                Export Data
               </button>
             </div>
             <div className="space-y-4 font-mono text-[12px]">
               <div className="grid grid-cols-12 gap-4 text-on-surface-variant/40 font-bold uppercase tracking-widest pb-2">
-                <span className="col-span-2">Timestamp</span>
-                <span className="col-span-2">Event_Type</span>
-                <span className="col-span-6">Description</span>
+                <span className="col-span-3">Date & Time</span>
+                <span className="col-span-2">Event</span>
+                <span className="col-span-5">Description</span>
                 <span className="col-span-2 text-right">Status</span>
               </div>
-              {feedbacks?.slice(0, 8).map((f: any) => {
+              {feedbacks?.slice(0, 10).map((f: any) => {
                 const isPulse = Number(f.ratings?.stability || 5) >= 4;
                 return (
                   <div key={f.id} className="grid grid-cols-12 gap-4 py-4 border-b border-surface-container border-dashed last:border-0 items-center">
-                    <span className="col-span-2 text-primary font-bold">
-                      {mounted ? new Date(f.timestamp).toLocaleTimeString([], { hour12: false }) : '--:--'}
+                    <span className="col-span-3 text-primary font-bold">
+                      {mounted ? `${new Date(f.timestamp).toLocaleDateString()} ${new Date(f.timestamp).toLocaleTimeString([], { hour12: false })}` : '--/--'}
                     </span>
                     <span className={cn("col-span-2 font-black uppercase", isPulse ? "text-secondary" : "text-orange-500")}>
                       {isPulse ? 'NODE_PULSE' : 'LAT_SHIFT'}
                     </span>
-                    <span className="col-span-6 text-on-surface-variant truncate pr-4">
-                      {f.comment || `Metric update received from ${f.location} core.`}
+                    <span className="col-span-5 text-on-surface-variant truncate pr-4">
+                      {f.comment || `Metric update received from ${f.location} cluster.`}
                     </span>
                     <span className="col-span-2 text-right">
                        <span className={cn(

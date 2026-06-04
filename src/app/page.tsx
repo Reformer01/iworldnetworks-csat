@@ -121,15 +121,21 @@ export default function LandingPage() {
     try {
       let aiAnalysis = null;
       if (formData.comment && formData.comment.length > 10) {
-        aiAnalysis = await analyzeCustomerFeedbackSentiment({ feedbackText: formData.comment });
+        try {
+          aiAnalysis = await analyzeCustomerFeedbackSentiment({ feedbackText: formData.comment });
+        } catch (e) {
+          console.warn('AI Analysis skipped:', e);
+        }
       }
 
+      // BACKGROUND DATE RECORDING
+      const now = new Date();
       const feedbackData = {
         ...formData,
         category: activeCategory,
         ratings,
-        timestamp: Date.now(),
-        dateFormatted: new Date().toISOString(),
+        timestamp: Date.now(), // Background Unix timestamp
+        dateFormatted: now.toISOString(), // Background ISO string
         status: 'pending',
         aiAnalysis
       };
@@ -138,8 +144,8 @@ export default function LandingPage() {
       
       setIsSubmitted(true);
       toast({
-        title: "Report Received",
-        description: "Thank you for helping us improve I-World Networks.",
+        title: "Report Submitted",
+        description: "Your experience has been recorded for service optimization.",
       });
       
       setTimeout(() => {
@@ -161,8 +167,8 @@ export default function LandingPage() {
       console.error('Submission Error:', err);
       toast({
         variant: "destructive",
-        title: "Submission Failed",
-        description: "Could not save report. Please check your connection.",
+        title: "Submission Error",
+        description: "Please check your connection and try again.",
       });
     } finally {
       setIsSubmitting(false);
@@ -206,7 +212,7 @@ export default function LandingPage() {
               {heroContent[activeCategory].sub}
             </p>
             <Button size="lg" className="bg-secondary text-white px-10 py-7 rounded-full font-bold hover:scale-105 transition-transform uppercase text-[12px] tracking-widest" onClick={() => document.getElementById('feedback-portal')?.scrollIntoView({ behavior: 'smooth' })}>
-              Share Your Feedback
+              Start Feedback
             </Button>
           </div>
         </section>
@@ -214,7 +220,7 @@ export default function LandingPage() {
         <section id="feedback-portal" className="px-margin-mobile md:px-margin-desktop max-w-container-max mx-auto">
           <div className="bg-white rounded-3xl p-6 md:p-12 whisper-shadow border border-border grid grid-cols-1 lg:grid-cols-12 gap-12">
             <div className="lg:col-span-3">
-              <p className="font-mono text-[10px] uppercase text-on-surface-variant mb-6 tracking-widest font-bold">Feedback Category</p>
+              <p className="font-mono text-[10px] uppercase text-on-surface-variant mb-6 tracking-widest font-bold">Experience Node</p>
               <div className="flex flex-row lg:flex-col gap-2 overflow-x-auto pb-4 lg:pb-0 scrollbar-hide">
                 {categories.map((cat) => (
                   <button key={cat.name} onClick={() => { setActiveCategory(cat.name); setRatings({}); }} className={cn("flex items-center gap-4 px-6 py-4 rounded-xl transition-all text-left whitespace-nowrap", activeCategory === cat.name ? "bg-secondary text-white shadow-lg" : "text-on-surface-variant hover:bg-surface-container font-bold")}>
@@ -229,24 +235,24 @@ export default function LandingPage() {
               <form onSubmit={handleSubmit} className="space-y-12">
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
                   <div className="space-y-1">
-                    <label className="font-mono text-[10px] uppercase text-on-surface-variant font-bold">Your Name</label>
-                    <input required className="w-full bg-transparent border-b border-border py-2 outline-none focus:border-secondary transition-colors font-bold" placeholder="e.g. John Doe" value={formData.customerName} onChange={e => setFormData({...formData, customerName: e.target.value})} />
+                    <label className="font-mono text-[10px] uppercase text-on-surface-variant font-bold">Full Name</label>
+                    <input required className="w-full bg-transparent border-b border-border py-2 outline-none focus:border-secondary transition-colors font-bold" placeholder="e.g. Samuel Oke" value={formData.customerName} onChange={e => setFormData({...formData, customerName: e.target.value})} />
                   </div>
                   <div className="space-y-1">
-                    <label className="font-mono text-[10px] uppercase text-on-surface-variant font-bold">Contact Email</label>
+                    <label className="font-mono text-[10px] uppercase text-on-surface-variant font-bold">Email Address</label>
                     <input required type="email" className="w-full bg-transparent border-b border-border py-2 outline-none focus:border-secondary transition-colors font-bold" placeholder="your@email.com" value={formData.customerEmail} onChange={e => setFormData({...formData, customerEmail: e.target.value})} />
                   </div>
                 </div>
 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
                   <div className="space-y-1">
-                    <label className="font-mono text-[10px] uppercase text-on-surface-variant font-bold">Service Region</label>
+                    <label className="font-mono text-[10px] uppercase text-on-surface-variant font-bold">Region</label>
                     <select className="w-full bg-transparent border-b border-border py-2 outline-none cursor-pointer font-bold" value={formData.location} onChange={e => setFormData({...formData, location: e.target.value})}>
                       {validRegions.map(r => <option key={r} value={r}>{r}</option>)}
                     </select>
                   </div>
                   <div className="space-y-1">
-                    <label className="font-mono text-[10px] uppercase text-on-surface-variant font-bold">Service Plan</label>
+                    <label className="font-mono text-[10px] uppercase text-on-surface-variant font-bold">Active Plan</label>
                     <select className="w-full bg-transparent border-b border-border py-2 outline-none cursor-pointer font-bold" value={formData.servicePlan} onChange={e => setFormData({...formData, servicePlan: e.target.value})}>
                       <optgroup label="Residential (H-Series)">
                         {residentialPlans.map(plan => <option key={plan} value={plan}>{plan}</option>)}
@@ -261,27 +267,27 @@ export default function LandingPage() {
                 <div className="space-y-8">
                   {activeCategory === 'Reliability' && (
                     <>
-                      {renderRatingGroup("stability", "Network Stability", "How stable has your connection been over the last 30 days?")}
-                      {renderRatingGroup("latency", "Speed & Latency", "Rate your experience with gaming, streaming, or video calls.")}
-                      {renderRatingGroup("peakPerformance", "Peak Time Quality", "How is your speed during evening hours (7PM - 11PM)?")}
+                      {renderRatingGroup("stability", "Stability", "Network uptime and consistency.")}
+                      {renderRatingGroup("latency", "Latency", "Gaming and streaming quality.")}
+                      {renderRatingGroup("peakPerformance", "Peak Performance", "Performance during 7PM-11PM.")}
                     </>
                   )}
 
                   {activeCategory === 'Support' && (
                     <>
                       <div className="space-y-4 py-4">
-                        <label className="font-mono text-[10px] uppercase text-on-surface-variant font-bold">Support Agent</label>
+                        <label className="font-mono text-[10px] uppercase text-on-surface-variant font-bold">Agent Name</label>
                         <select className="w-full bg-surface-container-low p-4 rounded-xl border border-border outline-none font-bold" onChange={e => setFormData({...formData, staffName: e.target.value})} required>
-                          <option value="">Select Agent Name</option>
+                          <option value="">Select Staff</option>
                           {supportStaff.map(s => <option key={s} value={s}>{s}</option>)}
                         </select>
                       </div>
-                      {renderRatingGroup("professionalism", "Agent Professionalism", "How helpful and polite was the support agent?")}
-                      {renderRatingGroup("clarity", "Explanation Clarity", "Did the agent clearly explain the solution or problem?")}
+                      {renderRatingGroup("professionalism", "Professionalism", "Agent helpfulness and courtesy.")}
+                      {renderRatingGroup("clarity", "Clarity", "Explanation quality.")}
                       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 py-6">
                         <div className="max-w-md">
                           <h3 className="font-display text-lg text-primary font-bold">First Contact Resolution</h3>
-                          <p className="text-on-surface-variant text-xs">Was your issue fixed on the very first call?</p>
+                          <p className="text-on-surface-variant text-xs">Was the issue fixed on the first interaction?</p>
                         </div>
                         <RadioGroup onValueChange={v => handleRating('fcr', v)} className="flex gap-8">
                           <div className="flex items-center space-x-2"><RadioGroupItem value="Yes" id="fcr-yes" /><Label htmlFor="fcr-yes" className="font-bold">Yes</Label></div>
@@ -294,22 +300,22 @@ export default function LandingPage() {
                   {activeCategory === 'Testimonials' && (
                     <>
                       <div className="space-y-4">
-                        <label className="font-mono text-[10px] uppercase text-on-surface-variant font-bold">How did you hear about us?</label>
+                        <label className="font-mono text-[10px] uppercase text-on-surface-variant font-bold">Referral Source</label>
                         <select className="w-full bg-transparent border-b border-border py-2 outline-none cursor-pointer font-bold" value={formData.referralSource} onChange={e => setFormData({...formData, referralSource: e.target.value})}>
                           <option>Social Media</option>
-                          <option>Word of Mouth / Friend</option>
-                          <option>Roadside Banner</option>
-                          <option>Search Engine</option>
+                          <option>Friend/Colleague</option>
+                          <option>Banner</option>
+                          <option>Other</option>
                         </select>
                       </div>
                       <div className="space-y-4">
-                        <label className="font-mono text-[10px] uppercase text-on-surface-variant font-bold">Your Success Story</label>
-                        <textarea className="w-full bg-surface-container-low p-6 rounded-2xl border border-border min-h-[150px] outline-none resize-none font-bold" placeholder="Tell us how I-World has helped your home or business..." value={formData.comment} onChange={e => setFormData({...formData, comment: e.target.value})} />
+                        <label className="font-mono text-[10px] uppercase text-on-surface-variant font-bold">Comment / Story</label>
+                        <textarea className="w-full bg-surface-container-low p-6 rounded-2xl border border-border min-h-[150px] outline-none resize-none font-bold" placeholder="Tell us more about your experience..." value={formData.comment} onChange={e => setFormData({...formData, comment: e.target.value})} />
                       </div>
                       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 py-8 border-b border-border/50">
                         <div className="max-w-md">
                           <h3 className="font-display text-lg text-primary font-bold">Spotlight Interview</h3>
-                          <p className="text-on-surface-variant text-xs">Would you be interested in joining a spotlight interview to share your story?</p>
+                          <p className="text-on-surface-variant text-xs">Would you join a spotlight interview to share your story?</p>
                         </div>
                         <RadioGroup 
                           defaultValue={formData.spotlightInterview}
@@ -324,29 +330,29 @@ export default function LandingPage() {
                           ))}
                         </RadioGroup>
                       </div>
-                      {renderRatingGroup("signal", "Signal Strength", "How would you rate the Wi-Fi signal coverage in your premises?")}
+                      {renderRatingGroup("signal", "Signal Strength", "Wi-Fi coverage and quality.")}
                     </>
                   )}
 
                   {activeCategory === 'Installation' && (
                     <>
                       <div className="space-y-4 py-4">
-                        <label className="font-mono text-[10px] uppercase text-on-surface-variant font-bold">Field Technician</label>
+                        <label className="font-mono text-[10px] uppercase text-on-surface-variant font-bold">Technician</label>
                         <select className="w-full bg-surface-container-low p-4 rounded-xl border border-border outline-none font-bold" onChange={e => setFormData({...formData, staffName: e.target.value})} required>
                           <option value="">Select Technician</option>
                           {technicians.map(t => <option key={t.name} value={t.name}>{t.name} ({t.region})</option>)}
                         </select>
                       </div>
-                      {renderRatingGroup("punctuality", "Punctuality", "Did the team arrive within the scheduled window?")}
-                      {renderRatingGroup("quality", "Neatness of Setup", "How would you rate the neatness of the fiber cabling?")}
-                      {renderRatingGroup("explanation", "Equipment Orientation", "Did the technician explain how the router/ONT works?")}
+                      {renderRatingGroup("punctuality", "Punctuality", "Technician arrival timing.")}
+                      {renderRatingGroup("quality", "Setup Quality", "Neatness and quality of fiber setup.")}
+                      {renderRatingGroup("explanation", "Orientation", "Equipment orientation and explanation.")}
                     </>
                   )}
 
                   {activeCategory === 'Billing' && (
                     <>
-                      {renderRatingGroup("accuracy", "Invoice Accuracy", "Was your last bill clearly explained and accurate?")}
-                      {renderRatingGroup("reconnection", "Reconnection Speed", "How fast was service restored after your last payment?")}
+                      {renderRatingGroup("accuracy", "Invoice Accuracy", "Accuracy and clarity of billing.")}
+                      {renderRatingGroup("reconnection", "Reconnection", "Speed of restoration after payment.")}
                     </>
                   )}
 
@@ -355,7 +361,7 @@ export default function LandingPage() {
                       {isSubmitting ? (
                         <Loader2 className="w-5 h-5 animate-spin" />
                       ) : isSubmitted ? (
-                        <>Feedback Received <CircleCheck className="w-5 h-5" /></>
+                        <>Success <CircleCheck className="w-5 h-5" /></>
                       ) : (
                         <>Submit Report <ArrowRight className="w-5 h-5" /></>
                       )}
@@ -372,11 +378,11 @@ export default function LandingPage() {
         <div className="max-w-container-max mx-auto px-margin-mobile md:px-margin-desktop flex flex-col md:flex-row justify-between items-start gap-12">
           <div className="space-y-4">
             <div className="font-mono text-[12px] font-bold text-primary uppercase">I-World Networks</div>
-            <p className="text-on-surface-variant text-sm max-w-xs font-bold uppercase opacity-70">Reliable Fiber ISP solutions across Southwest Nigeria.</p>
+            <p className="text-on-surface-variant text-sm max-w-xs font-bold uppercase opacity-70">Empowering Southwest Nigeria with high-speed Fiber infrastructure.</p>
             <div className="font-mono text-[10px] text-on-surface-variant uppercase font-bold">© 2026 I-World Networks</div>
           </div>
           <div className="grid grid-cols-2 md:grid-cols-4 gap-x-12 gap-y-4">
-            {validRegions.map(r => <a key={r} href="#" className="text-on-surface-variant hover:text-secondary font-mono text-[10px] uppercase font-bold">{r}</a>)}
+            {validRegions.map(r => <a key={r} href="#" className="text-on-surface-variant hover:text-secondary font-mono text-[10px] uppercase font-bold">{r} Hub</a>)}
           </div>
         </div>
       </footer>
