@@ -2,17 +2,21 @@
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
-    // feedbacks collection
+    // 1. PUBLIC FEEDBACK SUBMISSION
+    // Explicitly allow ANYONE to create feedback without auth or verification.
     match /feedbacks/{feedbackId} {
-      // 1. PUBLIC: Anyone can submit feedback.
-      // We don't require auth or email verification for customers.
       allow create: if true;
       
-      // 2. ADMIN: Only verified corporate supervisors can read or manage.
-      // Requires: Authenticated + Verified Email + @iworldnetworks.net domain.
-      allow read, update, delete: if request.auth != null && 
-                                    request.auth.token.email_verified == true && 
-                                    request.auth.token.email.endsWith('@iworldnetworks.net');
+      // 2. ADMINISTRATIVE ACCESS
+      // Only verified supervisors with @iworldnetworks.net emails can read/manage data.
+      allow read, list, update, delete: if request.auth != null && 
+                                          request.auth.token.email_verified == true && 
+                                          request.auth.token.email.endsWith('@iworldnetworks.net');
+    }
+    
+    // Default deny for everything else
+    match /{document=**} {
+      allow read, write: if false;
     }
   }
 }

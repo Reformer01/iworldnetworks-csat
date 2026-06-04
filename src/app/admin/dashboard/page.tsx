@@ -36,7 +36,7 @@ export default function AdminDashboard() {
   const { toast } = useToast();
 
   const feedbackQuery = useMemo(() => {
-    if (!firestore || !user?.emailVerified) return null;
+    if (!firestore || !user?.emailVerified || !user?.email?.endsWith('@iworldnetworks.net')) return null;
     return query(collection(firestore, 'feedbacks'), orderBy('timestamp', 'desc'), limit(1000));
   }, [firestore, user]);
 
@@ -62,11 +62,9 @@ export default function AdminDashboard() {
     
     const pending = filteredFeedbacks.filter((f: any) => f.status === 'pending').length;
     
-    // CSAT Calculation
     const allRatings = filteredFeedbacks.flatMap((f: any) => Object.values(f.ratings || {}).filter(v => typeof v === 'number'));
     const csat = allRatings.length > 0 ? Math.round((allRatings.reduce((a: any, b: any) => a + b, 0) / (allRatings.length * 5)) * 100) : 0;
 
-    // NPS Logic: 5 = Promoter, 1-3 = Detractor, 4 = Neutral
     const promoters = filteredFeedbacks.filter((f: any) => {
       const scores = Object.values(f.ratings || {}).filter(v => typeof v === 'number') as number[];
       return scores.some(s => s === 5);
@@ -79,7 +77,6 @@ export default function AdminDashboard() {
 
     const nps = total > 0 ? Math.round(((promoters - detractors) / total) * 100) : 0;
 
-    // CES Calculation (First Contact Resolution)
     const fcrYes = filteredFeedbacks.filter((f: any) => f.ratings?.fcr === 'Yes').length;
     const ces = total > 0 ? Math.round((fcrYes / total) * 100) : 0;
 
@@ -281,85 +278,6 @@ export default function AdminDashboard() {
               );
             })}
           </div>
-        </div>
-      </div>
-
-      <div className="bg-white rounded-3xl whisper-shadow border border-border overflow-hidden mb-24">
-        <div className="p-8 border-b border-border flex justify-between items-center bg-surface-container-lowest">
-          <div>
-            <h3 className="font-display font-bold text-lg uppercase tracking-tight">Recent Resolutions Feed</h3>
-            <p className="font-mono text-[10px] opacity-40 uppercase font-bold mt-1">Closed-loop Management</p>
-          </div>
-          <BarChart3 className="w-5 h-5 text-on-surface-variant opacity-40" />
-        </div>
-        <div className="divide-y divide-border">
-          {filteredFeedbacks.slice(0, 10).map((f: any) => (
-            <div key={f.id} className="p-8 flex items-center justify-between hover:bg-surface-container-low transition-colors group">
-              <div className="flex items-center gap-6">
-                <div className={cn(
-                  "w-2.5 h-2.5 rounded-full",
-                  f.status === 'pending' ? "bg-destructive animate-pulse" : "bg-green-500"
-                )}></div>
-                <div className="flex flex-col">
-                  <p className="font-bold text-sm uppercase tracking-tight text-primary">{f.customerName}</p>
-                  <div className="flex items-center gap-2 font-mono text-[9px] text-on-surface-variant font-bold uppercase">
-                    <span>{f.location} • {f.category}</span>
-                    {f.serviceDate && (
-                      <span className="flex items-center gap-1 text-secondary">
-                        <Calendar className="w-2.5 h-2.5" /> Experience: {f.serviceDate}
-                      </span>
-                    )}
-                  </div>
-                </div>
-              </div>
-              <div className="flex items-center gap-12">
-                <div className="hidden md:flex flex-col items-end">
-                   <p className="font-mono text-[9px] font-bold opacity-40 uppercase mb-1">Status</p>
-                   <span className={cn(
-                    "px-3 py-1 rounded-full text-[8px] font-black uppercase tracking-widest",
-                    f.status === 'resolved' ? "bg-green-100 text-green-700" : "bg-destructive/10 text-destructive"
-                  )}>{f.status}</span>
-                </div>
-                
-                <Dialog>
-                  <DialogTrigger asChild>
-                    <Button variant="outline" size="sm" className="rounded-full h-8 font-mono text-[8px] uppercase font-bold border-border/50">
-                      Manage Loop
-                    </Button>
-                  </DialogTrigger>
-                  <DialogContent className="rounded-3xl border-none p-10 whisper-shadow max-w-xl">
-                    <DialogHeader className="mb-6">
-                      <DialogTitle className="font-display text-2xl font-bold uppercase tracking-tight">Resolve Feedback</DialogTitle>
-                    </DialogHeader>
-                    <div className="space-y-6">
-                      <div className="p-6 bg-surface-container-low rounded-2xl border border-border/50">
-                        <p className="font-mono text-[10px] uppercase font-bold text-secondary mb-2">Customer Context</p>
-                        <p className="text-sm font-bold italic">"{f.comment}"</p>
-                      </div>
-                      <div className="space-y-2">
-                        <label className="font-mono text-[10px] uppercase font-bold">Resolution Notes</label>
-                        <Textarea 
-                          placeholder="What actions were taken to close the loop?" 
-                          className="rounded-2xl border-border min-h-[120px] font-bold"
-                          defaultValue={f.resolutionNotes}
-                          onChange={(e) => setResNotes(e.target.value)}
-                        />
-                      </div>
-                    </div>
-                    <DialogFooter className="mt-10 gap-2">
-                      <Button variant="ghost" onClick={() => handleUpdateStatus(f.id, 'reviewed')} className="rounded-full font-mono text-[10px] uppercase font-bold">Mark Reviewed</Button>
-                      <Button onClick={() => handleUpdateStatus(f.id, 'resolved')} className="bg-secondary text-white rounded-full px-8 font-mono text-[10px] uppercase font-bold">Close Loop</Button>
-                    </DialogFooter>
-                  </DialogContent>
-                </Dialog>
-              </div>
-            </div>
-          ))}
-          {filteredFeedbacks.length === 0 && (
-            <div className="p-20 text-center text-on-surface-variant font-mono text-[10px] font-bold uppercase opacity-20">
-              Waiting for telemetry sync...
-            </div>
-          )}
         </div>
       </div>
     </AdminLayout>

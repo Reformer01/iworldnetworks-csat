@@ -8,8 +8,8 @@
       "properties": {
         "customerName": { "type": "string" },
         "customerEmail": { "type": "string", "format": "email" },
-        "serviceDate": { "type": "string", "format": "date", "description": "User-specified date of the experience" },
-        "serviceTime": { "type": "string", "description": "User-specified time of the experience" },
+        "serviceDate": { "type": "string", "format": "date", "description": "Date of the experience reported by user" },
+        "serviceTime": { "type": "string", "description": "Time of the experience reported by user" },
         "category": { "type": "string", "enum": ["Reliability", "Support", "Testimonials", "Installation", "Billing"] },
         "servicePlan": { "type": "string", "enum": ["H-Lite", "H-Pro", "H-Max", "H-Custom", "U-Lite", "U-Pro", "U-Max", "U-Custom"] },
         "location": { "type": "string", "enum": ["Abeokuta", "Ibadan", "Osogbo", "Akure"] },
@@ -32,7 +32,7 @@
         },
         "comment": { "type": "string" },
         "staffName": { "type": "string" },
-        "timestamp": { "type": "number", "description": "Background submission unix timestamp" },
+        "timestamp": { "type": "number", "description": "System recorded Unix timestamp" },
         "dateFormatted": { "type": "string", "format": "date-time" },
         "status": { "type": "string", "enum": ["pending", "reviewed", "escalated", "resolved"], "default": "pending" },
         "aiAnalysis": {

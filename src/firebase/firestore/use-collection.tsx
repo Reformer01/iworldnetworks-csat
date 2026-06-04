@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useState, useEffect, useRef } from 'react';
@@ -41,6 +42,7 @@ export function useCollection<T = DocumentData>(query: Query<T> | null) {
           console.warn('Firestore: Permission denied. Waiting for authorized session state.');
           setData(null);
         } else {
+          console.error('Firestore Error:', err);
           setError(err);
         }
         setLoading(false);
