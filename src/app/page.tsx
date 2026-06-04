@@ -22,7 +22,6 @@ import { useFirestore } from '@/firebase';
 import { collection, addDoc } from 'firebase/firestore';
 import { errorEmitter } from '@/firebase/error-emitter';
 import { FirestorePermissionError } from '@/firebase/errors';
-import { analyzeCustomerFeedbackSentiment } from '@/ai/flows/analyze-customer-feedback-sentiment';
 
 type Category = 'Reliability' | 'Support' | 'Testimonials' | 'Installation' | 'Billing';
 
@@ -117,28 +116,14 @@ export default function LandingPage() {
     setIsSubmitting(true);
 
     try {
-      // 1. AI Sentiment Analysis
-      let aiAnalysis = null;
-      if (formData.comment) {
-        try {
-          aiAnalysis = await analyzeCustomerFeedbackSentiment({ feedbackText: formData.comment });
-        } catch (err) {
-          console.error('AI Sentiment Analysis failed', err);
-        }
-      }
-
-      // 2. Prepare Data
       const feedbackData = {
         ...formData,
         category: activeCategory,
         ratings,
         timestamp: Date.now(),
-        status: 'pending',
-        aiSentiment: aiAnalysis?.sentiment || 'neutral',
-        aiThemes: aiAnalysis?.keyThemes || []
+        status: 'pending'
       };
 
-      // 3. Save to Firestore
       const feedbackRef = collection(firestore, 'feedbacks');
       addDoc(feedbackRef, feedbackData)
         .catch(async (serverError) => {

@@ -2,13 +2,12 @@
 
 import React, { useMemo, useEffect, useState } from 'react';
 import { AdminLayout } from '@/components/layout/AdminLayout';
-import { TrendingUp, Wrench, AlertCircle, Activity, Smile, Frown, Meh } from 'lucide-react';
+import { TrendingUp, Wrench, Activity } from 'lucide-react';
 import Image from 'next/image';
 import { PlaceHolderImages } from '@/lib/placeholder-images';
 import { cn } from '@/lib/utils';
 import { useFirestore, useCollection, useAuth, useUser } from '@/firebase';
 import { collection, query, orderBy, limit } from 'firebase/firestore';
-import { Badge } from '@/components/ui/badge';
 import { 
   BarChart, 
   Bar, 
@@ -33,9 +32,8 @@ export default function AdminDashboard() {
     setMounted(true);
   }, []);
 
-  // Skill-based stability: Memoize query and only run when authenticated with the correct domain
   const feedbackQuery = useMemo(() => {
-    if (!firestore || !user || !user.email?.endsWith('@iworldnetworks.net')) return null;
+    if (!firestore || !user || !user.emailVerified || !user.email?.endsWith('@iworldnetworks.net')) return null;
     return query(collection(firestore, 'feedbacks'), orderBy('timestamp', 'desc'), limit(100));
   }, [firestore, user]);
 
@@ -158,38 +156,24 @@ export default function AdminDashboard() {
           <div className="bg-white p-6 md:p-8 border border-border whisper-shadow rounded-xl">
             <h3 className="font-mono text-[10px] uppercase mb-4 md:mb-8 font-bold">Live Customer Activity</h3>
             <div className="space-y-3">
-              {feedbacks?.map((item: any) => {
-                const isRisk = Object.values(item.ratings || {}).some((v: any) => Number(v) <= 2) || item.aiSentiment === 'negative';
-                const SentimentIcon = item.aiSentiment === 'positive' ? Smile : item.aiSentiment === 'negative' ? Frown : Meh;
-                const sentimentColor = item.aiSentiment === 'positive' ? 'text-green-600' : item.aiSentiment === 'negative' ? 'text-red-600' : 'text-slate-400';
-
-                return (
-                  <div key={item.id} className="flex items-center justify-between py-2 md:py-3 border-b border-border last:border-0">
-                    <div className="flex items-center gap-3 md:gap-4">
-                      <div className="w-8 h-8 md:w-10 md:h-10 rounded-full bg-surface-container flex items-center justify-center">
-                        {item.category === 'Installation' ? <Wrench className="w-4 h-4 text-secondary" /> : <Activity className="w-4 h-4 text-secondary" />}
-                      </div>
-                      <div>
-                        <div className="flex items-center gap-2">
-                          <p className="text-xs md:text-base font-bold truncate max-w-[100px] md:max-w-none uppercase">{item.customerName || 'Subscriber'}</p>
-                          <SentimentIcon className={cn("w-3 h-3", sentimentColor)} />
-                        </div>
-                        <p className="font-mono text-[8px] md:text-[10px] text-on-surface-variant font-bold uppercase">{item.location} • {item.category}</p>
-                      </div>
+              {feedbacks?.map((item: any) => (
+                <div key={item.id} className="flex items-center justify-between py-2 md:py-3 border-b border-border last:border-0">
+                  <div className="flex items-center gap-3 md:gap-4">
+                    <div className="w-8 h-8 md:w-10 md:h-10 rounded-full bg-surface-container flex items-center justify-center">
+                      {item.category === 'Installation' ? <Wrench className="w-4 h-4 text-secondary" /> : <Activity className="w-4 h-4 text-secondary" />}
                     </div>
-                    <div className="flex flex-col md:flex-row items-end md:items-center gap-1 md:gap-3 text-right">
-                      {isRisk && (
-                        <Badge variant="destructive" className="animate-pulse flex gap-1 items-center bg-destructive text-white rounded-full text-[8px] px-1 md:px-2 py-0 font-bold uppercase">
-                          <AlertCircle className="w-2 h-2" /> Attention Required
-                        </Badge>
-                      )}
-                      <span className="font-mono text-[8px] md:text-[10px] font-bold text-on-surface-variant uppercase">
-                        {mounted ? new Date(item.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '--:--'}
-                      </span>
+                    <div>
+                      <p className="text-xs md:text-base font-bold truncate max-w-[100px] md:max-w-none uppercase">{item.customerName || 'Subscriber'}</p>
+                      <p className="font-mono text-[8px] md:text-[10px] text-on-surface-variant font-bold uppercase">{item.location} • {item.category}</p>
                     </div>
                   </div>
-                );
-              })}
+                  <div className="flex flex-col md:flex-row items-end md:items-center gap-1 md:gap-3 text-right">
+                    <span className="font-mono text-[8px] md:text-[10px] font-bold text-on-surface-variant uppercase">
+                      {mounted ? new Date(item.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '--:--'}
+                    </span>
+                  </div>
+                </div>
+              ))}
               {(!feedbacks || feedbacks.length === 0) && !loading && (
                 <p className="text-center text-on-surface-variant py-8 md:py-12 font-mono text-[10px] font-bold uppercase">No activity recorded yet.</p>
               )}

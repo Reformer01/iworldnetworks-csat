@@ -19,7 +19,7 @@ export default function AdminTestimonials() {
   const { user } = useUser(auth);
 
   const testimonialQuery = useMemo(() => {
-    if (!firestore || !user) return null;
+    if (!firestore || !user || !user.emailVerified || !user.email?.endsWith('@iworldnetworks.net')) return null;
     return query(collection(firestore, 'feedbacks'), where('category', '==', 'Testimonials'), orderBy('timestamp', 'desc'), limit(50));
   }, [firestore, user]);
 
@@ -40,10 +40,8 @@ export default function AdminTestimonials() {
     return testimonials.filter((t: any) => {
       const plan = t.servicePlan || '';
       if (filter === 'Home') {
-        // Residential plans start with 'H-'
         return plan.startsWith('H-');
       } else {
-        // Business plans start with 'U-'
         return plan.startsWith('U-');
       }
     });

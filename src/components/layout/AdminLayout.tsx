@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useEffect, useState } from 'react';
+import React, { useEffect } from 'react';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import { 
@@ -12,17 +12,14 @@ import {
   ArrowLeft,
   Menu,
   LogOut,
-  Sparkles,
-  Loader2,
   Activity
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 import Image from 'next/image';
 import { PlaceHolderImages } from '@/lib/placeholder-images';
-import { useAuth, useUser, useFirestore, useCollection } from '@/firebase';
+import { useAuth, useUser } from '@/firebase';
 import { signOut } from 'firebase/auth';
-import { collection, query, orderBy, limit } from 'firebase/firestore';
 import {
   Sheet,
   SheetContent,
@@ -30,14 +27,6 @@ import {
   SheetTitle,
   SheetTrigger,
 } from "@/components/ui/sheet";
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogDescription,
-} from "@/components/ui/dialog";
-import { generateReportExecutiveSummary } from '@/ai/flows/generate-report-executive-summary-flow';
 
 interface AdminLayoutProps {
   children: React.ReactNode;
@@ -47,21 +36,8 @@ export function AdminLayout({ children }: AdminLayoutProps) {
   const pathname = usePathname();
   const router = useRouter();
   const auth = useAuth();
-  const firestore = useFirestore();
   const { user, loading } = useUser(auth);
   const avatar = PlaceHolderImages.find(img => img.id === 'admin-avatar')!;
-
-  const [reportOpen, setReportOpen] = useState(false);
-  const [isGenerating, setIsGenerating] = useState(false);
-  const [aiReport, setAiReport] = useState<string | null>(null);
-
-  const feedbackQuery = React.useMemo(() => 
-    firestore && user && user.email?.endsWith('@iworldnetworks.net') 
-      ? query(collection(firestore, 'feedbacks'), orderBy('timestamp', 'desc'), limit(50)) 
-      : null,
-  [firestore, user]);
-  
-  const { data: recentFeedbacks } = useCollection(feedbackQuery);
 
   useEffect(() => {
     if (!loading && !user) {
@@ -73,32 +49,6 @@ export function AdminLayout({ children }: AdminLayoutProps) {
     if (auth) {
       await signOut(auth);
       router.push('/admin/login');
-    }
-  };
-
-  const handleGenerateReport = async () => {
-    if (!recentFeedbacks || recentFeedbacks.length === 0) return;
-    
-    setIsGenerating(true);
-    setReportOpen(true);
-    setAiReport(null);
-
-    try {
-      const dataStr = JSON.stringify(recentFeedbacks.map(f => ({
-        category: f.category,
-        location: f.location,
-        ratings: f.ratings,
-        comment: f.comment,
-        sentiment: f.aiSentiment
-      })));
-
-      const result = await generateReportExecutiveSummary({ operationalData: dataStr });
-      setAiReport(result.summary);
-    } catch (err) {
-      console.error('Report generation failed', err);
-      setAiReport("Failed to generate executive summary. Please check system logs.");
-    } finally {
-      setIsGenerating(false);
     }
   };
 
@@ -206,10 +156,6 @@ export function AdminLayout({ children }: AdminLayoutProps) {
                       <ArrowLeft className="w-4 h-4" />
                       Back to Public Portal
                     </Link>
-                    <Button onClick={handleGenerateReport} className="w-full bg-secondary text-white py-6 rounded-xl font-mono text-[10px] flex items-center justify-center gap-3 uppercase tracking-widest font-bold">
-                      <Sparkles className="w-4 h-4" />
-                      Generate AI Report
-                    </Button>
                   </div>
                 </div>
               </SheetContent>
@@ -240,12 +186,6 @@ export function AdminLayout({ children }: AdminLayoutProps) {
             </Link>
           ))}
         </nav>
-        <div className="px-8 mt-auto flex flex-col gap-4">
-          <Button onClick={handleGenerateReport} className="w-full bg-secondary text-white py-6 rounded-lg font-mono text-[12px] uppercase tracking-wider hover:bg-secondary-container transition-colors flex items-center justify-center gap-2 font-bold">
-            <Sparkles className="w-4 h-4" />
-            Generate AI Report
-          </Button>
-        </div>
       </aside>
 
       <main className="md:ml-64 pt-20 md:pt-24 px-margin-mobile md:px-margin-desktop flex-1">
@@ -277,41 +217,6 @@ export function AdminLayout({ children }: AdminLayoutProps) {
           </div>
         </div>
       </footer>
-
-      <Dialog open={reportOpen} onOpenChange={setReportOpen}>
-        <DialogContent className="max-w-3xl max-h-[80vh] overflow-y-auto">
-          <DialogHeader>
-            <DialogTitle className="font-display text-2xl font-bold flex items-center gap-3">
-              <Sparkles className="text-secondary w-6 h-6" />
-              Executive AI Summary
-            </DialogTitle>
-            <DialogDescription className="font-mono text-[10px] uppercase font-bold">
-              Strategic analysis based on recent operational data
-            </DialogDescription>
-          </DialogHeader>
-          
-          <div className="py-8">
-            {isGenerating ? (
-              <div className="flex flex-col items-center justify-center py-12 gap-6 text-center">
-                <Loader2 className="w-12 h-12 text-secondary animate-spin" />
-                <p className="font-mono text-[12px] uppercase animate-pulse font-bold">Gathering regional intelligence...</p>
-              </div>
-            ) : (
-              <div className="prose prose-sm max-w-none">
-                <div className="bg-surface-container-low p-8 rounded-2xl border border-border whitespace-pre-wrap font-body text-body-md leading-relaxed text-primary">
-                  {aiReport}
-                </div>
-              </div>
-            )}
-          </div>
-          
-          <div className="flex justify-end pt-4 border-t border-border">
-            <Button onClick={() => setReportOpen(false)} className="bg-primary text-white px-8 rounded-full font-mono text-[10px] uppercase font-bold">
-              Dismiss
-            </Button>
-          </div>
-        </DialogContent>
-      </Dialog>
     </div>
   );
 }

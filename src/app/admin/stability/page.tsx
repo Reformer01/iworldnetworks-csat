@@ -2,7 +2,7 @@
 
 import React, { useMemo } from 'react';
 import { AdminLayout } from '@/components/layout/AdminLayout';
-import { Activity, ArrowDown, Zap, ShieldCheck, Globe } from 'lucide-react';
+import { Activity, ArrowDown } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useFirestore, useCollection, useAuth, useUser } from '@/firebase';
 import { collection, query, where, orderBy, limit } from 'firebase/firestore';
@@ -21,9 +21,8 @@ export default function AdminStability() {
   const auth = useAuth();
   const { user } = useUser(auth);
 
-  // 1. Fetch Reliability Feedbacks
   const reliabilityQuery = useMemo(() => {
-    if (!firestore || !user) return null;
+    if (!firestore || !user || !user.emailVerified || !user.email?.endsWith('@iworldnetworks.net')) return null;
     return query(
       collection(firestore, 'feedbacks'), 
       where('category', '==', 'Reliability'),
@@ -34,17 +33,13 @@ export default function AdminStability() {
 
   const { data: feedbacks, loading } = useCollection(reliabilityQuery);
 
-  // 2. Derive Metrics
   const metrics = useMemo(() => {
     if (!feedbacks || feedbacks.length === 0) return { uptime: '99.98', latency: '14', loss: '0.02' };
     
     const avgStability = feedbacks.reduce((acc, f: any) => acc + Number(f.ratings?.stability || 5), 0) / feedbacks.length;
     const avgLatency = feedbacks.reduce((acc, f: any) => acc + Number(f.ratings?.latency || 5), 0) / feedbacks.length;
     
-    // Scale ratings to plausible telemetry numbers
-    // 5/5 stability -> 99.99% uptime
     const uptimeIndex = (99.0 + (avgStability / 5)).toFixed(2);
-    // 5/5 latency -> 12ms, 1/5 latency -> 60ms
     const latencyVal = Math.round(70 - (avgLatency * 11));
     
     return {
@@ -54,7 +49,6 @@ export default function AdminStability() {
     };
   }, [feedbacks]);
 
-  // 3. Prepare Chart Data (Mocking a timeline from real data points)
   const chartData = useMemo(() => {
     if (!feedbacks) return [];
     return feedbacks.slice(0, 20).reverse().map((f: any, i) => ({
@@ -64,7 +58,6 @@ export default function AdminStability() {
     }));
   }, [feedbacks]);
 
-  // 4. Regional Health
   const nodeHealth = useMemo(() => {
     const regions = ['Lagos', 'Ibadan', 'Akure', 'Osogbo'];
     return regions.map(region => {

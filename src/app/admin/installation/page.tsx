@@ -31,7 +31,7 @@ export default function AdminInstallation() {
   ];
 
   const installFeedbackQuery = useMemo(() => {
-    if (!firestore || !user) return null;
+    if (!firestore || !user || !user.emailVerified || !user.email?.endsWith('@iworldnetworks.net')) return null;
     return query(collection(firestore, 'feedbacks'), where('category', '==', 'Installation'), orderBy('timestamp', 'desc'), limit(500));
   }, [firestore, user]);
 

@@ -2,9 +2,8 @@
 
 import React, { useEffect, useState, useMemo } from 'react';
 import { AdminLayout } from '@/components/layout/AdminLayout';
-import { Clock, ShieldCheck, Brain, ArrowDown, Zap } from 'lucide-react';
+import { Clock, ShieldCheck, Brain, Zap } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import { Button } from '@/components/ui/button';
 import { useFirestore, useCollection, useAuth, useUser } from '@/firebase';
 import { collection, query, orderBy, limit } from 'firebase/firestore';
 import { 
@@ -24,7 +23,7 @@ export default function AdminSupport() {
   const { user } = useUser(auth);
 
   const feedbackQuery = useMemo(() => {
-    if (!firestore || !user) return null;
+    if (!firestore || !user || !user.emailVerified || !user.email?.endsWith('@iworldnetworks.net')) return null;
     return query(collection(firestore, 'feedbacks'), orderBy('timestamp', 'desc'), limit(500));
   }, [firestore, user]);
 

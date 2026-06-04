@@ -25,7 +25,7 @@ export default function AdminBilling() {
   const { user } = useUser(auth);
 
   const feedbackQuery = useMemo(() => {
-    if (!firestore || !user) return null;
+    if (!firestore || !user || !user.emailVerified || !user.email?.endsWith('@iworldnetworks.net')) return null;
     return query(collection(firestore, 'feedbacks'), orderBy('timestamp', 'desc'), limit(500));
   }, [firestore, user]);
 
