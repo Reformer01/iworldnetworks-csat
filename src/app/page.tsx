@@ -22,6 +22,8 @@ import { Label } from '@/components/ui/label';
 import { useFirestore } from '@/firebase';
 import { collection, addDoc } from 'firebase/firestore';
 import { useToast } from '@/hooks/use-toast';
+import { errorEmitter } from '@/firebase/error-emitter';
+import { FirestorePermissionError } from '@/firebase/errors';
 
 type Category = 'Reliability' | 'Support' | 'Testimonials' | 'Installation' | 'Billing';
 
@@ -124,35 +126,40 @@ export default function LandingPage() {
       status: 'pending'
     };
 
-    try {
-      const feedbackRef = collection(firestore, 'feedbacks');
-      // No await here for optimistic responsiveness as per guidelines
-      addDoc(feedbackRef, feedbackData)
-        .then(() => {
-          setIsSubmitted(true);
-          toast({
-            title: "Report Received",
-            description: "Thank you for helping us improve I-World Networks.",
+    const feedbackRef = collection(firestore, 'feedbacks');
+    addDoc(feedbackRef, feedbackData)
+      .then(() => {
+        setIsSubmitted(true);
+        toast({
+          title: "Report Received",
+          description: "Thank you for helping us improve I-World Networks.",
+        });
+        setTimeout(() => {
+          setIsSubmitted(false);
+          setRatings({});
+          setFormData({ ...formData, comment: '', customerEmail: '', customerName: '' });
+        }, 3000);
+      })
+      .catch(async (serverError) => {
+        // Only emit if it's a persistent error, otherwise toast it
+        if (serverError.code === 'permission-denied') {
+          const permissionError = new FirestorePermissionError({
+            path: 'feedbacks',
+            operation: 'create',
+            requestResourceData: feedbackData,
           });
-          setTimeout(() => {
-            setIsSubmitted(false);
-            setRatings({});
-            setFormData({ ...formData, comment: '', customerEmail: '', customerName: '' });
-          }, 3000);
-        })
-        .catch((err) => {
-          console.error("Submission failed", err);
+          errorEmitter.emit('permission-error', permissionError);
+        } else {
           toast({
             variant: "destructive",
             title: "Submission Error",
-            description: "We couldn't save your report. Please ensure your email is valid and try again.",
+            description: "We couldn't save your report. Please try again.",
           });
-        });
-    } catch (err) {
-       console.error('Logic failed', err);
-    } finally {
-      setIsSubmitting(false);
-    }
+        }
+      })
+      .finally(() => {
+        setIsSubmitting(false);
+      });
   };
 
   const renderRatingGroup = (id: string, label: string, description: string) => (

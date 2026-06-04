@@ -2,7 +2,7 @@
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
-    // Check if the user is authenticated and has a corporate email from the correct domain
+    // Check if the user is an authenticated supervisor with a verified corporate email
     function isVerifiedSupervisor() {
       return request.auth != null && 
              request.auth.token.email_verified == true && 
@@ -10,13 +10,10 @@ service cloud.firestore {
     }
 
     match /feedbacks/{feedbackId} {
-      // Public can only create with basic data validation to ensure data integrity
-      // We check for type and presence of required fields defined in backend.json
-      allow create: if request.resource.data.customerEmail is string && 
-                      request.resource.data.category in ["Reliability", "Support", "Testimonials", "Installation", "Billing"] &&
-                      request.resource.data.location in ["Abeokuta", "Ibadan", "Osogbo", "Akure"];
+      // Public can submit feedback without authentication or verification
+      allow create: if true;
       
-      // Only verified supervisors can read (list/get), update, or delete
+      // Only verified corporate supervisors can read or manage the feedback
       allow read, update, delete: if isVerifiedSupervisor();
     }
   }

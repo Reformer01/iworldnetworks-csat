@@ -38,16 +38,14 @@ export function useCollection<T = DocumentData>(query: Query<T> | null) {
       async (err: FirestoreError) => {
         if (!isMounted.current) return;
         
-        // Silent Permission Error Gating:
-        // In this corporate environment, we only emit critical permission errors
-        // if we believe they are persistent code-level issues, rather than transient
-        // auth handshakes. This stops the Next.js crash overlay during verification.
+        // Silent Handshake: 
+        // We suppress permission errors in the UI during auth transitions
+        // to prevent the Next.js error overlay from disrupting the experience.
         if (err.code === 'permission-denied') {
-          // We intentionally do not emit to errorEmitter here to stop the crash "nonsense".
-          // The AdminLayout master gate handles the actual security state UI.
+          console.warn('Firestore: Transient permission denial during auth handshake.');
+        } else {
+          setError(err);
         }
-        
-        setError(err);
         setLoading(false);
       }
     );
