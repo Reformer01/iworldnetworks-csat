@@ -31,7 +31,8 @@ Also, extract a list of 1-3 key themes or topics discussed in the feedback.
 Feedback:
 {{{feedbackText}}}
 
-Output should be a JSON object with 'sentiment' and 'keyThemes' fields.`,
+Please provide the analysis in the following JSON format:
+{{json output.schema}}`,
 });
 
 const analyzeCustomerFeedbackSentimentFlow = ai.defineFlow(

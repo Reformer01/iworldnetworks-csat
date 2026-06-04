@@ -22,7 +22,6 @@ export function useCollection<T = DocumentData>(query: Query<T> | null) {
 
     setLoading(true);
     
-    // We wrap the unsubscribe to ensure we don't call it if setup fails
     let unsubscribe: (() => void) | undefined;
 
     try {
@@ -41,7 +40,6 @@ export function useCollection<T = DocumentData>(query: Query<T> | null) {
         async (err) => {
           if (!isMounted.current) return;
           
-          // Only emit permission errors if it's actually a permission issue
           if (err.code === 'permission-denied') {
             const permissionError = new FirestorePermissionError({
               path: (query as any)._query?.path?.toString() || 'unknown',

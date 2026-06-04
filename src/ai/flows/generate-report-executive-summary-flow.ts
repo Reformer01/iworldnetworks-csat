@@ -27,8 +27,8 @@ const generateReportExecutiveSummaryPrompt = ai.definePrompt({
   name: 'generateReportExecutiveSummaryPrompt',
   input: { schema: GenerateReportExecutiveSummaryInputSchema },
   output: { schema: GenerateReportExecutiveSummaryOutputSchema },
-  prompt: `You are an expert business analyst specializing in operational efficiency and strategic recommendations.
-Your task is to analyze the provided operational data, condense it into a clear and concise executive summary, highlighting critical trends and suggesting actionable recommendations.
+  prompt: `You are an expert business analyst specializing in operational efficiency and strategic recommendations for a Nigerian Fiber ISP.
+Your task is to analyze the provided operational feedback data, condense it into a professional executive summary, highlight critical regional trends, and suggest actionable recommendations for 2026.
 
 Operational Data:
 {{{operationalData}}}

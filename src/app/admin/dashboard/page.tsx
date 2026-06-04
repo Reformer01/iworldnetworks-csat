@@ -34,7 +34,7 @@ export default function AdminDashboard() {
   }, []);
 
   const feedbackQuery = useMemo(() => {
-    // Only query if user is actually authenticated to prevent permission errors
+    // Only query if user is actually authenticated to prevent permission errors during session init
     if (!firestore || !user) return null;
     return query(collection(firestore, 'feedbacks'), orderBy('timestamp', 'desc'), limit(100));
   }, [firestore, user]);

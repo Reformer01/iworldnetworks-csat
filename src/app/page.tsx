@@ -140,7 +140,15 @@ export default function LandingPage() {
 
       // 3. Save to Firestore
       const feedbackRef = collection(firestore, 'feedbacks');
-      await addDoc(feedbackRef, feedbackData);
+      addDoc(feedbackRef, feedbackData)
+        .catch(async (serverError) => {
+          const permissionError = new FirestorePermissionError({
+            path: 'feedbacks',
+            operation: 'create',
+            requestResourceData: feedbackData,
+          });
+          errorEmitter.emit('permission-error', permissionError);
+        });
 
       setIsSubmitted(true);
       setTimeout(() => {
@@ -148,12 +156,8 @@ export default function LandingPage() {
         setRatings({});
         setFormData({ ...formData, comment: '', customerEmail: '', customerName: '' });
       }, 3000);
-    } catch (serverError) {
-      const permissionError = new FirestorePermissionError({
-        path: 'feedbacks',
-        operation: 'create',
-      });
-      errorEmitter.emit('permission-error', permissionError);
+    } catch (err) {
+       console.error('Submission logic failed', err);
     } finally {
       setIsSubmitting(false);
     }
