@@ -1,3 +1,4 @@
+
 'use client';
 
 import React, { useMemo } from 'react';
@@ -6,7 +7,7 @@ import { Timer, MonitorSmartphone, CircleCheck } from 'lucide-react';
 import Image from 'next/image';
 import { PlaceHolderImages } from '@/lib/placeholder-images';
 import { cn } from '@/lib/utils';
-import { useFirestore, useCollection } from '@/firebase';
+import { useFirestore, useCollection, useAuth, useUser } from '@/firebase';
 import { collection, query, orderBy, limit } from 'firebase/firestore';
 import { 
   BarChart, 
@@ -21,8 +22,14 @@ import {
 export default function AdminBilling() {
   const serverImg = PlaceHolderImages.find(img => img.id === 'infra-status')!;
   const firestore = useFirestore();
+  const auth = useAuth();
+  const { user } = useUser(auth);
 
-  const feedbackQuery = useMemo(() => firestore ? query(collection(firestore, 'feedbacks'), orderBy('timestamp', 'desc'), limit(500)) : null, [firestore]);
+  const feedbackQuery = useMemo(() => {
+    if (!firestore || !user) return null;
+    return query(collection(firestore, 'feedbacks'), orderBy('timestamp', 'desc'), limit(500));
+  }, [firestore, user]);
+
   const { data: feedbacks } = useCollection(feedbackQuery);
 
   const stats = useMemo(() => {
@@ -141,6 +148,7 @@ export default function AdminBilling() {
               src={serverImg.imageUrl} 
               alt="Server Room" 
               fill 
+              sizes="(max-width: 768px) 100vw, (max-width: 1200px) 33vw, 25vw"
               className="object-cover transition-transform duration-700 group-hover:scale-110"
               data-ai-hint="data center"
             />

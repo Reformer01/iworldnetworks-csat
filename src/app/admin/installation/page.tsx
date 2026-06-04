@@ -1,3 +1,4 @@
+
 'use client';
 
 import React, { useMemo } from 'react';
@@ -7,14 +8,14 @@ import Image from 'next/image';
 import { PlaceHolderImages } from '@/lib/placeholder-images';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
-import { useFirestore, useCollection } from '@/firebase';
+import { useFirestore, useCollection, useAuth, useUser } from '@/firebase';
 import { collection, query, orderBy, limit, where } from 'firebase/firestore';
 
 export default function AdminInstallation() {
   const networkMap = PlaceHolderImages.find(img => img.id === 'network-map')!;
   const firestore = useFirestore();
-
-  const validRegions = ['Abeokuta', 'Ibadan', 'Osogbo', 'Akure'];
+  const auth = useAuth();
+  const { user } = useUser(auth);
 
   const techsRoster = [
     { name: "Lukmon Obasa", region: "Akure" },
@@ -30,7 +31,10 @@ export default function AdminInstallation() {
     { name: "Mubarak Raji", region: "Osogbo" }
   ];
 
-  const installFeedbackQuery = useMemo(() => firestore ? query(collection(firestore, 'feedbacks'), where('category', '==', 'Installation'), orderBy('timestamp', 'desc'), limit(500)) : null, [firestore]);
+  const installFeedbackQuery = useMemo(() => {
+    if (!firestore || !user) return null;
+    return query(collection(firestore, 'feedbacks'), where('category', '==', 'Installation'), orderBy('timestamp', 'desc'), limit(500));
+  }, [firestore, user]);
 
   const { data: installFeedback } = useCollection(installFeedbackQuery);
 
@@ -115,7 +119,14 @@ export default function AdminInstallation() {
             </div>
           </div>
           <div className="flex-1 relative overflow-hidden rounded-lg bg-surface-container-low group">
-            <Image src={networkMap.imageUrl} alt="Network Map" fill className="object-cover grayscale contrast-[1.1] opacity-40 mix-blend-multiply transition-transform duration-1000 group-hover:scale-105" data-ai-hint="network map" />
+            <Image 
+              src={networkMap.imageUrl} 
+              alt="Network Map" 
+              fill 
+              sizes="(max-width: 768px) 100vw, 50vw"
+              className="object-cover grayscale contrast-[1.1] opacity-40 mix-blend-multiply transition-transform duration-1000 group-hover:scale-105" 
+              data-ai-hint="network map" 
+            />
             
             {/* Visual Markers */}
             <div className="absolute top-1/4 left-1/4 group cursor-pointer">

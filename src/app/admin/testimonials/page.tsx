@@ -1,3 +1,4 @@
+
 'use client';
 
 import React, { useState, useMemo } from 'react';
@@ -7,7 +8,7 @@ import Image from 'next/image';
 import { PlaceHolderImages } from '@/lib/placeholder-images';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
-import { useFirestore, useCollection } from '@/firebase';
+import { useFirestore, useCollection, useAuth, useUser } from '@/firebase';
 import { collection, query, where, orderBy, limit } from 'firebase/firestore';
 
 export default function AdminTestimonials() {
@@ -15,8 +16,14 @@ export default function AdminTestimonials() {
   const [copiedId, setCopiedId] = useState<string | null>(null);
   const workspaceImg = PlaceHolderImages.find(img => img.id === 'workspace')!;
   const firestore = useFirestore();
+  const auth = useAuth();
+  const { user } = useUser(auth);
 
-  const testimonialQuery = useMemo(() => firestore ? query(collection(firestore, 'feedbacks'), where('category', '==', 'Testimonials'), orderBy('timestamp', 'desc'), limit(50)) : null, [firestore]);
+  const testimonialQuery = useMemo(() => {
+    if (!firestore || !user) return null;
+    return query(collection(firestore, 'feedbacks'), where('category', '==', 'Testimonials'), orderBy('timestamp', 'desc'), limit(50));
+  }, [firestore, user]);
+
   const { data: testimonials } = useCollection(testimonialQuery);
 
   const stats = useMemo(() => {
@@ -114,7 +121,13 @@ export default function AdminTestimonials() {
             </div>
           </div>
           <div className="relative h-64 rounded-xl overflow-hidden">
-            <Image src={workspaceImg.imageUrl} alt="Workspace" fill className="object-cover grayscale brightness-75" />
+            <Image 
+              src={workspaceImg.imageUrl} 
+              alt="Workspace" 
+              fill 
+              sizes="(max-width: 768px) 100vw, 33vw"
+              className="object-cover grayscale brightness-75" 
+            />
             <div className="absolute inset-0 flex items-center justify-center bg-primary/20 p-8 text-center">
               <p className="text-white font-mono text-xs uppercase font-bold">Story Management: 2026</p>
             </div>

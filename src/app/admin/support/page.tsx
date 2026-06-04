@@ -6,7 +6,7 @@ import { AdminLayout } from '@/components/layout/AdminLayout';
 import { Clock, ShieldCheck, Brain, ArrowDown, Zap } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
-import { useFirestore, useCollection } from '@/firebase';
+import { useFirestore, useCollection, useAuth, useUser } from '@/firebase';
 import { collection, query, orderBy, limit } from 'firebase/firestore';
 import { 
   AreaChart, 
@@ -21,8 +21,14 @@ import {
 export default function AdminSupport() {
   const [barsAnimated, setBarsAnimated] = useState(false);
   const firestore = useFirestore();
+  const auth = useAuth();
+  const { user } = useUser(auth);
 
-  const feedbackQuery = useMemo(() => firestore ? query(collection(firestore, 'feedbacks'), orderBy('timestamp', 'desc'), limit(500)) : null, [firestore]);
+  const feedbackQuery = useMemo(() => {
+    if (!firestore || !user) return null;
+    return query(collection(firestore, 'feedbacks'), orderBy('timestamp', 'desc'), limit(500));
+  }, [firestore, user]);
+
   const { data: feedbacks } = useCollection(feedbackQuery);
 
   const stats = useMemo(() => {

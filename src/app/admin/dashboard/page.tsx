@@ -7,7 +7,7 @@ import { TrendingUp, Wrench, AlertCircle, Activity, Smile, Frown, Meh } from 'lu
 import Image from 'next/image';
 import { PlaceHolderImages } from '@/lib/placeholder-images';
 import { cn } from '@/lib/utils';
-import { useFirestore, useCollection } from '@/firebase';
+import { useFirestore, useCollection, useAuth, useUser } from '@/firebase';
 import { collection, query, orderBy, limit } from 'firebase/firestore';
 import { Badge } from '@/components/ui/badge';
 import { 
@@ -27,15 +27,17 @@ export default function AdminDashboard() {
   const [mounted, setMounted] = useState(false);
   const infraImg = PlaceHolderImages.find(img => img.id === 'infra-status')!;
   const firestore = useFirestore();
+  const auth = useAuth();
+  const { user } = useUser(auth);
 
   useEffect(() => {
     setMounted(true);
   }, []);
 
   const feedbackQuery = useMemo(() => {
-    if (!firestore) return null;
+    if (!firestore || !user) return null;
     return query(collection(firestore, 'feedbacks'), orderBy('timestamp', 'desc'), limit(100));
-  }, [firestore]);
+  }, [firestore, user]);
 
   const { data: feedbacks, loading } = useCollection(feedbackQuery);
 
@@ -225,7 +227,14 @@ export default function AdminDashboard() {
           </div>
 
           <div className="rounded-xl overflow-hidden h-[150px] md:h-64 whisper-shadow relative group">
-            <Image src={infraImg.imageUrl} alt="Infrastructure" fill className="object-cover grayscale brightness-90 group-hover:grayscale-0 transition-all duration-700" data-ai-hint="data center" />
+            <Image 
+              src={infraImg.imageUrl} 
+              alt="Infrastructure" 
+              fill 
+              sizes="(max-width: 768px) 100vw, (max-width: 1200px) 33vw, 25vw"
+              className="object-cover grayscale brightness-90 group-hover:grayscale-0 transition-all duration-700" 
+              data-ai-hint="data center" 
+            />
             <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent flex flex-col justify-end p-4 md:p-6">
               <p className="text-white font-display text-base md:text-[20px] font-bold uppercase">Regional Status</p>
               <span className="text-white font-mono text-[8px] md:text-[10px] uppercase tracking-widest opacity-80 font-bold">Monitoring Active</span>
