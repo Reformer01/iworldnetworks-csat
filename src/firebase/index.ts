@@ -1,4 +1,3 @@
-
 'use client';
 
 import { initializeApp, getApps, getApp, FirebaseApp } from 'firebase/app';
@@ -7,6 +6,10 @@ import { getAuth, Auth } from 'firebase/auth';
 import { getStorage, FirebaseStorage } from 'firebase/storage';
 import { firebaseConfig } from './config';
 
+/**
+ * Initializes the Firebase app and service instances.
+ * Ensures that initialization is idempotent.
+ */
 export function initializeFirebase(): {
   firebaseApp: FirebaseApp;
   firestore: Firestore;
