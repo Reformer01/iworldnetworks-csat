@@ -1,3 +1,4 @@
+
 'use client';
 
 import React, { useState } from 'react';
@@ -170,7 +171,7 @@ export default function LandingPage() {
       <main className="pt-24 md:pt-32 pb-24">
         <section className="px-margin-mobile md:px-margin-desktop max-w-container-max mx-auto grid grid-cols-1 lg:grid-cols-12 gap-gutter mb-24">
           <div className="lg:col-span-7">
-            <h1 className="font-display text-4xl md:text-display-lg mb-6 leading-tight flex flex-wrap items-center">
+            <h1 className="font-display text-[40px] md:text-display-lg mb-6 leading-tight flex flex-wrap items-center">
               {heroContent[activeCategory].title}
             </h1>
             <p className="text-on-surface-variant text-sm md:text-body-lg mb-8 max-w-lg">
@@ -219,10 +220,10 @@ export default function LandingPage() {
                   <div className="space-y-1">
                     <label className="font-mono text-[10px] uppercase text-on-surface-variant">Service Plan</label>
                     <select className="w-full bg-transparent border-b border-border py-2 outline-none cursor-pointer" value={formData.servicePlan} onChange={e => setFormData({...formData, servicePlan: e.target.value})}>
-                      <optgroup label="Residential (Home)">
+                      <optgroup label="Residential (H-Series)">
                         {residentialPlans.map(plan => <option key={plan} value={plan}>{plan}</option>)}
                       </optgroup>
-                      <optgroup label="Business (Corporate)">
+                      <optgroup label="Business (U-Series)">
                         {businessPlans.map(plan => <option key={plan} value={plan}>{plan}</option>)}
                       </optgroup>
                     </select>

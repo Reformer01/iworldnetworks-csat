@@ -1,3 +1,4 @@
+
 'use client';
 
 import React, { useEffect } from 'react';
@@ -77,15 +78,14 @@ export function AdminLayout({ children }: AdminLayoutProps) {
 
   return (
     <div className="bg-background min-h-screen flex flex-col">
-      {/* Top Bar */}
       <header className="fixed top-0 w-full z-50 glass-nav px-margin-mobile md:px-margin-desktop h-16 md:h-20 flex justify-between items-center max-w-container-max mx-auto left-0 right-0 border-b border-border">
         <div className="flex items-center gap-3 md:gap-6">
-          <Link href="/" className="font-mono text-sm md:text-base font-bold text-primary uppercase tracking-tight">
+          <Link href="/" className="font-mono text-sm font-bold text-primary uppercase tracking-tight">
             I-World Networks
           </Link>
-          <div className="h-6 md:h-8 w-px bg-border hidden sm:block"></div>
-          <Link href="/" className="hidden sm:flex items-center gap-2 text-on-surface-variant font-mono text-[10px] md:text-xs hover:text-secondary transition-all group">
-            <ArrowLeft className="w-3 h-3 md:w-4 md:h-4 group-hover:-translate-x-1 transition-transform" />
+          <div className="h-6 w-px bg-border hidden sm:block"></div>
+          <Link href="/" className="hidden sm:flex items-center gap-2 text-on-surface-variant font-mono text-[10px] hover:text-secondary transition-all group">
+            <ArrowLeft className="w-3 h-3 group-hover:-translate-x-1 transition-transform" />
             Public Portal
           </Link>
         </div>
@@ -93,24 +93,23 @@ export function AdminLayout({ children }: AdminLayoutProps) {
         <div className="flex items-center gap-2 md:gap-6">
           <div className="hidden md:flex gap-8 items-center mr-6">
              <Link href="/admin/dashboard" className={cn(
-              "font-mono text-label-mono transition-all",
-              pathname.startsWith('/admin') ? "text-secondary border-b-2 border-secondary pb-1" : "text-on-surface-variant hover:text-secondary"
+              "font-mono text-[12px] uppercase tracking-wider transition-all",
+              pathname.startsWith('/admin') ? "text-secondary font-bold" : "text-on-surface-variant hover:text-secondary"
             )}>
               Admin Hub
             </Link>
           </div>
           <div className="hidden xs:flex items-center gap-4">
-            <Bell className="w-4 h-4 md:w-5 md:h-5 text-on-surface-variant cursor-pointer hover:text-primary transition-colors" />
-            <Settings className="w-4 h-4 md:w-5 md:h-5 text-on-surface-variant cursor-pointer hover:text-primary transition-colors" />
+            <Bell className="w-4 h-4 text-on-surface-variant cursor-pointer hover:text-primary transition-colors" />
+            <Settings className="w-4 h-4 text-on-surface-variant cursor-pointer hover:text-primary transition-colors" />
             <button onClick={handleLogout} className="group flex items-center gap-2 text-on-surface-variant hover:text-destructive transition-colors">
-              <LogOut className="w-4 h-4 md:w-5 md:h-5 group-hover:rotate-12 transition-transform" />
+              <LogOut className="w-4 h-4 group-hover:rotate-12 transition-transform" />
             </button>
           </div>
-          <div className="w-7 h-7 md:w-10 md:h-10 rounded-full overflow-hidden border border-border">
+          <div className="w-8 h-8 md:w-10 md:h-10 rounded-full overflow-hidden border border-border">
             <Image src={avatar.imageUrl} alt="Admin" width={40} height={40} className="object-cover" />
           </div>
           
-          {/* Mobile Menu Trigger */}
           <div className="md:hidden ml-1">
             <Sheet>
               <SheetTrigger asChild>
@@ -165,7 +164,6 @@ export function AdminLayout({ children }: AdminLayoutProps) {
         </div>
       </header>
 
-      {/* Sidebar (Desktop only) */}
       <aside className="fixed left-0 top-0 h-full w-64 bg-background border-r border-border pt-24 pb-8 flex flex-col z-40 hidden md:flex">
         <div className="px-8 mb-12">
           <h2 className="font-mono text-sm font-bold text-primary uppercase tracking-tight">I-World Networks</h2>
@@ -196,12 +194,10 @@ export function AdminLayout({ children }: AdminLayoutProps) {
         </div>
       </aside>
 
-      {/* Content */}
       <main className="md:ml-64 pt-20 md:pt-24 px-margin-mobile md:px-margin-desktop flex-1">
         {children}
       </main>
 
-      {/* Footer */}
       <footer className="md:ml-64 bg-surface-bright border-t border-border py-8 md:py-12 relative z-50">
         <div className="max-w-container-max mx-auto px-margin-mobile md:px-margin-desktop flex flex-col md:flex-row justify-between items-start gap-8">
           <div className="space-y-4 text-center md:text-left">

@@ -1,3 +1,4 @@
+
 'use client';
 
 import Link from 'next/link';
@@ -18,7 +19,6 @@ export function PublicNavbar() {
         I-World Networks
       </Link>
       
-      {/* Desktop Menu */}
       <div className="hidden md:flex gap-8 items-center">
         <Link href="/" className="text-secondary border-b-2 border-secondary pb-1 font-mono text-label-mono">
           Public Portal
@@ -35,7 +35,6 @@ export function PublicNavbar() {
         </div>
       </div>
 
-      {/* Mobile Menu */}
       <div className="md:hidden">
         <Sheet>
           <SheetTrigger asChild>

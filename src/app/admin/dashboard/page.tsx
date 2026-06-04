@@ -1,3 +1,4 @@
+
 'use client';
 
 import React, { useMemo, useEffect, useState } from 'react';
@@ -84,14 +85,14 @@ export default function AdminDashboard() {
       <section className="mb-8 md:mb-12 flex flex-col md:flex-row justify-between items-start md:items-end gap-6">
         <div className="max-w-2xl">
           <p className="font-mono text-label-mono text-secondary mb-2 uppercase text-xs">Head of Hub: Gyang</p>
-          <h1 className="font-display text-2xl md:text-display-lg text-primary tracking-tight mb-2">Operational Overview</h1>
-          <p className="text-on-surface-variant font-body-md text-xs md:text-base">Real-time connection monitoring across regional hubs.</p>
+          <h1 className="font-display text-[32px] md:text-display-lg text-primary tracking-tight mb-2 font-bold">Operational Overview</h1>
+          <p className="text-on-surface-variant font-body-md text-sm md:text-base">Real-time connection monitoring across regional hubs.</p>
         </div>
         <div className="flex flex-wrap gap-4 items-center font-mono text-label-mono text-on-surface-variant">
-          <span className="flex items-center gap-2 bg-white px-3 md:px-4 py-1.5 md:py-2 rounded-full border border-border whisper-shadow text-[10px] md:text-xs">
+          <span className="flex items-center gap-2 bg-white px-3 md:px-4 py-1.5 md:py-2 rounded-full border border-border whisper-shadow text-[10px]">
             <span className="w-2 h-2 rounded-full bg-green-500"></span> Service Stable
           </span>
-          <span className="bg-white px-3 md:px-4 py-1.5 md:py-2 rounded-full border border-border whisper-shadow text-[10px] md:text-xs">
+          <span className="bg-white px-3 md:px-4 py-1.5 md:py-2 rounded-full border border-border whisper-shadow text-[10px]">
             {mounted ? new Date().toLocaleDateString('en-US', { month: 'short', day: '2-digit' }) + ', 2026' : '---'}
           </span>
         </div>
@@ -99,7 +100,7 @@ export default function AdminDashboard() {
 
       <section className="grid grid-cols-1 md:grid-cols-3 gap-4 md:gap-gutter mb-6 md:mb-gutter">
         <div className="bg-white p-6 md:p-8 border border-border whisper-shadow rounded-xl hover:scale-[1.02] transition-transform duration-300">
-          <p className="font-mono text-[10px] md:text-label-mono text-on-surface-variant uppercase mb-4">CSAT Index</p>
+          <p className="font-mono text-[10px] text-on-surface-variant uppercase mb-4">CSAT Index</p>
           <div className="flex items-baseline gap-2">
             <span className="font-mono text-4xl md:text-[56px] leading-none font-bold text-primary">{stats.csat}</span>
             <span className="font-mono text-xl md:text-display-xl text-primary">%</span>
@@ -111,7 +112,7 @@ export default function AdminDashboard() {
         </div>
 
         <div className="bg-white p-6 md:p-8 border border-border whisper-shadow rounded-xl hover:scale-[1.02] transition-transform duration-300">
-          <p className="font-mono text-[10px] md:text-label-mono text-on-surface-variant uppercase mb-4">Total Responses</p>
+          <p className="font-mono text-[10px] text-on-surface-variant uppercase mb-4">Total Responses</p>
           <div className="flex items-baseline gap-1">
             <span className="font-mono text-4xl md:text-[56px] leading-none font-bold text-primary">{stats.total}</span>
           </div>
@@ -119,12 +120,12 @@ export default function AdminDashboard() {
         </div>
 
         <div className="bg-white p-6 md:p-8 border border-border whisper-shadow rounded-xl hover:scale-[1.02] transition-transform duration-300">
-          <p className="font-mono text-[10px] md:text-label-mono text-on-surface-variant uppercase mb-4">Connection Uptime</p>
+          <p className="font-mono text-[10px] text-on-surface-variant uppercase mb-4">Connection Uptime</p>
           <div className="flex items-baseline gap-2">
             <span className="font-mono text-4xl md:text-[56px] leading-none font-bold text-secondary">99.8</span>
             <span className="font-mono text-xl md:text-display-xl text-secondary">%</span>
           </div>
-          <p className="mt-4 md:mt-6 text-on-surface-variant text-xs md:text-sm font-body-md">Connection consistency</p>
+          <p className="mt-4 md:mt-6 text-on-surface-variant text-xs md:text-sm font-body-md">Regional stability</p>
         </div>
       </section>
 
@@ -133,7 +134,7 @@ export default function AdminDashboard() {
           <div className="bg-white p-6 md:p-10 border border-border whisper-shadow rounded-xl min-h-[300px] md:h-[500px] flex flex-col">
             <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-6 md:mb-12">
               <div>
-                <h3 className="font-headline text-lg md:text-[24px] text-primary font-bold">Performance Trends</h3>
+                <h3 className="font-display text-lg md:text-[24px] text-primary font-bold">Performance Trends</h3>
                 <p className="text-on-surface-variant font-mono text-[10px] uppercase tracking-widest">Real-time Connection Activity</p>
               </div>
             </div>
@@ -154,7 +155,7 @@ export default function AdminDashboard() {
           </div>
 
           <div className="bg-white p-6 md:p-8 border border-border whisper-shadow rounded-xl">
-            <h3 className="font-mono text-[10px] md:text-label-mono uppercase mb-4 md:mb-8">Live Customer Activity</h3>
+            <h3 className="font-mono text-[10px] uppercase mb-4 md:mb-8">Live Customer Activity</h3>
             <div className="space-y-3">
               {feedbacks?.map((item: any) => {
                 const isRisk = Object.values(item.ratings || {}).some((v: any) => Number(v) <= 2);
@@ -162,17 +163,17 @@ export default function AdminDashboard() {
                   <div key={item.id} className="flex items-center justify-between py-2 md:py-3 border-b border-border last:border-0">
                     <div className="flex items-center gap-3 md:gap-4">
                       <div className="w-8 h-8 md:w-10 md:h-10 rounded-full bg-surface-container flex items-center justify-center">
-                        {item.category === 'Installation' ? <Wrench className="w-4 h-4 md:w-5 md:h-5 text-secondary" /> : <Activity className="w-4 h-4 md:w-5 md:h-5 text-secondary" />}
+                        {item.category === 'Installation' ? <Wrench className="w-4 h-4 text-secondary" /> : <Activity className="w-4 h-4 text-secondary" />}
                       </div>
                       <div>
-                        <p className="text-xs md:text-base font-body font-bold truncate max-w-[100px] md:max-w-none">{item.customerName || 'Subscriber'}</p>
+                        <p className="text-xs md:text-base font-bold truncate max-w-[100px] md:max-w-none">{item.customerName || 'Subscriber'}</p>
                         <p className="font-mono text-[8px] md:text-[10px] text-on-surface-variant">{item.location} • {item.category}</p>
                       </div>
                     </div>
                     <div className="flex flex-col md:flex-row items-end md:items-center gap-1 md:gap-3 text-right">
                       {isRisk && (
                         <Badge variant="destructive" className="animate-pulse flex gap-1 items-center bg-destructive text-white rounded-full text-[8px] px-1 md:px-2 py-0">
-                          <AlertCircle className="w-2 h-2" /> Risk
+                          <AlertCircle className="w-2 h-2" /> Attention Required
                         </Badge>
                       )}
                       <span className="font-mono text-[8px] md:text-[10px] font-bold text-on-surface-variant">
@@ -183,7 +184,7 @@ export default function AdminDashboard() {
                 );
               })}
               {(!feedbacks || feedbacks.length === 0) && !loading && (
-                <p className="text-center text-on-surface-variant py-8 md:py-12 font-mono text-[10px] md:text-sm">No activity recorded yet.</p>
+                <p className="text-center text-on-surface-variant py-8 md:py-12 font-mono text-[10px]">No activity recorded yet.</p>
               )}
             </div>
           </div>
@@ -191,7 +192,7 @@ export default function AdminDashboard() {
 
         <div className="col-span-12 lg:col-span-4 space-y-4 md:space-y-gutter">
           <div className="bg-white p-6 md:p-8 border border-border whisper-shadow rounded-xl">
-            <h4 className="font-mono text-[10px] md:text-label-mono uppercase mb-4 md:mb-8">Volume by Region</h4>
+            <h4 className="font-mono text-[10px] uppercase mb-4 md:mb-8">Volume by Region</h4>
             <div className="h-[180px] md:h-64 mb-4 md:mb-8">
               <ResponsiveContainer width="100%" height="100%">
                 <BarChart data={regionalChartData} layout="vertical">
@@ -220,8 +221,8 @@ export default function AdminDashboard() {
           <div className="rounded-xl overflow-hidden h-[150px] md:h-64 whisper-shadow relative group">
             <Image src={infraImg.imageUrl} alt="Infrastructure" fill className="object-cover grayscale brightness-90 group-hover:grayscale-0 transition-all duration-700" data-ai-hint="data center" />
             <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent flex flex-col justify-end p-4 md:p-6">
-              <p className="text-white font-headline text-base md:text-[20px]">Regional Hub Status</p>
-              <span className="text-white font-mono text-[8px] md:text-[10px] uppercase tracking-widest opacity-80">Monitoring: Stable</span>
+              <p className="text-white font-display text-base md:text-[20px] font-bold">Regional Status</p>
+              <span className="text-white font-mono text-[8px] md:text-[10px] uppercase tracking-widest opacity-80">Monitoring Active</span>
             </div>
           </div>
         </div>

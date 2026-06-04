@@ -9,7 +9,7 @@
         "customerName": { "type": "string" },
         "customerEmail": { "type": "string", "format": "email" },
         "category": { "type": "string", "enum": ["Reliability", "Support", "Testimonials", "Installation", "Billing"] },
-        "servicePlan": { "type": "string" },
+        "servicePlan": { "type": "string", "enum": ["H-Lite", "H-Pro", "H-Max", "H-Custom", "U-Lite", "U-Pro", "U-Max", "U-Custom"] },
         "location": { "type": "string", "enum": ["Abeokuta", "Ibadan", "Osogbo", "Akure"] },
         "ratings": { 
           "type": "object",
@@ -32,49 +32,18 @@
         "staffName": { "type": "string" },
         "timestamp": { "type": "number" },
         "status": { "type": "string", "enum": ["pending", "reviewed", "escalated"], "default": "pending" },
-        "interviewConsent": { "type": "string", "enum": ["Yes", "No", "Maybe"] },
         "referralSource": { "type": "string" }
       },
       "required": ["customerEmail", "category", "location", "timestamp"]
-    },
-    "Staff": {
-      "title": "Staff",
-      "description": "Internal support staff member",
-      "type": "object",
-      "properties": {
-        "name": { "type": "string" },
-        "department": { "type": "string", "default": "Customer Support" }
-      },
-      "required": ["name"]
-    },
-    "Technician": {
-      "title": "Technician",
-      "description": "Field technician profile with territory details",
-      "type": "object",
-      "properties": {
-        "name": { "type": "string" },
-        "partner": { "type": "string" },
-        "region": { "type": "string", "enum": ["Abeokuta", "Ibadan", "Osogbo", "Akure"] },
-        "primaryTerritory": { "type": "string" }
-      },
-      "required": ["name", "region"]
     }
   },
   "auth": {
-    "providers": ["google.com", "password"]
+    "providers": ["password"]
   },
   "firestore": {
     "/feedbacks/{feedbackId}": {
       "schema": "Feedback",
       "description": "Collection of all customer feedback"
-    },
-    "/staff/{staffId}": {
-      "schema": "Staff",
-      "description": "Registry of support staff"
-    },
-    "/technicians/{techId}": {
-      "schema": "Technician",
-      "description": "Registry of field technicians"
     }
   }
 }

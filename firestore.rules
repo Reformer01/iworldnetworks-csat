@@ -1,41 +1,16 @@
+
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
-    // Helper to check if user is authenticated
     function isAuthenticated() {
       return request.auth != null;
     }
 
-    // Helper for basic data validation
-    function isValidFeedback() {
-      let data = request.resource.data;
-      return data.customerEmail is string && 
-             data.customerEmail.size() > 5 &&
-             data.category in ["Reliability", "Support", "Testimonials", "Installation", "Billing"] &&
-             data.location in ["Abeokuta", "Ibadan", "Osogbo", "Akure"] &&
-             data.timestamp is number;
-    }
-
     match /feedbacks/{feedbackId} {
-      // Public can submit feedback
-      allow create: if isValidFeedback();
-      
-      // Only authenticated admin staff can read/manage feedback
+      allow create: if request.resource.data.customerEmail is string && 
+                      request.resource.data.category in ["Reliability", "Support", "Testimonials", "Installation", "Billing"] &&
+                      request.resource.data.location in ["Abeokuta", "Ibadan", "Osogbo", "Akure"];
       allow read, update, delete: if isAuthenticated();
-    }
-
-    match /staff/{staffId} {
-      // Public can read staff list for dropdowns
-      allow read: if true;
-      // Only authenticated admins can modify staff roster
-      allow write: if isAuthenticated();
-    }
-
-    match /technicians/{techId} {
-      // Public can read tech list for dropdowns
-      allow read: if true;
-      // Only authenticated admins can modify tech roster
-      allow write: if isAuthenticated();
     }
   }
 }
