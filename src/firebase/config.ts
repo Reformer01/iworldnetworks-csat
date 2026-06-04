@@ -2,7 +2,7 @@
 
 /**
  * Firebase configuration object.
- * Values are pulled from environment variables defined in .env.
+ * Values are synchronized with the active project ID from system logs.
  * Target Project: studio-4631441764-599a5
  */
 export const firebaseConfig = {

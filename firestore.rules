@@ -1,10 +1,9 @@
-
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
     // 1. PUBLIC FEEDBACK SUBMISSION
     // Unconditionally allow ANYONE to create feedback.
-    // This ensures customers can always submit reports regardless of their auth state.
+    // This ensures customers can always submit reports.
     match /feedbacks/{feedbackId} {
       allow create: if true;
       
@@ -22,4 +21,4 @@ service cloud.firestore {
     }
   }
 }
-// SYNC_TRIGGER: 2024-05-22_01
+// SYNC_TRIGGER: 2024-05-22_02
