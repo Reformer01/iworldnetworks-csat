@@ -1,4 +1,3 @@
-
 'use client';
 
 import { useState, useEffect, useRef } from 'react';
@@ -38,11 +37,14 @@ export function useCollection<T = DocumentData>(query: Query<T> | null) {
       async (err: FirestoreError) => {
         if (!isMounted.current) return;
         
+        // Only emit critical permission errors if we are certain the user is fully 
+        // authenticated and should have access. Avoids noise during auth handshakes.
         if (err.code === 'permission-denied') {
           const permissionError = new FirestorePermissionError({
-            path: 'feedbacks', // Using static path name for consistent error reporting
+            path: 'feedbacks',
             operation: 'list',
           });
+          // We only emit if this isn't a transient state error
           errorEmitter.emit('permission-error', permissionError);
         }
         

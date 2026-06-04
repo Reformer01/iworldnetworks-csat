@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useMemo } from 'react';
+import React, { useMemo, useState, useEffect } from 'react';
 import { AdminLayout } from '@/components/layout/AdminLayout';
 import { Activity, ArrowDown } from 'lucide-react';
 import { cn } from '@/lib/utils';
@@ -17,21 +17,26 @@ import {
 } from 'recharts';
 
 export default function AdminStability() {
+  const [mounted, setMounted] = useState(false);
   const firestore = useFirestore();
   const auth = useAuth();
-  const { user } = useUser(auth);
+  const { user, loading: authLoading } = useUser(auth);
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
 
   const reliabilityQuery = useMemo(() => {
-    if (!firestore || !user || !user.emailVerified || !user.email?.endsWith('@iworldnetworks.net')) return null;
+    if (!firestore || authLoading || !user || !user.emailVerified || !user.email?.endsWith('@iworldnetworks.net')) return null;
     return query(
       collection(firestore, 'feedbacks'), 
       where('category', '==', 'Reliability'),
       orderBy('timestamp', 'desc'), 
       limit(100)
     );
-  }, [firestore, user]);
+  }, [firestore, user, authLoading]);
 
-  const { data: feedbacks, loading } = useCollection(reliabilityQuery);
+  const { data: feedbacks, loading: dataLoading } = useCollection(reliabilityQuery);
 
   const metrics = useMemo(() => {
     if (!feedbacks || feedbacks.length === 0) return { uptime: '99.98', latency: '14', loss: '0.02' };
@@ -39,9 +44,7 @@ export default function AdminStability() {
     const avgStability = feedbacks.reduce((acc, f: any) => acc + Number(f.ratings?.stability || 5), 0) / feedbacks.length;
     const avgLatency = feedbacks.reduce((acc, f: any) => acc + Number(f.ratings?.latency || 5), 0) / feedbacks.length;
     
-    // Scale 1-5 to a 99-100 uptime index
     const uptimeIndex = (99.0 + (avgStability / 5)).toFixed(2);
-    // Scale 1-5 to 10-70ms
     const latencyVal = Math.round(70 - (avgLatency * 11));
     
     return {
@@ -54,16 +57,15 @@ export default function AdminStability() {
   const chartData = useMemo(() => {
     if (!feedbacks) return [];
     return feedbacks.slice(0, 20).reverse().map((f: any) => ({
-      time: new Date(f.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+      time: mounted ? new Date(f.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '--:--',
       latency: 70 - (Number(f.ratings?.latency || 4) * 10),
       stability: 95 + (Number(f.ratings?.stability || 4))
     }));
-  }, [feedbacks]);
+  }, [feedbacks, mounted]);
 
   const nodeHealth = useMemo(() => {
     const regions = ['Lagos', 'Ibadan', 'Akure', 'Osogbo'];
     return regions.map(region => {
-      // Use real feedback from matching locations if available
       const regionData = feedbacks?.filter((f: any) => f.location === (region === 'Lagos' ? 'Ibadan' : region)) || [];
       const avg = regionData.length > 0 
         ? regionData.reduce((acc, f: any) => acc + Number(f.ratings?.stability || 5), 0) / regionData.length 
@@ -222,7 +224,7 @@ export default function AdminStability() {
                 return (
                   <div key={f.id} className="grid grid-cols-12 gap-4 py-4 border-b border-surface-container border-dashed last:border-0 items-center">
                     <span className="col-span-2 text-primary font-bold">
-                      {new Date(f.timestamp).toLocaleTimeString([], { hour12: false })}
+                      {mounted ? new Date(f.timestamp).toLocaleTimeString([], { hour12: false }) : '--:--'}
                     </span>
                     <span className={cn("col-span-2 font-black uppercase", isPulse ? "text-secondary" : "text-orange-500")}>
                       {isPulse ? 'NODE_PULSE' : 'LAT_SHIFT'}
@@ -241,7 +243,7 @@ export default function AdminStability() {
                   </div>
                 );
               })}
-              {(!feedbacks || feedbacks.length === 0) && !loading && (
+              {(!feedbacks || feedbacks.length === 0) && !dataLoading && (
                 <div className="py-12 text-center text-on-surface-variant/40 font-bold uppercase">Waiting for telemetry heartbeat...</div>
               )}
             </div>

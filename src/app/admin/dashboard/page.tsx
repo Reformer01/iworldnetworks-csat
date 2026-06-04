@@ -26,18 +26,18 @@ export default function AdminDashboard() {
   const infraImg = PlaceHolderImages.find(img => img.id === 'infra-status')!;
   const firestore = useFirestore();
   const auth = useAuth();
-  const { user } = useUser(auth);
+  const { user, loading: authLoading } = useUser(auth);
 
   useEffect(() => {
     setMounted(true);
   }, []);
 
   const feedbackQuery = useMemo(() => {
-    if (!firestore || !user || !user.emailVerified || !user.email?.endsWith('@iworldnetworks.net')) return null;
+    if (!firestore || authLoading || !user || !user.emailVerified || !user.email?.endsWith('@iworldnetworks.net')) return null;
     return query(collection(firestore, 'feedbacks'), orderBy('timestamp', 'desc'), limit(100));
-  }, [firestore, user]);
+  }, [firestore, user, authLoading]);
 
-  const { data: feedbacks, loading } = useCollection(feedbackQuery);
+  const { data: feedbacks, loading: dataLoading } = useCollection(feedbackQuery);
 
   const stats = useMemo(() => {
     if (!feedbacks || feedbacks.length === 0) return { csat: '0', total: 0, growth: '+2.4%' };
@@ -78,7 +78,6 @@ export default function AdminDashboard() {
         { name: 'Fri', satisfaction: 94, reliability: 94 },
       ];
     }
-    // Simple windowing of recent data
     return feedbacks.slice(0, 7).reverse().map((f: any, i: number) => ({
       name: mounted ? new Date(f.timestamp).toLocaleTimeString([], { hour: '2-digit' }) : `T-${i}`,
       satisfaction: 70 + (Number(f.ratings?.professionalism || 4) * 5),
@@ -121,7 +120,7 @@ export default function AdminDashboard() {
           <div className="flex items-baseline gap-1">
             <span className="font-mono text-4xl md:text-[56px] leading-none font-bold text-primary">{stats.total}</span>
           </div>
-          <p className="mt-4 md:mt-6 text-on-surface-variant text-xs md:text-sm font-bold uppercase opacity-70">Active feedback cycles</p>
+          <p className="mt-4 md:mt-6 text-on-surface-variant text-xs md:sm font-bold uppercase opacity-70">Active feedback cycles</p>
         </div>
 
         <div className="bg-white p-6 md:p-8 border border-border whisper-shadow rounded-xl hover:scale-[1.02] transition-transform duration-300">
@@ -130,7 +129,7 @@ export default function AdminDashboard() {
             <span className="font-mono text-4xl md:text-[56px] leading-none font-bold text-secondary">99.8</span>
             <span className="font-mono text-xl md:text-display-xl text-secondary">%</span>
           </div>
-          <p className="mt-4 md:mt-6 text-on-surface-variant text-xs md:text-sm font-bold uppercase opacity-70">Regional stability</p>
+          <p className="mt-4 md:mt-6 text-on-surface-variant text-xs md:sm font-bold uppercase opacity-70">Regional stability</p>
         </div>
       </section>
 
@@ -180,7 +179,7 @@ export default function AdminDashboard() {
                   </div>
                 </div>
               ))}
-              {(!feedbacks || feedbacks.length === 0) && !loading && (
+              {(!feedbacks || feedbacks.length === 0) && !dataLoading && (
                 <p className="text-center text-on-surface-variant py-8 md:py-12 font-mono text-[10px] font-bold uppercase">No activity recorded yet.</p>
               )}
             </div>
