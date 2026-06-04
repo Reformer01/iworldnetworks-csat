@@ -19,7 +19,10 @@ Administrative access is restricted to **verified @iworldnetworks.net email addr
 1. Go to the **Users** tab in the Authentication section.
 2. Click **Add user**.
 3. **CRITICAL**: Use a corporate email (e.g., `gyang@iworldnetworks.net`) and a strong password.
-4. The supervisor must verify their email before accessing the dashboard (the login page will prompt them if needed).
+4. **How to Verify the Email**:
+   - **Option A (App UI)**: Attempt to log in to the Management Hub. When the "Verification Required" message appears, click the **"Send Verification Link"** button. An email will be sent to the corporate inbox.
+   - **Option B (Manual Bypass)**: If you need to verify an account immediately for testing, you can use the Firebase Admin SDK or manually trigger a password reset from the console which also verifies the email upon completion.
+   - **Note**: The user must click the link in the email sent by Firebase to officially unlock the Hub.
 
 ## 3. Enable Firestore Database
 1. In the left sidebar, click **Build** > **Firestore Database**.

@@ -2,9 +2,9 @@
 
 import React, { useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { Lock, ArrowRight, Mail, Key } from 'lucide-react';
+import { Lock, ArrowRight, Mail, Key, Send } from 'lucide-react';
 import { useAuth } from '@/firebase';
-import { signInWithEmailAndPassword } from 'firebase/auth';
+import { signInWithEmailAndPassword, sendEmailVerification, User } from 'firebase/auth';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { useToast } from '@/hooks/use-toast';
@@ -14,6 +14,8 @@ export default function AdminLoginPage() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [isAuthenticating, setIsAuthenticating] = useState(false);
+  const [unverifiedUser, setUnverifiedUser] = useState<User | null>(null);
+  const [isSendingVerification, setIsSendingVerification] = useState(false);
   const router = useRouter();
   const auth = useAuth();
   const { toast } = useToast();
@@ -22,7 +24,6 @@ export default function AdminLoginPage() {
     e.preventDefault();
     if (!auth) return;
 
-    // Corporate domain validation: @iworldnetworks.net
     if (!email.endsWith('@iworldnetworks.net')) {
       toast({
         variant: "destructive",
@@ -33,14 +34,17 @@ export default function AdminLoginPage() {
     }
 
     setIsAuthenticating(true);
+    setUnverifiedUser(null);
+
     try {
       const userCredential = await signInWithEmailAndPassword(auth, email, password);
       
       if (!userCredential.user.emailVerified) {
+        setUnverifiedUser(userCredential.user);
         toast({
           variant: "destructive",
           title: "Verification Required",
-          description: "Please verify your corporate email to proceed.",
+          description: "Your account exists but your email has not been verified yet.",
         });
         setIsAuthenticating(false);
         return;
@@ -58,6 +62,26 @@ export default function AdminLoginPage() {
         description: "Invalid credentials or unauthorized attempt.",
       });
       setIsAuthenticating(false);
+    }
+  };
+
+  const handleSendVerification = async () => {
+    if (!unverifiedUser) return;
+    setIsSendingVerification(true);
+    try {
+      await sendEmailVerification(unverifiedUser);
+      toast({
+        title: "Verification Sent",
+        description: `A link has been sent to ${unverifiedUser.email}. Please check your inbox and spam folder.`,
+      });
+    } catch (error: any) {
+      toast({
+        variant: "destructive",
+        title: "Error",
+        description: "Could not send verification email. Please try again later.",
+      });
+    } finally {
+      setIsSendingVerification(false);
     }
   };
 
@@ -135,6 +159,25 @@ export default function AdminLoginPage() {
               )}
             </Button>
           </form>
+
+          {unverifiedUser && (
+            <div className="pt-4 border-t border-border/50 text-center space-y-4 animate-in fade-in slide-in-from-top-2">
+              <p className="text-xs text-on-surface-variant font-bold uppercase">Email not verified?</p>
+              <Button
+                variant="outline"
+                onClick={handleSendVerification}
+                disabled={isSendingVerification}
+                className="w-full h-12 rounded-xl font-mono text-[10px] uppercase tracking-widest gap-2"
+              >
+                {isSendingVerification ? (
+                  <div className="w-4 h-4 border-2 border-primary/30 border-t-primary rounded-full animate-spin" />
+                ) : (
+                  <Send className="w-4 h-4" />
+                )}
+                Send Verification Link
+              </Button>
+            </div>
+          )}
         </div>
       </main>
     </div>
