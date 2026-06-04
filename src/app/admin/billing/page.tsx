@@ -1,4 +1,3 @@
-
 'use client';
 
 import React, { useMemo } from 'react';
@@ -60,7 +59,6 @@ export default function AdminBilling() {
     <AdminLayout>
       <header className="grid grid-cols-12 gap-gutter mb-16 items-end">
         <div className="col-span-12 md:col-span-7">
-          <p className="font-mono text-label-mono text-secondary mb-2 uppercase text-xs">Head of Billing: Stella</p>
           <h1 className="text-3xl md:text-headline-lg text-primary mb-4 font-display">Billing Overview</h1>
           <p className="font-body-lg text-body-lg text-on-surface-variant max-w-xl">Overview of payment satisfaction, invoice accuracy, and portal usage.</p>
         </div>

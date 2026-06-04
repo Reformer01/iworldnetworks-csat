@@ -1,4 +1,3 @@
-
 'use client';
 
 import React, { useState, useMemo } from 'react';
@@ -59,7 +58,6 @@ export default function AdminTestimonials() {
   return (
     <AdminLayout>
       <div className="mb-12">
-        <p className="font-mono text-label-mono text-secondary mb-2 uppercase text-[10px]">Head of Content: Reformer</p>
         <h1 className="text-primary mb-4 font-display text-3xl md:text-display-lg tracking-tight">Success Stories</h1>
         <p className="font-body-lg text-body-lg text-on-surface-variant">Analyze customer referrals and curate marketing testimonials.</p>
       </div>

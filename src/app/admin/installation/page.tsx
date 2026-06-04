@@ -68,7 +68,6 @@ export default function AdminInstallation() {
     <AdminLayout>
       <div className="grid grid-cols-12 gap-gutter mb-16">
         <div className="col-span-12 md:col-span-7">
-          <p className="font-mono text-label-mono text-secondary mb-2 uppercase">Head of Installation: Matthew</p>
           <h1 className="font-headline text-headline-lg mb-4 text-primary">Setup Performance</h1>
           <p className="font-body-lg text-body-lg text-on-surface-variant max-w-xl">
             Detailed view of field efficiency, deployment metrics, and regional fiber penetration.

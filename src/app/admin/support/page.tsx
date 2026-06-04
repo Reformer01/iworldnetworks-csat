@@ -1,4 +1,3 @@
-
 'use client';
 
 import React, { useEffect, useState, useMemo } from 'react';
@@ -70,7 +69,6 @@ export default function AdminSupport() {
   return (
     <AdminLayout>
       <div className="mb-12">
-        <p className="font-mono text-label-mono text-secondary mb-2 uppercase text-[10px]">Head of Support: Adeolu</p>
         <h1 className="font-display text-3xl md:text-display-lg text-primary tracking-tight mb-2">Support Desk Review</h1>
         <p className="text-on-surface-variant mt-2 max-w-2xl font-body-md">Detailed performance and sentiment analysis for our customer engagement teams.</p>
       </div>
