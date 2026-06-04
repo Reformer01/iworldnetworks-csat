@@ -9,7 +9,6 @@ Copy these keys and fill in the values from your **Firebase Project Settings**:
 NEXT_PUBLIC_FIREBASE_API_KEY=your_api_key
 NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN=your_project_id.firebaseapp.com
 NEXT_PUBLIC_FIREBASE_PROJECT_ID=your_project_id
-NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET=your_project_id.firebasestorage.app
 NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID=your_messaging_sender_id
 NEXT_PUBLIC_FIREBASE_APP_ID=your_app_id
 ```
@@ -23,4 +22,4 @@ NEXT_PUBLIC_FIREBASE_APP_ID=your_app_id
 
 ## Security Note:
 - These variables are prefixed with `NEXT_PUBLIC_` so they are accessible on the client side.
-- Firebase handles security through **Security Rules** and **App Check**, so these keys are safe to be public as long as your backend rules are configured correctly.
+- Firebase handles security through **Security Rules**, so these keys are safe to be public as long as your backend rules are configured correctly.
