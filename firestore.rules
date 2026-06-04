@@ -4,7 +4,7 @@ service cloud.firestore {
   match /databases/{database}/documents {
     // 1. PUBLIC FEEDBACK SUBMISSION
     // Unconditionally allow ANYONE to create feedback.
-    // No auth or verification required for customers.
+    // This ensures customers can always submit reports regardless of their auth state.
     match /feedbacks/{feedbackId} {
       allow create: if true;
       
