@@ -1,3 +1,4 @@
+
 'use client';
 
 import React, { useState } from 'react';
@@ -11,7 +12,8 @@ import {
   Wrench, 
   CreditCard, 
   ArrowRight,
-  CircleCheck
+  CircleCheck,
+  Loader2
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
@@ -21,12 +23,14 @@ import { useFirestore } from '@/firebase';
 import { collection, addDoc } from 'firebase/firestore';
 import { errorEmitter } from '@/firebase/error-emitter';
 import { FirestorePermissionError } from '@/firebase/errors';
+import { analyzeCustomerFeedbackSentiment } from '@/ai/flows/analyze-customer-feedback-sentiment';
 
 type Category = 'Reliability' | 'Support' | 'Testimonials' | 'Installation' | 'Billing';
 
 export default function LandingPage() {
   const [activeCategory, setActiveCategory] = useState<Category>('Reliability');
   const [isSubmitted, setIsSubmitted] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
   const [ratings, setRatings] = useState<Record<string, any>>({});
   const [formData, setFormData] = useState({
     customerName: '',
@@ -107,36 +111,53 @@ export default function LandingPage() {
     setRatings(prev => ({ ...prev, [key]: val }));
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!firestore) return;
+    if (!firestore || isSubmitting) return;
 
-    const feedbackData = {
-      ...formData,
-      category: activeCategory,
-      ratings,
-      timestamp: Date.now(),
-      status: 'pending'
-    };
+    setIsSubmitting(true);
 
-    const feedbackRef = collection(firestore, 'feedbacks');
-    addDoc(feedbackRef, feedbackData)
-      .then(() => {
-        setIsSubmitted(true);
-        setTimeout(() => {
-          setIsSubmitted(false);
-          setRatings({});
-          setFormData({ ...formData, comment: '', customerEmail: '', customerName: '' });
-        }, 3000);
-      })
-      .catch(async (serverError) => {
-        const permissionError = new FirestorePermissionError({
-          path: feedbackRef.path,
-          operation: 'create',
-          requestResourceData: feedbackData,
-        });
-        errorEmitter.emit('permission-error', permissionError);
+    try {
+      // 1. AI Sentiment Analysis
+      let aiAnalysis = null;
+      if (formData.comment) {
+        try {
+          aiAnalysis = await analyzeCustomerFeedbackSentiment({ feedbackText: formData.comment });
+        } catch (err) {
+          console.error('AI Sentiment Analysis failed', err);
+        }
+      }
+
+      // 2. Prepare Data
+      const feedbackData = {
+        ...formData,
+        category: activeCategory,
+        ratings,
+        timestamp: Date.now(),
+        status: 'pending',
+        aiSentiment: aiAnalysis?.sentiment || 'neutral',
+        aiThemes: aiAnalysis?.keyThemes || []
+      };
+
+      // 3. Save to Firestore
+      const feedbackRef = collection(firestore, 'feedbacks');
+      await addDoc(feedbackRef, feedbackData);
+
+      setIsSubmitted(true);
+      setTimeout(() => {
+        setIsSubmitted(false);
+        setRatings({});
+        setFormData({ ...formData, comment: '', customerEmail: '', customerName: '' });
+      }, 3000);
+    } catch (serverError) {
+      const permissionError = new FirestorePermissionError({
+        path: 'feedbacks',
+        operation: 'create',
       });
+      errorEmitter.emit('permission-error', permissionError);
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   const renderRatingGroup = (id: string, label: string, description: string) => (
@@ -303,8 +324,14 @@ export default function LandingPage() {
                   )}
 
                   <div className="pt-8">
-                    <Button type="submit" disabled={isSubmitted} className={cn("w-full md:w-auto px-12 py-7 rounded-full font-bold transition-all flex items-center justify-center gap-3 text-white uppercase text-[12px] tracking-widest", isSubmitted ? "bg-green-600" : "bg-primary hover:scale-[1.02]")}>
-                      {isSubmitted ? <>Feedback Received <CircleCheck className="w-5 h-5" /></> : <>Submit Report <ArrowRight className="w-5 h-5" /></>}
+                    <Button type="submit" disabled={isSubmitted || isSubmitting} className={cn("w-full md:w-auto px-12 py-7 rounded-full font-bold transition-all flex items-center justify-center gap-3 text-white uppercase text-[12px] tracking-widest", isSubmitted ? "bg-green-600" : "bg-primary hover:scale-[1.02]")}>
+                      {isSubmitting ? (
+                        <Loader2 className="w-5 h-5 animate-spin" />
+                      ) : isSubmitted ? (
+                        <>Feedback Received <CircleCheck className="w-5 h-5" /></>
+                      ) : (
+                        <>Submit Report <ArrowRight className="w-5 h-5" /></>
+                      )}
                     </Button>
                   </div>
                 </div>

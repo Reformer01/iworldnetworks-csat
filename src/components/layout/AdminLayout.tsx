@@ -1,6 +1,7 @@
+
 'use client';
 
-import React, { useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import { 
@@ -12,14 +13,17 @@ import {
   FileText,
   ArrowLeft,
   Menu,
-  LogOut
+  LogOut,
+  Sparkles,
+  Loader2
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 import Image from 'next/image';
 import { PlaceHolderImages } from '@/lib/placeholder-images';
-import { useAuth, useUser } from '@/firebase';
+import { useAuth, useUser, useFirestore, useCollection } from '@/firebase';
 import { signOut } from 'firebase/auth';
+import { collection, query, orderBy, limit } from 'firebase/firestore';
 import {
   Sheet,
   SheetContent,
@@ -27,6 +31,14 @@ import {
   SheetTitle,
   SheetTrigger,
 } from "@/components/ui/sheet";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+} from "@/components/ui/dialog";
+import { generateReportExecutiveSummary } from '@/ai/flows/generate-report-executive-summary-flow';
 
 interface AdminLayoutProps {
   children: React.ReactNode;
@@ -36,8 +48,19 @@ export function AdminLayout({ children }: AdminLayoutProps) {
   const pathname = usePathname();
   const router = useRouter();
   const auth = useAuth();
+  const firestore = useFirestore();
   const { user, loading } = useUser(auth);
   const avatar = PlaceHolderImages.find(img => img.id === 'admin-avatar')!;
+
+  // AI Report State
+  const [reportOpen, setReportOpen] = useState(false);
+  const [isGenerating, setIsGenerating] = useState(false);
+  const [aiReport, setAiReport] = useState<string | null>(null);
+
+  const feedbackQuery = React.useMemo(() => 
+    firestore ? query(collection(firestore, 'feedbacks'), orderBy('timestamp', 'desc'), limit(50)) : null,
+  [firestore]);
+  const { data: recentFeedbacks } = useCollection(feedbackQuery);
 
   useEffect(() => {
     if (!loading && !user) {
@@ -49,6 +72,32 @@ export function AdminLayout({ children }: AdminLayoutProps) {
     if (auth) {
       await signOut(auth);
       router.push('/admin/login');
+    }
+  };
+
+  const handleGenerateReport = async () => {
+    if (!recentFeedbacks || recentFeedbacks.length === 0) return;
+    
+    setIsGenerating(true);
+    setReportOpen(true);
+    setAiReport(null);
+
+    try {
+      const dataStr = JSON.stringify(recentFeedbacks.map(f => ({
+        category: f.category,
+        location: f.location,
+        ratings: f.ratings,
+        comment: f.comment,
+        sentiment: f.aiSentiment
+      })));
+
+      const result = await generateReportExecutiveSummary({ operationalData: dataStr });
+      setAiReport(result.summary);
+    } catch (err) {
+      console.error('Report generation failed', err);
+      setAiReport("Failed to generate executive summary. Please check system logs.");
+    } finally {
+      setIsGenerating(false);
     }
   };
 
@@ -81,7 +130,7 @@ export function AdminLayout({ children }: AdminLayoutProps) {
             I-World Networks
           </Link>
           <div className="h-6 w-px bg-border hidden sm:block"></div>
-          <Link href="/" className="hidden sm:flex items-center gap-2 text-on-surface-variant font-mono text-[10px] hover:text-secondary transition-all group font-bold">
+          <Link href="/" className="hidden sm:flex items-center gap-2 text-on-surface-variant font-mono text-[10px] hover:text-secondary transition-all group font-bold uppercase">
             <ArrowLeft className="w-3 h-3 group-hover:-translate-x-1 transition-transform" />
             Public Portal
           </Link>
@@ -148,9 +197,9 @@ export function AdminLayout({ children }: AdminLayoutProps) {
                       <ArrowLeft className="w-4 h-4" />
                       Back to Public Portal
                     </Link>
-                    <Button className="w-full bg-secondary text-white py-6 rounded-xl font-mono text-[10px] flex items-center justify-center gap-3 uppercase tracking-widest font-bold">
-                      <FileText className="w-4 h-4" />
-                      Generate Report
+                    <Button onClick={handleGenerateReport} className="w-full bg-secondary text-white py-6 rounded-xl font-mono text-[10px] flex items-center justify-center gap-3 uppercase tracking-widest font-bold">
+                      <Sparkles className="w-4 h-4" />
+                      Generate AI Report
                     </Button>
                   </div>
                 </div>
@@ -183,9 +232,9 @@ export function AdminLayout({ children }: AdminLayoutProps) {
           ))}
         </nav>
         <div className="px-8 mt-auto flex flex-col gap-4">
-          <Button className="w-full bg-secondary text-white py-6 rounded-lg font-mono text-[12px] uppercase tracking-wider hover:bg-secondary-container transition-colors flex items-center justify-center gap-2 font-bold">
-            <FileText className="w-4 h-4" />
-            Generate Report
+          <Button onClick={handleGenerateReport} className="w-full bg-secondary text-white py-6 rounded-lg font-mono text-[12px] uppercase tracking-wider hover:bg-secondary-container transition-colors flex items-center justify-center gap-2 font-bold">
+            <Sparkles className="w-4 h-4" />
+            Generate AI Report
           </Button>
         </div>
       </aside>
@@ -219,6 +268,42 @@ export function AdminLayout({ children }: AdminLayoutProps) {
           </div>
         </div>
       </footer>
+
+      {/* AI Report Dialog */}
+      <Dialog open={reportOpen} onOpenChange={setReportOpen}>
+        <DialogContent className="max-w-3xl max-h-[80vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle className="font-display text-2xl font-bold flex items-center gap-3">
+              <Sparkles className="text-secondary w-6 h-6" />
+              Executive AI Summary
+            </DialogTitle>
+            <DialogDescription className="font-mono text-[10px] uppercase font-bold">
+              Strategic analysis based on recent operational data
+            </DialogDescription>
+          </DialogHeader>
+          
+          <div className="py-8">
+            {isGenerating ? (
+              <div className="flex flex-col items-center justify-center py-12 gap-6 text-center">
+                <Loader2 className="w-12 h-12 text-secondary animate-spin" />
+                <p className="font-mono text-[12px] uppercase animate-pulse font-bold">Gathering regional intelligence...</p>
+              </div>
+            ) : (
+              <div className="prose prose-sm max-w-none">
+                <div className="bg-surface-container-low p-8 rounded-2xl border border-border whitespace-pre-wrap font-body text-body-md leading-relaxed text-primary">
+                  {aiReport}
+                </div>
+              </div>
+            )}
+          </div>
+          
+          <div className="flex justify-end pt-4 border-t border-border">
+            <Button onClick={() => setReportOpen(false)} className="bg-primary text-white px-8 rounded-full font-mono text-[10px] uppercase font-bold">
+              Dismiss
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
