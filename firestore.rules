@@ -6,7 +6,7 @@ service cloud.firestore {
     function isVerifiedSupervisor() {
       return request.auth != null && 
              request.auth.token.email_verified == true && 
-             request.auth.token.email.matches('.*@iworldnetworks\\.net$');
+             request.auth.token.email.endsWith('@iworldnetworks.net');
     }
 
     match /feedbacks/{feedbackId} {

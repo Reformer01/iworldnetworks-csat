@@ -1,3 +1,4 @@
+
 'use client';
 
 import React, { useEffect } from 'react';
@@ -40,10 +41,20 @@ export function AdminLayout({ children }: AdminLayoutProps) {
   const avatar = PlaceHolderImages.find(img => img.id === 'admin-avatar')!;
 
   useEffect(() => {
-    if (!loading && !user) {
-      router.push('/admin/login');
+    // Master Security Gate: Only allow verified @iworldnetworks.net accounts
+    if (!loading) {
+      if (!user) {
+        router.push('/admin/login');
+      } else if (!user.emailVerified || !user.email?.endsWith('@iworldnetworks.net')) {
+        // If they managed to get here unverified or wrong domain, kick them out
+        if (auth) {
+          signOut(auth).then(() => {
+            router.push('/admin/login');
+          });
+        }
+      }
     }
-  }, [user, loading, router]);
+  }, [user, loading, router, auth]);
 
   const handleLogout = async () => {
     if (auth) {
@@ -61,18 +72,17 @@ export function AdminLayout({ children }: AdminLayoutProps) {
     { name: 'Testimonials', href: '/admin/testimonials', icon: Star },
   ];
 
-  if (loading) {
+  // Prevent any data rendering until authentication is fully confirmed and verified
+  if (loading || !user || !user.emailVerified || !user.email?.endsWith('@iworldnetworks.net')) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-background">
         <div className="flex flex-col items-center gap-4">
           <div className="w-12 h-12 border-4 border-secondary/20 border-t-secondary rounded-full animate-spin" />
-          <p className="font-mono text-[10px] text-on-surface-variant uppercase animate-pulse font-bold">Verifying Credentials</p>
+          <p className="font-mono text-[10px] text-on-surface-variant uppercase animate-pulse font-bold">Verifying Corporate Access</p>
         </div>
       </div>
     );
   }
-
-  if (!user) return null;
 
   return (
     <div className="bg-background min-h-screen flex flex-col">
