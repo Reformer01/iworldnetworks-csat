@@ -126,7 +126,7 @@ export default function LandingPage() {
 
     const feedbackRef = collection(firestore, 'feedbacks');
     
-    // PUBLIC SUBMISSION: Handled without throwing a global error
+    // PUBLIC SUBMISSION: Handle errors gracefully with toasts rather than throwing
     addDoc(feedbackRef, feedbackData)
       .then(() => {
         setIsSubmitted(true);
@@ -142,10 +142,11 @@ export default function LandingPage() {
       })
       .catch((err) => {
         console.error('Submission Error:', err);
+        // We log it, but don't throw it so the "Red Screen" doesn't appear for customers
         toast({
           variant: "destructive",
           title: "Submission Failed",
-          description: "We could not save your report. Please check your connection and try again.",
+          description: "We could not save your report. Please check your connection or contact support.",
         });
       })
       .finally(() => {

@@ -36,9 +36,10 @@ export function useCollection<T = DocumentData>(query: Query<T> | null) {
       (err: FirestoreError) => {
         if (!isMounted.current) return;
         
-        // Silent error handling for permission denials during auth state sync
+        // Silent error handling for permission denials during auth state sync.
+        // This prevents the Next.js Red Screen of Death during handshakes.
         if (err.code === 'permission-denied') {
-          console.warn('Firestore: Permission denied. Waiting for auth state sync...');
+          console.warn('Firestore: Permission denied. Waiting for verified supervisor session...');
           setData(null);
         } else {
           setError(err);

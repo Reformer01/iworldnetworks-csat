@@ -2,11 +2,14 @@
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
+    // feedbacks collection
     match /feedbacks/{feedbackId} {
-      // Public can always submit feedback
+      // 1. PUBLIC: Anyone can submit feedback.
+      // We don't require auth or verification for customers.
       allow create: if true;
       
-      // Only verified supervisors can read or manage data
+      // 2. ADMIN: Only verified corporate supervisors can read or manage.
+      // Requires: Authenticated + Verified Email + @iworldnetworks.net domain.
       allow read, update, delete: if request.auth != null && 
                                     request.auth.token.email_verified == true && 
                                     request.auth.token.email.endsWith('@iworldnetworks.net');
