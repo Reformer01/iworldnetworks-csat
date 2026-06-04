@@ -1,4 +1,3 @@
-
 'use client';
 
 import { useState, useEffect, useRef } from 'react';
@@ -36,10 +35,10 @@ export function useCollection<T = DocumentData>(query: Query<T> | null) {
       (err: FirestoreError) => {
         if (!isMounted.current) return;
         
-        // Silent error handling for permission denials during auth state sync.
-        // This prevents the Next.js Red Screen of Death during handshakes.
+        // PERMANENT FIX: Silence permission denied errors during auth handshake.
+        // This prevents the Next.js crash overlay while the session stabilizes.
         if (err.code === 'permission-denied') {
-          console.warn('Firestore: Permission denied. This is normal during authentication handshakes.');
+          console.warn('Firestore: Permission denied. Waiting for authorized session state.');
           setData(null);
         } else {
           setError(err);

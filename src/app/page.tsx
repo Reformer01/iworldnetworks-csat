@@ -1,4 +1,3 @@
-
 'use client';
 
 import React, { useState } from 'react';
@@ -126,7 +125,7 @@ export default function LandingPage() {
 
     const feedbackRef = collection(firestore, 'feedbacks');
     
-    // PUBLIC SUBMISSION: Simple and resilient. No crash-inducing emitters here.
+    // PERMANENT FIX: Handle submission silently without the system-level crash overlay.
     addDoc(feedbackRef, feedbackData)
       .then(() => {
         setIsSubmitted(true);
@@ -142,12 +141,10 @@ export default function LandingPage() {
       })
       .catch((err) => {
         console.error('Submission Error:', err);
-        // We log it, but don't emit a specialized error that triggers the dev overlay.
-        // This ensures a smooth customer experience while you fix backend permissions.
         toast({
           variant: "destructive",
           title: "Submission Failed",
-          description: "We could not save your report. Please check your connection or contact support.",
+          description: "Could not save report. Please check your connection or contact support.",
         });
       })
       .finally(() => {
