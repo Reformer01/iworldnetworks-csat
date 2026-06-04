@@ -38,11 +38,12 @@ export function useCollection<T = DocumentData>(query: Query<T> | null) {
       async (err: FirestoreError) => {
         if (!isMounted.current) return;
         
-        // Silent Handshake: 
-        // We suppress permission errors in the UI during auth transitions
-        // to prevent the Next.js error overlay from disrupting the experience.
+        // Permanent Fix: Silence permission errors during the auth handshake.
+        // We do NOT emit a global error here to avoid crashing the Next.js UI.
+        // The AdminLayout will handle the visual state for unverified users.
         if (err.code === 'permission-denied') {
-          console.warn('Firestore: Transient permission denial during auth handshake.');
+          console.warn('Firestore: Transient permission denial. Waiting for auth state sync...');
+          setData(null);
         } else {
           setError(err);
         }

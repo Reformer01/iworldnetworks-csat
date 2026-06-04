@@ -11,6 +11,7 @@ service cloud.firestore {
 
     match /feedbacks/{feedbackId} {
       // Public can submit feedback without authentication or verification
+      // This is the absolute requirement for the landing page report submission
       allow create: if true;
       
       // Only verified corporate supervisors can read or manage the feedback

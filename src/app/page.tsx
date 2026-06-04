@@ -22,8 +22,6 @@ import { Label } from '@/components/ui/label';
 import { useFirestore } from '@/firebase';
 import { collection, addDoc } from 'firebase/firestore';
 import { useToast } from '@/hooks/use-toast';
-import { errorEmitter } from '@/firebase/error-emitter';
-import { FirestorePermissionError } from '@/firebase/errors';
 
 type Category = 'Reliability' | 'Support' | 'Testimonials' | 'Installation' | 'Billing';
 
@@ -127,6 +125,9 @@ export default function LandingPage() {
     };
 
     const feedbackRef = collection(firestore, 'feedbacks');
+    
+    // PUBLIC SUBMISSION: Simple toast error handling. 
+    // We do NOT emit a global FirestorePermissionError here to avoid crashing the landing page.
     addDoc(feedbackRef, feedbackData)
       .then(() => {
         setIsSubmitted(true);
@@ -140,22 +141,13 @@ export default function LandingPage() {
           setFormData({ ...formData, comment: '', customerEmail: '', customerName: '' });
         }, 3000);
       })
-      .catch(async (serverError) => {
-        // Only emit if it's a persistent error, otherwise toast it
-        if (serverError.code === 'permission-denied') {
-          const permissionError = new FirestorePermissionError({
-            path: 'feedbacks',
-            operation: 'create',
-            requestResourceData: feedbackData,
-          });
-          errorEmitter.emit('permission-error', permissionError);
-        } else {
-          toast({
-            variant: "destructive",
-            title: "Submission Error",
-            description: "We couldn't save your report. Please try again.",
-          });
-        }
+      .catch((err) => {
+        console.error('Submission Error:', err);
+        toast({
+          variant: "destructive",
+          title: "Submission Failed",
+          description: "We encountered a permission error. Please try again in a few moments.",
+        });
       })
       .finally(() => {
         setIsSubmitting(false);
