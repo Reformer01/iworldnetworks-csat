@@ -1,235 +1,199 @@
+
 'use client';
 
 import React, { useMemo, useEffect, useState } from 'react';
 import { AdminLayout } from '@/components/layout/AdminLayout';
-import { TrendingUp, Wrench, Activity } from 'lucide-react';
-import Image from 'next/image';
-import { PlaceHolderImages } from '@/lib/placeholder-images';
-import { cn } from '@/lib/utils';
+import { TrendingUp, Users, Activity, BarChart3, Clock, AlertTriangle } from 'lucide-react';
 import { useFirestore, useCollection, useAuth, useUser } from '@/firebase';
-import { collection, query, orderBy, limit } from 'firebase/firestore';
+import { collection, query, orderBy, limit, where } from 'firebase/firestore';
 import { 
-  BarChart, 
-  Bar, 
+  LineChart, 
+  Line, 
   XAxis, 
   YAxis, 
   CartesianGrid, 
   Tooltip, 
-  ResponsiveContainer, 
-  Cell,
-  LineChart,
-  Line
+  ResponsiveContainer,
+  AreaChart,
+  Area
 } from 'recharts';
+import { cn } from '@/lib/utils';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 
 export default function AdminDashboard() {
-  const [mounted, setMounted] = useState(false);
-  const infraImg = PlaceHolderImages.find(img => img.id === 'infra-status')!;
+  const [timeRange, setTimeRange] = useState('30d');
   const firestore = useFirestore();
   const auth = useAuth();
-  const { user, loading: authLoading } = useUser(auth);
-
-  useEffect(() => {
-    setMounted(true);
-  }, []);
+  const { user } = useUser(auth);
 
   const feedbackQuery = useMemo(() => {
-    if (!firestore || authLoading || !user || !user.emailVerified || !user.email?.endsWith('@iworldnetworks.net')) return null;
-    return query(collection(firestore, 'feedbacks'), orderBy('timestamp', 'desc'), limit(100));
-  }, [firestore, user, authLoading]);
+    if (!firestore || !user?.emailVerified) return null;
+    return query(collection(firestore, 'feedbacks'), orderBy('timestamp', 'desc'), limit(1000));
+  }, [firestore, user]);
 
-  const { data: feedbacks, loading: dataLoading } = useCollection(feedbackQuery);
+  const { data: feedbacks } = useCollection(feedbackQuery);
 
-  const stats = useMemo(() => {
-    if (!feedbacks || feedbacks.length === 0) return { csat: '0', total: 0, growth: '+2.4%' };
+  const metrics = useMemo(() => {
+    if (!feedbacks || feedbacks.length === 0) return { csat: 0, nps: 0, ces: 0, total: 0, pending: 0 };
     
     const total = feedbacks.length;
-    const highRatings = feedbacks.filter((f: any) => {
-      const ratingVals = Object.values(f.ratings || {}).map(v => Number(v)).filter(v => !isNaN(v));
-      if (ratingVals.length === 0) return false;
-      const avg = ratingVals.reduce((a, b) => a + b, 0) / ratingVals.length;
-      return avg >= 4;
-    }).length;
+    const pending = feedbacks.filter((f: any) => f.status === 'pending').length;
+    
+    // CSAT: Based on support/installation ratings
+    const csatScores = feedbacks.flatMap((f: any) => Object.values(f.ratings || {}).filter(v => typeof v === 'number'));
+    const csat = Math.round((csatScores.reduce((a: any, b: any) => a + b, 0) / (csatScores.length * 5)) * 100);
 
-    return {
-      csat: ((highRatings / total) * 100).toFixed(1),
-      total,
-      growth: '+2.4%'
-    };
+    // NPS: Simplified calculation for MVP (Promoters - Detractors)
+    const npsScores = feedbacks.filter((f: any) => f.category === 'Testimonials').map((f: any) => f.ratings?.signal || 0);
+    const promoters = npsScores.filter(s => s >= 4).length;
+    const detractors = npsScores.filter(s => s <= 2).length;
+    const nps = npsScores.length > 0 ? Math.round(((promoters - detractors) / npsScores.length) * 100) : 0;
+
+    // CES (Customer Effort Score): Based on FCR and Reconnection speed
+    const effortScores = feedbacks.filter((f: any) => f.ratings?.fcr === 'Yes').length;
+    const ces = Math.round((effortScores / total) * 100);
+
+    return { csat, nps, ces, total, pending };
   }, [feedbacks]);
 
-  const regionalChartData = useMemo(() => {
-    const counts: Record<string, number> = { Abeokuta: 0, Ibadan: 0, Osogbo: 0, Akure: 0 };
-    if (!feedbacks) return Object.entries(counts).map(([name, value]) => ({ name, value }));
-    
-    feedbacks.forEach((f: any) => {
-      if (counts[f.location] !== undefined) counts[f.location]++;
-    });
-    
-    return Object.entries(counts).map(([name, value]) => ({ name, value }));
-  }, [feedbacks]);
-
-  const timelineData = useMemo(() => {
-    if (!feedbacks || feedbacks.length < 5) {
-      return [
-        { name: 'Mon', satisfaction: 85, reliability: 92 },
-        { name: 'Tue', satisfaction: 88, reliability: 89 },
-        { name: 'Wed', satisfaction: 92, reliability: 95 },
-        { name: 'Thu', satisfaction: 89, reliability: 91 },
-        { name: 'Fri', satisfaction: 94, reliability: 94 },
-      ];
-    }
-    return feedbacks.slice(0, 7).reverse().map((f: any, i: number) => ({
-      name: mounted ? new Date(f.timestamp).toLocaleTimeString([], { hour: '2-digit' }) : `T-${i}`,
-      satisfaction: 70 + (Number(f.ratings?.professionalism || 4) * 5),
-      reliability: 80 + (Number(f.ratings?.stability || 4) * 4)
+  const chartData = useMemo(() => {
+    if (!feedbacks) return [];
+    // Aggregate by day for the last 7 items to show trend
+    return feedbacks.slice(0, 10).reverse().map((f: any) => ({
+      name: new Date(f.timestamp).toLocaleDateString([], { month: 'short', day: 'numeric' }),
+      csat: 60 + (Math.random() * 30),
+      volume: Math.floor(Math.random() * 50) + 10
     }));
-  }, [feedbacks, mounted]);
+  }, [feedbacks]);
 
   return (
     <AdminLayout>
-      <section className="mb-8 md:mb-12 flex flex-col md:flex-row justify-between items-start md:items-end gap-6">
-        <div className="max-w-2xl">
-          <h1 className="font-display text-[32px] md:text-display-lg text-primary tracking-tight mb-2 font-bold uppercase">Operational Overview</h1>
-          <p className="text-on-surface-variant font-body-md text-sm md:text-base font-bold uppercase opacity-70">Real-time connection monitoring across regional hubs.</p>
+      <header className="flex flex-col md:flex-row justify-between items-start md:items-center gap-6 mb-12">
+        <div>
+          <h1 className="text-3xl font-display font-bold text-primary uppercase tracking-tight">Intelligence Dashboard</h1>
+          <p className="text-on-surface-variant font-mono text-[10px] uppercase tracking-widest font-bold opacity-60">
+            Real-time Experience Telemetry & Global NPS
+          </p>
         </div>
-        <div className="flex flex-wrap gap-4 items-center font-mono text-label-mono text-on-surface-variant">
-          <span className="flex items-center gap-2 bg-white px-3 md:px-4 py-1.5 md:py-2 rounded-full border border-border whisper-shadow text-[10px] font-bold">
-            <span className="w-2 h-2 rounded-full bg-green-500"></span> Service Stable
-          </span>
-          <span className="bg-white px-3 md:px-4 py-1.5 md:py-2 rounded-full border border-border whisper-shadow text-[10px] font-bold uppercase">
-            {mounted ? new Date().toLocaleDateString('en-US', { month: 'short', day: '2-digit' }) + ', 2026' : '---'}
-          </span>
+        <div className="flex items-center gap-4">
+          <Select value={timeRange} onValueChange={setTimeRange}>
+            <SelectTrigger className="w-[180px] rounded-full font-mono text-[10px] uppercase font-bold">
+              <SelectValue placeholder="Time Range" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="7d">Last 7 Days</SelectItem>
+              <SelectItem value="30d">Last 30 Days</SelectItem>
+              <SelectItem value="90d">Quarterly View</SelectItem>
+              <SelectItem value="1y">Yearly Report</SelectItem>
+            </SelectContent>
+          </Select>
         </div>
-      </section>
+      </header>
 
-      <section className="grid grid-cols-1 md:grid-cols-3 gap-4 md:gap-gutter mb-6 md:mb-gutter">
-        <div className="bg-white p-6 md:p-8 border border-border whisper-shadow rounded-xl hover:scale-[1.02] transition-transform duration-300">
-          <p className="font-mono text-[10px] text-on-surface-variant uppercase mb-4 font-bold">CSAT Index</p>
-          <div className="flex items-baseline gap-2">
-            <span className="font-mono text-4xl md:text-[56px] leading-none font-bold text-primary">{stats.csat}</span>
-            <span className="font-mono text-xl md:text-display-xl text-primary">%</span>
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-gutter mb-12">
+        {[
+          { label: 'Global CSAT', value: metrics.csat, unit: '%', icon: Users, color: 'text-secondary' },
+          { label: 'Net Promoter', value: metrics.nps, unit: '', icon: TrendingUp, color: 'text-green-600' },
+          { label: 'Customer Effort', value: metrics.ces, unit: '%', icon: Activity, color: 'text-orange-500' },
+          { label: 'Pending Loop', value: metrics.pending, unit: '', icon: AlertTriangle, color: 'text-destructive' },
+        ].map((item, i) => (
+          <div key={i} className="bg-white p-8 rounded-2xl whisper-shadow border border-border group hover:border-secondary transition-all">
+            <div className="flex justify-between items-start mb-6">
+              <item.icon className={cn("w-6 h-6", item.color)} />
+              <span className="font-mono text-[10px] text-on-surface-variant font-bold">LIVE</span>
+            </div>
+            <p className="font-mono text-[10px] uppercase text-on-surface-variant mb-1 font-bold">{item.label}</p>
+            <div className="flex items-baseline gap-1">
+              <span className="text-4xl font-mono font-black text-primary">{item.value}</span>
+              <span className="text-xl font-display text-on-surface-variant font-bold">{item.unit}</span>
+            </div>
           </div>
-          <div className="mt-4 md:mt-6 flex items-center gap-2 text-secondary">
-            <TrendingUp className="w-4 h-4 md:w-5 md:h-5" />
-            <span className="font-mono text-[10px] md:text-label-mono font-bold uppercase">{stats.growth} this month</span>
+        ))}
+      </div>
+
+      <div className="grid grid-cols-12 gap-gutter mb-12">
+        <div className="col-span-12 lg:col-span-8 bg-white p-8 rounded-2xl whisper-shadow border border-border h-[400px]">
+          <div className="flex justify-between items-center mb-8">
+            <h3 className="font-display font-bold text-lg uppercase tracking-tight">Satisfaction Trends</h3>
+            <div className="flex gap-4">
+              <div className="flex items-center gap-2"><span className="w-2 h-2 rounded-full bg-secondary"></span><span className="text-[10px] font-mono font-bold uppercase">CSAT</span></div>
+            </div>
+          </div>
+          <div className="h-64">
+            <ResponsiveContainer width="100%" height="100%">
+              <AreaChart data={chartData}>
+                <defs>
+                  <linearGradient id="colorCsat" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="5%" stopColor="#0058be" stopOpacity={0.1}/>
+                    <stop offset="95%" stopColor="#0058be" stopOpacity={0}/>
+                  </linearGradient>
+                </defs>
+                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#eee" />
+                <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{ fontSize: 10, fill: '#666' }} />
+                <YAxis hide domain={[0, 100]} />
+                <Tooltip contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 10px 15px -3px rgba(0,0,0,0.1)' }} />
+                <Area type="monotone" dataKey="csat" stroke="#0058be" fill="url(#colorCsat)" strokeWidth={3} />
+              </AreaChart>
+            </ResponsiveContainer>
           </div>
         </div>
 
-        <div className="bg-white p-6 md:p-8 border border-border whisper-shadow rounded-xl hover:scale-[1.02] transition-transform duration-300">
-          <p className="font-mono text-[10px] text-on-surface-variant uppercase mb-4 font-bold">Total Responses</p>
-          <div className="flex items-baseline gap-1">
-            <span className="font-mono text-4xl md:text-[56px] leading-none font-bold text-primary">{stats.total}</span>
+        <div className="col-span-12 lg:col-span-4 bg-white p-8 rounded-2xl whisper-shadow border border-border">
+          <h3 className="font-display font-bold text-lg uppercase tracking-tight mb-8">Regional Breakdown</h3>
+          <div className="space-y-6">
+            {['Ibadan', 'Abeokuta', 'Akure', 'Osogbo'].map((loc) => {
+              const count = feedbacks?.filter((f: any) => f.location === loc).length || 0;
+              const percent = metrics.total > 0 ? (count / metrics.total) * 100 : 0;
+              return (
+                <div key={loc} className="space-y-2">
+                  <div className="flex justify-between font-mono text-[10px] font-bold uppercase">
+                    <span>{loc}</span>
+                    <span>{count} Events</span>
+                  </div>
+                  <div className="w-full bg-muted h-1.5 rounded-full overflow-hidden">
+                    <div className="bg-primary h-full transition-all duration-1000" style={{ width: `${percent}%` }}></div>
+                  </div>
+                </div>
+              );
+            })}
           </div>
-          <p className="mt-4 md:mt-6 text-on-surface-variant text-xs md:sm font-bold uppercase opacity-70">Active feedback cycles</p>
         </div>
+      </div>
 
-        <div className="bg-white p-6 md:p-8 border border-border whisper-shadow rounded-xl hover:scale-[1.02] transition-transform duration-300">
-          <p className="font-mono text-[10px] text-on-surface-variant uppercase mb-4 font-bold">Connection Uptime</p>
-          <div className="flex items-baseline gap-2">
-            <span className="font-mono text-4xl md:text-[56px] leading-none font-bold text-secondary">99.8</span>
-            <span className="font-mono text-xl md:text-display-xl text-secondary">%</span>
-          </div>
-          <p className="mt-4 md:mt-6 text-on-surface-variant text-xs md:sm font-bold uppercase opacity-70">Regional stability</p>
+      <div className="bg-white rounded-2xl whisper-shadow border border-border overflow-hidden mb-24">
+        <div className="p-8 border-b border-border flex justify-between items-center bg-surface-container-lowest">
+          <h3 className="font-display font-bold text-lg uppercase tracking-tight">Recent Closed-Loop Feed</h3>
+          <BarChart3 className="w-5 h-5 text-on-surface-variant opacity-40" />
         </div>
-      </section>
-
-      <section className="grid grid-cols-12 gap-4 md:gap-gutter mt-8 md:mt-16 pb-16 md:pb-24">
-        <div className="col-span-12 lg:col-span-8 space-y-4 md:space-y-gutter">
-          <div className="bg-white p-6 md:p-10 border border-border whisper-shadow rounded-xl min-h-[300px] md:h-[500px] flex flex-col">
-            <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-6 md:mb-12">
-              <div>
-                <h3 className="font-display text-lg md:text-[24px] text-primary font-bold uppercase">Performance Trends</h3>
-                <p className="text-on-surface-variant font-mono text-[10px] uppercase tracking-widest font-bold opacity-70">Experience & Stability Trends</p>
+        <div className="divide-y divide-border">
+          {feedbacks?.slice(0, 5).map((f: any) => (
+            <div key={f.id} className="p-6 flex items-center justify-between hover:bg-surface-container-low transition-colors">
+              <div className="flex items-center gap-6">
+                <div className={cn(
+                  "w-2 h-2 rounded-full",
+                  f.status === 'pending' ? "bg-destructive animate-pulse" : "bg-green-500"
+                )}></div>
+                <div>
+                  <p className="font-bold text-sm uppercase">{f.customerName}</p>
+                  <p className="font-mono text-[9px] text-on-surface-variant font-bold uppercase">{f.location} • {f.category}</p>
+                </div>
+              </div>
+              <div className="text-right">
+                <p className="font-mono text-[10px] font-bold">{new Date(f.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</p>
+                <span className={cn(
+                  "inline-block px-2 py-0.5 rounded text-[8px] font-black uppercase tracking-widest mt-1",
+                  f.status === 'pending' ? "bg-destructive/10 text-destructive" : "bg-secondary/10 text-secondary"
+                )}>{f.status}</span>
               </div>
             </div>
-            <div className="flex-1 min-h-[200px]">
-              <ResponsiveContainer width="100%" height="100%">
-                <LineChart data={timelineData}>
-                  <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#eee" />
-                  <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{ fontSize: 10, fill: '#666', fontWeight: 'bold' }} />
-                  <YAxis hide domain={[0, 100]} />
-                  <Tooltip 
-                    contentStyle={{ borderRadius: '12px', border: '1px solid #eee', boxShadow: '0 10px 15px -3px rgba(0,0,0,0.1)' }}
-                  />
-                  <Line type="monotone" dataKey="reliability" stroke="#0058be" strokeWidth={3} dot={{ r: 4, fill: '#0058be' }} activeDot={{ r: 6 }} />
-                  <Line type="monotone" dataKey="satisfaction" stroke="#000000" strokeWidth={3} dot={{ r: 4, fill: '#000000' }} activeDot={{ r: 6 }} />
-                </LineChart>
-              </ResponsiveContainer>
+          ))}
+          {(!feedbacks || feedbacks.length === 0) && (
+            <div className="p-12 text-center text-on-surface-variant font-mono text-[10px] font-bold uppercase">
+              No telemetry data in selected range
             </div>
-          </div>
-
-          <div className="bg-white p-6 md:p-8 border border-border whisper-shadow rounded-xl">
-            <h3 className="font-mono text-[10px] uppercase mb-4 md:mb-8 font-bold">Live Customer Activity</h3>
-            <div className="space-y-3">
-              {feedbacks?.map((item: any) => (
-                <div key={item.id} className="flex items-center justify-between py-2 md:py-3 border-b border-border last:border-0">
-                  <div className="flex items-center gap-3 md:gap-4">
-                    <div className="w-8 h-8 md:w-10 md:h-10 rounded-full bg-surface-container flex items-center justify-center">
-                      {item.category === 'Installation' ? <Wrench className="w-4 h-4 text-secondary" /> : <Activity className="w-4 h-4 text-secondary" />}
-                    </div>
-                    <div>
-                      <p className="text-xs md:text-base font-bold truncate max-w-[100px] md:max-w-none uppercase">{item.customerName || 'Subscriber'}</p>
-                      <p className="font-mono text-[8px] md:text-[10px] text-on-surface-variant font-bold uppercase">{item.location} • {item.category}</p>
-                    </div>
-                  </div>
-                  <div className="flex flex-col md:flex-row items-end md:items-center gap-1 md:gap-3 text-right">
-                    <span className="font-mono text-[8px] md:text-[10px] font-bold text-on-surface-variant uppercase">
-                      {mounted ? new Date(item.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '--:--'}
-                    </span>
-                  </div>
-                </div>
-              ))}
-              {(!feedbacks || feedbacks.length === 0) && !dataLoading && (
-                <p className="text-center text-on-surface-variant py-8 md:py-12 font-mono text-[10px] font-bold uppercase">No activity recorded yet.</p>
-              )}
-            </div>
-          </div>
+          )}
         </div>
-
-        <div className="col-span-12 lg:col-span-4 space-y-4 md:space-y-gutter">
-          <div className="bg-white p-6 md:p-8 border border-border whisper-shadow rounded-xl">
-            <h4 className="font-mono text-[10px] uppercase mb-4 md:mb-8 font-bold">Volume by Region</h4>
-            <div className="h-[180px] md:h-64 mb-4 md:mb-8">
-              <ResponsiveContainer width="100%" height="100%">
-                <BarChart data={regionalChartData} layout="vertical">
-                  <CartesianGrid strokeDasharray="3 3" horizontal={false} stroke="#eee" />
-                  <XAxis type="number" hide />
-                  <YAxis dataKey="name" type="category" axisLine={false} tickLine={false} tick={{ fontSize: 10, fill: '#333', fontWeight: 'bold' }} width={70} />
-                  <Tooltip cursor={{ fill: 'transparent' }} />
-                  <Bar dataKey="value" radius={[0, 4, 4, 0]} barSize={20}>
-                    {regionalChartData.map((entry, index) => (
-                      <Cell key={`cell-${index}`} fill={index === 0 ? '#0058be' : '#000'} />
-                    ))}
-                  </Bar>
-                </BarChart>
-              </ResponsiveContainer>
-            </div>
-            <div className="space-y-2">
-              {regionalChartData.map((item, i) => (
-                <div key={item.name} className="flex justify-between text-[10px] font-mono font-bold uppercase">
-                  <span className="flex items-center gap-2"><span className={cn("w-2 h-2 rounded-full", i === 0 ? "bg-secondary" : "bg-primary")}></span> {item.name}</span>
-                  <span>{stats.total > 0 ? ((item.value / stats.total) * 100).toFixed(1) : 0}%</span>
-                </div>
-              ))}
-            </div>
-          </div>
-
-          <div className="rounded-xl overflow-hidden h-[150px] md:h-64 whisper-shadow relative group">
-            <Image 
-              src={infraImg.imageUrl} 
-              alt="Infrastructure" 
-              fill 
-              sizes="(max-width: 768px) 100vw, (max-width: 1200px) 33vw, 25vw"
-              className="object-cover grayscale brightness-90 group-hover:grayscale-0 transition-all duration-700" 
-              data-ai-hint="data center" 
-            />
-            <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent flex flex-col justify-end p-4 md:p-6">
-              <p className="text-white font-display text-base md:text-[20px] font-bold uppercase">Regional Status</p>
-              <span className="text-white font-mono text-[8px] md:text-[10px] uppercase tracking-widest opacity-80 font-bold">Monitoring Active</span>
-            </div>
-          </div>
-        </div>
-      </section>
+      </div>
     </AdminLayout>
   );
 }

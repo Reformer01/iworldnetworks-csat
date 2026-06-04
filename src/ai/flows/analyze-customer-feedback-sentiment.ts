@@ -1,10 +1,9 @@
+
 'use server';
 /**
- * @fileOverview A Genkit flow for analyzing customer feedback sentiment.
+ * @fileOverview A Genkit flow for professional feedback analysis.
  *
- * - analyzeCustomerFeedbackSentiment - A function that analyzes customer comments and testimonials.
- * - AnalyzeCustomerFeedbackSentimentInput - The input type for the analyzeCustomerFeedbackSentiment function.
- * - AnalyzeCustomerFeedbackSentimentOutput - The return type for the analyzeCustomerFeedbackSentiment function.
+ * - analyzeCustomerFeedbackSentiment - Analyzes tone, themes, and urgency.
  */
 
 import { ai } from '@/ai/genkit';
@@ -16,8 +15,9 @@ const AnalyzeCustomerFeedbackSentimentInputSchema = z.object({
 export type AnalyzeCustomerFeedbackSentimentInput = z.infer<typeof AnalyzeCustomerFeedbackSentimentInputSchema>;
 
 const AnalyzeCustomerFeedbackSentimentOutputSchema = z.object({
-  sentiment: z.enum(['positive', 'negative', 'neutral']).describe('The overall sentiment of the feedback (positive, negative, or neutral).'),
-  keyThemes: z.array(z.string()).describe('A list of key themes extracted from the feedback.'),
+  sentiment: z.enum(['positive', 'negative', 'neutral']).describe('The overall sentiment.'),
+  keyThemes: z.array(z.string()).describe('List of extracted themes.'),
+  urgency: z.enum(['low', 'medium', 'high']).describe('Actionable urgency level.'),
 });
 export type AnalyzeCustomerFeedbackSentimentOutput = z.infer<typeof AnalyzeCustomerFeedbackSentimentOutputSchema>;
 
@@ -25,13 +25,13 @@ const analyzeFeedbackPrompt = ai.definePrompt({
   name: 'analyzeFeedbackPrompt',
   input: { schema: AnalyzeCustomerFeedbackSentimentInputSchema },
   output: { schema: AnalyzeCustomerFeedbackSentimentOutputSchema },
-  prompt: `Analyze the following customer feedback and determine its overall sentiment (positive, negative, or neutral).
-Also, extract a list of 1-3 key themes or topics discussed in the feedback.
+  prompt: `You are a customer experience analyst for I-World Networks, a Nigerian ISP.
+Analyze this feedback:
 
-Feedback:
-{{{feedbackText}}}
+"{{{feedbackText}}}"
 
-Please provide the analysis in the following JSON format:
+Extract the sentiment, 1-3 key themes (e.g., "Slow Billing", "Excellent Fiber", "Tech Punctuality"), and determine if this requires urgent intervention.
+
 {{json output.schema}}`,
 });
 

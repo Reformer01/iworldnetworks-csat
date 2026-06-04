@@ -22,6 +22,7 @@ import { Label } from '@/components/ui/label';
 import { useFirestore } from '@/firebase';
 import { collection, addDoc } from 'firebase/firestore';
 import { useToast } from '@/hooks/use-toast';
+import { analyzeCustomerFeedbackSentiment } from '@/ai/flows/analyze-customer-feedback-sentiment';
 
 type Category = 'Reliability' | 'Support' | 'Testimonials' | 'Installation' | 'Billing';
 
@@ -117,40 +118,54 @@ export default function LandingPage() {
 
     setIsSubmitting(true);
 
-    const feedbackData = {
-      ...formData,
-      category: activeCategory,
-      ratings,
-      timestamp: Date.now(),
-      status: 'pending'
-    };
+    try {
+      let aiAnalysis = null;
+      if (formData.comment && formData.comment.length > 10) {
+        aiAnalysis = await analyzeCustomerFeedbackSentiment({ feedbackText: formData.comment });
+      }
 
-    const feedbackRef = collection(firestore, 'feedbacks');
-    
-    addDoc(feedbackRef, feedbackData)
-      .then(() => {
-        setIsSubmitted(true);
-        toast({
-          title: "Report Received",
-          description: "Thank you for helping us improve I-World Networks.",
-        });
-        setTimeout(() => {
-          setIsSubmitted(false);
-          setRatings({});
-          setFormData({ ...formData, comment: '', customerEmail: '', customerName: '', spotlightInterview: 'Maybe' });
-        }, 3000);
-      })
-      .catch((err) => {
-        console.error('Submission Error:', err);
-        toast({
-          variant: "destructive",
-          title: "Submission Failed",
-          description: "Could not save report. Please check your connection or contact support.",
-        });
-      })
-      .finally(() => {
-        setIsSubmitting(false);
+      const feedbackData = {
+        ...formData,
+        category: activeCategory,
+        ratings,
+        timestamp: Date.now(),
+        status: 'pending',
+        aiAnalysis
+      };
+
+      await addDoc(collection(firestore, 'feedbacks'), feedbackData);
+      
+      setIsSubmitted(true);
+      toast({
+        title: "Report Received",
+        description: "Thank you for helping us improve I-World Networks.",
       });
+      
+      setTimeout(() => {
+        setIsSubmitted(false);
+        setRatings({});
+        setFormData({ 
+          customerName: '',
+          customerEmail: '',
+          servicePlan: 'H-Pro',
+          location: 'Abeokuta',
+          comment: '',
+          staffName: '',
+          referralSource: 'Social Media',
+          spotlightInterview: 'Maybe'
+        });
+      }, 3000);
+
+    } catch (err: any) {
+      console.error('Submission Error:', err);
+      toast({
+        variant: "destructive",
+        title: "Submission Failed",
+        description: "Could not save report. Please check your connection.",
+      });
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   const renderRatingGroup = (id: string, label: string, description: string) => (

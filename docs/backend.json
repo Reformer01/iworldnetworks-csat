@@ -3,7 +3,7 @@
   "entities": {
     "Feedback": {
       "title": "Feedback",
-      "description": "Customer feedback entry from the public portal",
+      "description": "Customer feedback entry from the public portal with AI analysis and workflow tracking",
       "type": "object",
       "properties": {
         "customerName": { "type": "string" },
@@ -31,9 +31,18 @@
         "comment": { "type": "string" },
         "staffName": { "type": "string" },
         "timestamp": { "type": "number" },
-        "status": { "type": "string", "enum": ["pending", "reviewed", "escalated"], "default": "pending" },
+        "status": { "type": "string", "enum": ["pending", "reviewed", "escalated", "resolved"], "default": "pending" },
+        "aiAnalysis": {
+          "type": "object",
+          "properties": {
+            "sentiment": { "type": "string", "enum": ["positive", "neutral", "negative"] },
+            "keyThemes": { "type": "array", "items": { "type": "string" } },
+            "urgency": { "type": "string", "enum": ["low", "medium", "high"] }
+          }
+        },
         "referralSource": { "type": "string" },
-        "spotlightInterview": { "type": "string", "enum": ["Yes", "No", "Maybe"] }
+        "spotlightInterview": { "type": "string", "enum": ["Yes", "No", "Maybe"] },
+        "resolutionNotes": { "type": "string" }
       },
       "required": ["customerEmail", "category", "location", "timestamp"]
     }
@@ -44,7 +53,7 @@
   "firestore": {
     "/feedbacks/{feedbackId}": {
       "schema": "Feedback",
-      "description": "Collection of all customer feedback"
+      "description": "Collection of all customer feedback and operational telemetry"
     }
   }
 }

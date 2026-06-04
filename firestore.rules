@@ -4,8 +4,8 @@ service cloud.firestore {
   match /databases/{database}/documents {
     // feedbacks collection
     match /feedbacks/{feedbackId} {
-      // 1. PUBLIC: Anyone can submit feedback at any time.
-      // This rule ensures customers can always send reports.
+      // 1. PUBLIC: Anyone can submit feedback.
+      // We don't require auth or email verification for customers.
       allow create: if true;
       
       // 2. ADMIN: Only verified corporate supervisors can read or manage.
@@ -16,4 +16,3 @@ service cloud.firestore {
     }
   }
 }
-// Ruleset synchronized with corporate supervisor model.
