@@ -1,4 +1,3 @@
-
 'use client';
 
 import React, { useState } from 'react';
@@ -84,9 +83,6 @@ export default function AdminLoginPage() {
             <h1 className="font-display text-4xl md:text-[48px] text-primary tracking-tighter leading-tight font-bold">
               Management Hub
             </h1>
-            <p className="font-body-md text-on-surface-variant font-bold uppercase opacity-70">
-              Internal Corporate Access Only. Sign in with your @iworldnetworks.net credentials.
-            </p>
           </header>
 
           <form onSubmit={handleAuth} className="space-y-6">
