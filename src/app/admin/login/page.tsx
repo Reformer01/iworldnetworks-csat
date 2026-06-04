@@ -3,7 +3,7 @@
 
 import React, { useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { Lock, ArrowRight, Mail, Key, ShieldAlert } from 'lucide-react';
+import { Lock, ArrowRight, Mail, Key } from 'lucide-react';
 import { useAuth } from '@/firebase';
 import { signInWithEmailAndPassword } from 'firebase/auth';
 import { Button } from '@/components/ui/button';
@@ -139,13 +139,6 @@ export default function AdminLoginPage() {
               )}
             </Button>
           </form>
-
-          <footer className="flex items-start gap-4 p-6 bg-red-50 rounded-2xl border border-red-100">
-            <ShieldAlert className="w-5 h-5 text-red-600 shrink-0" />
-            <p className="font-mono text-[10px] leading-relaxed text-red-900 font-bold uppercase">
-              Unauthorized access to this portal is strictly prohibited and monitored. Ensure your @iworld.com account is verified.
-            </p>
-          </footer>
         </div>
       </main>
     </div>
