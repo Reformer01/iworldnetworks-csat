@@ -13,7 +13,8 @@ import {
   Menu,
   LogOut,
   Sparkles,
-  Loader2
+  Loader2,
+  Activity
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
@@ -55,8 +56,11 @@ export function AdminLayout({ children }: AdminLayoutProps) {
   const [aiReport, setAiReport] = useState<string | null>(null);
 
   const feedbackQuery = React.useMemo(() => 
-    firestore && user ? query(collection(firestore, 'feedbacks'), orderBy('timestamp', 'desc'), limit(50)) : null,
+    firestore && user && user.email?.endsWith('@iworldnetworks.net') 
+      ? query(collection(firestore, 'feedbacks'), orderBy('timestamp', 'desc'), limit(50)) 
+      : null,
   [firestore, user]);
+  
   const { data: recentFeedbacks } = useCollection(feedbackQuery);
 
   useEffect(() => {
@@ -99,7 +103,8 @@ export function AdminLayout({ children }: AdminLayoutProps) {
   };
 
   const navItems = [
-    { name: 'Dashboard', href: '/admin/dashboard', icon: LayoutDashboard },
+    { name: 'Overview', href: '/admin/dashboard', icon: LayoutDashboard },
+    { name: 'Stability', href: '/admin/stability', icon: Activity },
     { name: 'Support', href: '/admin/support', icon: Headset },
     { name: 'Installation', href: '/admin/installation', icon: Wrench },
     { name: 'Billing', href: '/admin/billing', icon: CreditCard },
@@ -149,7 +154,14 @@ export function AdminLayout({ children }: AdminLayoutProps) {
             </button>
           </div>
           <div className="w-8 h-8 md:w-10 md:h-10 rounded-full overflow-hidden border border-border">
-            <Image src={avatar.imageUrl} alt="Admin" width={40} height={40} sizes="40px" className="object-cover" />
+            <Image 
+              src={avatar.imageUrl} 
+              alt="Admin" 
+              width={40} 
+              height={40} 
+              sizes="40px" 
+              className="object-cover" 
+            />
           </div>
           
           <div className="md:hidden ml-1">
