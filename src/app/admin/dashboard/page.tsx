@@ -1,4 +1,3 @@
-
 'use client';
 
 import React, { useMemo, useState } from 'react';
@@ -62,9 +61,11 @@ export default function AdminDashboard() {
     
     const pending = filteredFeedbacks.filter((f: any) => f.status === 'pending').length;
     
+    // CSAT calculation
     const allRatings = filteredFeedbacks.flatMap((f: any) => Object.values(f.ratings || {}).filter(v => typeof v === 'number'));
     const csat = allRatings.length > 0 ? Math.round((allRatings.reduce((a: any, b: any) => a + b, 0) / (allRatings.length * 5)) * 100) : 0;
 
+    // NPS calculation (Testimonials)
     const promoters = filteredFeedbacks.filter((f: any) => {
       const scores = Object.values(f.ratings || {}).filter(v => typeof v === 'number') as number[];
       return scores.some(s => s === 5);
@@ -77,6 +78,7 @@ export default function AdminDashboard() {
 
     const nps = total > 0 ? Math.round(((promoters - detractors) / total) * 100) : 0;
 
+    // CES calculation (Ease of resolution)
     const fcrYes = filteredFeedbacks.filter((f: any) => f.ratings?.fcr === 'Yes').length;
     const ces = total > 0 ? Math.round((fcrYes / total) * 100) : 0;
 
@@ -88,6 +90,7 @@ export default function AdminDashboard() {
     
     const groups: Record<string, { csat: number, count: number }> = {};
     
+    // Group by date for the trend chart
     filteredFeedbacks.slice(0, 30).forEach((f: any) => {
       const date = new Date(f.timestamp);
       const label = date.toLocaleDateString([], { month: 'short', day: 'numeric' });
@@ -278,6 +281,92 @@ export default function AdminDashboard() {
               );
             })}
           </div>
+        </div>
+      </div>
+
+      <div className="bg-white rounded-2xl whisper-shadow border border-border p-8 mb-24">
+        <h3 className="font-display font-bold text-lg uppercase tracking-tight mb-8">Resolution Center</h3>
+        <div className="space-y-4">
+          {filteredFeedbacks.slice(0, 10).map((f: any) => (
+            <div key={f.id} className="group p-6 border border-border rounded-xl hover:border-secondary transition-all flex flex-col md:flex-row justify-between items-start md:items-center gap-6">
+              <div className="flex-1">
+                <div className="flex items-center gap-3 mb-2">
+                  <span className={cn(
+                    "px-3 py-1 rounded-full text-[10px] font-mono font-bold uppercase",
+                    f.status === 'pending' ? "bg-orange-100 text-orange-600" : 
+                    f.status === 'resolved' ? "bg-green-100 text-green-600" : "bg-blue-100 text-blue-600"
+                  )}>
+                    {f.status}
+                  </span>
+                  <span className="font-mono text-[10px] text-on-surface-variant uppercase font-bold">{f.category}</span>
+                  <span className="text-[10px] text-on-surface-variant/40">{new Date(f.timestamp).toLocaleDateString()}</span>
+                </div>
+                <p className="font-bold text-primary mb-1">{f.customerName}</p>
+                <p className="text-sm text-on-surface-variant line-clamp-2 italic">"{f.comment}"</p>
+                {f.resolutionNotes && (
+                  <div className="mt-4 p-3 bg-muted rounded-lg text-xs font-mono border-l-4 border-secondary">
+                    <span className="font-bold text-secondary uppercase block mb-1">Resolution Detail</span>
+                    {f.resolutionNotes}
+                  </div>
+                )}
+              </div>
+              <div className="flex items-center gap-3">
+                <Dialog>
+                  <DialogTrigger asChild>
+                    <Button 
+                      variant="outline" 
+                      className="rounded-full px-6 font-mono text-[10px] uppercase font-bold"
+                      onClick={() => {
+                        setSelectedFeedback(f);
+                        setResNotes(f.resolutionNotes || '');
+                      }}
+                    >
+                      <MessageSquare className="w-3 h-3 mr-2" /> Action Loop
+                    </Button>
+                  </DialogTrigger>
+                  <DialogContent className="max-w-md rounded-3xl">
+                    <DialogHeader>
+                      <DialogTitle className="font-display uppercase tracking-tight">Close the Loop</DialogTitle>
+                    </DialogHeader>
+                    <div className="space-y-6 py-4">
+                      <div className="p-4 bg-muted rounded-xl text-sm italic">
+                        "{f.comment}"
+                      </div>
+                      <div className="space-y-2">
+                        <label className="font-mono text-[10px] uppercase font-bold text-on-surface-variant">Supervisor Resolution Notes</label>
+                        <Textarea 
+                          placeholder="What actions were taken? How was the customer restored?" 
+                          className="min-h-[120px] rounded-2xl"
+                          value={resNotes}
+                          onChange={(e) => setResNotes(e.target.value)}
+                        />
+                      </div>
+                    </div>
+                    <DialogFooter className="flex gap-2">
+                      <Button 
+                        variant="outline" 
+                        className="rounded-full font-mono text-[10px] uppercase font-bold"
+                        onClick={() => handleUpdateStatus(f.id, 'escalated')}
+                      >
+                        Escalate
+                      </Button>
+                      <Button 
+                        className="rounded-full bg-secondary text-white font-mono text-[10px] uppercase font-bold px-8"
+                        onClick={() => handleUpdateStatus(f.id, 'resolved')}
+                      >
+                        <CheckCircle2 className="w-3 h-3 mr-2" /> Mark Resolved
+                      </Button>
+                    </DialogFooter>
+                  </DialogContent>
+                </Dialog>
+              </div>
+            </div>
+          ))}
+          {filteredFeedbacks.length === 0 && (
+            <div className="py-20 text-center border-2 border-dashed border-border rounded-xl">
+              <p className="font-mono text-sm text-on-surface-variant opacity-40 uppercase font-bold tracking-widest">No Intelligence Heartbeat Detected</p>
+            </div>
+          )}
         </div>
       </div>
     </AdminLayout>
