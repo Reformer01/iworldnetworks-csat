@@ -23,12 +23,12 @@ export default function AdminLoginPage() {
     e.preventDefault();
     if (!auth) return;
 
-    // Skill-based security: check domain client-side before attempt
-    if (!email.endsWith('@iworld.com')) {
+    // Corporate domain validation: @iworldnetworks.net
+    if (!email.endsWith('@iworldnetworks.net')) {
       toast({
         variant: "destructive",
         title: "Invalid Domain",
-        description: "Administrative access requires an official @iworld.com account.",
+        description: "Administrative access requires an official @iworldnetworks.net account.",
       });
       return;
     }
@@ -41,7 +41,7 @@ export default function AdminLoginPage() {
         toast({
           variant: "destructive",
           title: "Verification Required",
-          description: "Please check your inbox and verify your corporate email to proceed.",
+          description: "Please verify your corporate email to proceed.",
         });
         setIsAuthenticating(false);
         return;
@@ -56,7 +56,7 @@ export default function AdminLoginPage() {
       toast({
         variant: "destructive",
         title: "Sign In Failed",
-        description: "Invalid credentials or unauthorized attempt. All access is logged.",
+        description: "Invalid credentials or unauthorized attempt.",
       });
       setIsAuthenticating(false);
     }
@@ -85,7 +85,7 @@ export default function AdminLoginPage() {
               Management Hub
             </h1>
             <p className="font-body-md text-on-surface-variant font-bold uppercase opacity-70">
-              Internal Corporate Access Only. Sign in with your @iworld.com credentials.
+              Internal Corporate Access Only. Sign in with your @iworldnetworks.net credentials.
             </p>
           </header>
 
@@ -97,7 +97,7 @@ export default function AdminLoginPage() {
                   <Mail className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-on-surface-variant" />
                   <Input 
                     type="email" 
-                    placeholder="username@iworld.com" 
+                    placeholder="username@iworldnetworks.net" 
                     className="pl-12 h-14 rounded-2xl border-border/50 focus:ring-secondary/20 font-bold"
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}

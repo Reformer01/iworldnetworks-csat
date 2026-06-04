@@ -2,11 +2,11 @@
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
-    // Check if the user is authenticated and has a corporate email
+    // Check if the user is authenticated and has a corporate email from the correct domain
     function isVerifiedSupervisor() {
       return request.auth != null && 
              request.auth.token.email_verified == true && 
-             request.auth.token.email.matches('.*@iworld\\.com$');
+             request.auth.token.email.matches('.*@iworldnetworks\\.net$');
     }
 
     match /feedbacks/{feedbackId} {

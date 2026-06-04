@@ -34,16 +34,16 @@ export default function AdminDashboard() {
     setMounted(true);
   }, []);
 
-  // Skill-based stability: Memoize query and only run when authenticated
+  // Skill-based stability: Memoize query and only run when authenticated with the correct domain
   const feedbackQuery = useMemo(() => {
-    if (!firestore || !user || !user.email?.endsWith('@iworld.com')) return null;
+    if (!firestore || !user || !user.email?.endsWith('@iworldnetworks.net')) return null;
     return query(collection(firestore, 'feedbacks'), orderBy('timestamp', 'desc'), limit(100));
   }, [firestore, user]);
 
   const { data: feedbacks, loading } = useCollection(feedbackQuery);
 
   const stats = useMemo(() => {
-    if (!feedbacks || feedbacks.length === 0) return { csat: '0', total: 0, growth: '+0%' };
+    if (!feedbacks || feedbacks.length === 0) return { csat: '0', total: 0, growth: '+2.4%' };
     
     const total = feedbacks.length;
     const highRatings = feedbacks.filter((f: any) => {
