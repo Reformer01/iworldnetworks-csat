@@ -45,7 +45,7 @@
         },
         "referralSource": { "type": "string" },
         "spotlightInterview": { "type": "string", "enum": ["Yes", "No", "Maybe"] },
-        "resolutionNotes": { "type": "string" }
+        "resolutionNotes": { "type": "string", "description": "Supervisor notes for closing the loop" }
       },
       "required": ["customerEmail", "category", "location", "timestamp", "serviceDate"]
     }

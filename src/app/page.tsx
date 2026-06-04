@@ -113,7 +113,6 @@ export default function LandingPage() {
   };
 
   useEffect(() => {
-    // Initialize defaults on client to avoid hydration mismatch
     setFormData(prev => ({
       ...prev,
       serviceDate: new Date().toISOString().split('T')[0],
@@ -137,7 +136,7 @@ export default function LandingPage() {
         try {
           aiAnalysis = await analyzeCustomerFeedbackSentiment({ feedbackText: formData.comment });
         } catch (e) {
-          console.warn('AI Analysis skipped:', e);
+          console.warn('AI Analysis skipped');
         }
       }
 
@@ -155,8 +154,8 @@ export default function LandingPage() {
       
       setIsSubmitted(true);
       toast({
-        title: "Report Submitted",
-        description: "Your experience has been recorded for service optimization.",
+        title: "Submission Successful",
+        description: "Your feedback has been recorded for optimization.",
       });
       
       setTimeout(() => {
@@ -177,11 +176,10 @@ export default function LandingPage() {
       }, 3000);
 
     } catch (err: any) {
-      console.error('Submission Error:', err);
       toast({
         variant: "destructive",
         title: "Submission Error",
-        description: "Please check your connection and try again.",
+        description: "Please check your network and try again.",
       });
     } finally {
       setIsSubmitting(false);
@@ -202,7 +200,7 @@ export default function LandingPage() {
             onClick={() => handleRating(id, num)}
             className={cn(
               "w-10 h-10 rounded-full border border-border flex items-center justify-center transition-all duration-200 font-mono text-[10px] font-bold",
-              ratings[id] === num ? "bg-secondary text-white border-secondary" : "hover:bg-surface-container text-on-surface"
+              ratings[id] === num ? "bg-secondary text-white border-secondary shadow-md" : "hover:bg-surface-container text-on-surface"
             )}
           >
             {num}
@@ -224,7 +222,7 @@ export default function LandingPage() {
             <p className="text-on-surface-variant text-sm md:text-body-lg mb-8 max-w-lg">
               {heroContent[activeCategory].sub}
             </p>
-            <Button size="lg" className="bg-secondary text-white px-10 py-7 rounded-full font-bold hover:scale-105 transition-transform uppercase text-[12px] tracking-widest" onClick={() => document.getElementById('feedback-portal')?.scrollIntoView({ behavior: 'smooth' })}>
+            <Button size="lg" className="bg-secondary text-white px-10 py-7 rounded-full font-bold hover:scale-105 transition-transform uppercase text-[12px] tracking-widest shadow-xl" onClick={() => document.getElementById('feedback-portal')?.scrollIntoView({ behavior: 'smooth' })}>
               Start Feedback
             </Button>
           </div>
@@ -233,7 +231,7 @@ export default function LandingPage() {
         <section id="feedback-portal" className="px-margin-mobile md:px-margin-desktop max-w-container-max mx-auto">
           <div className="bg-white rounded-3xl p-6 md:p-12 whisper-shadow border border-border grid grid-cols-1 lg:grid-cols-12 gap-12">
             <div className="lg:col-span-3">
-              <p className="font-mono text-[10px] uppercase text-on-surface-variant mb-6 tracking-widest font-bold">Experience Node</p>
+              <p className="font-mono text-[10px] uppercase text-on-surface-variant mb-6 tracking-widest font-bold">Category</p>
               <div className="flex flex-row lg:flex-col gap-2 overflow-x-auto pb-4 lg:pb-0 scrollbar-hide">
                 {categories.map((cat) => (
                   <button key={cat.name} onClick={() => { setActiveCategory(cat.name); setRatings({}); }} className={cn("flex items-center gap-4 px-6 py-4 rounded-xl transition-all text-left whitespace-nowrap", activeCategory === cat.name ? "bg-secondary text-white shadow-lg" : "text-on-surface-variant hover:bg-surface-container font-bold")}>
@@ -248,25 +246,25 @@ export default function LandingPage() {
               <form onSubmit={handleSubmit} className="space-y-12">
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
                   <div className="space-y-1">
-                    <label className="font-mono text-[10px] uppercase text-on-surface-variant font-bold">Full Name</label>
-                    <input required className="w-full bg-transparent border-b border-border py-2 outline-none focus:border-secondary transition-colors font-bold" placeholder="e.g. Samuel Oke" value={formData.customerName} onChange={e => setFormData({...formData, customerName: e.target.value})} />
+                    <label className="font-mono text-[10px] uppercase text-on-surface-variant font-bold">Your Name</label>
+                    <input required className="w-full bg-transparent border-b border-border py-2 outline-none focus:border-secondary transition-colors font-bold" placeholder="Samuel Oke" value={formData.customerName} onChange={e => setFormData({...formData, customerName: e.target.value})} />
                   </div>
                   <div className="space-y-1">
-                    <label className="font-mono text-[10px] uppercase text-on-surface-variant font-bold">Email Address</label>
-                    <input required type="email" className="w-full bg-transparent border-b border-border py-2 outline-none focus:border-secondary transition-colors font-bold" placeholder="your@email.com" value={formData.customerEmail} onChange={e => setFormData({...formData, customerEmail: e.target.value})} />
+                    <label className="font-mono text-[10px] uppercase text-on-surface-variant font-bold">Email</label>
+                    <input required type="email" className="w-full bg-transparent border-b border-border py-2 outline-none focus:border-secondary transition-colors font-bold" placeholder="samuel@example.com" value={formData.customerEmail} onChange={e => setFormData({...formData, customerEmail: e.target.value})} />
                   </div>
                 </div>
 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
                   <div className="space-y-1">
                     <label className="font-mono text-[10px] uppercase text-on-surface-variant font-bold flex items-center gap-2">
-                      <CalendarDays className="w-3 h-3" /> Date of Experience
+                      <CalendarDays className="w-3 h-3 text-secondary" /> Date of Experience
                     </label>
                     <input required type="date" className="w-full bg-transparent border-b border-border py-2 outline-none focus:border-secondary transition-colors font-bold" value={formData.serviceDate} onChange={e => setFormData({...formData, serviceDate: e.target.value})} />
                   </div>
                   <div className="space-y-1">
                     <label className="font-mono text-[10px] uppercase text-on-surface-variant font-bold flex items-center gap-2">
-                      <Clock className="w-3 h-3" /> Approximate Time
+                      <Clock className="w-3 h-3 text-secondary" /> Approx Time
                     </label>
                     <input required type="time" className="w-full bg-transparent border-b border-border py-2 outline-none focus:border-secondary transition-colors font-bold" value={formData.serviceTime} onChange={e => setFormData({...formData, serviceTime: e.target.value})} />
                   </div>
@@ -280,7 +278,7 @@ export default function LandingPage() {
                     </select>
                   </div>
                   <div className="space-y-1">
-                    <label className="font-mono text-[10px] uppercase text-on-surface-variant font-bold">Active Plan</label>
+                    <label className="font-mono text-[10px] uppercase text-on-surface-variant font-bold">Fiber Plan</label>
                     <select className="w-full bg-transparent border-b border-border py-2 outline-none cursor-pointer font-bold" value={formData.servicePlan} onChange={e => setFormData({...formData, servicePlan: e.target.value})}>
                       <optgroup label="Residential (H-Series)">
                         {residentialPlans.map(plan => <option key={plan} value={plan}>{plan}</option>)}
@@ -295,27 +293,27 @@ export default function LandingPage() {
                 <div className="space-y-8">
                   {activeCategory === 'Reliability' && (
                     <>
-                      {renderRatingGroup("stability", "Stability", "Network uptime and consistency.")}
-                      {renderRatingGroup("latency", "Latency", "Gaming and streaming quality.")}
-                      {renderRatingGroup("peakPerformance", "Peak Performance", "Performance during 7PM-11PM.")}
+                      {renderRatingGroup("stability", "Stability", "How consistent is your fiber connection?")}
+                      {renderRatingGroup("latency", "Latency", "Gaming and real-time streaming quality.")}
+                      {renderRatingGroup("peakPerformance", "Peak Performance", "Quality during evening hours (7PM-11PM).")}
                     </>
                   )}
 
                   {activeCategory === 'Support' && (
                     <>
                       <div className="space-y-4 py-4">
-                        <label className="font-mono text-[10px] uppercase text-on-surface-variant font-bold">Agent Name</label>
+                        <label className="font-mono text-[10px] uppercase text-on-surface-variant font-bold">Support Agent</label>
                         <select className="w-full bg-surface-container-low p-4 rounded-xl border border-border outline-none font-bold" onChange={e => setFormData({...formData, staffName: e.target.value})} required>
-                          <option value="">Select Staff</option>
+                          <option value="">Select Representative</option>
                           {supportStaff.map(s => <option key={s} value={s}>{s}</option>)}
                         </select>
                       </div>
-                      {renderRatingGroup("professionalism", "Professionalism", "Agent helpfulness and courtesy.")}
-                      {renderRatingGroup("clarity", "Clarity", "Explanation quality.")}
+                      {renderRatingGroup("professionalism", "Helpfulness", "Was the agent courteous and professional?")}
+                      {renderRatingGroup("clarity", "Clarity", "Quality of the solution provided.")}
                       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 py-6">
                         <div className="max-w-md">
                           <h3 className="font-display text-lg text-primary font-bold">First Contact Resolution</h3>
-                          <p className="text-on-surface-variant text-xs">Was the issue fixed on the first interaction?</p>
+                          <p className="text-on-surface-variant text-xs">Was your issue solved immediately?</p>
                         </div>
                         <RadioGroup onValueChange={v => handleRating('fcr', v)} className="flex gap-8">
                           <div className="flex items-center space-x-2"><RadioGroupItem value="Yes" id="fcr-yes" /><Label htmlFor="fcr-yes" className="font-bold">Yes</Label></div>
@@ -327,71 +325,77 @@ export default function LandingPage() {
 
                   {activeCategory === 'Testimonials' && (
                     <>
-                      <div className="space-y-4">
-                        <label className="font-mono text-[10px] uppercase text-on-surface-variant font-bold">Referral Source</label>
-                        <select className="w-full bg-transparent border-b border-border py-2 outline-none cursor-pointer font-bold" value={formData.referralSource} onChange={e => setFormData({...formData, referralSource: e.target.value})}>
-                          <option>Social Media</option>
-                          <option>Friend/Colleague</option>
-                          <option>Banner</option>
-                          <option>Other</option>
-                        </select>
-                      </div>
-                      <div className="space-y-4">
-                        <label className="font-mono text-[10px] uppercase text-on-surface-variant font-bold">Comment / Story</label>
-                        <textarea className="w-full bg-surface-container-low p-6 rounded-2xl border border-border min-h-[150px] outline-none resize-none font-bold" placeholder="Tell us more about your experience..." value={formData.comment} onChange={e => setFormData({...formData, comment: e.target.value})} />
-                      </div>
-                      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 py-8 border-b border-border/50">
-                        <div className="max-w-md">
-                          <h3 className="font-display text-lg text-primary font-bold">Spotlight Interview</h3>
-                          <p className="text-on-surface-variant text-xs">Would you join a spotlight interview to share your story?</p>
+                      <div className="space-y-6">
+                        <div className="space-y-1">
+                          <label className="font-mono text-[10px] uppercase text-on-surface-variant font-bold">How did you find us?</label>
+                          <select className="w-full bg-transparent border-b border-border py-2 outline-none cursor-pointer font-bold" value={formData.referralSource} onChange={e => setFormData({...formData, referralSource: e.target.value})}>
+                            <option>Social Media</option>
+                            <option>Friend/Colleague</option>
+                            <option>Corporate Partnership</option>
+                            <option>Outdoor Banner</option>
+                          </select>
                         </div>
-                        <RadioGroup 
-                          defaultValue={formData.spotlightInterview}
-                          onValueChange={v => setFormData({...formData, spotlightInterview: v})} 
-                          className="flex gap-6"
-                        >
-                          {['Yes', 'No', 'Maybe'].map(opt => (
-                            <div key={opt} className="flex items-center space-x-2">
-                              <RadioGroupItem value={opt} id={`spotlight-${opt.toLowerCase()}`} />
-                              <Label htmlFor={`spotlight-${opt.toLowerCase()}`} className="font-bold">{opt}</Label>
-                            </div>
-                          ))}
-                        </RadioGroup>
+                        <div className="space-y-4">
+                          <label className="font-mono text-[10px] uppercase text-on-surface-variant font-bold">Your Story</label>
+                          <textarea className="w-full bg-surface-container-low p-6 rounded-2xl border border-border min-h-[150px] outline-none resize-none font-bold placeholder:opacity-30" placeholder="Share your experience with I-World..." value={formData.comment} onChange={e => setFormData({...formData, comment: e.target.value})} />
+                        </div>
+                        
+                        <div className="p-8 bg-surface-container-low rounded-2xl border border-border/50 flex flex-col md:flex-row items-center justify-between gap-6">
+                          <div>
+                            <h3 className="font-display text-lg font-bold text-primary">Spotlight Interview</h3>
+                            <p className="text-on-surface-variant text-xs mt-1">Would you join us for a featured customer story?</p>
+                          </div>
+                          <div className="flex bg-white p-1 rounded-full border border-border">
+                            {['Yes', 'No', 'Maybe'].map((opt) => (
+                              <button
+                                key={opt}
+                                type="button"
+                                onClick={() => setFormData({...formData, spotlightInterview: opt})}
+                                className={cn(
+                                  "px-6 py-2 rounded-full font-mono text-[10px] uppercase tracking-widest transition-all font-bold",
+                                  formData.spotlightInterview === opt ? "bg-secondary text-white shadow-sm" : "text-on-surface-variant hover:bg-muted"
+                                )}
+                              >
+                                {opt}
+                              </button>
+                            ))}
+                          </div>
+                        </div>
                       </div>
-                      {renderRatingGroup("signal", "Signal Strength", "Wi-Fi coverage and quality.")}
+                      {renderRatingGroup("signal", "Signal Coverage", "How is your Wi-Fi signal strength at home?")}
                     </>
                   )}
 
                   {activeCategory === 'Installation' && (
                     <>
                       <div className="space-y-4 py-4">
-                        <label className="font-mono text-[10px] uppercase text-on-surface-variant font-bold">Technician</label>
+                        <label className="font-mono text-[10px] uppercase text-on-surface-variant font-bold">Field Technician</label>
                         <select className="w-full bg-surface-container-low p-4 rounded-xl border border-border outline-none font-bold" onChange={e => setFormData({...formData, staffName: e.target.value})} required>
-                          <option value="">Select Technician</option>
+                          <option value="">Select Installer</option>
                           {technicians.map(t => <option key={t.name} value={t.name}>{t.name} ({t.region})</option>)}
                         </select>
                       </div>
-                      {renderRatingGroup("punctuality", "Punctuality", "Technician arrival timing.")}
-                      {renderRatingGroup("quality", "Setup Quality", "Neatness and quality of fiber setup.")}
-                      {renderRatingGroup("explanation", "Orientation", "Equipment orientation and explanation.")}
+                      {renderRatingGroup("punctuality", "Punctuality", "Technician arrival and timing.")}
+                      {renderRatingGroup("quality", "Neatness", "Quality of fiber cabling and setup.")}
+                      {renderRatingGroup("explanation", "Orientation", "Did you receive a full equipment walkthrough?")}
                     </>
                   )}
 
                   {activeCategory === 'Billing' && (
                     <>
-                      {renderRatingGroup("accuracy", "Invoice Accuracy", "Accuracy and clarity of billing.")}
-                      {renderRatingGroup("reconnection", "Reconnection", "Speed of restoration after payment.")}
+                      {renderRatingGroup("accuracy", "Billing Accuracy", "Transparency and clarity of invoices.")}
+                      {renderRatingGroup("reconnection", "Payment Restoration", "Speed of restoration after successful payment.")}
                     </>
                   )}
 
                   <div className="pt-8">
-                    <Button type="submit" disabled={isSubmitted || isSubmitting} className={cn("w-full md:w-auto px-12 py-7 rounded-full font-bold transition-all flex items-center justify-center gap-3 text-white uppercase text-[12px] tracking-widest", isSubmitted ? "bg-green-600" : "bg-primary hover:scale-[1.02]")}>
+                    <Button type="submit" disabled={isSubmitted || isSubmitting} className={cn("w-full md:w-auto px-12 py-7 rounded-full font-bold transition-all flex items-center justify-center gap-3 text-white uppercase text-[12px] tracking-widest shadow-xl", isSubmitted ? "bg-green-600" : "bg-primary hover:scale-[1.02]")}>
                       {isSubmitting ? (
                         <Loader2 className="w-5 h-5 animate-spin" />
                       ) : isSubmitted ? (
                         <>Success <CircleCheck className="w-5 h-5" /></>
                       ) : (
-                        <>Submit Report <ArrowRight className="w-5 h-5" /></>
+                        <>Submit Feedback <ArrowRight className="w-5 h-5" /></>
                       )}
                     </Button>
                   </div>
@@ -406,11 +410,11 @@ export default function LandingPage() {
         <div className="max-w-container-max mx-auto px-margin-mobile md:px-margin-desktop flex flex-col md:flex-row justify-between items-start gap-12">
           <div className="space-y-4">
             <div className="font-mono text-[12px] font-bold text-primary uppercase">I-World Networks</div>
-            <p className="text-on-surface-variant text-sm max-w-xs font-bold uppercase opacity-70">Empowering Southwest Nigeria with high-speed Fiber infrastructure.</p>
+            <p className="text-on-surface-variant text-sm max-w-xs font-bold uppercase opacity-70">Southwest Nigeria's Fiber Backbone.</p>
             <div className="font-mono text-[10px] text-on-surface-variant uppercase font-bold">© 2026 I-World Networks</div>
           </div>
           <div className="grid grid-cols-2 md:grid-cols-4 gap-x-12 gap-y-4">
-            {validRegions.map(r => <a key={r} href="#" className="text-on-surface-variant hover:text-secondary font-mono text-[10px] uppercase font-bold">{r} Hub</a>)}
+            {validRegions.map(r => <a key={r} href="#" className="text-on-surface-variant hover:text-secondary font-mono text-[10px] uppercase font-bold">{r} Cluster</a>)}
           </div>
         </div>
       </footer>

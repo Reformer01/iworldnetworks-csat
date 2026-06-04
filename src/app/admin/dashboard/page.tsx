@@ -3,9 +3,9 @@
 
 import React, { useMemo, useState } from 'react';
 import { AdminLayout } from '@/components/layout/AdminLayout';
-import { TrendingUp, Users, Activity, BarChart3, AlertTriangle, Calendar, Sparkles, Loader2, Clock } from 'lucide-react';
+import { TrendingUp, Users, Activity, BarChart3, AlertTriangle, Calendar, Sparkles, Loader2, Clock, CheckCircle2, MoreVertical, MessageSquare } from 'lucide-react';
 import { useFirestore, useCollection, useAuth, useUser } from '@/firebase';
-import { collection, query, orderBy, limit } from 'firebase/firestore';
+import { collection, query, orderBy, limit, doc, updateDoc } from 'firebase/firestore';
 import { 
   XAxis, 
   YAxis, 
@@ -20,11 +20,15 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Button } from '@/components/ui/button';
 import { generateReportExecutiveSummary } from '@/ai/flows/generate-report-executive-summary-flow';
 import { useToast } from '@/hooks/use-toast';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from '@/components/ui/dialog';
+import { Textarea } from '@/components/ui/textarea';
 
 export default function AdminDashboard() {
   const [timeRange, setTimeRange] = useState('30d');
   const [isGeneratingReport, setIsGeneratingReport] = useState(false);
   const [aiReport, setAiReport] = useState<string | null>(null);
+  const [selectedFeedback, setSelectedFeedback] = useState<any>(null);
+  const [resNotes, setResNotes] = useState('');
   
   const firestore = useFirestore();
   const auth = useAuth();
@@ -38,7 +42,6 @@ export default function AdminDashboard() {
 
   const { data: allFeedbacks } = useCollection(feedbackQuery);
 
-  // Filter feedbacks based on timeRange
   const filteredFeedbacks = useMemo(() => {
     if (!allFeedbacks) return [];
     
@@ -48,7 +51,7 @@ export default function AdminDashboard() {
       '30d': 30 * 24 * 60 * 60 * 1000,
       '90d': 90 * 24 * 60 * 60 * 1000,
       '1y': 365 * 24 * 60 * 60 * 1000,
-    }[timeRange] || 30 * 24 * 60 * 60 * 1000;
+    }[timeRange as keyof typeof rangeMs] || 30 * 24 * 60 * 60 * 1000;
 
     return allFeedbacks.filter((f: any) => (now - f.timestamp) <= rangeMs);
   }, [allFeedbacks, timeRange]);
@@ -59,23 +62,26 @@ export default function AdminDashboard() {
     
     const pending = filteredFeedbacks.filter((f: any) => f.status === 'pending').length;
     
+    // CSAT Calculation
     const allRatings = filteredFeedbacks.flatMap((f: any) => Object.values(f.ratings || {}).filter(v => typeof v === 'number'));
     const csat = allRatings.length > 0 ? Math.round((allRatings.reduce((a: any, b: any) => a + b, 0) / (allRatings.length * 5)) * 100) : 0;
 
+    // NPS Logic: 5 = Promoter, 1-3 = Detractor, 4 = Neutral
     const promoters = filteredFeedbacks.filter((f: any) => {
       const scores = Object.values(f.ratings || {}).filter(v => typeof v === 'number') as number[];
-      return scores.some(s => s >= 4);
+      return scores.some(s => s === 5);
     }).length;
     
     const detractors = filteredFeedbacks.filter((f: any) => {
       const scores = Object.values(f.ratings || {}).filter(v => typeof v === 'number') as number[];
-      return scores.every(s => s <= 2) && scores.length > 0;
+      return scores.every(s => s <= 3) && scores.length > 0;
     }).length;
 
-    const nps = Math.round(((promoters - detractors) / total) * 100);
+    const nps = total > 0 ? Math.round(((promoters - detractors) / total) * 100) : 0;
 
+    // CES Calculation (First Contact Resolution)
     const fcrYes = filteredFeedbacks.filter((f: any) => f.ratings?.fcr === 'Yes').length;
-    const ces = Math.round((fcrYes / total) * 100);
+    const ces = total > 0 ? Math.round((fcrYes / total) * 100) : 0;
 
     return { csat, nps, ces, total, pending };
   }, [filteredFeedbacks]);
@@ -103,12 +109,27 @@ export default function AdminDashboard() {
     })).reverse();
   }, [filteredFeedbacks]);
 
+  const handleUpdateStatus = async (feedbackId: string, status: string) => {
+    if (!firestore) return;
+    try {
+      await updateDoc(doc(firestore, 'feedbacks', feedbackId), { 
+        status, 
+        resolutionNotes: resNotes 
+      });
+      toast({ title: "Loop Updated", description: `Feedback marked as ${status}.` });
+      setSelectedFeedback(null);
+      setResNotes('');
+    } catch (e) {
+      toast({ variant: "destructive", title: "Update Failed" });
+    }
+  };
+
   const handleGenerateReport = async () => {
     if (filteredFeedbacks.length === 0) {
       toast({
         variant: "destructive",
-        title: "No Data",
-        description: "Insufficient data in the current time range to generate a report.",
+        title: "Insufficient Data",
+        description: "No records found in this time range.",
       });
       return;
     }
@@ -121,8 +142,7 @@ export default function AdminDashboard() {
         category: f.category,
         sentiment: f.aiAnalysis?.sentiment,
         comment: f.comment,
-        serviceDate: f.serviceDate,
-        serviceTime: f.serviceTime
+        serviceDate: f.serviceDate
       }));
 
       const result = await generateReportExecutiveSummary({ 
@@ -130,16 +150,9 @@ export default function AdminDashboard() {
       });
       
       setAiReport(result.summary);
-      toast({
-        title: "Report Generated",
-        description: "AI Executive summary is ready.",
-      });
+      toast({ title: "Intelligence Report Generated" });
     } catch (error) {
-      toast({
-        variant: "destructive",
-        title: "Generation Failed",
-        description: "Could not generate AI report. Please try again.",
-      });
+      toast({ variant: "destructive", title: "AI Generation Failed" });
     } finally {
       setIsGeneratingReport(false);
     }
@@ -149,56 +162,61 @@ export default function AdminDashboard() {
     <AdminLayout>
       <header className="flex flex-col md:flex-row justify-between items-start md:items-center gap-6 mb-12">
         <div>
-          <h1 className="text-3xl font-display font-bold text-primary uppercase tracking-tight">Intelligence Dashboard</h1>
+          <h1 className="text-3xl font-display font-bold text-primary uppercase tracking-tight">Enterprise Telemetry Hub</h1>
           <div className="flex items-center gap-2 mt-2 opacity-60">
-            <Calendar className="w-3 h-3 text-secondary" />
+            <Activity className="w-3 h-3 text-secondary" />
             <p className="text-on-surface-variant font-mono text-[10px] uppercase tracking-widest font-bold">
-              Reporting: 2026 Telemetry Engine Active
+              Real-time Satisfaction Engine Active
             </p>
           </div>
         </div>
         <div className="flex items-center gap-4">
           <Select value={timeRange} onValueChange={setTimeRange}>
-            <SelectTrigger className="w-[180px] rounded-full font-mono text-[10px] uppercase font-bold bg-white">
-              <SelectValue placeholder="Time Range" />
+            <SelectTrigger className="w-[180px] rounded-full font-mono text-[10px] uppercase font-bold bg-white border-border">
+              <SelectValue placeholder="Reporting Period" />
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="7d">Last 7 Days</SelectItem>
               <SelectItem value="30d">Last 30 Days</SelectItem>
-              <SelectItem value="90d">Last 90 Days</SelectItem>
-              <SelectItem value="1y">Full Year Insight</SelectItem>
+              <SelectItem value="90d">Quarterly Pulse</SelectItem>
+              <SelectItem value="1y">Annual Insight</SelectItem>
             </SelectContent>
           </Select>
           <Button 
             onClick={handleGenerateReport} 
             disabled={isGeneratingReport}
-            className="rounded-full bg-secondary text-white font-mono text-[10px] uppercase font-bold flex items-center gap-2"
+            className="rounded-full bg-secondary text-white font-mono text-[10px] uppercase font-bold px-8 shadow-lg hover:scale-105 transition-transform"
           >
-            {isGeneratingReport ? <Loader2 className="w-3 h-3 animate-spin" /> : <Sparkles className="w-3 h-3" />}
-            Generate AI Report
+            {isGeneratingReport ? <Loader2 className="w-3 h-3 animate-spin mr-2" /> : <Sparkles className="w-3 h-3 mr-2" />}
+            AI Report
           </Button>
         </div>
       </header>
 
       {aiReport && (
-        <div className="mb-12 bg-secondary/5 border border-secondary/20 p-8 rounded-2xl whisper-shadow animate-in fade-in slide-in-from-top-4 duration-500">
-          <div className="flex items-center gap-3 mb-6">
-            <Sparkles className="w-5 h-5 text-secondary" />
-            <h3 className="font-display font-bold text-lg uppercase tracking-tight text-secondary">AI Executive Summary ({timeRange})</h3>
+        <div className="mb-12 bg-primary text-white p-10 rounded-3xl whisper-shadow border border-white/10 animate-in fade-in slide-in-from-top-4 duration-700">
+          <div className="flex items-center gap-4 mb-8">
+            <div className="p-3 bg-secondary rounded-2xl">
+              <Sparkles className="w-6 h-6 text-white" />
+            </div>
+            <div>
+              <h3 className="font-display font-bold text-xl uppercase tracking-widest">AI Strategic Summary</h3>
+              <p className="font-mono text-[10px] text-white/40 uppercase font-bold">Period: {timeRange}</p>
+            </div>
           </div>
-          <p className="font-body-md text-on-surface-variant leading-relaxed italic">
+          <p className="font-body-md text-white/80 leading-relaxed italic text-lg max-w-4xl">
             "{aiReport}"
           </p>
-          <Button variant="ghost" className="mt-6 text-[10px] font-mono uppercase font-bold text-secondary p-0 hover:bg-transparent" onClick={() => setAiReport(null)}>Dismiss Summary</Button>
+          <Button variant="ghost" className="mt-10 text-[10px] font-mono uppercase font-bold text-secondary hover:text-white" onClick={() => setAiReport(null)}>Dismiss Analysis</Button>
         </div>
       )}
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-gutter mb-12">
         {[
-          { label: 'Global CSAT', value: metrics.csat, unit: '%', icon: Users, color: 'text-secondary' },
+          { label: 'Network CSAT', value: metrics.csat, unit: '%', icon: Users, color: 'text-secondary' },
           { label: 'Net Promoter', value: metrics.nps, unit: '', icon: TrendingUp, color: 'text-green-600' },
           { label: 'Customer Effort', value: metrics.ces, unit: '%', icon: Activity, color: 'text-orange-500' },
-          { label: 'Active Loops', value: metrics.pending, unit: '', icon: AlertTriangle, color: 'text-destructive' },
+          { label: 'Pending Loops', value: metrics.pending, unit: '', icon: AlertTriangle, color: 'text-destructive' },
         ].map((item, i) => (
           <div key={i} className="bg-white p-8 rounded-2xl whisper-shadow border border-border group hover:border-secondary transition-all">
             <div className="flex justify-between items-start mb-6">
@@ -222,7 +240,7 @@ export default function AdminDashboard() {
           <div className="flex justify-between items-center mb-8">
             <div>
               <h3 className="font-display font-bold text-lg uppercase tracking-tight">Satisfaction Trends</h3>
-              <p className="font-mono text-[10px] opacity-40 uppercase font-bold">Time Window Analysis: {timeRange}</p>
+              <p className="font-mono text-[10px] opacity-40 uppercase font-bold mt-1">Daily Satisfaction Mapping</p>
             </div>
           </div>
           <div className="h-64">
@@ -254,7 +272,7 @@ export default function AdminDashboard() {
                 <div key={loc} className="space-y-2">
                   <div className="flex justify-between font-mono text-[10px] font-bold uppercase">
                     <span>{loc} Hub</span>
-                    <span className="text-secondary">{count} Events</span>
+                    <span className="text-secondary">{count} Feedbacks</span>
                   </div>
                   <div className="w-full bg-muted h-1.5 rounded-full overflow-hidden">
                     <div className="bg-primary h-full transition-all duration-1000" style={{ width: `${percent}%` }}></div>
@@ -266,56 +284,80 @@ export default function AdminDashboard() {
         </div>
       </div>
 
-      <div className="bg-white rounded-2xl whisper-shadow border border-border overflow-hidden mb-24">
+      <div className="bg-white rounded-3xl whisper-shadow border border-border overflow-hidden mb-24">
         <div className="p-8 border-b border-border flex justify-between items-center bg-surface-container-lowest">
           <div>
-            <h3 className="font-display font-bold text-lg uppercase tracking-tight">Recent Telemetry Heartbeat</h3>
-            <p className="font-mono text-[10px] opacity-40 uppercase font-bold mt-1">Real-time resolution feed</p>
+            <h3 className="font-display font-bold text-lg uppercase tracking-tight">Recent Resolutions Feed</h3>
+            <p className="font-mono text-[10px] opacity-40 uppercase font-bold mt-1">Closed-loop Management</p>
           </div>
           <BarChart3 className="w-5 h-5 text-on-surface-variant opacity-40" />
         </div>
         <div className="divide-y divide-border">
           {filteredFeedbacks.slice(0, 10).map((f: any) => (
-            <div key={f.id} className="p-6 flex items-center justify-between hover:bg-surface-container-low transition-colors">
+            <div key={f.id} className="p-8 flex items-center justify-between hover:bg-surface-container-low transition-colors group">
               <div className="flex items-center gap-6">
                 <div className={cn(
-                  "w-2 h-2 rounded-full",
+                  "w-2.5 h-2.5 rounded-full",
                   f.status === 'pending' ? "bg-destructive animate-pulse" : "bg-green-500"
                 )}></div>
                 <div className="flex flex-col">
-                  <p className="font-bold text-sm uppercase tracking-tight">{f.customerName}</p>
+                  <p className="font-bold text-sm uppercase tracking-tight text-primary">{f.customerName}</p>
                   <div className="flex items-center gap-2 font-mono text-[9px] text-on-surface-variant font-bold uppercase">
-                    <span>{f.location} • {f.category} • {f.servicePlan}</span>
-                    <span className="flex items-center gap-1 text-secondary">
-                      <Clock className="w-2.5 h-2.5" /> {f.serviceDate} {f.serviceTime}
-                    </span>
+                    <span>{f.location} • {f.category}</span>
+                    {f.serviceDate && (
+                      <span className="flex items-center gap-1 text-secondary">
+                        <Calendar className="w-2.5 h-2.5" /> Experience: {f.serviceDate}
+                      </span>
+                    )}
                   </div>
                 </div>
               </div>
-              <div className="text-right flex items-center gap-8">
-                <div className="hidden md:block">
-                  <p className="font-mono text-[10px] font-bold opacity-60">SENTIMENT</p>
-                  <span className={cn(
-                    "inline-block px-2 py-0.5 rounded text-[8px] font-black uppercase tracking-widest",
-                    f.aiAnalysis?.sentiment === 'positive' ? "bg-green-100 text-green-700" : 
-                    f.aiAnalysis?.sentiment === 'negative' ? "bg-destructive/10 text-destructive" : 
-                    "bg-slate-100 text-slate-600"
-                  )}>{f.aiAnalysis?.sentiment || 'Analyzing'}</span>
+              <div className="flex items-center gap-12">
+                <div className="hidden md:flex flex-col items-end">
+                   <p className="font-mono text-[9px] font-bold opacity-40 uppercase mb-1">Status</p>
+                   <span className={cn(
+                    "px-3 py-1 rounded-full text-[8px] font-black uppercase tracking-widest",
+                    f.status === 'resolved' ? "bg-green-100 text-green-700" : "bg-destructive/10 text-destructive"
+                  )}>{f.status}</span>
                 </div>
-                <div className="min-w-[100px]">
-                  <p className="font-mono text-[10px] font-bold">
-                    {new Date(f.timestamp).toLocaleDateString([], { month: 'short', day: 'numeric' })}
-                  </p>
-                  <p className="font-mono text-[9px] text-on-surface-variant opacity-60 uppercase">
-                    SUBMITTED
-                  </p>
-                </div>
+                
+                <Dialog>
+                  <DialogTrigger asChild>
+                    <Button variant="outline" size="sm" className="rounded-full h-8 font-mono text-[8px] uppercase font-bold border-border/50">
+                      Manage Loop
+                    </Button>
+                  </DialogTrigger>
+                  <DialogContent className="rounded-3xl border-none p-10 whisper-shadow max-w-xl">
+                    <DialogHeader className="mb-6">
+                      <DialogTitle className="font-display text-2xl font-bold uppercase tracking-tight">Resolve Feedback</DialogTitle>
+                    </DialogHeader>
+                    <div className="space-y-6">
+                      <div className="p-6 bg-surface-container-low rounded-2xl border border-border/50">
+                        <p className="font-mono text-[10px] uppercase font-bold text-secondary mb-2">Customer Context</p>
+                        <p className="text-sm font-bold italic">"{f.comment}"</p>
+                      </div>
+                      <div className="space-y-2">
+                        <label className="font-mono text-[10px] uppercase font-bold">Resolution Notes</label>
+                        <Textarea 
+                          placeholder="What actions were taken to close the loop?" 
+                          className="rounded-2xl border-border min-h-[120px] font-bold"
+                          defaultValue={f.resolutionNotes}
+                          onChange={(e) => setResNotes(e.target.value)}
+                        />
+                      </div>
+                    </div>
+                    <DialogFooter className="mt-10 gap-2">
+                      <Button variant="ghost" onClick={() => handleUpdateStatus(f.id, 'reviewed')} className="rounded-full font-mono text-[10px] uppercase font-bold">Mark Reviewed</Button>
+                      <Button onClick={() => handleUpdateStatus(f.id, 'resolved')} className="bg-secondary text-white rounded-full px-8 font-mono text-[10px] uppercase font-bold">Close Loop</Button>
+                    </DialogFooter>
+                  </DialogContent>
+                </Dialog>
               </div>
             </div>
           ))}
           {filteredFeedbacks.length === 0 && (
-            <div className="p-12 text-center text-on-surface-variant font-mono text-[10px] font-bold uppercase opacity-20">
-              No telemetry found for this time range.
+            <div className="p-20 text-center text-on-surface-variant font-mono text-[10px] font-bold uppercase opacity-20">
+              Waiting for telemetry sync...
             </div>
           )}
         </div>
