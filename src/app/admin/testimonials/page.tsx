@@ -121,7 +121,7 @@ export default function AdminTestimonials() {
               src={workspaceImg.imageUrl} 
               alt="Workspace" 
               fill 
-              sizes="(max-width: 768px) 100vw, 33vw"
+              sizes="(max-width: 768px) 100vw, (max-width: 1200px) 33vw, 33vw"
               className="object-cover grayscale brightness-75" 
             />
             <div className="absolute inset-0 flex items-center justify-center bg-primary/20 p-8 text-center">

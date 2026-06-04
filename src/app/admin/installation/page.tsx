@@ -121,7 +121,7 @@ export default function AdminInstallation() {
               src={networkMap.imageUrl} 
               alt="Network Map" 
               fill 
-              sizes="(max-width: 768px) 100vw, 50vw"
+              sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 50vw"
               className="object-cover grayscale contrast-[1.1] opacity-40 mix-blend-multiply transition-transform duration-1000 group-hover:scale-105" 
               data-ai-hint="network map" 
             />

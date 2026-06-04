@@ -69,16 +69,22 @@ export default function AdminDashboard() {
   }, [feedbacks]);
 
   const timelineData = useMemo(() => {
-    return [
-      { name: 'Mon', satisfaction: 85, reliability: 92 },
-      { name: 'Tue', satisfaction: 88, reliability: 89 },
-      { name: 'Wed', satisfaction: 92, reliability: 95 },
-      { name: 'Thu', satisfaction: 89, reliability: 91 },
-      { name: 'Fri', satisfaction: 94, reliability: 94 },
-      { name: 'Sat', satisfaction: 90, reliability: 88 },
-      { name: 'Sun', satisfaction: 93, reliability: 96 },
-    ];
-  }, []);
+    if (!feedbacks || feedbacks.length < 5) {
+      return [
+        { name: 'Mon', satisfaction: 85, reliability: 92 },
+        { name: 'Tue', satisfaction: 88, reliability: 89 },
+        { name: 'Wed', satisfaction: 92, reliability: 95 },
+        { name: 'Thu', satisfaction: 89, reliability: 91 },
+        { name: 'Fri', satisfaction: 94, reliability: 94 },
+      ];
+    }
+    // Simple windowing of recent data
+    return feedbacks.slice(0, 7).reverse().map((f: any, i: number) => ({
+      name: mounted ? new Date(f.timestamp).toLocaleTimeString([], { hour: '2-digit' }) : `T-${i}`,
+      satisfaction: 70 + (Number(f.ratings?.professionalism || 4) * 5),
+      reliability: 80 + (Number(f.ratings?.stability || 4) * 4)
+    }));
+  }, [feedbacks, mounted]);
 
   return (
     <AdminLayout>
@@ -134,7 +140,7 @@ export default function AdminDashboard() {
             <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-6 md:mb-12">
               <div>
                 <h3 className="font-display text-lg md:text-[24px] text-primary font-bold uppercase">Performance Trends</h3>
-                <p className="text-on-surface-variant font-mono text-[10px] uppercase tracking-widest font-bold opacity-70">Real-time Connection Activity</p>
+                <p className="text-on-surface-variant font-mono text-[10px] uppercase tracking-widest font-bold opacity-70">Experience & Stability Trends</p>
               </div>
             </div>
             <div className="flex-1 min-h-[200px]">

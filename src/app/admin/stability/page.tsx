@@ -39,7 +39,9 @@ export default function AdminStability() {
     const avgStability = feedbacks.reduce((acc, f: any) => acc + Number(f.ratings?.stability || 5), 0) / feedbacks.length;
     const avgLatency = feedbacks.reduce((acc, f: any) => acc + Number(f.ratings?.latency || 5), 0) / feedbacks.length;
     
+    // Scale 1-5 to a 99-100 uptime index
     const uptimeIndex = (99.0 + (avgStability / 5)).toFixed(2);
+    // Scale 1-5 to 10-70ms
     const latencyVal = Math.round(70 - (avgLatency * 11));
     
     return {
@@ -51,9 +53,9 @@ export default function AdminStability() {
 
   const chartData = useMemo(() => {
     if (!feedbacks) return [];
-    return feedbacks.slice(0, 20).reverse().map((f: any, i) => ({
+    return feedbacks.slice(0, 20).reverse().map((f: any) => ({
       time: new Date(f.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-      latency: 70 - (Number(f.ratings?.latency || 4) * 10) + (Math.random() * 5),
+      latency: 70 - (Number(f.ratings?.latency || 4) * 10),
       stability: 95 + (Number(f.ratings?.stability || 4))
     }));
   }, [feedbacks]);
@@ -61,6 +63,7 @@ export default function AdminStability() {
   const nodeHealth = useMemo(() => {
     const regions = ['Lagos', 'Ibadan', 'Akure', 'Osogbo'];
     return regions.map(region => {
+      // Use real feedback from matching locations if available
       const regionData = feedbacks?.filter((f: any) => f.location === (region === 'Lagos' ? 'Ibadan' : region)) || [];
       const avg = regionData.length > 0 
         ? regionData.reduce((acc, f: any) => acc + Number(f.ratings?.stability || 5), 0) / regionData.length 
