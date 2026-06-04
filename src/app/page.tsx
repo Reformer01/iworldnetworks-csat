@@ -1,3 +1,4 @@
+
 'use client';
 
 import React, { useState } from 'react';
@@ -20,8 +21,7 @@ import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Label } from '@/components/ui/label';
 import { useFirestore } from '@/firebase';
 import { collection, addDoc } from 'firebase/firestore';
-import { errorEmitter } from '@/firebase/error-emitter';
-import { FirestorePermissionError } from '@/firebase/errors';
+import { useToast } from '@/hooks/use-toast';
 
 type Category = 'Reliability' | 'Support' | 'Testimonials' | 'Installation' | 'Billing';
 
@@ -41,6 +41,7 @@ export default function LandingPage() {
   });
 
   const firestore = useFirestore();
+  const { toast } = useToast();
   const validRegions = ['Abeokuta', 'Ibadan', 'Osogbo', 'Akure'];
 
   const residentialPlans = ['H-Lite', 'H-Pro', 'H-Max', 'H-Custom'];
@@ -115,34 +116,40 @@ export default function LandingPage() {
 
     setIsSubmitting(true);
 
+    const feedbackData = {
+      ...formData,
+      category: activeCategory,
+      ratings,
+      timestamp: Date.now(),
+      status: 'pending'
+    };
+
     try {
-      const feedbackData = {
-        ...formData,
-        category: activeCategory,
-        ratings,
-        timestamp: Date.now(),
-        status: 'pending'
-      };
-
       const feedbackRef = collection(firestore, 'feedbacks');
+      // No await here for optimistic responsiveness as per guidelines
       addDoc(feedbackRef, feedbackData)
-        .catch(async (serverError) => {
-          const permissionError = new FirestorePermissionError({
-            path: 'feedbacks',
-            operation: 'create',
-            requestResourceData: feedbackData,
+        .then(() => {
+          setIsSubmitted(true);
+          toast({
+            title: "Report Received",
+            description: "Thank you for helping us improve I-World Networks.",
           });
-          errorEmitter.emit('permission-error', permissionError);
+          setTimeout(() => {
+            setIsSubmitted(false);
+            setRatings({});
+            setFormData({ ...formData, comment: '', customerEmail: '', customerName: '' });
+          }, 3000);
+        })
+        .catch((err) => {
+          console.error("Submission failed", err);
+          toast({
+            variant: "destructive",
+            title: "Submission Error",
+            description: "We couldn't save your report. Please ensure your email is valid and try again.",
+          });
         });
-
-      setIsSubmitted(true);
-      setTimeout(() => {
-        setIsSubmitted(false);
-        setRatings({});
-        setFormData({ ...formData, comment: '', customerEmail: '', customerName: '' });
-      }, 3000);
     } catch (err) {
-       console.error('Submission logic failed', err);
+       console.error('Logic failed', err);
     } finally {
       setIsSubmitting(false);
     }

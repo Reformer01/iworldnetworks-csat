@@ -13,14 +13,17 @@ import {
   ArrowLeft,
   Menu,
   LogOut,
-  Activity
+  Activity,
+  ShieldAlert,
+  Send
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 import Image from 'next/image';
 import { PlaceHolderImages } from '@/lib/placeholder-images';
 import { useAuth, useUser } from '@/firebase';
-import { signOut } from 'firebase/auth';
+import { signOut, sendEmailVerification } from 'firebase/auth';
+import { useToast } from '@/hooks/use-toast';
 import {
   Sheet,
   SheetContent,
@@ -38,28 +41,30 @@ export function AdminLayout({ children }: AdminLayoutProps) {
   const router = useRouter();
   const auth = useAuth();
   const { user, loading } = useUser(auth);
+  const { toast } = useToast();
   const avatar = PlaceHolderImages.find(img => img.id === 'admin-avatar')!;
-
-  useEffect(() => {
-    // Master Security Gate: Only allow verified @iworldnetworks.net accounts
-    if (!loading) {
-      if (!user) {
-        router.push('/admin/login');
-      } else if (!user.emailVerified || !user.email?.endsWith('@iworldnetworks.net')) {
-        // If they managed to get here unverified or wrong domain, kick them out
-        if (auth) {
-          signOut(auth).then(() => {
-            router.push('/admin/login');
-          });
-        }
-      }
-    }
-  }, [user, loading, router, auth]);
 
   const handleLogout = async () => {
     if (auth) {
       await signOut(auth);
       router.push('/admin/login');
+    }
+  };
+
+  const handleSendVerification = async () => {
+    if (!user) return;
+    try {
+      await sendEmailVerification(user);
+      toast({
+        title: "Verification Sent",
+        description: `Check your inbox at ${user.email}.`,
+      });
+    } catch (error: any) {
+      toast({
+        variant: "destructive",
+        title: "Error",
+        description: "Could not send verification email. Try again later.",
+      });
     }
   };
 
@@ -72,13 +77,44 @@ export function AdminLayout({ children }: AdminLayoutProps) {
     { name: 'Testimonials', href: '/admin/testimonials', icon: Star },
   ];
 
-  // Prevent any data rendering until authentication is fully confirmed and verified
-  if (loading || !user || !user.emailVerified || !user.email?.endsWith('@iworldnetworks.net')) {
+  if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-background">
         <div className="flex flex-col items-center gap-4">
           <div className="w-12 h-12 border-4 border-secondary/20 border-t-secondary rounded-full animate-spin" />
-          <p className="font-mono text-[10px] text-on-surface-variant uppercase animate-pulse font-bold">Verifying Corporate Access</p>
+          <p className="font-mono text-[10px] text-on-surface-variant uppercase animate-pulse font-bold">Initializing Session</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (!user) {
+    router.push('/admin/login');
+    return null;
+  }
+
+  // Verification Gate Screen (Helpful, not a redirect)
+  if (!user.emailVerified || !user.email?.endsWith('@iworldnetworks.net')) {
+    return (
+      <div className="min-h-screen bg-background flex items-center justify-center p-6">
+        <div className="max-w-md w-full bg-white rounded-3xl p-10 whisper-shadow border border-border text-center flex flex-col items-center gap-8">
+          <div className="w-16 h-16 bg-destructive/10 rounded-full flex items-center justify-center">
+            <ShieldAlert className="w-8 h-8 text-destructive" />
+          </div>
+          <div className="space-y-2">
+            <h2 className="font-display text-2xl font-bold text-primary">Action Required</h2>
+            <p className="text-on-surface-variant text-sm">
+              Your account <strong>{user.email}</strong> is not yet verified or authorized for this regional node.
+            </p>
+          </div>
+          <div className="w-full space-y-3">
+            <Button onClick={handleSendVerification} className="w-full bg-secondary text-white rounded-full py-6 font-bold flex gap-2">
+              <Send className="w-4 h-4" /> Resend Verification Link
+            </Button>
+            <Button onClick={handleLogout} variant="ghost" className="w-full rounded-full py-6 font-bold text-on-surface-variant">
+              Sign Out & Try Again
+            </Button>
+          </div>
         </div>
       </div>
     );
@@ -161,12 +197,6 @@ export function AdminLayout({ children }: AdminLayoutProps) {
                       <span className="font-mono text-[10px] uppercase tracking-wider">Sign Out</span>
                     </button>
                   </nav>
-                  <div className="px-6 pb-10 mt-auto">
-                    <Link href="/" className="flex items-center gap-2 text-on-surface-variant font-mono text-[10px] hover:text-secondary transition-all group mb-6 pl-1 font-bold">
-                      <ArrowLeft className="w-4 h-4" />
-                      Back to Public Portal
-                    </Link>
-                  </div>
                 </div>
               </SheetContent>
             </Sheet>
@@ -215,13 +245,6 @@ export function AdminLayout({ children }: AdminLayoutProps) {
                 {['Abeokuta', 'Ibadan', 'Osogbo', 'Akure'].map(city => (
                   <a key={city} className="font-mono text-[10px] text-on-surface-variant hover:text-secondary uppercase font-bold" href="#">{city}</a>
                 ))}
-              </nav>
-            </div>
-            <div className="space-y-4">
-              <h5 className="font-mono text-[10px] font-bold uppercase text-primary tracking-widest">Legal</h5>
-              <nav className="flex flex-col gap-1.5 md:gap-2">
-                <a className="font-mono text-[10px] text-on-surface-variant hover:text-secondary uppercase font-bold" href="#">Privacy Policy</a>
-                <a className="font-mono text-[10px] text-on-surface-variant hover:text-secondary uppercase font-bold" href="#">Terms</a>
               </nav>
             </div>
           </div>
