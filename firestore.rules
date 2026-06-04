@@ -22,3 +22,4 @@ service cloud.firestore {
     }
   }
 }
+// SYNC_TRIGGER: 2024-05-22_01

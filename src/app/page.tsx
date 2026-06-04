@@ -176,6 +176,7 @@ export default function LandingPage() {
       }, 3000);
 
     } catch (err: any) {
+      console.error('Submission failed:', err);
       toast({
         variant: "destructive",
         title: "Submission Error",

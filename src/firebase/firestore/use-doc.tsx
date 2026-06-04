@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useState, useEffect, useRef } from 'react';
@@ -31,7 +32,7 @@ export function useDoc<T = DocumentData>(docRef: DocumentReference<T> | null) {
       (err: FirestoreError) => {
         if (!isMounted.current) return;
         
-        // PERMANENT FIX: Silence permission denied errors.
+        // PERMANENT FIX: Silence permission denied errors to prevent UI crashes.
         if (err.code === 'permission-denied') {
           console.warn('Firestore: Permission denied at', docRef.path);
           setData(null);
