@@ -1,4 +1,3 @@
-
 'use client';
 
 import React, { useMemo, useEffect, useState } from 'react';
@@ -35,6 +34,7 @@ export default function AdminDashboard() {
   }, []);
 
   const feedbackQuery = useMemo(() => {
+    // Only query if user is actually authenticated to prevent permission errors
     if (!firestore || !user) return null;
     return query(collection(firestore, 'feedbacks'), orderBy('timestamp', 'desc'), limit(100));
   }, [firestore, user]);
@@ -46,7 +46,7 @@ export default function AdminDashboard() {
     
     const total = feedbacks.length;
     const highRatings = feedbacks.filter((f: any) => {
-      const ratingVals = Object.values(f.ratings || {}).map(v => Number(v));
+      const ratingVals = Object.values(f.ratings || {}).map(v => Number(v)).filter(v => !isNaN(v));
       if (ratingVals.length === 0) return false;
       const avg = ratingVals.reduce((a, b) => a + b, 0) / ratingVals.length;
       return avg >= 4;

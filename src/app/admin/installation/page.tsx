@@ -1,4 +1,3 @@
-
 'use client';
 
 import React, { useMemo } from 'react';
@@ -128,7 +127,6 @@ export default function AdminInstallation() {
               data-ai-hint="network map" 
             />
             
-            {/* Visual Markers */}
             <div className="absolute top-1/4 left-1/4 group cursor-pointer">
               <div className="w-4 h-4 bg-secondary rounded-full animate-ping absolute"></div>
               <div className="w-4 h-4 bg-secondary rounded-full relative border-2 border-white"></div>

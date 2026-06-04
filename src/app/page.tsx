@@ -1,4 +1,3 @@
-
 'use client';
 
 import React, { useState } from 'react';
@@ -81,27 +80,27 @@ export default function LandingPage() {
 
   const heroContent: Record<Category, { title: React.ReactNode, sub: string, img: any }> = {
     Reliability: {
-      title: (<>Stay <div className="relative h-[24px] w-[50px] md:h-[48px] md:w-[100px] rounded-full overflow-hidden inline-block mx-1 md:mx-2 border-2 border-white"><Image src={images.fiber.imageUrl} alt="fiber" fill sizes="(max-width: 768px) 50px, 100px" className="object-cover" /></div> Connected <div className="relative h-[24px] w-[50px] md:h-[48px] md:w-[100px] rounded-full overflow-hidden inline-block mx-1 md:mx-2 border-2 border-white"><Image src={images.customer.imageUrl} alt="customer" fill sizes="(max-width: 768px) 50px, 100px" className="object-cover" /></div> Always.</>),
+      title: (<>Stay <div className="relative h-[24px] w-[50px] md:h-[48px] md:w-[100px] rounded-full overflow-hidden inline-block mx-1 md:mx-2 border-2 border-white"><Image src={images.fiber.imageUrl} alt="fiber" fill sizes="100px" className="object-cover" /></div> Connected <div className="relative h-[24px] w-[50px] md:h-[48px] md:w-[100px] rounded-full overflow-hidden inline-block mx-1 md:mx-2 border-2 border-white"><Image src={images.customer.imageUrl} alt="customer" fill sizes="100px" className="object-cover" /></div> Always.</>),
       sub: "Help us monitor your internet quality. We want to ensure you have consistent high-speed fiber every single day.",
       img: images.server
     },
     Support: {
-      title: (<>Fast <div className="relative h-[24px] w-[50px] md:h-[48px] md:w-[100px] rounded-full overflow-hidden inline-block mx-1 md:mx-2 border-2 border-white"><Image src={images.customer.imageUrl} alt="customer" fill sizes="(max-width: 768px) 50px, 100px" className="object-cover" /></div> Answers <div className="relative h-[24px] w-[50px] md:h-[48px] md:w-[100px] rounded-full overflow-hidden inline-block mx-1 md:mx-2 border-2 border-white"><Image src={images.tech.imageUrl} alt="tech" fill sizes="(max-width: 768px) 50px, 100px" className="object-cover" /></div> Locally.</>),
+      title: (<>Fast <div className="relative h-[24px] w-[50px] md:h-[48px] md:w-[100px] rounded-full overflow-hidden inline-block mx-1 md:mx-2 border-2 border-white"><Image src={images.customer.imageUrl} alt="customer" fill sizes="100px" className="object-cover" /></div> Answers <div className="relative h-[24px] w-[50px] md:h-[48px] md:w-[100px] rounded-full overflow-hidden inline-block mx-1 md:mx-2 border-2 border-white"><Image src={images.tech.imageUrl} alt="tech" fill sizes="100px" className="object-cover" /></div> Locally.</>),
       sub: "How was your experience with our support team? We're here to help and value your honest feedback.",
       img: images.tech
     },
     Testimonials: {
-      title: (<>Real <div className="relative h-[24px] w-[50px] md:h-[48px] md:w-[100px] rounded-full overflow-hidden inline-block mx-1 md:mx-2 border-2 border-white"><Image src={images.customer.imageUrl} alt="customer" fill sizes="(max-width: 768px) 50px, 100px" className="object-cover" /></div> Stories <div className="relative h-[24px] w-[50px] md:h-[48px] md:w-[100px] rounded-full overflow-hidden inline-block mx-1 md:mx-2 border-2 border-white"><Image src={images.workspace.imageUrl} alt="workspace" fill sizes="(max-width: 768px) 50px, 100px" className="object-cover" /></div> Shared.</>),
+      title: (<>Real <div className="relative h-[24px] w-[50px] md:h-[48px] md:w-[100px] rounded-full overflow-hidden inline-block mx-1 md:mx-2 border-2 border-white"><Image src={images.customer.imageUrl} alt="customer" fill sizes="100px" className="object-cover" /></div> Stories <div className="relative h-[24px] w-[50px] md:h-[48px] md:w-[100px] rounded-full overflow-hidden inline-block mx-1 md:mx-2 border-2 border-white"><Image src={images.workspace.imageUrl} alt="workspace" fill sizes="100px" className="object-cover" /></div> Shared.</>),
       sub: "Has I-World helped your home or business? Share your success story with us and the community.",
       img: images.workspace
     },
     Installation: {
-      title: (<>Professional <div className="relative h-[24px] w-[50px] md:h-[48px] md:w-[100px] rounded-full overflow-hidden inline-block mx-1 md:mx-2 border-2 border-white"><Image src={images.tech.imageUrl} alt="tech" fill sizes="(max-width: 768px) 50px, 100px" className="object-cover" /></div> Fiber <div className="relative h-[24px] w-[50px] md:h-[48px] md:w-[100px] rounded-full overflow-hidden inline-block mx-1 md:mx-2 border-2 border-white"><Image src={images.fiber.imageUrl} alt="fiber" fill sizes="(max-width: 768px) 50px, 100px" className="object-cover" /></div> Setup.</>),
+      title: (<>Professional <div className="relative h-[24px] w-[50px] md:h-[48px] md:w-[100px] rounded-full overflow-hidden inline-block mx-1 md:mx-2 border-2 border-white"><Image src={images.tech.imageUrl} alt="tech" fill sizes="100px" className="object-cover" /></div> Fiber <div className="relative h-[24px] w-[50px] md:h-[48px] md:w-[100px] rounded-full overflow-hidden inline-block mx-1 md:mx-2 border-2 border-white"><Image src={images.fiber.imageUrl} alt="fiber" fill sizes="100px" className="object-cover" /></div> Setup.</>),
       sub: "Tell us about your installation. We aim for a neat, quick, and professional experience every time.",
       img: images.tech
     },
     Billing: {
-      title: (<>Simple <div className="relative h-[24px] w-[50px] md:h-[48px] md:w-[100px] rounded-full overflow-hidden inline-block mx-1 md:mx-2 border-2 border-white"><Image src={images.workspace.imageUrl} alt="workspace" fill sizes="(max-width: 768px) 50px, 100px" className="object-cover" /></div> Payments <div className="relative h-[24px] w-[50px] md:h-[48px] md:w-[100px] rounded-full overflow-hidden inline-block mx-1 md:mx-2 border-2 border-white"><Image src={images.customer.imageUrl} alt="customer" fill sizes="(max-width: 768px) 50px, 100px" className="object-cover" /></div> Matter.</>),
+      title: (<>Simple <div className="relative h-[24px] w-[50px] md:h-[48px] md:w-[100px] rounded-full overflow-hidden inline-block mx-1 md:mx-2 border-2 border-white"><Image src={images.workspace.imageUrl} alt="workspace" fill sizes="100px" className="object-cover" /></div> Payments <div className="relative h-[24px] w-[50px] md:h-[48px] md:w-[100px] rounded-full overflow-hidden inline-block mx-1 md:mx-2 border-2 border-white"><Image src={images.customer.imageUrl} alt="customer" fill sizes="100px" className="object-cover" /></div> Matter.</>),
       sub: "How is our payment process? We want to make sure the billing cycle is easy and clear for everyone.",
       img: images.server
     }

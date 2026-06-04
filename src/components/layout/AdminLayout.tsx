@@ -1,4 +1,3 @@
-
 'use client';
 
 import React, { useEffect, useState } from 'react';
@@ -10,7 +9,6 @@ import {
   Wrench, 
   CreditCard, 
   Star, 
-  FileText,
   ArrowLeft,
   Menu,
   LogOut,
@@ -52,14 +50,13 @@ export function AdminLayout({ children }: AdminLayoutProps) {
   const { user, loading } = useUser(auth);
   const avatar = PlaceHolderImages.find(img => img.id === 'admin-avatar')!;
 
-  // AI Report State
   const [reportOpen, setReportOpen] = useState(false);
   const [isGenerating, setIsGenerating] = useState(false);
   const [aiReport, setAiReport] = useState<string | null>(null);
 
   const feedbackQuery = React.useMemo(() => 
-    firestore ? query(collection(firestore, 'feedbacks'), orderBy('timestamp', 'desc'), limit(50)) : null,
-  [firestore]);
+    firestore && user ? query(collection(firestore, 'feedbacks'), orderBy('timestamp', 'desc'), limit(50)) : null,
+  [firestore, user]);
   const { data: recentFeedbacks } = useCollection(feedbackQuery);
 
   useEffect(() => {
@@ -152,7 +149,7 @@ export function AdminLayout({ children }: AdminLayoutProps) {
             </button>
           </div>
           <div className="w-8 h-8 md:w-10 md:h-10 rounded-full overflow-hidden border border-border">
-            <Image src={avatar.imageUrl} alt="Admin" width={40} height={40} className="object-cover" />
+            <Image src={avatar.imageUrl} alt="Admin" width={40} height={40} sizes="40px" className="object-cover" />
           </div>
           
           <div className="md:hidden ml-1">
@@ -269,7 +266,6 @@ export function AdminLayout({ children }: AdminLayoutProps) {
         </div>
       </footer>
 
-      {/* AI Report Dialog */}
       <Dialog open={reportOpen} onOpenChange={setReportOpen}>
         <DialogContent className="max-w-3xl max-h-[80vh] overflow-y-auto">
           <DialogHeader>
