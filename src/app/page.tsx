@@ -129,6 +129,7 @@ export default function LandingPage() {
         category: activeCategory,
         ratings,
         timestamp: Date.now(),
+        dateFormatted: new Date().toISOString(),
         status: 'pending',
         aiAnalysis
       };

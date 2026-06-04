@@ -31,6 +31,7 @@
         "comment": { "type": "string" },
         "staffName": { "type": "string" },
         "timestamp": { "type": "number" },
+        "dateFormatted": { "type": "string", "format": "date-time" },
         "status": { "type": "string", "enum": ["pending", "reviewed", "escalated", "resolved"], "default": "pending" },
         "aiAnalysis": {
           "type": "object",
