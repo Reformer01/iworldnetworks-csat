@@ -126,7 +126,7 @@ export default function LandingPage() {
 
     const feedbackRef = collection(firestore, 'feedbacks');
     
-    // PUBLIC SUBMISSION: Handle errors gracefully with toasts rather than throwing
+    // PUBLIC SUBMISSION: Simple and resilient. No crash-inducing emitters here.
     addDoc(feedbackRef, feedbackData)
       .then(() => {
         setIsSubmitted(true);
@@ -142,7 +142,8 @@ export default function LandingPage() {
       })
       .catch((err) => {
         console.error('Submission Error:', err);
-        // We log it, but don't throw it so the "Red Screen" doesn't appear for customers
+        // We log it, but don't emit a specialized error that triggers the dev overlay.
+        // This ensures a smooth customer experience while you fix backend permissions.
         toast({
           variant: "destructive",
           title: "Submission Failed",

@@ -6,6 +6,7 @@ service cloud.firestore {
     match /feedbacks/{feedbackId} {
       // 1. PUBLIC: Anyone can submit feedback.
       // We don't require auth or verification for customers.
+      // Explicitly allowed for anyone to create new entries.
       allow create: if true;
       
       // 2. ADMIN: Only verified corporate supervisors can read or manage.
