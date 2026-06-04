@@ -1,3 +1,4 @@
+
 'use client';
 
 import React, { useState } from 'react';
@@ -36,7 +37,8 @@ export default function LandingPage() {
     location: 'Abeokuta',
     comment: '',
     staffName: '',
-    referralSource: 'Social Media'
+    referralSource: 'Social Media',
+    spotlightInterview: 'Maybe'
   });
 
   const firestore = useFirestore();
@@ -125,7 +127,6 @@ export default function LandingPage() {
 
     const feedbackRef = collection(firestore, 'feedbacks');
     
-    // PERMANENT FIX: Handle submission silently without the system-level crash overlay.
     addDoc(feedbackRef, feedbackData)
       .then(() => {
         setIsSubmitted(true);
@@ -136,7 +137,7 @@ export default function LandingPage() {
         setTimeout(() => {
           setIsSubmitted(false);
           setRatings({});
-          setFormData({ ...formData, comment: '', customerEmail: '', customerName: '' });
+          setFormData({ ...formData, comment: '', customerEmail: '', customerName: '', spotlightInterview: 'Maybe' });
         }, 3000);
       })
       .catch((err) => {
@@ -277,8 +278,8 @@ export default function LandingPage() {
                   {activeCategory === 'Testimonials' && (
                     <>
                       <div className="space-y-4">
-                        <label className="font-display text-xl font-bold">How did you hear about us?</label>
-                        <select className="w-full bg-surface-container-low p-4 rounded-xl border border-border outline-none font-bold" value={formData.referralSource} onChange={e => setFormData({...formData, referralSource: e.target.value})}>
+                        <label className="font-mono text-[10px] uppercase text-on-surface-variant font-bold">How did you hear about us?</label>
+                        <select className="w-full bg-transparent border-b border-border py-2 outline-none cursor-pointer font-bold" value={formData.referralSource} onChange={e => setFormData({...formData, referralSource: e.target.value})}>
                           <option>Social Media</option>
                           <option>Word of Mouth / Friend</option>
                           <option>Roadside Banner</option>
@@ -286,8 +287,26 @@ export default function LandingPage() {
                         </select>
                       </div>
                       <div className="space-y-4">
-                        <label className="font-display text-xl font-bold">Your Success Story</label>
+                        <label className="font-mono text-[10px] uppercase text-on-surface-variant font-bold">Your Success Story</label>
                         <textarea className="w-full bg-surface-container-low p-6 rounded-2xl border border-border min-h-[150px] outline-none resize-none font-bold" placeholder="Tell us how I-World has helped your home or business..." value={formData.comment} onChange={e => setFormData({...formData, comment: e.target.value})} />
+                      </div>
+                      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 py-8 border-b border-border/50">
+                        <div className="max-w-md">
+                          <h3 className="font-display text-lg text-primary font-bold">Spotlight Interview</h3>
+                          <p className="text-on-surface-variant text-xs">Would you be interested in joining a spotlight interview to share your story?</p>
+                        </div>
+                        <RadioGroup 
+                          defaultValue={formData.spotlightInterview}
+                          onValueChange={v => setFormData({...formData, spotlightInterview: v})} 
+                          className="flex gap-6"
+                        >
+                          {['Yes', 'No', 'Maybe'].map(opt => (
+                            <div key={opt} className="flex items-center space-x-2">
+                              <RadioGroupItem value={opt} id={`spotlight-${opt.toLowerCase()}`} />
+                              <Label htmlFor={`spotlight-${opt.toLowerCase()}`} className="font-bold">{opt}</Label>
+                            </div>
+                          ))}
+                        </RadioGroup>
                       </div>
                       {renderRatingGroup("signal", "Signal Strength", "How would you rate the Wi-Fi signal coverage in your premises?")}
                     </>

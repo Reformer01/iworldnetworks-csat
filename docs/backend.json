@@ -1,3 +1,4 @@
+
 {
   "entities": {
     "Feedback": {
@@ -31,7 +32,8 @@
         "staffName": { "type": "string" },
         "timestamp": { "type": "number" },
         "status": { "type": "string", "enum": ["pending", "reviewed", "escalated"], "default": "pending" },
-        "referralSource": { "type": "string" }
+        "referralSource": { "type": "string" },
+        "spotlightInterview": { "type": "string", "enum": ["Yes", "No", "Maybe"] }
       },
       "required": ["customerEmail", "category", "location", "timestamp"]
     }
