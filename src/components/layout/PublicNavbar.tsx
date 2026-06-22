@@ -16,7 +16,7 @@ export function PublicNavbar() {
   const router = useRouter();
 
   return (
-    <nav className="fixed top-0 w-full z-50 glass-nav h-16 md:h-20 px-margin-mobile md:px-margin-desktop flex justify-between items-center max-w-container-max mx-auto left-0 right-0 border-b border-border/50">
+    <nav className="fixed top-0 w-full z-50 h-16 md:h-20 px-margin-mobile md:px-margin-desktop flex justify-between items-center max-w-container-max mx-auto left-0 right-0">
       <Link href="/" className="font-mono text-sm md:text-base font-bold text-primary uppercase tracking-tight">
         I-World Networks
       </Link>

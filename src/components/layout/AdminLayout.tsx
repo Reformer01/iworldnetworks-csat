@@ -4,9 +4,10 @@
 import React, { useEffect } from 'react';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
-import { 
+import {
   LayoutDashboard, 
   Headset, 
+  Receipt,
   Wrench, 
   CreditCard, 
   Star, 
@@ -15,7 +16,11 @@ import {
   LogOut,
   Activity,
   ShieldAlert,
-  Send
+  Send,
+  Hammer,
+  Database,
+  UsersRound,
+  TrendingUp
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
@@ -24,6 +29,7 @@ import { PlaceHolderImages } from '@/lib/placeholder-images';
 import { useAuth, useUser } from '@/firebase';
 import { signOut, sendEmailVerification } from 'firebase/auth';
 import { useToast } from '@/hooks/use-toast';
+import { isAllowedDomain } from '@/lib/admin-config';
 import {
   Sheet,
   SheetContent,
@@ -42,9 +48,15 @@ export function AdminLayout({ children }: AdminLayoutProps) {
   const auth = useAuth();
   const { user, loading } = useUser(auth);
   const { toast } = useToast();
+
   const avatar = PlaceHolderImages.find(img => img.id === 'admin-avatar')!;
 
   const handleLogout = async () => {
+    try {
+      await fetch('/api/auth/session/clear', { method: 'POST' });
+    } catch (err) {
+      console.error('Failed to clear session cookie:', err);
+    }
     if (auth) {
       await signOut(auth);
       router.push('/admin/login');
@@ -59,7 +71,7 @@ export function AdminLayout({ children }: AdminLayoutProps) {
         title: "Verification Sent",
         description: `Check your inbox at ${user.email}.`,
       });
-    } catch (error: any) {
+    } catch {
       toast({
         variant: "destructive",
         title: "Error",
@@ -68,14 +80,25 @@ export function AdminLayout({ children }: AdminLayoutProps) {
     }
   };
 
-  const navItems = [
+  const mainNavItems = [
     { name: 'Overview', href: '/admin/dashboard', icon: LayoutDashboard },
+    { name: 'Sales KPIs', href: '/admin/sales', icon: TrendingUp },
     { name: 'Stability', href: '/admin/stability', icon: Activity },
     { name: 'Support', href: '/admin/support', icon: Headset },
+    { name: 'Support Revenue', href: '/admin/support-revenue', icon: Receipt },
+    { name: 'Field Support', href: '/admin/field-support', icon: Hammer },
     { name: 'Installation', href: '/admin/installation', icon: Wrench },
     { name: 'Billing', href: '/admin/billing', icon: CreditCard },
+    { name: 'Staff Performance', href: '/admin/staff', icon: UsersRound },
     { name: 'Testimonials', href: '/admin/testimonials', icon: Star },
+    { name: 'Manage Data', href: '/admin/crud', icon: Database },
   ];
+
+  useEffect(() => {
+    if (!loading && !user) {
+      router.push('/admin/login');
+    }
+  }, [user, loading, router]);
 
   if (loading) {
     return (
@@ -89,12 +112,11 @@ export function AdminLayout({ children }: AdminLayoutProps) {
   }
 
   if (!user) {
-    router.push('/admin/login');
     return null;
   }
 
   // Verification Gate Screen (Helpful, not a redirect)
-  if (!user.emailVerified || !user.email?.endsWith('@iworldnetworks.net')) {
+  if (!user.emailVerified || !isAllowedDomain(user.email || '')) {
     return (
       <div className="min-h-screen bg-background flex items-center justify-center p-6">
         <div className="max-w-md w-full bg-white rounded-3xl p-10 whisper-shadow border border-border text-center flex flex-col items-center gap-8">
@@ -122,7 +144,7 @@ export function AdminLayout({ children }: AdminLayoutProps) {
 
   return (
     <div className="bg-background min-h-screen flex flex-col">
-      <header className="fixed top-0 w-full z-50 glass-nav px-margin-mobile md:px-margin-desktop h-16 md:h-20 flex justify-between items-center max-w-container-max mx-auto left-0 right-0 border-b border-border">
+      <header className="fixed top-0 w-full z-50 px-margin-mobile md:px-margin-desktop h-16 md:h-20 flex justify-between items-center max-w-container-max mx-auto left-0 right-0">
         <div className="flex items-center gap-3 md:gap-6">
           <Link href="/" className="font-mono text-sm font-bold text-primary uppercase tracking-tight">
             I-World Networks
@@ -143,10 +165,10 @@ export function AdminLayout({ children }: AdminLayoutProps) {
               Admin Hub
             </Link>
           </div>
-          <div className="hidden xs:flex items-center gap-4 pr-4 border-r border-border mr-2">
+          <div className="hidden md:flex items-center gap-4 pr-4 border-r border-border mr-2">
             <button onClick={handleLogout} className="group flex items-center gap-2 text-on-surface-variant hover:text-destructive transition-colors font-bold font-mono text-[10px] uppercase">
               <LogOut className="w-4 h-4 group-hover:rotate-12 transition-transform" />
-              Sign Out
+              Logout
             </button>
           </div>
           <div className="w-8 h-8 md:w-10 md:h-10 rounded-full overflow-hidden border border-border">
@@ -174,7 +196,7 @@ export function AdminLayout({ children }: AdminLayoutProps) {
                     <p className="font-mono text-[10px] text-on-surface-variant opacity-60 uppercase tracking-widest font-bold">Management Hub</p>
                   </SheetHeader>
                   <nav className="flex-1 space-y-1">
-                    {navItems.map((item) => (
+                    {mainNavItems.map((item) => (
                       <Link
                         key={item.href}
                         href={item.href}
@@ -210,7 +232,7 @@ export function AdminLayout({ children }: AdminLayoutProps) {
           <p className="font-mono text-[10px] text-on-surface-variant opacity-60 uppercase tracking-widest font-bold">Management Hub</p>
         </div>
         <nav className="flex-1 space-y-1">
-          {navItems.map((item) => (
+          {mainNavItems.map((item) => (
             <Link
               key={item.href}
               href={item.href}
@@ -226,6 +248,15 @@ export function AdminLayout({ children }: AdminLayoutProps) {
             </Link>
           ))}
         </nav>
+        <div className="px-6 pt-6 border-t border-border">
+          <button
+            onClick={handleLogout}
+            className="w-full flex items-center justify-center gap-2 rounded-full border border-destructive/20 bg-destructive/5 px-4 py-3 text-destructive transition-colors hover:bg-destructive hover:text-white font-mono text-[10px] font-bold uppercase tracking-wider"
+          >
+            <LogOut className="w-4 h-4" />
+            Logout
+          </button>
+        </div>
       </aside>
 
       <main className="md:ml-64 pt-20 md:pt-24 px-margin-mobile md:px-margin-desktop flex-1">

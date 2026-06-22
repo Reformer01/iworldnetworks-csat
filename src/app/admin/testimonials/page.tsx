@@ -8,29 +8,28 @@ import Image from 'next/image';
 import { PlaceHolderImages } from '@/lib/placeholder-images';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
-import { useFirestore, useCollection, useAuth, useUser } from '@/firebase';
-import { collection, query, where, orderBy, limit } from 'firebase/firestore';
+import { useAuth, useUser } from '@/firebase';
+import { useAdminFeedbacks } from '@/hooks/use-admin-feedbacks';
+import type { FeedbackDoc } from '@/lib/feedback-types';
 
 export default function AdminTestimonials() {
   const [filter, setFilter] = useState<'Home' | 'Business' | 'Spotlight'>('Home');
   const [copiedId, setCopiedId] = useState<string | null>(null);
   const workspaceImg = PlaceHolderImages.find(img => img.id === 'workspace')!;
-  const firestore = useFirestore();
   const auth = useAuth();
   const { user } = useUser(auth);
 
-  const testimonialQuery = useMemo(() => {
-    if (!firestore || !user || !user.emailVerified || !user.email?.endsWith('@iworldnetworks.net')) return null;
-    return query(collection(firestore, 'feedbacks'), where('category', '==', 'Testimonials'), orderBy('timestamp', 'desc'), limit(100));
-  }, [firestore, user]);
+  const { feedbacks } = useAdminFeedbacks();
 
-  const { data: testimonials } = useCollection(testimonialQuery);
+  const testimonials = useMemo(() => {
+    return feedbacks.filter((f: FeedbackDoc) => f.category === 'Testimonials');
+  }, [feedbacks]);
 
   const stats = useMemo(() => {
     if (!testimonials) return { referrals: {}, spotlightCount: 0 };
     const referrals: Record<string, number> = {};
     let spotlightCount = 0;
-    testimonials.forEach((t: any) => {
+    testimonials.forEach((t: FeedbackDoc) => {
       const source = t.referralSource || 'Unknown';
       referrals[source] = (referrals[source] || 0) + 1;
       if (t.spotlightInterview === 'Yes') spotlightCount++;
@@ -40,10 +39,10 @@ export default function AdminTestimonials() {
 
   const filteredTestimonials = useMemo(() => {
     if (!testimonials) return [];
-    return testimonials.filter((t: any) => {
+    return testimonials.filter((t: FeedbackDoc) => {
       const plan = t.servicePlan || '';
       if (filter === 'Home') return plan.startsWith('H-');
-      if (filter === 'Business') return plan.startsWith('U-');
+      if (filter === 'Business') return plan.startsWith('U-') || plan === 'Enterprise';
       if (filter === 'Spotlight') return t.spotlightInterview === 'Yes' || t.spotlightInterview === 'Maybe';
       return true;
     });
@@ -67,12 +66,12 @@ export default function AdminTestimonials() {
           <div className="flex border-b border-border mb-8 overflow-x-auto scrollbar-hide">
             {[
               { id: 'Home', label: 'Residential (H-Series)' },
-              { id: 'Business', label: 'Corporate (U-Series)' },
-              { id: 'Spotlight', label: 'Advocate Queue', icon: Sparkles }
+              { id: 'Business', label: 'Corporate (U-Series & Enterprise)' },
+              { id: 'Spotlight', label: 'Ready to Feature', icon: Sparkles }
             ].map((tab) => (
               <button 
                 key={tab.id}
-                onClick={() => setFilter(tab.id as any)} 
+                onClick={() => setFilter(tab.id as "Home" | "Business" | "Spotlight")} 
                 className={cn(
                   "px-8 py-4 font-mono text-[10px] uppercase tracking-widest transition-all flex items-center gap-2 whitespace-nowrap", 
                   filter === tab.id ? "border-b-2 border-secondary text-secondary font-bold" : "text-on-surface-variant"
@@ -85,7 +84,7 @@ export default function AdminTestimonials() {
           </div>
 
           <div className="space-y-6">
-            {filteredTestimonials.map((item: any) => (
+            {filteredTestimonials.map((item: FeedbackDoc) => (
               <div key={item.id} className="bg-white border border-border p-8 rounded-xl whisper-shadow relative group hover:border-secondary transition-all">
                 {item.spotlightInterview === 'Yes' && (
                   <div className="absolute -top-3 -right-3 bg-secondary text-white px-4 py-1 rounded-full text-[10px] font-mono font-bold shadow-lg flex items-center gap-2 z-10">
@@ -95,12 +94,12 @@ export default function AdminTestimonials() {
                 <div className="flex justify-between items-start mb-6">
                   <div className="flex gap-1">
                     {[...Array(5)].map((_, i) => (
-                      <Star key={i} className={cn("w-4 h-4", i < (item.ratings?.signal || 5) ? "fill-secondary text-secondary" : "text-border")} />
+                      <Star key={i} className={cn("w-4 h-4", i < Number(item.ratings?.signal ?? 5) ? "fill-secondary text-secondary" : "text-border")} />
                     ))}
                   </div>
                   <div className="flex flex-col items-end">
                     <span className="font-mono text-[10px] uppercase text-secondary font-bold">{item.referralSource || 'Unknown'} Referral</span>
-                    <span className="font-mono text-[8px] uppercase text-on-surface-variant/40 mt-1">{new Date(item.timestamp).toLocaleDateString()}</span>
+                    <span className="font-mono text-[8px] uppercase text-on-surface-variant/40 mt-1">{new Date(item.timestamp ?? 0).toLocaleDateString()}</span>
                   </div>
                 </div>
                 <blockquote className="text-primary leading-tight mb-8 font-display text-2xl font-bold italic">
@@ -112,7 +111,7 @@ export default function AdminTestimonials() {
                     <p className="text-on-surface-variant text-[10px] font-mono opacity-60 uppercase">{item.location} Hub • {item.servicePlan}</p>
                   </div>
                   <div className="flex gap-2 w-full sm:w-auto">
-                    <Button onClick={() => handleCopy(item.id, item.comment)} size="sm" className="flex-1 sm:flex-none bg-primary text-white rounded-full font-mono text-[10px] px-6 uppercase font-bold">
+                    <Button onClick={() => handleCopy(item.id ?? '', item.comment ?? '')} size="sm" className="flex-1 sm:flex-none bg-primary text-white rounded-full font-mono text-[10px] px-6 uppercase font-bold">
                       {copiedId === item.id ? <Check className="w-3 h-3 mr-2" /> : <Copy className="w-3 h-3 mr-2" />}
                       {copiedId === item.id ? 'Copied' : 'Copy Text'}
                     </Button>
@@ -142,7 +141,7 @@ export default function AdminTestimonials() {
           <div className="bg-white border border-border p-8 rounded-xl whisper-shadow">
             <h4 className="font-mono text-[10px] uppercase tracking-widest mb-6 text-secondary font-bold">Lead Source Breakdown</h4>
             <div className="space-y-4">
-              {Object.entries(stats.referrals).map(([source, count]: any) => (
+              {Object.entries(stats.referrals).map(([source, count]: [string, number]) => (
                 <div key={source} className="flex justify-between items-center py-2 border-b border-border/50 last:border-0">
                   <span className="text-[10px] font-mono uppercase font-bold text-on-surface-variant">{source}</span>
                   <span className="bg-muted px-3 py-1 rounded-full text-[10px] font-black text-primary">{count}</span>

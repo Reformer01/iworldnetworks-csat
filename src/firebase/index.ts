@@ -14,6 +14,14 @@ export function initializeFirebase(): {
   firestore: Firestore;
   auth: Auth;
 } {
+  const missingConfig = Object.entries(firebaseConfig)
+    .filter(([, value]) => !value)
+    .map(([key]) => key);
+
+  if (missingConfig.length > 0) {
+    throw new Error(`Missing Firebase client configuration: ${missingConfig.join(', ')}`);
+  }
+
   const firebaseApp = getApps().length > 0 ? getApp() : initializeApp(firebaseConfig);
   const firestore = getFirestore(firebaseApp);
   const auth = getAuth(firebaseApp);

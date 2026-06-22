@@ -7,12 +7,12 @@ import Image from 'next/image';
 import { PlaceHolderImages } from '@/lib/placeholder-images';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
-import { useFirestore, useCollection, useAuth, useUser } from '@/firebase';
-import { collection, query, orderBy, limit, where } from 'firebase/firestore';
+import { useAuth, useUser } from '@/firebase';
+import { useAdminFeedbacks } from '@/hooks/use-admin-feedbacks';
+import type { FeedbackDoc } from '@/lib/feedback-types';
 
 export default function AdminInstallation() {
   const networkMap = PlaceHolderImages.find(img => img.id === 'network-map')!;
-  const firestore = useFirestore();
   const auth = useAuth();
   const { user } = useUser(auth);
 
@@ -30,18 +30,17 @@ export default function AdminInstallation() {
     { name: "Mubarak Raji", region: "Osogbo" }
   ];
 
-  const installFeedbackQuery = useMemo(() => {
-    if (!firestore || !user || !user.emailVerified || !user.email?.endsWith('@iworldnetworks.net')) return null;
-    return query(collection(firestore, 'feedbacks'), where('category', '==', 'Installation'), orderBy('timestamp', 'desc'), limit(500));
-  }, [firestore, user]);
+  const { feedbacks: allFeedbacks } = useAdminFeedbacks();
 
-  const { data: installFeedback } = useCollection(installFeedbackQuery);
+  const installFeedback = useMemo(() => {
+    return allFeedbacks.filter((f: FeedbackDoc) => f.category === 'Installation');
+  }, [allFeedbacks]);
 
   const techLeaderboard = useMemo(() => {
     if (!installFeedback) return techsRoster.map(t => ({ ...t, completions: 0 })).slice(0, 5);
     
-    return techsRoster.map((t: any) => {
-      const completions = installFeedback.filter((f: any) => f.staffName === t.name).length;
+    return techsRoster.map((t: { name: string; region: string }) => {
+      const completions = installFeedback.filter((f: FeedbackDoc) => f.staffName === t.name).length;
       return {
         ...t,
         completions
@@ -51,15 +50,33 @@ export default function AdminInstallation() {
 
   const completionRate = useMemo(() => {
     if (!installFeedback || installFeedback.length === 0) return '0';
-    const goodInstalls = installFeedback.filter((f: any) => Number(f.ratings?.quality || 0) >= 4).length;
+    const goodInstalls = installFeedback.filter((f: FeedbackDoc) => Number(f.ratings?.quality || 0) >= 4).length;
     return ((goodInstalls / installFeedback.length) * 100).toFixed(1);
+  }, [installFeedback]);
+
+  const avgSetupTime = useMemo(() => {
+    if (!installFeedback || installFeedback.length === 0) return { score: '0.0', minutes: '—' };
+    const totalTimeliness = installFeedback.reduce((acc, f: FeedbackDoc) => acc + Number(f.ratings?.timeliness || 0), 0);
+    const avg = totalTimeliness / installFeedback.length;
+    // Map 1-5 rating to approximate minutes (5=fast ~30m, 1=slow ~90m)
+    const minutes = Math.round(90 - ((avg - 1) / 4) * 60);
+    return {
+      score: `${avg.toFixed(1)}/5`,
+      minutes: `${minutes}m`
+    };
+  }, [installFeedback]);
+
+  const completedJobs = useMemo(() => {
+    if (!installFeedback) return '0';
+    return installFeedback.filter((f: FeedbackDoc) => f.status === 'resolved').length.toLocaleString();
   }, [installFeedback]);
 
   const regionalDrops = useMemo(() => {
     const drops: Record<string, number> = { Abeokuta: 0, Ibadan: 0, Osogbo: 0, Akure: 0 };
     if (!installFeedback) return drops;
-    installFeedback.forEach((f: any) => {
-      if (drops[f.location] !== undefined) drops[f.location]++;
+    installFeedback.forEach((f: FeedbackDoc) => {
+      const loc = f.location;
+      if (loc && loc in drops) drops[loc]++;
     });
     return drops;
   }, [installFeedback]);
@@ -68,14 +85,14 @@ export default function AdminInstallation() {
     <AdminLayout>
       <div className="grid grid-cols-12 gap-gutter mb-16">
         <div className="col-span-12 md:col-span-7">
-          <h1 className="font-headline text-headline-lg mb-4 text-primary">Setup Performance</h1>
+          <h1 className="font-headline text-headline-lg mb-4 text-primary">Installation Performance</h1>
           <p className="font-body-lg text-body-lg text-on-surface-variant max-w-xl">
-            Detailed view of field efficiency, deployment metrics, and regional fiber penetration.
+            Installation speed, team performance, and regional activity.
           </p>
         </div>
         <div className="col-span-12 md:col-span-4 md:col-start-9 flex flex-col justify-end">
           <div className="bg-white p-6 whisper-shadow rounded-xl border border-border">
-            <span className="font-mono text-[12px] uppercase text-secondary">Efficiency Boost</span>
+            <span className="font-mono text-[12px] uppercase text-secondary">Quality Score</span>
             <div className="text-display-lg text-[48px] font-black mt-2"><span className="font-mono">+{completionRate}%</span></div>
           </div>
         </div>
@@ -88,7 +105,7 @@ export default function AdminInstallation() {
             <CircleCheck className="w-6 h-6 text-secondary" />
           </div>
           <div className="space-y-8">
-            {techLeaderboard.map((tech: any) => (
+            {techLeaderboard.map((tech: { name: string; region: string; completions: number }) => (
               <div key={tech.name} className="flex items-center gap-6 group hover:scale-[1.01] transition-transform">
                 <div className="w-12 h-12 rounded-full overflow-hidden border border-border bg-muted flex items-center justify-center font-mono font-bold text-secondary">
                   {tech.name.charAt(0)}
@@ -109,8 +126,8 @@ export default function AdminInstallation() {
         <section className="col-span-12 md:col-span-7 bg-white whisper-shadow rounded-xl p-8 border border-border flex flex-col min-h-[500px]">
           <div className="flex justify-between items-start mb-8">
             <div>
-              <h3 className="font-headline text-[24px] font-bold">Regional Fiber Drops</h3>
-              <p className="font-mono text-sm text-on-surface-variant mt-1">Live installation activity across active hubs.</p>
+              <h3 className="font-headline text-[24px] font-bold">Service Interruptions</h3>
+              <p className="font-mono text-sm text-on-surface-variant mt-1">Recent installation activity across regions.</p>
             </div>
             <div className="flex gap-2">
               <Button size="icon" className="w-10 h-10 bg-primary text-white"><Map className="w-5 h-5" /></Button>
@@ -130,14 +147,14 @@ export default function AdminInstallation() {
               <div className="w-4 h-4 bg-secondary rounded-full animate-ping absolute"></div>
               <div className="w-4 h-4 bg-secondary rounded-full relative border-2 border-white"></div>
               <div className="absolute top-6 left-1/2 -translate-x-1/2 bg-white px-3 py-1 rounded shadow-lg opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap z-10 font-mono text-xs font-bold">
-                Ibadan: {regionalDrops.Ibadan} Drops
+                Ibadan: {regionalDrops.Ibadan} Installations
               </div>
             </div>
             <div className="absolute top-1/2 right-1/3 group cursor-pointer">
               <div className="w-4 h-4 bg-secondary rounded-full animate-ping absolute"></div>
               <div className="w-4 h-4 bg-secondary rounded-full relative border-2 border-white"></div>
               <div className="absolute top-6 left-1/2 -translate-x-1/2 bg-white px-3 py-1 rounded shadow-lg opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap z-10 font-mono text-xs font-bold">
-                Abeokuta: {regionalDrops.Abeokuta} Drops
+                Abeokuta: {regionalDrops.Abeokuta} Installations
               </div>
             </div>
           </div>
@@ -146,9 +163,9 @@ export default function AdminInstallation() {
 
       <div className="grid grid-cols-1 md:grid-cols-3 gap-gutter mt-16 mb-24">
         {[
-          { label: 'Avg Setup Time', val: '42m', info: 'Daily Target: < 45m', icon: Clock },
+          { label: 'Avg Install Rating', val: avgSetupTime.score, info: `Approx. ${avgSetupTime.minutes} min install time`, icon: Clock },
           { label: 'Quality Score', val: `${completionRate}%`, info: 'National Average', icon: Shield },
-          { label: 'Pending Jobs', val: '2,419', info: 'Current Queue', icon: List, primary: true },
+          { label: 'Completed Installations', val: completedJobs, info: 'Goal: 100% completion rate', icon: CircleCheck, primary: true },
         ].map((item, i) => (
           <div key={i} className={cn("p-8 rounded-xl border border-border whisper-shadow", item.primary ? "bg-secondary text-white border-secondary" : "bg-white")}>
             <item.icon className={cn("w-8 h-8 mb-4", item.primary ? "text-white" : "text-secondary")} />

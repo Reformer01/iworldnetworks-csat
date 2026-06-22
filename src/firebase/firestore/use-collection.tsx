@@ -24,10 +24,10 @@ export function useCollection<T = DocumentData>(query: Query<T> | null) {
       query,
       (snapshot: QuerySnapshot<T>) => {
         if (!isMounted.current) return;
-        const items = snapshot.docs.map((doc) => ({
-          ...(doc.data() as any),
-          id: doc.id,
-        }));
+        const items = snapshot.docs.map((doc) => {
+          const d = doc.data();
+          return { ...(d ?? {}), id: doc.id };
+        }) as unknown as T[];
         setData(items);
         setLoading(false);
         setError(null);

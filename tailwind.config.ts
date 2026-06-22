@@ -11,11 +11,11 @@ export default {
   theme: {
     extend: {
       fontFamily: {
-        body: ['Outfit', 'sans-serif'],
-        headline: ['Outfit', 'sans-serif'],
-        code: ['JetBrains Mono', 'monospace'],
-        display: ['Outfit', 'sans-serif'],
-        mono: ['JetBrains Mono', 'monospace'],
+        body: ['var(--font-outfit)', 'sans-serif'],
+        headline: ['var(--font-outfit)', 'sans-serif'],
+        code: ['var(--font-jetbrains-mono)', 'monospace'],
+        display: ['var(--font-outfit)', 'sans-serif'],
+        mono: ['var(--font-jetbrains-mono)', 'monospace'],
       },
       colors: {
         background: 'hsl(var(--background))',
@@ -33,7 +33,7 @@ export default {
           foreground: '#ffffff',
         },
         secondary: {
-          DEFAULT: '#0058be',
+          DEFAULT: '#448515',
           foreground: '#ffffff',
         },
         muted: {
@@ -50,7 +50,7 @@ export default {
         },
         border: '#e1e3e4',
         input: '#edeeef',
-        ring: '#0058be',
+        ring: '#448515',
         'surface-dim': '#d9dadb',
         'surface-container': '#edeeef',
         'surface-container-low': '#f3f4f5',
@@ -60,7 +60,7 @@ export default {
         'on-surface-variant': '#47464b',
         'outline-variant': '#c8c5cb',
         chart: {
-          '1': '#0058be',
+          '1': '#448515',
           '2': '#000000',
           '3': '#77767b',
           '4': '#adc6ff',

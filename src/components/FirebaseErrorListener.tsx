@@ -6,9 +6,7 @@ import { errorEmitter } from '@/firebase/error-emitter';
 
 export function FirebaseErrorListener() {
   useEffect(() => {
-    const handlePermissionError = (error: any) => {
-      // In development, this will trigger the Next.js error overlay
-      // In production, we could handle this with a toast or logging service
+    const handlePermissionError = (error: unknown) => {
       throw error;
     };
 

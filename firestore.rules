@@ -15,6 +15,49 @@ service cloud.firestore {
                                           request.auth.token.email.endsWith('@iworldnetworks.net');
     }
     
+    // 3. SALES RECORDS
+    // Admin SDK bypasses these rules; they protect against direct client SDK access.
+    // Soft-deleted records (deletedAt != null) are hidden from reads.
+    match /sales_records/{docId} {
+      allow read, list: if request.auth != null &&
+                          request.auth.token.email_verified == true &&
+                          request.auth.token.email.endsWith('@iworldnetworks.net') &&
+                          (!resource.data.keys().has('deletedAt') || resource.data.deletedAt == null);
+      allow create, update, delete: if request.auth != null &&
+                                       request.auth.token.email_verified == true &&
+                                       request.auth.token.email.endsWith('@iworldnetworks.net');
+    }
+
+    // 4. SALES TARGETS
+    match /sales_targets/{docId} {
+      allow read, list: if request.auth != null &&
+                          request.auth.token.email_verified == true &&
+                          request.auth.token.email.endsWith('@iworldnetworks.net');
+      allow create, update, delete: if request.auth != null &&
+                                       request.auth.token.email_verified == true &&
+                                       request.auth.token.email.endsWith('@iworldnetworks.net');
+    }
+
+    // 6. SUPPORT REVENUE
+    match /support_revenue/{docId} {
+      allow read, list: if request.auth != null &&
+                           request.auth.token.email_verified == true &&
+                           request.auth.token.email.endsWith('@iworldnetworks.net') &&
+                           (!resource.data.keys().has('deletedAt') || resource.data.deletedAt == null);
+      allow create, update, delete: if request.auth != null &&
+                                        request.auth.token.email_verified == true &&
+                                        request.auth.token.email.endsWith('@iworldnetworks.net');
+    }
+    // 5. SALES IMPORTS
+    match /sales_imports/{docId} {
+      allow read, list: if request.auth != null &&
+                          request.auth.token.email_verified == true &&
+                          request.auth.token.email.endsWith('@iworldnetworks.net');
+      allow create: if request.auth != null &&
+                       request.auth.token.email_verified == true &&
+                       request.auth.token.email.endsWith('@iworldnetworks.net');
+    }
+
     // Default deny for everything else
     match /{document=**} {
       allow read, write: if false;

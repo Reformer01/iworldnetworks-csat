@@ -2,12 +2,13 @@
 'use client';
 
 import React, { useState } from 'react';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { Lock, ArrowRight, Mail, Key, Send } from 'lucide-react';
 import { useAuth } from '@/firebase';
 import { signInWithEmailAndPassword, sendEmailVerification, User } from 'firebase/auth';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { isAllowedDomain } from '@/lib/admin-config';
 import { useToast } from '@/hooks/use-toast';
 
 export default function AdminLoginPage() {
@@ -17,6 +18,8 @@ export default function AdminLoginPage() {
   const [unverifiedUser, setUnverifiedUser] = useState<User | null>(null);
   const [isSendingVerification, setIsSendingVerification] = useState(false);
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const redirectTo = searchParams.get('redirect') || '/admin/dashboard';
   const auth = useAuth();
   const { toast } = useToast();
 
@@ -24,7 +27,7 @@ export default function AdminLoginPage() {
     e.preventDefault();
     if (!auth) return;
 
-    if (!email.endsWith('@iworldnetworks.net')) {
+    if (!isAllowedDomain(email)) {
       toast({
         variant: "destructive",
         title: "Domain Restriction",
@@ -50,9 +53,23 @@ export default function AdminLoginPage() {
         return;
       }
 
+      const token = await userCredential.user.getIdToken();
+      const sessionRes = await fetch('/api/auth/session', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ idToken: token }),
+      });
+
+      if (!sessionRes.ok) {
+        toast({ variant: "destructive", title: "Session Error", description: "Could not establish secure session. Please try again." });
+        setIsAuthenticating(false);
+        return;
+      }
+
       toast({ title: "Authorized", description: "Regional Hub Unlocked." });
-      router.push('/admin/dashboard');
-    } catch (error: any) {
+      setIsAuthenticating(false);
+      router.push(redirectTo);
+    } catch {
       toast({
         variant: "destructive",
         title: "Access Denied",
@@ -71,7 +88,7 @@ export default function AdminLoginPage() {
         title: "Verification Sent",
         description: `A secure link has been sent to ${unverifiedUser.email}.`,
       });
-    } catch (error: any) {
+    } catch {
       toast({
         variant: "destructive",
         title: "System Error",
