@@ -40,6 +40,4 @@ export const useFirebaseApp = () => useContext(FirebaseContext).firebaseApp;
 export const useFirestore = () => useContext(FirebaseContext).firestore;
 export const useAuth = () => useContext(FirebaseContext).auth;
 
-export const getFirebaseApp = () => useFirebaseApp();
-export const getFirestore = () => useFirestore();
-export const getAuth = () => useAuth();
+

@@ -102,9 +102,9 @@ export default function AdminTestimonials() {
                     <span className="font-mono text-[8px] uppercase text-on-surface-variant/40 mt-1">{new Date(item.timestamp ?? 0).toLocaleDateString()}</span>
                   </div>
                 </div>
-                <blockquote className="text-primary leading-tight mb-8 font-display text-2xl font-bold italic">
-                  "{item.comment}"
-                </blockquote>
+                 <blockquote className="text-primary leading-tight mb-8 font-display text-2xl font-bold italic">
+                   &ldquo;{item.comment}&rdquo;
+                 </blockquote>
                 <div className="flex flex-col sm:flex-row justify-between items-start sm:items-end border-t border-border/50 pt-6 gap-6">
                   <div>
                     <p className="font-mono text-xs font-bold text-primary">{item.customerName}</p>

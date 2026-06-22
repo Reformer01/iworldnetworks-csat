@@ -398,7 +398,7 @@ export default function StaffPerformancePage() {
                             </span>
                           </div>
                           {feedback.comment && (
-                            <p className="text-[13px] italic text-on-surface-variant leading-relaxed">"{feedback.comment}"</p>
+                             <p className="text-[13px] italic text-on-surface-variant leading-relaxed">&ldquo;{feedback.comment}&rdquo;</p>
                           )}
                           <div className="flex items-center justify-between mt-3 font-mono text-[9px] text-on-surface-variant/70 font-bold">
                             <span>{formatDate(feedback.timestamp, feedback.serviceDate)}</span>

@@ -277,7 +277,7 @@ export default function AdminFieldSupport() {
                 </div>
                 <div>
                   <p className="font-mono text-xs font-bold text-primary">{f.customerName} <span className="opacity-40 font-normal">({f.location})</span></p>
-                  {f.comment && <p className="text-xs text-on-surface-variant italic mt-1 font-body">"{f.comment}"</p>}
+                   {f.comment && <p className="text-xs text-on-surface-variant italic mt-1 font-body">&ldquo;{f.comment}&rdquo;</p>}
                 </div>
 
                 <div className="flex items-center justify-between border-t border-border/50 pt-3 mt-1">
@@ -298,7 +298,7 @@ export default function AdminFieldSupport() {
                         <DialogTitle className="font-display uppercase tracking-tight">Resolve Feedback</DialogTitle>
                       </DialogHeader>
                       <div className="space-y-6 py-4">
-                        {f.comment && <div className="p-4 bg-muted rounded-xl text-sm italic">"{f.comment}"</div>}
+                         {f.comment && <div className="p-4 bg-muted rounded-xl text-sm italic">&ldquo;{f.comment}&rdquo;</div>}
                         <div className="space-y-2">
                           <label className="font-mono text-[10px] uppercase font-bold text-on-surface-variant">Resolution Notes</label>
                           <Textarea placeholder="What was done to resolve this?" className="min-h-[120px] rounded-2xl" value={resNotes} onChange={(e) => setResNotes(e.target.value)} />

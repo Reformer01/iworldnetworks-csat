@@ -512,7 +512,7 @@ export default function AdminDashboard() {
                   <span className="text-[10px] text-on-surface-variant/40">{new Date(f.timestamp ?? 0).toLocaleDateString()}</span>
                 </div>
                 <p className="font-bold text-primary mb-1">{f.customerName} <span className="font-mono text-[10px] font-normal opacity-40 ml-2">({f.location})</span></p>
-                <p className="text-sm text-on-surface-variant line-clamp-2 italic">"{f.comment}"</p>
+                 <p className="text-sm text-on-surface-variant line-clamp-2 italic">&ldquo;{f.comment}&rdquo;</p>
                 {f.resolutionNotes && (
                   <div className="mt-4 p-4 bg-muted rounded-xl text-xs font-mono border-l-4 border-secondary shadow-sm">
                     <div className="flex items-center gap-2 mb-2 text-secondary font-bold uppercase tracking-wider">
@@ -535,7 +535,7 @@ export default function AdminDashboard() {
                       <DialogTitle className="font-display uppercase tracking-tight">Handle Feedback</DialogTitle>
                     </DialogHeader>
                     <div className="space-y-6 py-4">
-                      <div className="p-4 bg-muted rounded-xl text-sm italic">"{f.comment}"</div>
+                       <div className="p-4 bg-muted rounded-xl text-sm italic">&ldquo;{f.comment}&rdquo;</div>
                       <div className="space-y-2">
                         <label className="font-mono text-[10px] uppercase font-bold text-on-surface-variant">Resolution Notes</label>
                         <Textarea placeholder="What was done to resolve this issue?" className="min-h-[120px] rounded-2xl" value={resNotes} onChange={(e) => setResNotes(e.target.value)} />

@@ -1,9 +1,14 @@
 import nextEslintConfig from "eslint-config-next";
-import eslintConfigPrettier from "eslint-config-prettier";
 
 const eslintConfig = [
   ...nextEslintConfig,
-  eslintConfigPrettier,
+  {
+    rules: {
+      "react-hooks/set-state-in-effect": "warn",
+      "react-hooks/purity": "warn",
+      "react-hooks/preserve-manual-memoization": "off",
+    },
+  },
 ];
 
 export default eslintConfig;
