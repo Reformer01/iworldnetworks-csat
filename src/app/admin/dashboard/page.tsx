@@ -383,7 +383,7 @@ export default function AdminDashboard() {
         {[
           { label: 'Overall Score', value: metrics.overallSatisfaction, unit: '%', icon: Users, color: 'text-secondary', detail: 'Average rating' },
           { label: 'Network Score', value: metrics.networkSatisfaction, unit: '%', icon: Activity, color: 'text-green-600', detail: `${metrics.networkResponses} network ratings` },
-          { label: 'Would Recommend', value: metrics.nps, unit: '', icon: TrendingUp, color: 'text-green-600', detail: 'Happy customers' },
+          { label: 'Would Recommend', value: metrics.nps, unit: '%', icon: TrendingUp, color: 'text-green-600', detail: `Based on ${metrics.total} feedbacks` },
           { label: 'Resolved First Time', value: metrics.ces, unit: '%', icon: CheckCircle2, color: 'text-orange-500', detail: 'Fixed on first try' },
           { label: 'Resolved Issues', value: metrics.resolvedRate, unit: '%', icon: CheckCircle, color: 'text-green-600', detail: 'Issues resolved' },
         ].map((item, i) => (

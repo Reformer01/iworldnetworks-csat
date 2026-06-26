@@ -485,7 +485,8 @@ export default function LandingPage() {
         <div className="max-w-container-max mx-auto px-margin-mobile md:px-margin-desktop flex flex-col md:flex-row justify-between items-start gap-12">
           <div className="space-y-4">
             <div className="font-mono text-[12px] font-bold text-primary uppercase">I-World Networks</div>
-            <p className="text-on-surface-variant text-sm max-w-xs font-bold uppercase opacity-70">Southwest Nigeria&apos;s connectivity Backbone.</p>
+
+
             <div className="font-mono text-[10px] text-on-surface-variant uppercase font-bold">© 2026 I-World Networks</div>
           </div>
           <div className="grid grid-cols-2 md:grid-cols-4 gap-x-12 gap-y-4">

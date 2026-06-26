@@ -3,7 +3,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
 import { SalesLayout } from '@/components/layout/SalesLayout';
-import { TrendingUp, Users, Activity, DollarSign, UserX, BarChart3, Database, AlertCircle } from 'lucide-react';
+import { TrendingUp, Users, Activity, Banknote, UserX, BarChart3, Database, AlertCircle } from 'lucide-react';
 import { useSalesMetrics } from '@/hooks/use-sales-data';
 import {
   XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend, BarChart, Bar, Cell, PieChart, Pie
@@ -370,7 +370,7 @@ export default function SalesDashboard() {
   const { overall, regionMetrics, agentMetrics, segmentBreakdown, totalRecords } = data;
 
   const kpiCards = [
-    { label: 'Monthly Revenue', value: formatNaira(overall.mrr), icon: DollarSign, color: 'text-secondary', detail: 'From active customers' },
+    { label: 'Monthly Revenue', value: formatNaira(overall.mrr), icon: Banknote, color: 'text-secondary', detail: 'From active customers' },
     { label: 'Avg. per Customer', value: formatNaira(overall.arpu), icon: TrendingUp, color: 'text-green-600', detail: 'Monthly average' },
     { label: 'Active Customers', value: String(overall.activeSubscribers), icon: Users, color: 'text-blue-600', detail: 'Paying accounts' },
     { label: 'Churn Rate', value: String(overall.churnRate), unit: '%', icon: UserX, color: 'text-red-500', detail: 'Lost / active customers' },
