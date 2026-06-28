@@ -1,4 +1,3 @@
-
 'use client';
 
 import React, { useMemo, useState, useCallback } from 'react';
@@ -9,16 +8,7 @@ import { useAuth, useUser } from '@/firebase';
 import { useAdminFeedbacks, updateFeedbackStatus } from '@/hooks/use-admin-feedbacks';
 import type { FeedbackDoc } from '@/lib/feedback-types';
 import { DateRangePicker } from '@/components/ui/date-range-picker';
-import { 
-  XAxis, 
-  YAxis, 
-  CartesianGrid, 
-  Tooltip, 
-  ResponsiveContainer,
-  Legend,
-  AreaChart,
-  Area
-} from 'recharts';
+import { XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend, AreaChart, Area } from 'recharts';
 import { cn } from '@/lib/utils';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Button } from '@/components/ui/button';
@@ -46,7 +36,7 @@ export default function AdminDashboard() {
   const [isGeneratingReport, setIsGeneratingReport] = useState(false);
   const [selectedFeedback, setSelectedFeedback] = useState<FeedbackDoc | null>(null);
   const [resNotes, setResNotes] = useState('');
-  
+
   const auth = useAuth();
   const { user } = useUser(auth);
   const { toast } = useToast();
@@ -70,7 +60,6 @@ export default function AdminDashboard() {
       });
     }
 
-    const now = Date.now();
     const rangeMsMap: Record<string, number> = {
       '7d': 7 * 24 * 60 * 60 * 1000,
       '30d': 30 * 24 * 60 * 60 * 1000,
@@ -79,6 +68,7 @@ export default function AdminDashboard() {
     };
     const rangeMs = rangeMsMap[timeRange] ?? 30 * 24 * 60 * 60 * 1000;
 
+    const now = Date.now();
     return allFeedbacks.filter((f: FeedbackDoc) => (now - (f.timestamp ?? 0)) <= rangeMs);
   }, [allFeedbacks, timeRange, dateRange]);
 
@@ -95,10 +85,10 @@ export default function AdminDashboard() {
         networkResponses: 0,
       };
     }
-    
+
     const resolved = filteredFeedbacks.filter((f: FeedbackDoc) => f.status === 'resolved').length;
     const resolvedRate = total > 0 ? Math.round((resolved / total) * 100) : 0;
-    
+
     const allRatings = filteredFeedbacks.flatMap((f: FeedbackDoc) => getNumericRatings(f));
     const overallSatisfaction = toSatisfactionPercent(allRatings);
 
@@ -108,12 +98,12 @@ export default function AdminDashboard() {
 
     const promoters = filteredFeedbacks.filter((f: FeedbackDoc) => {
       const scores = getNumericRatings(f);
-      return scores.some(s => s === 5);
+      return scores.some((s) => s === 5);
     }).length;
-    
+
     const detractors = filteredFeedbacks.filter((f: FeedbackDoc) => {
       const scores = getNumericRatings(f);
-      return scores.every(s => s <= 3) && scores.length > 0;
+      return scores.every((s) => s <= 3) && scores.length > 0;
     }).length;
 
     const nps = total > 0 ? Math.round(((promoters - detractors) / total) * 100) : 0;
@@ -135,8 +125,8 @@ export default function AdminDashboard() {
 
   const chartData = useMemo(() => {
     if (filteredFeedbacks.length === 0) return [];
-    const groups: Record<string, { overall: number, overallCount: number, network: number, networkCount: number }> = {};
-    
+    const groups: Record<string, { overall: number; overallCount: number; network: number; networkCount: number }> = {};
+
     filteredFeedbacks.slice(0, 30).forEach((f: FeedbackDoc) => {
       const date = new Date(f.timestamp ?? 0);
       const label = date.toLocaleDateString([], { month: 'short', day: 'numeric' });
@@ -157,11 +147,13 @@ export default function AdminDashboard() {
       }
     });
 
-    return Object.entries(groups).map(([name, data]) => ({
-      name,
-      overallSatisfaction: data.overallCount > 0 ? Math.round(data.overall / data.overallCount) : null,
-      networkSatisfaction: data.networkCount > 0 ? Math.round(data.network / data.networkCount) : null,
-    })).reverse();
+    return Object.entries(groups)
+      .map(([name, data]) => ({
+        name,
+        overallSatisfaction: data.overallCount > 0 ? Math.round(data.overall / data.overallCount) : null,
+        networkSatisfaction: data.networkCount > 0 ? Math.round(data.network / data.networkCount) : null,
+      }))
+      .reverse();
   }, [filteredFeedbacks]);
 
   const departmentBreakdown = useMemo(() => {
@@ -171,17 +163,17 @@ export default function AdminDashboard() {
       { name: 'Field Support', category: 'FieldSupport' },
       { name: 'Customer Onboarding', category: 'Installation' },
       { name: 'Payments & Billing', category: 'Billing' },
-      { name: 'Success Stories', category: 'Testimonials' }
+      { name: 'Success Stories', category: 'Testimonials' },
     ];
 
-    return departments.map(dept => {
+    return departments.map((dept) => {
       const deptFeedbacks = filteredFeedbacks.filter((f: FeedbackDoc) => f.category === dept.category);
       const total = deptFeedbacks.length;
-      
-      const ratingsArray = deptFeedbacks.flatMap((f: FeedbackDoc) => Object.values(f.ratings || {}).filter(v => typeof v === 'number') as number[]);
-      const avg = ratingsArray.length > 0 
-        ? (ratingsArray.reduce((a, b) => a + b, 0) / ratingsArray.length).toFixed(1) + '/5' 
-        : '—';
+
+      const ratingsArray = deptFeedbacks.flatMap(
+        (f: FeedbackDoc) => Object.values(f.ratings || {}).filter((v) => typeof v === 'number') as number[],
+      );
+      const avg = ratingsArray.length > 0 ? (ratingsArray.reduce((a, b) => a + b, 0) / ratingsArray.length).toFixed(1) + '/5' : '—';
 
       const actioned = deptFeedbacks.filter((f: FeedbackDoc) => f.status === 'resolved').length;
 
@@ -189,7 +181,7 @@ export default function AdminDashboard() {
         name: dept.name,
         total,
         avgRating: avg,
-        actioned
+        actioned,
       };
     });
   }, [filteredFeedbacks]);
@@ -198,18 +190,18 @@ export default function AdminDashboard() {
     if (!user) return;
     try {
       await updateFeedbackStatus(feedbackId, status, resNotes, user);
-      toast({ title: "Status Updated", description: `Feedback marked as ${status}.` });
+      toast({ title: 'Status Updated', description: `Feedback marked as ${status}.` });
       mutate();
       setSelectedFeedback(null);
       setResNotes('');
     } catch (e: unknown) {
-      toast({ variant: "destructive", title: "Update Failed", description: e instanceof Error ? e.message : 'Update failed' });
+      toast({ variant: 'destructive', title: 'Update Failed', description: e instanceof Error ? e.message : 'Update failed' });
     }
   };
 
   const handleGeneratePdfReport = useCallback(async () => {
     if (filteredFeedbacks.length === 0) {
-      toast({ variant: "destructive", title: "No Data", description: "No records found for this time range." });
+      toast({ variant: 'destructive', title: 'No Data', description: 'No records found for this time range.' });
       return;
     }
     setIsGeneratingReport(true);
@@ -220,9 +212,10 @@ export default function AdminDashboard() {
       const doc = new jsPDF({ orientation: 'landscape', unit: 'mm', format: 'a4' });
       const reportDate = new Date().toLocaleDateString('en-GB', { day: '2-digit', month: 'long', year: 'numeric' });
       const periodLabel: Record<string, string> = { '7d': 'Last 7 Days', '30d': 'Last 30 Days', '90d': 'Last Quarter', '1y': 'Annual' };
-      const period = dateRange?.from || dateRange?.to
-        ? `${dateRange.from ? dateRange.from.toLocaleDateString() : 'Start'} – ${dateRange.to ? dateRange.to.toLocaleDateString() : 'Now'}`
-        : (periodLabel[timeRange] ?? timeRange);
+      const period =
+        dateRange?.from || dateRange?.to
+          ? `${dateRange.from ? dateRange.from.toLocaleDateString() : 'Start'} – ${dateRange.to ? dateRange.to.toLocaleDateString() : 'Now'}`
+          : (periodLabel[timeRange] ?? timeRange);
 
       // ---- Cover / Header ----
       doc.setFillColor(89, 175, 23);
@@ -243,7 +236,11 @@ export default function AdminDashboard() {
 
       const metricsBody = [
         ['Overall Satisfaction', `${metrics.overallSatisfaction}%`, metrics.overallSatisfaction >= 70 ? 'Strong' : 'Needs Attention'],
-        ['Network Satisfaction', `${metrics.networkSatisfaction}%`, metrics.networkResponses > 0 ? (metrics.networkSatisfaction >= 70 ? 'Strong' : 'Needs Attention') : 'No Network Data'],
+        [
+          'Network Satisfaction',
+          `${metrics.networkSatisfaction}%`,
+          metrics.networkResponses > 0 ? (metrics.networkSatisfaction >= 70 ? 'Strong' : 'Needs Attention') : 'No Network Data',
+        ],
         ['Net Promoter Score', `${metrics.nps}`, metrics.nps >= 30 ? 'Good' : 'Fair'],
         ['First Contact Resolution', `${metrics.ces}%`, metrics.ces >= 60 ? 'Good' : 'Needs Work'],
         ['Resolution Rate', `${metrics.resolvedRate}%`, metrics.resolvedRate >= 80 ? 'Excellent' : 'Improving'],
@@ -265,12 +262,7 @@ export default function AdminDashboard() {
       doc.setFontSize(13);
       doc.text('Department Performance', 14, deptY);
 
-      const deptBody = departmentBreakdown.map(d => [
-        d.name,
-        d.total.toString(),
-        d.avgRating,
-        `${d.actioned} resolved`,
-      ]);
+      const deptBody = departmentBreakdown.map((d) => [d.name, d.total.toString(), d.avgRating, `${d.actioned} resolved`]);
       autoTable(doc, {
         startY: deptY + 4,
         head: [['Department', 'Total Submissions', 'Avg Rating', 'Resolved']],
@@ -287,7 +279,7 @@ export default function AdminDashboard() {
       doc.text('Regional Breakdown', 14, regY);
 
       const regions = ['Ibadan', 'Abeokuta', 'Akure', 'Osogbo'];
-      const regBody = regions.map(loc => {
+      const regBody = regions.map((loc) => {
         const count = filteredFeedbacks.filter((f: FeedbackDoc) => f.location === loc).length;
         const pct = metrics.total > 0 ? `${Math.round((count / metrics.total) * 100)}%` : '0%';
         return [loc, count.toString(), pct];
@@ -330,11 +322,13 @@ export default function AdminDashboard() {
       });
 
       // Save
-      doc.save(`IWorldNetworks_FeedbackReport_${dateRange?.from || dateRange?.to ? 'custom' : timeRange}_${new Date().toISOString().slice(0,10)}.pdf`);
-      toast({ title: "PDF Report Downloaded", description: `${filteredFeedbacks.length} records exported.` });
+      doc.save(
+        `IWorldNetworks_FeedbackReport_${dateRange?.from || dateRange?.to ? 'custom' : timeRange}_${new Date().toISOString().slice(0, 10)}.pdf`,
+      );
+      toast({ title: 'PDF Report Downloaded', description: `${filteredFeedbacks.length} records exported.` });
     } catch (error: unknown) {
       console.error('PDF generation error:', error);
-      toast({ variant: "destructive", title: "Export Failed", description: "Could not generate the PDF. Please try again." });
+      toast({ variant: 'destructive', title: 'Export Failed', description: 'Could not generate the PDF. Please try again.' });
     } finally {
       setIsGeneratingReport(false);
     }
@@ -351,7 +345,15 @@ export default function AdminDashboard() {
           </div>
         </div>
         <div className="flex items-center gap-4 flex-wrap">
-          <Select value={dateRange ? 'custom' : timeRange} onValueChange={(val) => { if (val !== 'custom') { setTimeRange(val); setDateRange(undefined); } }}>
+          <Select
+            value={dateRange ? 'custom' : timeRange}
+            onValueChange={(val) => {
+              if (val !== 'custom') {
+                setTimeRange(val);
+                setDateRange(undefined);
+              }
+            }}
+          >
             <SelectTrigger className="w-[180px] rounded-full font-mono text-[10px] uppercase font-bold bg-white border-border">
               <SelectValue placeholder="Time Range" />
             </SelectTrigger>
@@ -370,26 +372,66 @@ export default function AdminDashboard() {
               if (range?.from || range?.to) setTimeRange('');
             }}
           />
-          <Button onClick={handleGeneratePdfReport} disabled={isGeneratingReport} className="rounded-full bg-secondary text-white font-mono text-[10px] uppercase font-bold px-8 shadow-lg hover:scale-105 transition-transform">
+          <Button
+            onClick={handleGeneratePdfReport}
+            disabled={isGeneratingReport}
+            className="rounded-full bg-secondary text-white font-mono text-[10px] uppercase font-bold px-8 shadow-lg hover:scale-105 transition-transform"
+          >
             {isGeneratingReport ? <Loader2 className="w-3 h-3 animate-spin mr-2" /> : <FileDown className="w-3 h-3 mr-2" />}
             Download PDF Report
           </Button>
         </div>
       </header>
 
-
-
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-5 mb-12">
         {[
-          { label: 'Overall Score', value: metrics.overallSatisfaction, unit: '%', icon: Users, color: 'text-secondary', detail: 'Average rating' },
-          { label: 'Network Score', value: metrics.networkSatisfaction, unit: '%', icon: Activity, color: 'text-green-600', detail: `${metrics.networkResponses} network ratings` },
-          { label: 'Would Recommend', value: metrics.nps, unit: '%', icon: TrendingUp, color: 'text-green-600', detail: `Based on ${metrics.total} feedbacks` },
-          { label: 'Resolved First Time', value: metrics.ces, unit: '%', icon: CheckCircle2, color: 'text-orange-500', detail: 'Fixed on first try' },
-          { label: 'Resolved Issues', value: metrics.resolvedRate, unit: '%', icon: CheckCircle, color: 'text-green-600', detail: 'Issues resolved' },
+          {
+            label: 'Overall Score',
+            value: metrics.overallSatisfaction,
+            unit: '%',
+            icon: Users,
+            color: 'text-secondary',
+            detail: 'Average rating',
+          },
+          {
+            label: 'Network Score',
+            value: metrics.networkSatisfaction,
+            unit: '%',
+            icon: Activity,
+            color: 'text-green-600',
+            detail: `${metrics.networkResponses} network ratings`,
+          },
+          {
+            label: 'Would Recommend',
+            value: metrics.nps,
+            unit: '%',
+            icon: TrendingUp,
+            color: 'text-green-600',
+            detail: `Based on ${metrics.total} feedbacks`,
+          },
+          {
+            label: 'Resolved First Time',
+            value: metrics.ces,
+            unit: '%',
+            icon: CheckCircle2,
+            color: 'text-orange-500',
+            detail: 'Fixed on first try',
+          },
+          {
+            label: 'Resolved Issues',
+            value: metrics.resolvedRate,
+            unit: '%',
+            icon: CheckCircle,
+            color: 'text-green-600',
+            detail: 'Issues resolved',
+          },
         ].map((item, i) => (
-          <div key={i} className="bg-white p-6 rounded-2xl whisper-shadow border border-border group hover:border-secondary transition-all min-h-[184px]">
+          <div
+            key={i}
+            className="bg-white p-6 rounded-2xl whisper-shadow border border-border group hover:border-secondary transition-all min-h-[184px]"
+          >
             <div className="flex justify-between items-start mb-5">
-              <item.icon className={cn("w-6 h-6", item.color)} />
+              <item.icon className={cn('w-6 h-6', item.color)} />
               <div className="flex items-center gap-1">
                 <span className="w-1.5 h-1.5 bg-green-500 rounded-full animate-pulse"></span>
                 <span className="font-mono text-[10px] text-on-surface-variant font-bold uppercase">LIVE</span>
@@ -413,21 +455,43 @@ export default function AdminDashboard() {
               <AreaChart data={chartData}>
                 <defs>
                   <linearGradient id="colorOverallSatisfaction" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="5%" stopColor="#448515" stopOpacity={0.1}/>
-                    <stop offset="95%" stopColor="#448515" stopOpacity={0}/>
+                    <stop offset="5%" stopColor="#448515" stopOpacity={0.1} />
+                    <stop offset="95%" stopColor="#448515" stopOpacity={0} />
                   </linearGradient>
                   <linearGradient id="colorNetworkSatisfaction" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="5%" stopColor="#111827" stopOpacity={0.08}/>
-                    <stop offset="95%" stopColor="#111827" stopOpacity={0}/>
+                    <stop offset="5%" stopColor="#111827" stopOpacity={0.08} />
+                    <stop offset="95%" stopColor="#111827" stopOpacity={0} />
                   </linearGradient>
                 </defs>
                 <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#eee" />
                 <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{ fontSize: 10, fill: '#666' }} />
                 <YAxis hide domain={[0, 100]} />
                 <Tooltip contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 10px 15px -3px rgba(0,0,0,0.1)' }} />
-                <Legend verticalAlign="top" height={24} iconType="circle" wrapperStyle={{ fontSize: 10, fontWeight: 700, textTransform: 'uppercase' }} />
-                <Area type="monotone" dataKey="overallSatisfaction" name="Overall" stroke="#448515" fill="url(#colorOverallSatisfaction)" strokeWidth={3} connectNulls />
-                <Area type="monotone" dataKey="networkSatisfaction" name="Network" stroke="#111827" fill="url(#colorNetworkSatisfaction)" strokeWidth={2} strokeDasharray="6 4" connectNulls />
+                <Legend
+                  verticalAlign="top"
+                  height={24}
+                  iconType="circle"
+                  wrapperStyle={{ fontSize: 10, fontWeight: 700, textTransform: 'uppercase' }}
+                />
+                <Area
+                  type="monotone"
+                  dataKey="overallSatisfaction"
+                  name="Overall"
+                  stroke="#448515"
+                  fill="url(#colorOverallSatisfaction)"
+                  strokeWidth={3}
+                  connectNulls
+                />
+                <Area
+                  type="monotone"
+                  dataKey="networkSatisfaction"
+                  name="Network"
+                  stroke="#111827"
+                  fill="url(#colorNetworkSatisfaction)"
+                  strokeWidth={2}
+                  strokeDasharray="6 4"
+                  connectNulls
+                />
               </AreaChart>
             </ResponsiveContainer>
           </div>
@@ -477,10 +541,12 @@ export default function AdminDashboard() {
                   <td className="py-4 text-center font-mono font-bold">{dept.total}</td>
                   <td className="py-4 text-center font-mono font-bold text-secondary">{dept.avgRating}</td>
                   <td className="py-4 text-right font-mono">
-                    <span className={cn(
-                      "px-3 py-1 rounded-full text-[10px] font-bold font-mono",
-                      dept.actioned > 0 ? "bg-green-100 text-green-600" : "bg-slate-100 text-slate-500"
-                    )}>
+                    <span
+                      className={cn(
+                        'px-3 py-1 rounded-full text-[10px] font-bold font-mono',
+                        dept.actioned > 0 ? 'bg-green-100 text-green-600' : 'bg-slate-100 text-slate-500',
+                      )}
+                    >
                       {dept.actioned} Resolved
                     </span>
                   </td>
@@ -498,21 +564,31 @@ export default function AdminDashboard() {
         </div>
         <div className="space-y-4">
           {filteredFeedbacks.slice(0, 10).map((f: FeedbackDoc) => (
-            <div key={f.id} className="group p-6 border border-border rounded-xl hover:border-secondary transition-all flex flex-col md:flex-row justify-between items-start md:items-center gap-6 bg-surface-container-lowest">
+            <div
+              key={f.id}
+              className="group p-6 border border-border rounded-xl hover:border-secondary transition-all flex flex-col md:flex-row justify-between items-start md:items-center gap-6 bg-surface-container-lowest"
+            >
               <div className="flex-1">
                 <div className="flex items-center gap-3 mb-2">
-                  <span className={cn(
-                    "px-3 py-1 rounded-full text-[10px] font-mono font-bold uppercase",
-                    f.status === 'resolved' ? "bg-green-100 text-green-600" : 
-                    f.status === 'open' ? "bg-emerald-50 text-emerald-600 border border-emerald-200/50" : "bg-green-50 text-green-600 border border-green-200/50"
-                  )}>
+                  <span
+                    className={cn(
+                      'px-3 py-1 rounded-full text-[10px] font-mono font-bold uppercase',
+                      f.status === 'resolved'
+                        ? 'bg-green-100 text-green-600'
+                        : f.status === 'open'
+                          ? 'bg-emerald-50 text-emerald-600 border border-emerald-200/50'
+                          : 'bg-green-50 text-green-600 border border-green-200/50',
+                    )}
+                  >
                     {f.status}
                   </span>
                   <span className="font-mono text-[10px] text-on-surface-variant uppercase font-bold">{f.category}</span>
                   <span className="text-[10px] text-on-surface-variant/40">{new Date(f.timestamp ?? 0).toLocaleDateString()}</span>
                 </div>
-                <p className="font-bold text-primary mb-1">{f.customerName} <span className="font-mono text-[10px] font-normal opacity-40 ml-2">({f.location})</span></p>
-                 <p className="text-sm text-on-surface-variant line-clamp-2 italic">&ldquo;{f.comment}&rdquo;</p>
+                <p className="font-bold text-primary mb-1">
+                  {f.customerName} <span className="font-mono text-[10px] font-normal opacity-40 ml-2">({f.location})</span>
+                </p>
+                <p className="text-sm text-on-surface-variant line-clamp-2 italic">&ldquo;{f.comment}&rdquo;</p>
                 {f.resolutionNotes && (
                   <div className="mt-4 p-4 bg-muted rounded-xl text-xs font-mono border-l-4 border-secondary shadow-sm">
                     <div className="flex items-center gap-2 mb-2 text-secondary font-bold uppercase tracking-wider">
@@ -526,7 +602,14 @@ export default function AdminDashboard() {
               <div className="flex items-center gap-3">
                 <Dialog>
                   <DialogTrigger asChild>
-                    <Button variant="outline" className="rounded-full px-6 font-mono text-[10px] uppercase font-bold" onClick={() => { setSelectedFeedback(f); setResNotes(f.resolutionNotes || ''); }}>
+                    <Button
+                      variant="outline"
+                      className="rounded-full px-6 font-mono text-[10px] uppercase font-bold"
+                      onClick={() => {
+                        setSelectedFeedback(f);
+                        setResNotes(f.resolutionNotes || '');
+                      }}
+                    >
                       <MessageSquare className="w-3 h-3 mr-2" /> Review
                     </Button>
                   </DialogTrigger>
@@ -535,15 +618,29 @@ export default function AdminDashboard() {
                       <DialogTitle className="font-display uppercase tracking-tight">Handle Feedback</DialogTitle>
                     </DialogHeader>
                     <div className="space-y-6 py-4">
-                       <div className="p-4 bg-muted rounded-xl text-sm italic">&ldquo;{f.comment}&rdquo;</div>
+                      <div className="p-4 bg-muted rounded-xl text-sm italic">&ldquo;{f.comment}&rdquo;</div>
                       <div className="space-y-2">
                         <label className="font-mono text-[10px] uppercase font-bold text-on-surface-variant">Resolution Notes</label>
-                        <Textarea placeholder="What was done to resolve this issue?" className="min-h-[120px] rounded-2xl" value={resNotes} onChange={(e) => setResNotes(e.target.value)} />
+                        <Textarea
+                          placeholder="What was done to resolve this issue?"
+                          className="min-h-[120px] rounded-2xl"
+                          value={resNotes}
+                          onChange={(e) => setResNotes(e.target.value)}
+                        />
                       </div>
                     </div>
                     <DialogFooter className="flex gap-2">
-                      <Button variant="outline" className="rounded-full font-mono text-[10px] uppercase font-bold" onClick={() => handleUpdateStatus(f.id, 'escalated')}>Escalate</Button>
-                      <Button className="rounded-full bg-secondary text-white font-mono text-[10px] uppercase font-bold px-8" onClick={() => handleUpdateStatus(f.id, 'resolved')}>
+                      <Button
+                        variant="outline"
+                        className="rounded-full font-mono text-[10px] uppercase font-bold"
+                        onClick={() => handleUpdateStatus(f.id, 'escalated')}
+                      >
+                        Escalate
+                      </Button>
+                      <Button
+                        className="rounded-full bg-secondary text-white font-mono text-[10px] uppercase font-bold px-8"
+                        onClick={() => handleUpdateStatus(f.id, 'resolved')}
+                      >
                         <CheckCircle2 className="w-3 h-3 mr-2" /> Mark Resolved
                       </Button>
                     </DialogFooter>
@@ -554,7 +651,9 @@ export default function AdminDashboard() {
           ))}
           {filteredFeedbacks.length === 0 && (
             <div className="py-20 text-center border-2 border-dashed border-border rounded-xl">
-              <p className="font-mono text-sm text-on-surface-variant opacity-40 uppercase font-bold tracking-widest">No feedback found for this period</p>
+              <p className="font-mono text-sm text-on-surface-variant opacity-40 uppercase font-bold tracking-widest">
+                No feedback found for this period
+              </p>
             </div>
           )}
         </div>

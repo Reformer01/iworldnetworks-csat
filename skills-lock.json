@@ -1,19 +1,24 @@
 {
   "version": 1,
   "skills": {
+    "clarification": {
+      "source": "tmdgusya/engineering-discipline",
+      "sourceType": "github",
+      "skillPath": "skills/clarification/SKILL.md",
+      "computedHash": "ebf14af8b100dc1b4769cb8d912ca8fc6cd2b9f75f16645377e42892938cba2d"
+    },
+    "clean-ai-slop": {
+      "source": "tmdgusya/engineering-discipline",
+      "sourceType": "github",
+      "skillPath": "skills/clean-ai-slop/SKILL.md",
+      "computedHash": "67b5a05469a3f6f43bc0cd7c408ee081f97c86200f076b7c816037aaaf6fcc31"
+    },
     "developing-genkit-js": {
       "source": "genkit-ai/skills",
       "ref": "main",
       "sourceType": "github",
       "skillPath": "skills/developing-genkit-js/SKILL.md",
       "computedHash": "511fbb0045b1e5150d529140055a5ddb47d504918be34052f8fde93109dba146"
-    },
-    "firebase-basics": {
-      "source": "firebase/agent-skills",
-      "ref": "main",
-      "sourceType": "github",
-      "skillPath": "skills/firebase-basics/SKILL.md",
-      "computedHash": "local-basics-skill"
     },
     "firebase-auth-basics": {
       "source": "firebase/agent-skills",
@@ -22,12 +27,12 @@
       "skillPath": "skills/firebase-auth-basics/SKILL.md",
       "computedHash": "local-auth-skill"
     },
-    "firebase-firestore": {
+    "firebase-basics": {
       "source": "firebase/agent-skills",
       "ref": "main",
       "sourceType": "github",
-      "skillPath": "skills/firebase-firestore/SKILL.md",
-      "computedHash": "local-firestore-skill"
+      "skillPath": "skills/firebase-basics/SKILL.md",
+      "computedHash": "local-basics-skill"
     },
     "firebase-data-connect": {
       "source": "firebase/agent-skills",
@@ -35,6 +40,73 @@
       "sourceType": "github",
       "skillPath": "skills/firebase-data-connect/SKILL.md",
       "computedHash": "local-dataconnect-skill"
+    },
+    "firebase-firestore": {
+      "source": "firebase/agent-skills",
+      "ref": "main",
+      "sourceType": "github",
+      "skillPath": "skills/firebase-firestore/SKILL.md",
+      "computedHash": "local-firestore-skill"
+    },
+    "karpathy": {
+      "source": "tmdgusya/engineering-discipline",
+      "sourceType": "github",
+      "skillPath": "skills/karpathy/SKILL.md",
+      "computedHash": "27a3f1c0c23bbce9ac04ffdb1091b953d051ae713634ba894af8173eb0aff56a"
+    },
+    "long-run": {
+      "source": "tmdgusya/engineering-discipline",
+      "sourceType": "github",
+      "skillPath": "skills/long-run/SKILL.md",
+      "computedHash": "8300b17948044b9154abead94b4099c748c78bb86737ead86dd18a3ba54921bf"
+    },
+    "milestone-planning": {
+      "source": "tmdgusya/engineering-discipline",
+      "sourceType": "github",
+      "skillPath": "skills/milestone-planning/SKILL.md",
+      "computedHash": "abbf38e820eba410de3a3735618c12df7bf736bc9a743760f5e7a470789a33ee"
+    },
+    "plan-crafting": {
+      "source": "tmdgusya/engineering-discipline",
+      "sourceType": "github",
+      "skillPath": "skills/plan-crafting/SKILL.md",
+      "computedHash": "c040c2554ee414f01a2de43b5a2e5b93259f5595df50c3bdaa13d0f7353ef1a4"
+    },
+    "review-work": {
+      "source": "tmdgusya/engineering-discipline",
+      "sourceType": "github",
+      "skillPath": "skills/review-work/SKILL.md",
+      "computedHash": "ce98e73527c9a0a87af0a417c3b696b0ddc8564c3a552dc719037e40611be826"
+    },
+    "rob-pike": {
+      "source": "tmdgusya/engineering-discipline",
+      "sourceType": "github",
+      "skillPath": "skills/rob-pike/SKILL.md",
+      "computedHash": "f6df5aeb22fc149b9fffdfa4ef3262da30da48a1e2901a7825429a2455f8adfc"
+    },
+    "run-plan": {
+      "source": "tmdgusya/engineering-discipline",
+      "sourceType": "github",
+      "skillPath": "skills/run-plan/SKILL.md",
+      "computedHash": "d8da5a0e74a1cf2f164a3571857b43f3603c2d437e0e8eabcd9cb504d2a6e16e"
+    },
+    "simplify": {
+      "source": "tmdgusya/engineering-discipline",
+      "sourceType": "github",
+      "skillPath": "skills/simplify/SKILL.md",
+      "computedHash": "f21c440bca261d33fe1c7a477d02d94a7dd34532e5e10a4054883d20ce31491d"
+    },
+    "systematic-debugging": {
+      "source": "tmdgusya/engineering-discipline",
+      "sourceType": "github",
+      "skillPath": "skills/systematic-debugging/SKILL.md",
+      "computedHash": "e3968e59d279fe7444bc018554181eeffab0e81abbdd44b0ba2184a8a620d9cc"
+    },
+    "terraform-skill": {
+      "source": "antonbabenko/terraform-skill",
+      "sourceType": "github",
+      "skillPath": "skills/terraform-skill/SKILL.md",
+      "computedHash": "b41a4491aab710ea11531d5bc5f5632c2a8ed8674eb45bb4e4b9798a2b2b053a"
     }
   }
 }

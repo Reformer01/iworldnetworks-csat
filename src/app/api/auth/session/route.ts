@@ -4,6 +4,7 @@ import { getAdminApp } from '@/lib/firebase-admin';
 import { logError } from '@/lib/logger';
 import { z } from 'zod';
 import { validateOrigin, forbidden } from '@/lib/api-response';
+import { isRateLimited } from '@/lib/rate-limit';
 
 const sessionSchema = z.object({
   idToken: z.string().min(1, 'idToken is required'),
@@ -11,6 +12,9 @@ const sessionSchema = z.object({
 
 export async function POST(request: NextRequest) {
   try {
+    if (isRateLimited(request, 20, 60 * 1000)) {
+      return NextResponse.json({ success: false, error: 'Too many requests.', code: 'RATE_LIMITED' }, { status: 429 });
+    }
     if (!validateOrigin(request)) return forbidden();
 
     const body = await request.json().catch(() => null);
