@@ -24,6 +24,7 @@ import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Label } from '@/components/ui/label';
 import { useToast } from '@/hooks/use-toast';
 import { billingStaff, fieldTechnicians, supportStaff } from '@/lib/staff';
+import { DatePicker } from '@/components/ui/date-picker';
 
 type Category = 'Reliability' | 'Support' | 'Testimonials' | 'Installation' | 'Billing' | 'FieldSupport';
 
@@ -32,6 +33,7 @@ export default function LandingPage() {
   const [isSubmitted, setIsSubmitted] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [ratings, setRatings] = useState<Record<string, any>>({});
+  const [errors, setErrors] = useState<Record<string, string[]>>({});
   const [formData, setFormData] = useState({
     customerName: '',
     customerEmail: '',
@@ -63,11 +65,11 @@ export default function LandingPage() {
   ];
 
   const images = {
-    fiber: PlaceHolderImages.find(img => img.id === 'hero-fiber')!,
-    customer: PlaceHolderImages.find(img => img.id === 'hero-customer')!,
-    server: PlaceHolderImages.find(img => img.id === 'server-room')!,
-    tech: PlaceHolderImages.find(img => img.id === 'tech-samuel')!,
-    workspace: PlaceHolderImages.find(img => img.id === 'workspace')!,
+    fiber: { imageUrl: '/hero-fiber.jpg', description: 'Fiber', id: 'fiber', imageHint: '' },
+    customer: { imageUrl: '/hero-customer.jpg', description: 'Customer', id: 'customer', imageHint: '' },
+    server: { imageUrl: '/hero-support.jpg', description: 'Server', id: 'server', imageHint: '' },
+    tech: { imageUrl: '/hero-support.jpg', description: 'Tech', id: 'tech', imageHint: '' },
+    workspace: { imageUrl: '/hero-workspace.jpg', description: 'Workspace', id: 'workspace', imageHint: '' },
   };
 
   const heroContent: Record<Category, { title: React.ReactNode, sub: string, img: ImagePlaceholder }> = {
@@ -122,6 +124,7 @@ export default function LandingPage() {
     if (isSubmitting) return;
 
     setIsSubmitting(true);
+    setErrors({});
 
     try {
       const feedbackData = {
@@ -138,6 +141,10 @@ export default function LandingPage() {
 
       if (!res.ok) {
         const errorBody = await res.json().catch(() => ({}));
+        if (errorBody.details) {
+          setErrors(errorBody.details);
+          throw new Error('Validation failed. Please check the highlighted fields.');
+        }
         throw new Error(errorBody.error || `Server error ${res.status}`);
       }
 
@@ -235,66 +242,191 @@ export default function LandingPage() {
             </div>
 
             <div className="lg:col-span-9">
-              <form onSubmit={handleSubmit} className="space-y-12">
+               <form onSubmit={handleSubmit} className="space-y-12">
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
                   <div className="space-y-1">
                     <label className="font-mono text-[10px] uppercase text-on-surface-variant font-bold">Your Name</label>
-                    <input required className="w-full bg-transparent border-b border-border py-2 outline-none focus:border-secondary transition-colors font-bold" placeholder="Samuel Oke" value={formData.customerName} onChange={e => setFormData({...formData, customerName: e.target.value})} />
+                    <input 
+                      required 
+                      className={cn(
+                        "w-full bg-transparent border-b py-2 outline-none focus:border-secondary transition-colors font-bold",
+                        errors.customerName ? "border-destructive text-destructive focus:border-destructive" : "border-border"
+                      )} 
+                      placeholder="Samuel Oke" 
+                      value={formData.customerName} 
+                      onChange={e => {
+                        setFormData({...formData, customerName: e.target.value});
+                        if (errors.customerName) setErrors(prev => { const copy = {...prev}; delete copy.customerName; return copy; });
+                      }} 
+                    />
+                    {errors.customerName && (
+                      <p className="text-[10px] text-destructive font-semibold mt-1">{errors.customerName[0]}</p>
+                    )}
                   </div>
                   <div className="space-y-1">
                     <label className="font-mono text-[10px] uppercase text-on-surface-variant font-bold">Email</label>
-                    <input required type="email" className="w-full bg-transparent border-b border-border py-2 outline-none focus:border-secondary transition-colors font-bold" placeholder="samuel@example.com" value={formData.customerEmail} onChange={e => setFormData({...formData, customerEmail: e.target.value})} />
+                    <input 
+                      required 
+                      type="email" 
+                      className={cn(
+                        "w-full bg-transparent border-b py-2 outline-none focus:border-secondary transition-colors font-bold",
+                        errors.customerEmail ? "border-destructive text-destructive focus:border-destructive" : "border-border"
+                      )} 
+                      placeholder="samuel@example.com" 
+                      value={formData.customerEmail} 
+                      onChange={e => {
+                        setFormData({...formData, customerEmail: e.target.value});
+                        if (errors.customerEmail) setErrors(prev => { const copy = {...prev}; delete copy.customerEmail; return copy; });
+                      }} 
+                    />
+                    {errors.customerEmail && (
+                      <p className="text-[10px] text-destructive font-semibold mt-1">{errors.customerEmail[0]}</p>
+                    )}
                   </div>
                 </div>
 
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
                   {activeCategory === 'Reliability' ? (
                     <>
-                      <div className="space-y-1">
-                        <label className="font-mono text-[10px] uppercase text-on-surface-variant font-bold flex items-center gap-2">
+                      <div className="space-y-1 flex flex-col justify-end">
+                        <label className="font-mono text-[10px] uppercase text-on-surface-variant font-bold flex items-center gap-2 mb-2">
                           <CalendarDays className="w-3 h-3 text-secondary" /> Start Date
                         </label>
-                        <input required type="date" className="w-full bg-transparent border-b border-border py-2 outline-none focus:border-secondary transition-colors font-bold" value={formData.serviceDate} onChange={e => setFormData({...formData, serviceDate: e.target.value})} />
+                        <DatePicker
+                          date={formData.serviceDate ? new Date(formData.serviceDate) : undefined}
+                          placeholder="Select Start Date"
+                          className={errors.serviceDate ? "border-destructive text-destructive focus:border-destructive" : ""}
+                          onSelect={date => {
+                            setFormData({
+                              ...formData,
+                              serviceDate: date ? date.toISOString().split('T')[0] : ''
+                            });
+                            if (errors.serviceDate) setErrors(prev => { const copy = {...prev}; delete copy.serviceDate; return copy; });
+                          }}
+                        />
+                        {errors.serviceDate && (
+                          <p className="text-[10px] text-destructive font-semibold mt-1">{errors.serviceDate[0]}</p>
+                        )}
                       </div>
-                      <div className="space-y-1">
-                        <label className="font-mono text-[10px] uppercase text-on-surface-variant font-bold flex items-center gap-2">
+                      <div className="space-y-1 flex flex-col justify-end">
+                        <label className="font-mono text-[10px] uppercase text-on-surface-variant font-bold flex items-center gap-2 mb-2">
                           <CalendarDays className="w-3 h-3 text-secondary" /> End Date
                         </label>
-                        <input required type="date" className="w-full bg-transparent border-b border-border py-2 outline-none focus:border-secondary transition-colors font-bold" value={formData.serviceDateEnd} onChange={e => setFormData({...formData, serviceDateEnd: e.target.value})} />
+                        <DatePicker
+                          date={formData.serviceDateEnd ? new Date(formData.serviceDateEnd) : undefined}
+                          placeholder="Select End Date"
+                          className={errors.serviceDateEnd ? "border-destructive text-destructive focus:border-destructive" : ""}
+                          onSelect={date => {
+                            setFormData({
+                              ...formData,
+                              serviceDateEnd: date ? date.toISOString().split('T')[0] : ''
+                            });
+                            if (errors.serviceDateEnd) setErrors(prev => { const copy = {...prev}; delete copy.serviceDateEnd; return copy; });
+                          }}
+                        />
+                        {errors.serviceDateEnd && (
+                          <p className="text-[10px] text-destructive font-semibold mt-1">{errors.serviceDateEnd[0]}</p>
+                        )}
                       </div>
                     </>
                   ) : (
-                    <div className="space-y-1">
-                      <label className="font-mono text-[10px] uppercase text-on-surface-variant font-bold flex items-center gap-2">
+                    <div className="space-y-1 flex flex-col justify-end">
+                      <label className="font-mono text-[10px] uppercase text-on-surface-variant font-bold flex items-center gap-2 mb-2">
                         <CalendarDays className="w-3 h-3 text-secondary" /> Date of Experience
                       </label>
-                      <input required type="date" className="w-full bg-transparent border-b border-border py-2 outline-none focus:border-secondary transition-colors font-bold" value={formData.serviceDate} onChange={e => setFormData({...formData, serviceDate: e.target.value})} />
+                      <DatePicker
+                        date={formData.serviceDate ? new Date(formData.serviceDate) : undefined}
+                        placeholder="Select Date"
+                        className={errors.serviceDate ? "border-destructive text-destructive focus:border-destructive" : ""}
+                        onSelect={date => {
+                          setFormData({
+                            ...formData,
+                            serviceDate: date ? date.toISOString().split('T')[0] : ''
+                          });
+                          if (errors.serviceDate) setErrors(prev => { const copy = {...prev}; delete copy.serviceDate; return copy; });
+                        }}
+                      />
+                      {errors.serviceDate && (
+                        <p className="text-[10px] text-destructive font-semibold mt-1">{errors.serviceDate[0]}</p>
+                      )}
                     </div>
                   )}
-                  <div className="space-y-1">
-                    <label className="font-mono text-[10px] uppercase text-on-surface-variant font-bold flex items-center gap-2">
+                  <div className="space-y-1 flex flex-col justify-end">
+                    <label className="font-mono text-[10px] uppercase text-on-surface-variant font-bold flex items-center gap-2 mb-2">
                       <CalendarDays className="w-3 h-3 text-secondary" /> Submission Date
                     </label>
-                    <input required type="date" className="w-full bg-transparent border-b border-border py-2 outline-none focus:border-secondary transition-colors font-bold" value={formData.submissionDate} onChange={e => setFormData({...formData, submissionDate: e.target.value})} />
+                    <DatePicker
+                      date={formData.submissionDate ? new Date(formData.submissionDate) : undefined}
+                      placeholder="Select Submission Date"
+                      className={errors.submissionDate ? "border-destructive text-destructive focus:border-destructive" : ""}
+                      onSelect={date => {
+                        setFormData({
+                          ...formData,
+                          submissionDate: date ? date.toISOString().split('T')[0] : ''
+                        });
+                        if (errors.submissionDate) setErrors(prev => { const copy = {...prev}; delete copy.submissionDate; return copy; });
+                      }}
+                    />
+                    {errors.submissionDate && (
+                      <p className="text-[10px] text-destructive font-semibold mt-1">{errors.submissionDate[0]}</p>
+                    )}
                   </div>
                   <div className="space-y-1">
                     <label className="font-mono text-[10px] uppercase text-on-surface-variant font-bold flex items-center gap-2">
                       <Clock className="w-3 h-3 text-secondary" /> Approx Time of Experience
                     </label>
-                    <input required type="time" className="w-full bg-transparent border-b border-border py-2 outline-none focus:border-secondary transition-colors font-bold" value={formData.serviceTime} onChange={e => setFormData({...formData, serviceTime: e.target.value})} />
+                    <input 
+                      required 
+                      type="time" 
+                      className={cn(
+                        "w-full bg-transparent border-b py-2 outline-none focus:border-secondary transition-colors font-bold",
+                        errors.serviceTime ? "border-destructive text-destructive focus:border-destructive" : "border-border"
+                      )} 
+                      value={formData.serviceTime} 
+                      onChange={e => {
+                        setFormData({...formData, serviceTime: e.target.value});
+                        if (errors.serviceTime) setErrors(prev => { const copy = {...prev}; delete copy.serviceTime; return copy; });
+                      }} 
+                    />
+                    {errors.serviceTime && (
+                      <p className="text-[10px] text-destructive font-semibold mt-1">{errors.serviceTime[0]}</p>
+                    )}
                   </div>
                 </div>
 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
                   <div className="space-y-1">
                     <label className="font-mono text-[10px] uppercase text-on-surface-variant font-bold">Region</label>
-                    <select className="w-full bg-transparent border-b border-border py-2 outline-none cursor-pointer font-bold" value={formData.location} onChange={e => setFormData({...formData, location: e.target.value})}>
+                    <select 
+                      className={cn(
+                        "w-full bg-transparent border-b py-2 outline-none cursor-pointer font-bold",
+                        errors.location ? "border-destructive text-destructive focus:border-destructive" : "border-border"
+                      )} 
+                      value={formData.location} 
+                      onChange={e => {
+                        setFormData({...formData, location: e.target.value});
+                        if (errors.location) setErrors(prev => { const copy = {...prev}; delete copy.location; return copy; });
+                      }}
+                    >
                       {validRegions.map(r => <option key={r} value={r}>{r}</option>)}
                     </select>
+                    {errors.location && (
+                      <p className="text-[10px] text-destructive font-semibold mt-1">{errors.location[0]}</p>
+                    )}
                   </div>
                   <div className="space-y-1">
                     <label className="font-mono text-[10px] uppercase text-on-surface-variant font-bold">Connectivity Plan</label>
-                    <select className="w-full bg-transparent border-b border-border py-2 outline-none cursor-pointer font-bold" value={formData.servicePlan} onChange={e => setFormData({...formData, servicePlan: e.target.value})}>
+                    <select 
+                      className={cn(
+                        "w-full bg-transparent border-b py-2 outline-none cursor-pointer font-bold",
+                        errors.servicePlan ? "border-destructive text-destructive focus:border-destructive" : "border-border"
+                      )} 
+                      value={formData.servicePlan} 
+                      onChange={e => {
+                        setFormData({...formData, servicePlan: e.target.value});
+                        if (errors.servicePlan) setErrors(prev => { const copy = {...prev}; delete copy.servicePlan; return copy; });
+                      }}
+                    >
                       <optgroup label="Residential (H-Series)">
                         {residentialPlans.map(plan => <option key={plan} value={plan}>{plan}</option>)}
                       </optgroup>
@@ -305,6 +437,9 @@ export default function LandingPage() {
                         <option value="Enterprise">Enterprise</option>
                       </optgroup>
                     </select>
+                    {errors.servicePlan && (
+                      <p className="text-[10px] text-destructive font-semibold mt-1">{errors.servicePlan[0]}</p>
+                    )}
                   </div>
                 </div>
 

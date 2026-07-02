@@ -9,7 +9,7 @@ import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogTrigger, DialogFooter } from '@/components/ui/dialog';
 import { Loader2, Plus, Search, Trash2, Edit3, Database, ChevronLeft, ChevronRight } from 'lucide-react';
 import { salesAgents, planCodes, locations, getPlanMrc } from '@/lib/sales-staff';
 import { isSuperAdmin } from '@/lib/admin-config';
@@ -79,19 +79,30 @@ export default function SalesRecords() {
     if (!user) return;
     setSaving(true);
     try {
+      // Strip the UI-only `totalPaid` helper before sending — schema is strict
+      // eslint-disable-next-line @typescript-eslint/no-unused-vars
+      const { totalPaid: _ignored, ...payload } = form;
       if (editId) {
-        await updateSalesRecord(editId, form, user);
+        await updateSalesRecord(editId, payload, user);
         toast({ title: "Updated", description: "Sales record updated." });
       } else {
-        await createSalesRecord(form, user);
+        await createSalesRecord(payload, user);
         toast({ title: "Created", description: "New sales record added." });
       }
       setIsOpen(false);
       resetForm();
       mutate();
     } catch (e: unknown) {
-      const msg = e instanceof Error ? e.message : 'Failed to save';
-      const detailed = msg === 'Validation failed.' ? 'Please check all required fields (name, location, plan, agent).' : msg;
+      const raw = e instanceof Error ? e.message : 'Failed to save';
+      // Try to surface specific field errors if the API returned them
+      let detailed = raw;
+      try {
+        const parsed = JSON.parse(raw);
+        if (parsed?.errors) {
+          const fields = Object.keys(parsed.errors).join(', ');
+          detailed = `Fix these fields: ${fields}`;
+        }
+      } catch { /* raw message is not JSON, show as-is */ }
       toast({ variant: "destructive", title: "Error", description: detailed });
     } finally {
       setSaving(false);
@@ -151,6 +162,9 @@ export default function SalesRecords() {
           <DialogContent className="max-w-2xl rounded-3xl max-h-[85vh] overflow-y-auto">
             <DialogHeader>
               <DialogTitle className="font-display uppercase tracking-tight">{editId ? 'Edit' : 'Add'} Record</DialogTitle>
+              <DialogDescription className="sr-only">
+                {editId ? 'Edit an existing sales record.' : 'Add a new customer sales record.'}
+              </DialogDescription>
             </DialogHeader>
             <div className="grid grid-cols-2 gap-4 py-4">
               <div className="col-span-2">

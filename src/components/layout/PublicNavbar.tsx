@@ -1,6 +1,7 @@
 'use client';
 
 import Link from 'next/link';
+import Image from 'next/image';
 import { Menu } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useRouter } from 'next/navigation';
@@ -17,8 +18,8 @@ export function PublicNavbar() {
 
   return (
     <nav className="fixed top-0 w-full z-50 h-16 md:h-20 px-margin-mobile md:px-margin-desktop flex justify-between items-center max-w-container-max mx-auto left-0 right-0">
-      <Link href="/" className="font-mono text-sm md:text-base font-bold text-primary uppercase tracking-tight">
-        I-World Networks
+      <Link href="/" className="flex items-center">
+        <Image src="/logo.png" alt="I-World Logo" width={140} height={42} className="h-8 md:h-10 w-auto object-contain" priority />
       </Link>
       
       <div className="hidden md:flex gap-8 items-center">
@@ -48,8 +49,8 @@ export function PublicNavbar() {
           </SheetTrigger>
           <SheetContent side="right" className="w-[300px] border-l border-border">
             <SheetHeader className="mb-10">
-              <SheetTitle className="text-left font-mono text-sm font-bold text-primary uppercase">
-                I-World Networks
+              <SheetTitle className="text-left">
+                <Image src="/logo.png" alt="I-World Logo" width={110} height={33} className="h-7 w-auto object-contain" />
               </SheetTitle>
             </SheetHeader>
             <div className="flex flex-col gap-6">

@@ -26,7 +26,8 @@ import {
   useAdminFeedbacks, 
   createFeedback, 
   editFeedback, 
-  deleteFeedback 
+  deleteFeedback,
+  ValidationError
 } from '@/hooks/use-admin-feedbacks';
 import type { FeedbackDoc } from '@/lib/feedback-types';
 import { Button } from '@/components/ui/button';
@@ -50,6 +51,7 @@ import {
 } from '@/components/ui/dialog';
 import { cn } from '@/lib/utils';
 import { DateRangePicker } from '@/components/ui/date-range-picker';
+import { DatePicker } from '@/components/ui/date-picker';
 
 export default function AdminCrud() {
   const auth = useAuth();
@@ -90,6 +92,7 @@ export default function AdminCrud() {
   
   // Dynamic Ratings form state
   const [ratingsState, setRatingsState] = useState<Record<string, string>>({});
+  const [formErrors, setFormErrors] = useState<Record<string, string[]>>({});
 
   const categories = ['Reliability', 'Support', 'FieldSupport', 'Testimonials', 'Installation', 'Billing'];
   const locations = ['Ibadan', 'Abeokuta', 'Akure', 'Osogbo'];
@@ -133,6 +136,7 @@ export default function AdminCrud() {
 
   // Reset form helper
   const resetForm = useCallback((record?: FeedbackDoc) => {
+    setFormErrors({});
     if (record) {
       setFormName(record.customerName || '');
       setFormEmail(record.customerEmail || '');
@@ -242,7 +246,12 @@ export default function AdminCrud() {
       resetForm();
     } catch (err: unknown) {
       console.error(err);
-      toast({ variant: "destructive", title: "Creation Failed", description: err instanceof Error ? err.message : 'Error' });
+      if (err instanceof ValidationError) {
+        setFormErrors(err.details);
+        toast({ variant: "destructive", title: "Validation Failed", description: "Please check the highlighted fields." });
+      } else {
+        toast({ variant: "destructive", title: "Creation Failed", description: err instanceof Error ? err.message : 'Error' });
+      }
     } finally {
       setIsActionLoading(false);
     }
@@ -252,6 +261,7 @@ export default function AdminCrud() {
     e.preventDefault();
     if (!user || !selectedRecord) return;
     setIsActionLoading(true);
+    setFormErrors({});
     try {
       const parsedRatings: Record<string, any> = {};
       Object.entries(ratingsState).forEach(([key, val]) => {
@@ -281,7 +291,12 @@ export default function AdminCrud() {
       setSelectedRecord(null);
     } catch (err: unknown) {
       console.error(err);
-      toast({ variant: "destructive", title: "Update Failed", description: err instanceof Error ? err.message : 'Error' });
+      if (err instanceof ValidationError) {
+        setFormErrors(err.details);
+        toast({ variant: "destructive", title: "Validation Failed", description: "Please check the highlighted fields." });
+      } else {
+        toast({ variant: "destructive", title: "Update Failed", description: err instanceof Error ? err.message : 'Error' });
+      }
     } finally {
       setIsActionLoading(false);
     }
@@ -504,11 +519,13 @@ export default function AdminCrud() {
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2">
                   <label className="font-mono text-[10px] uppercase font-bold text-on-surface-variant">Customer Name</label>
-                  <Input required placeholder="Lukmon Obasa" value={formName} onChange={(e) => setFormName(e.target.value)} />
+                  <Input required className={cn(formErrors.customerName && "border-destructive text-destructive focus:border-destructive")} placeholder="Lukmon Obasa" value={formName} onChange={(e) => { setFormName(e.target.value); if(formErrors.customerName) setFormErrors(prev => { const copy = {...prev}; delete copy.customerName; return copy; }); }} />
+                  {formErrors.customerName && <p className="text-[10px] text-destructive mt-1 font-semibold">{formErrors.customerName[0]}</p>}
                 </div>
                 <div className="space-y-2">
                   <label className="font-mono text-[10px] uppercase font-bold text-on-surface-variant">Customer Email</label>
-                  <Input required type="email" placeholder="l.obasa@iworldnetworks.net" value={formEmail} onChange={(e) => setFormEmail(e.target.value)} />
+                  <Input required type="email" className={cn(formErrors.customerEmail && "border-destructive text-destructive focus:border-destructive")} placeholder="l.obasa@iworldnetworks.net" value={formEmail} onChange={(e) => { setFormEmail(e.target.value); if(formErrors.customerEmail) setFormErrors(prev => { const copy = {...prev}; delete copy.customerEmail; return copy; }); }} />
+                  {formErrors.customerEmail && <p className="text-[10px] text-destructive mt-1 font-semibold">{formErrors.customerEmail[0]}</p>}
                 </div>
               </div>
 
@@ -516,39 +533,52 @@ export default function AdminCrud() {
                 <div className="space-y-2">
                   <label className="font-mono text-[10px] uppercase font-bold text-on-surface-variant">Department</label>
                   <Select value={formCategory} onValueChange={(val: string) => { setFormCategory(val as "Reliability" | "Support" | "FieldSupport" | "Testimonials" | "Installation" | "Billing"); setRatingsState({}); }}>
-                    <SelectTrigger className="rounded-md font-mono text-[10px] uppercase font-bold bg-white">
+                    <SelectTrigger className={cn("rounded-md font-mono text-[10px] uppercase font-bold bg-white", formErrors.category && "border-destructive text-destructive")}>
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
                       {categories.map(cat => <SelectItem key={cat} value={cat}>{cat}</SelectItem>)}
                     </SelectContent>
                   </Select>
+                  {formErrors.category && <p className="text-[10px] text-destructive mt-1 font-semibold">{formErrors.category[0]}</p>}
                 </div>
                 <div className="space-y-2">
                   <label className="font-mono text-[10px] uppercase font-bold text-on-surface-variant">Region</label>
                   <Select value={formLocation} onValueChange={setFormLocation}>
-                    <SelectTrigger className="rounded-md font-mono text-[10px] uppercase font-bold bg-white">
+                    <SelectTrigger className={cn("rounded-md font-mono text-[10px] uppercase font-bold bg-white", formErrors.location && "border-destructive text-destructive")}>
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
                       {locations.map(loc => <SelectItem key={loc} value={loc}>{loc}</SelectItem>)}
                     </SelectContent>
                   </Select>
+                  {formErrors.location && <p className="text-[10px] text-destructive mt-1 font-semibold">{formErrors.location[0]}</p>}
                 </div>
                 <div className="space-y-2">
                   <label className="font-mono text-[10px] uppercase font-bold text-on-surface-variant">Service Plan</label>
-                  <Input required placeholder="Enterprise" value={formPlan} onChange={(e) => setFormPlan(e.target.value)} />
+                  <Input required className={cn(formErrors.servicePlan && "border-destructive text-destructive focus:border-destructive")} placeholder="Enterprise" value={formPlan} onChange={(e) => { setFormPlan(e.target.value); if(formErrors.servicePlan) setFormErrors(prev => { const copy = {...prev}; delete copy.servicePlan; return copy; }); }} />
+                  {formErrors.servicePlan && <p className="text-[10px] text-destructive mt-1 font-semibold">{formErrors.servicePlan[0]}</p>}
                 </div>
               </div>
 
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2">
                   <label className="font-mono text-[10px] uppercase font-bold text-on-surface-variant">Staff / Tech Name</label>
-                  <Input placeholder="Christian Adejo" value={formStaffName} onChange={(e) => setFormStaffName(e.target.value)} />
+                  <Input className={cn(formErrors.staffName && "border-destructive text-destructive focus:border-destructive")} placeholder="Christian Adejo" value={formStaffName} onChange={(e) => { setFormStaffName(e.target.value); if(formErrors.staffName) setFormErrors(prev => { const copy = {...prev}; delete copy.staffName; return copy; }); }} />
+                  {formErrors.staffName && <p className="text-[10px] text-destructive mt-1 font-semibold">{formErrors.staffName[0]}</p>}
                 </div>
-                <div className="space-y-2">
-                  <label className="font-mono text-[10px] uppercase font-bold text-on-surface-variant">Experience Date</label>
-                  <Input required type="date" value={formDateFeedback} onChange={(e) => setFormDateFeedback(e.target.value)} />
+                <div className="space-y-2 flex flex-col justify-end">
+                  <label className="font-mono text-[10px] uppercase font-bold text-on-surface-variant mb-2">Experience Date</label>
+                  <DatePicker
+                    date={formDateFeedback ? new Date(formDateFeedback) : undefined}
+                    placeholder="Select Date"
+                    className={formErrors.dateFeedback ? "border-destructive text-destructive" : ""}
+                    onSelect={(date) => {
+                      setFormDateFeedback(date ? date.toISOString().split('T')[0] : '');
+                      if (formErrors.dateFeedback) setFormErrors(prev => { const copy = {...prev}; delete copy.dateFeedback; return copy; });
+                    }}
+                  />
+                  {formErrors.dateFeedback && <p className="text-[10px] text-destructive mt-1 font-semibold">{formErrors.dateFeedback[0]}</p>}
                 </div>
               </div>
 
@@ -619,11 +649,13 @@ export default function AdminCrud() {
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2">
                   <label className="font-mono text-[10px] uppercase font-bold text-on-surface-variant">Customer Name</label>
-                  <Input required placeholder="Lukmon Obasa" value={formName} onChange={(e) => setFormName(e.target.value)} />
+                  <Input required className={cn(formErrors.customerName && "border-destructive text-destructive focus:border-destructive")} placeholder="Lukmon Obasa" value={formName} onChange={(e) => { setFormName(e.target.value); if(formErrors.customerName) setFormErrors(prev => { const copy = {...prev}; delete copy.customerName; return copy; }); }} />
+                  {formErrors.customerName && <p className="text-[10px] text-destructive mt-1 font-semibold">{formErrors.customerName[0]}</p>}
                 </div>
                 <div className="space-y-2">
                   <label className="font-mono text-[10px] uppercase font-bold text-on-surface-variant">Customer Email</label>
-                  <Input required type="email" placeholder="l.obasa@iworldnetworks.net" value={formEmail} onChange={(e) => setFormEmail(e.target.value)} />
+                  <Input required type="email" className={cn(formErrors.customerEmail && "border-destructive text-destructive focus:border-destructive")} placeholder="l.obasa@iworldnetworks.net" value={formEmail} onChange={(e) => { setFormEmail(e.target.value); if(formErrors.customerEmail) setFormErrors(prev => { const copy = {...prev}; delete copy.customerEmail; return copy; }); }} />
+                  {formErrors.customerEmail && <p className="text-[10px] text-destructive mt-1 font-semibold">{formErrors.customerEmail[0]}</p>}
                 </div>
               </div>
 
@@ -631,39 +663,52 @@ export default function AdminCrud() {
                 <div className="space-y-2">
                   <label className="font-mono text-[10px] uppercase font-bold text-on-surface-variant">Department</label>
                   <Select value={formCategory} onValueChange={(val: string) => { setFormCategory(val as "Reliability" | "Support" | "FieldSupport" | "Testimonials" | "Installation" | "Billing"); setRatingsState({}); }}>
-                    <SelectTrigger className="rounded-md font-mono text-[10px] uppercase font-bold bg-white">
+                    <SelectTrigger className={cn("rounded-md font-mono text-[10px] uppercase font-bold bg-white", formErrors.category && "border-destructive text-destructive")}>
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
                       {categories.map(cat => <SelectItem key={cat} value={cat}>{cat}</SelectItem>)}
                     </SelectContent>
                   </Select>
+                  {formErrors.category && <p className="text-[10px] text-destructive mt-1 font-semibold">{formErrors.category[0]}</p>}
                 </div>
                 <div className="space-y-2">
                   <label className="font-mono text-[10px] uppercase font-bold text-on-surface-variant">Region</label>
                   <Select value={formLocation} onValueChange={setFormLocation}>
-                    <SelectTrigger className="rounded-md font-mono text-[10px] uppercase font-bold bg-white">
+                    <SelectTrigger className={cn("rounded-md font-mono text-[10px] uppercase font-bold bg-white", formErrors.location && "border-destructive text-destructive")}>
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
                       {locations.map(loc => <SelectItem key={loc} value={loc}>{loc}</SelectItem>)}
                     </SelectContent>
                   </Select>
+                  {formErrors.location && <p className="text-[10px] text-destructive mt-1 font-semibold">{formErrors.location[0]}</p>}
                 </div>
                 <div className="space-y-2">
                   <label className="font-mono text-[10px] uppercase font-bold text-on-surface-variant">Service Plan</label>
-                  <Input required placeholder="Enterprise" value={formPlan} onChange={(e) => setFormPlan(e.target.value)} />
+                  <Input required className={cn(formErrors.servicePlan && "border-destructive text-destructive focus:border-destructive")} placeholder="Enterprise" value={formPlan} onChange={(e) => { setFormPlan(e.target.value); if(formErrors.servicePlan) setFormErrors(prev => { const copy = {...prev}; delete copy.servicePlan; return copy; }); }} />
+                  {formErrors.servicePlan && <p className="text-[10px] text-destructive mt-1 font-semibold">{formErrors.servicePlan[0]}</p>}
                 </div>
               </div>
 
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2">
                   <label className="font-mono text-[10px] uppercase font-bold text-on-surface-variant">Staff / Tech Name</label>
-                  <Input placeholder="Christian Adejo" value={formStaffName} onChange={(e) => setFormStaffName(e.target.value)} />
+                  <Input className={cn(formErrors.staffName && "border-destructive text-destructive focus:border-destructive")} placeholder="Christian Adejo" value={formStaffName} onChange={(e) => { setFormStaffName(e.target.value); if(formErrors.staffName) setFormErrors(prev => { const copy = {...prev}; delete copy.staffName; return copy; }); }} />
+                  {formErrors.staffName && <p className="text-[10px] text-destructive mt-1 font-semibold">{formErrors.staffName[0]}</p>}
                 </div>
-                <div className="space-y-2">
-                  <label className="font-mono text-[10px] uppercase font-bold text-on-surface-variant">Experience Date</label>
-                  <Input required type="date" value={formDateFeedback} onChange={(e) => setFormDateFeedback(e.target.value)} />
+                <div className="space-y-2 flex flex-col justify-end">
+                  <label className="font-mono text-[10px] uppercase font-bold text-on-surface-variant mb-2">Experience Date</label>
+                  <DatePicker
+                    date={formDateFeedback ? new Date(formDateFeedback) : undefined}
+                    placeholder="Select Date"
+                    className={formErrors.dateFeedback ? "border-destructive text-destructive" : ""}
+                    onSelect={(date) => {
+                      setFormDateFeedback(date ? date.toISOString().split('T')[0] : '');
+                      if (formErrors.dateFeedback) setFormErrors(prev => { const copy = {...prev}; delete copy.dateFeedback; return copy; });
+                    }}
+                  />
+                  {formErrors.dateFeedback && <p className="text-[10px] text-destructive mt-1 font-semibold">{formErrors.dateFeedback[0]}</p>}
                 </div>
               </div>
 

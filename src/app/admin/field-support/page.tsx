@@ -17,7 +17,7 @@ import {
   ResponsiveContainer 
 } from 'recharts';
 import { useToast } from '@/hooks/use-toast';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogTrigger, DialogFooter } from '@/components/ui/dialog';
 import { Textarea } from '@/components/ui/textarea';
 import { Button } from '@/components/ui/button';
 
@@ -296,6 +296,7 @@ export default function AdminFieldSupport() {
                     <DialogContent className="max-w-md rounded-3xl">
                       <DialogHeader>
                         <DialogTitle className="font-display uppercase tracking-tight">Resolve Feedback</DialogTitle>
+                        <DialogDescription className="sr-only">Mark this feedback as resolved and add resolution notes.</DialogDescription>
                       </DialogHeader>
                       <div className="space-y-6 py-4">
                          {f.comment && <div className="p-4 bg-muted rounded-xl text-sm italic">&ldquo;{f.comment}&rdquo;</div>}

@@ -2,6 +2,7 @@
 
 import React, { useEffect } from 'react';
 import Link from 'next/link';
+import Image from 'next/image';
 import { usePathname, useRouter } from 'next/navigation';
 import {
   TrendingUp, Database, Upload, Target, ArrowLeft, LayoutDashboard, ShieldAlert, Send, Menu, LogOut
@@ -113,8 +114,8 @@ export function SalesLayout({ children }: SalesLayoutProps) {
             <span className="hidden sm:inline">Back to Admin</span>
           </Link>
           <div className="h-5 w-px bg-border mx-1" />
-          <Link href="/" className="font-mono text-xs font-bold text-primary uppercase tracking-tight shrink-0">
-            I-World Networks
+          <Link href="/" className="flex items-center shrink-0">
+            <Image src="/logo.png" alt="I-World Logo" width={90} height={27} className="h-6 w-auto object-contain" priority />
           </Link>
           <span className="font-mono text-[10px] text-secondary font-bold uppercase tracking-widest ml-1 hidden sm:inline">/ Sales</span>
 

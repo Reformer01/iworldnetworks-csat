@@ -1,3 +1,18 @@
+export interface FeedbackToken {
+  id?: string;
+  customerName: string;
+  customerEmail: string;
+  servicePlan: string;
+  location: string;
+  serviceDate: string;
+  sourceEvent: string;
+  used: boolean;
+  createdAt: number;
+  expiresAt: number;
+  openedAt: number | null;
+  submittedAt: number | null;
+}
+
 export interface FeedbackDoc {
   id: string;
   customerName?: string;
@@ -20,6 +35,7 @@ export interface FeedbackDoc {
   status?: string;
   resolutionNotes?: string;
   aiAnalysis?: { sentiment: string; keyThemes: string[]; urgency: string } | null;
+  satisfied?: string | null;
   _source?: string;
   updatedAt?: number;
 }

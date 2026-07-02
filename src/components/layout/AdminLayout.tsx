@@ -146,8 +146,8 @@ export function AdminLayout({ children }: AdminLayoutProps) {
     <div className="bg-background min-h-screen flex flex-col">
       <header className="fixed top-0 w-full z-50 px-margin-mobile md:px-margin-desktop h-16 md:h-20 flex justify-between items-center max-w-container-max mx-auto left-0 right-0">
         <div className="flex items-center gap-3 md:gap-6">
-          <Link href="/" className="font-mono text-sm font-bold text-primary uppercase tracking-tight">
-            I-World Networks
+          <Link href="/" className="flex items-center">
+            <Image src="/logo.png" alt="I-World Logo" width={110} height={33} className="h-7 md:h-8 w-auto object-contain" priority />
           </Link>
           <div className="h-6 w-px bg-border hidden sm:block"></div>
           <Link href="/" className="hidden sm:flex items-center gap-2 text-on-surface-variant font-mono text-[10px] hover:text-secondary transition-all group font-bold uppercase">
@@ -192,7 +192,9 @@ export function AdminLayout({ children }: AdminLayoutProps) {
               <SheetContent side="left" className="w-[280px] p-0 border-r border-border">
                 <div className="h-full flex flex-col pt-10">
                   <SheetHeader className="px-6 mb-8 text-left">
-                    <SheetTitle className="font-mono text-sm font-bold text-primary uppercase">I-World Networks</SheetTitle>
+                    <SheetTitle className="text-left">
+                      <Image src="/logo.png" alt="I-World Logo" width={100} height={30} className="h-6 w-auto object-contain" />
+                    </SheetTitle>
                     <p className="font-mono text-[10px] text-on-surface-variant opacity-60 uppercase tracking-widest font-bold">Management Hub</p>
                   </SheetHeader>
                   <nav className="flex-1 space-y-1">

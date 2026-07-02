@@ -105,6 +105,15 @@ export async function deleteFeedback(
   return res.json();
 }
 
+export class ValidationError extends Error {
+  details: Record<string, string[]>;
+  constructor(message: string, details: Record<string, string[]>) {
+    super(message);
+    this.name = 'ValidationError';
+    this.details = details;
+  }
+}
+
 export async function createFeedback(
   feedbackData: Record<string, unknown>,
   user: User
@@ -122,6 +131,9 @@ export async function createFeedback(
 
   if (!res.ok) {
     const data = await res.json().catch(() => ({}));
+    if (data.details) {
+      throw new ValidationError(data.error || 'Validation failed', data.details);
+    }
     throw new Error(data.error || 'Failed to create feedback');
   }
 
@@ -146,6 +158,9 @@ export async function editFeedback(
 
   if (!res.ok) {
     const data = await res.json().catch(() => ({}));
+    if (data.details) {
+      throw new ValidationError(data.error || 'Validation failed', data.details);
+    }
     throw new Error(data.error || 'Failed to edit feedback');
   }
 

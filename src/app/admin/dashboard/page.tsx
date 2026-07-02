@@ -13,7 +13,7 @@ import { cn } from '@/lib/utils';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Button } from '@/components/ui/button';
 import { useToast } from '@/hooks/use-toast';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogTrigger, DialogFooter } from '@/components/ui/dialog';
 import { Textarea } from '@/components/ui/textarea';
 
 const NETWORK_RATING_KEYS = ['stability', 'latency', 'peakPerformance'] as const;
@@ -616,6 +616,7 @@ export default function AdminDashboard() {
                   <DialogContent className="max-w-md rounded-3xl">
                     <DialogHeader>
                       <DialogTitle className="font-display uppercase tracking-tight">Handle Feedback</DialogTitle>
+                      <DialogDescription className="sr-only">Review and resolve this customer feedback entry.</DialogDescription>
                     </DialogHeader>
                     <div className="space-y-6 py-4">
                       <div className="p-4 bg-muted rounded-xl text-sm italic">&ldquo;{f.comment}&rdquo;</div>

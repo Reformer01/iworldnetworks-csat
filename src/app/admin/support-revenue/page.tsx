@@ -10,7 +10,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogTrigger, DialogFooter } from '@/components/ui/dialog';
 import { Loader2, Plus, Search, Trash2, Edit3, Receipt, Package } from 'lucide-react';
 import { locations } from '@/lib/sales-staff';
 import { fieldTechnicians } from '@/lib/staff';
@@ -140,6 +140,9 @@ export default function SupportRevenue() {
           <DialogContent className="max-w-2xl rounded-3xl max-h-[85vh] overflow-y-auto">
             <DialogHeader>
               <DialogTitle className="font-display uppercase tracking-tight">{editId ? 'Edit' : 'Add'} Revenue Record</DialogTitle>
+              <DialogDescription className="sr-only">
+                {editId ? 'Edit an existing revenue record.' : 'Add a new support revenue record.'}
+              </DialogDescription>
             </DialogHeader>
             <div className="grid grid-cols-2 gap-4 py-4">
               <div className="col-span-2">

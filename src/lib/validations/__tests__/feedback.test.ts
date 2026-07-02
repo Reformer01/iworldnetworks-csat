@@ -32,12 +32,12 @@ describe('feedbackSchema', () => {
     }
   });
 
-  it('rejects unknown fields due to .strict()', () => {
+  it('ignores unknown fields (strict removed to support _source)', () => {
     const result = feedbackSchema.safeParse({
       ...validBase,
-      unknownField: 'should fail',
+      unknownField: 'should pass',
     });
-    expect(result.success).toBe(false);
+    expect(result.success).toBe(true);
   });
 
   it('rejects missing required fields', () => {
