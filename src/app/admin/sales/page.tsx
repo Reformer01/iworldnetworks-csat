@@ -5,9 +5,7 @@ import Link from 'next/link';
 import { SalesLayout } from '@/components/layout/SalesLayout';
 import { TrendingUp, Users, Activity, Banknote, UserX, BarChart3, Database, AlertCircle } from 'lucide-react';
 import { useSalesMetrics } from '@/hooks/use-sales-data';
-import {
-  XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend, BarChart, Bar, Cell, PieChart, Pie
-} from 'recharts';
+import { XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend, BarChart, Bar, Cell, PieChart, Pie } from 'recharts';
 import { cn } from '@/lib/utils';
 import type { AgentMetrics, RegionMetrics } from '@/lib/sales-types';
 
@@ -22,10 +20,17 @@ function useStaggeredIndex(count: number, delayMs = 80) {
   const [visible, setVisible] = useState(0);
   useEffect(() => {
     if (count === 0) return;
-    const timer = setInterval(() => setVisible((v) => {
-      if (v >= count) { clearInterval(timer); return count; }
-      return v + 1;
-    }), delayMs);
+    const timer = setInterval(
+      () =>
+        setVisible((v) => {
+          if (v >= count) {
+            clearInterval(timer);
+            return count;
+          }
+          return v + 1;
+        }),
+      delayMs,
+    );
     return () => clearInterval(timer);
   }, [count, delayMs]);
   return visible;
@@ -56,16 +61,12 @@ function AnimatedCard({
       ref={ref}
       className={cn(
         'bg-white p-6 rounded-2xl whisper-shadow border border-border group hover:border-secondary transition-all duration-500 min-h-[184px]',
-        index < visibleCount ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4'
+        index < visibleCount ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4',
       )}
       style={{ transitionDelay: `${index * 60}ms` }}
     >
-      <div className="flex justify-between items-start mb-5">
+      <div className="mb-5">
         <Icon className={cn('w-6 h-6', color)} />
-        <div className="flex items-center gap-1">
-          <span className="w-1.5 h-1.5 bg-green-500 rounded-full animate-pulse" />
-          <span className="font-mono text-[10px] text-on-surface-variant font-bold uppercase">LIVE</span>
-        </div>
       </div>
       <p className="font-mono text-[10px] uppercase text-on-surface-variant mb-1 font-bold tracking-wider">{label}</p>
       <div className="flex items-baseline gap-1 flex-wrap">
@@ -78,11 +79,7 @@ function AnimatedCard({
 }
 
 function SectionCard({ children, className }: { children: React.ReactNode; className?: string }) {
-  return (
-    <div className={cn('bg-white p-6 md:p-8 rounded-2xl whisper-shadow border border-border', className)}>
-      {children}
-    </div>
-  );
+  return <div className={cn('bg-white p-6 md:p-8 rounded-2xl whisper-shadow border border-border', className)}>{children}</div>;
 }
 
 function SectionTitle({ icon: Icon, label }: { icon: React.ElementType; label: string }) {
@@ -128,7 +125,10 @@ function KpiSkeleton() {
 function AgentBarChart({ data }: { data: AgentMetrics[] }) {
   const chartRef = useRef<HTMLDivElement>(null);
   const [ready, setReady] = useState(false);
-  useEffect(() => { const t = setTimeout(() => setReady(true), 150); return () => clearTimeout(t); }, []);
+  useEffect(() => {
+    const t = setTimeout(() => setReady(true), 150);
+    return () => clearTimeout(t);
+  }, []);
 
   if (data.length === 0) return <EmptyChart message="Add sales data to see revenue by agent" icon={TrendingUp} />;
   return (
@@ -137,11 +137,26 @@ function AgentBarChart({ data }: { data: AgentMetrics[] }) {
         <BarChart data={data} margin={{ top: 4, right: 4, bottom: 0, left: -8 }}>
           <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#eee" />
           <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{ fontSize: 8, fill: '#666' }} />
-          <YAxis axisLine={false} tickLine={false} tick={{ fontSize: 10, fill: '#666' }} tickFormatter={(v: number) => `₦${(v / 1000000).toFixed(1)}M`} />
-          <Tooltip contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 10px 15px -3px rgba(0,0,0,0.1)' }} formatter={(v: number) => [formatNaira(v), 'MRR']} />
-          <Legend verticalAlign="top" height={24} iconType="circle" wrapperStyle={{ fontSize: 10, fontWeight: 700, textTransform: 'uppercase' }} />
+          <YAxis
+            axisLine={false}
+            tickLine={false}
+            tick={{ fontSize: 10, fill: '#666' }}
+            tickFormatter={(v: number) => `₦${(v / 1000000).toFixed(1)}M`}
+          />
+          <Tooltip
+            contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 10px 15px -3px rgba(0,0,0,0.1)' }}
+            formatter={(v: number) => [formatNaira(v), 'MRR']}
+          />
+          <Legend
+            verticalAlign="top"
+            height={24}
+            iconType="circle"
+            wrapperStyle={{ fontSize: 10, fontWeight: 700, textTransform: 'uppercase' }}
+          />
           <Bar dataKey="mrc" name="MRR (Active)" radius={[4, 4, 0, 0]} maxBarSize={30}>
-            {data.map((_, i) => <Cell key={i} fill={COLORS[i % COLORS.length]} />)}
+            {data.map((_, i) => (
+              <Cell key={i} fill={COLORS[i % COLORS.length]} />
+            ))}
           </Bar>
         </BarChart>
       </ResponsiveContainer>
@@ -151,7 +166,10 @@ function AgentBarChart({ data }: { data: AgentMetrics[] }) {
 
 function RegionPieChart({ data }: { data: RegionMetrics[] }) {
   const [ready, setReady] = useState(false);
-  useEffect(() => { const t = setTimeout(() => setReady(true), 200); return () => clearTimeout(t); }, []);
+  useEffect(() => {
+    const t = setTimeout(() => setReady(true), 200);
+    return () => clearTimeout(t);
+  }, []);
 
   const hasData = data.some((r) => r.mrr > 0);
   if (!hasData) return <EmptyChart message="No regional revenue data yet" icon={TrendingUp} />;
@@ -160,10 +178,17 @@ function RegionPieChart({ data }: { data: RegionMetrics[] }) {
       <ResponsiveContainer width="100%" height="100%">
         <PieChart>
           <Pie data={data} dataKey="mrr" nameKey="region" cx="50%" cy="50%" innerRadius={55} outerRadius={95} paddingAngle={3}>
-            {data.map((_, i) => <Cell key={i} fill={COLORS[i % COLORS.length]} />)}
+            {data.map((_, i) => (
+              <Cell key={i} fill={COLORS[i % COLORS.length]} />
+            ))}
           </Pie>
           <Tooltip formatter={(v: number) => [formatNaira(v), 'MRR']} />
-          <Legend verticalAlign="bottom" height={24} iconType="circle" wrapperStyle={{ fontSize: 10, fontWeight: 700, textTransform: 'uppercase' }} />
+          <Legend
+            verticalAlign="bottom"
+            height={24}
+            iconType="circle"
+            wrapperStyle={{ fontSize: 10, fontWeight: 700, textTransform: 'uppercase' }}
+          />
         </PieChart>
       </ResponsiveContainer>
     </div>
@@ -172,10 +197,12 @@ function RegionPieChart({ data }: { data: RegionMetrics[] }) {
 
 function AttainmentBadge({ value }: { value: number }) {
   return (
-    <span className={cn(
-      'px-3 py-1 rounded-full text-[10px] font-bold font-mono',
-      value >= 100 ? 'bg-green-100 text-green-700' : value >= 50 ? 'bg-yellow-100 text-yellow-700' : 'bg-red-100 text-red-700'
-    )}>
+    <span
+      className={cn(
+        'px-3 py-1 rounded-full text-[10px] font-bold font-mono',
+        value >= 100 ? 'bg-green-100 text-green-700' : value >= 50 ? 'bg-yellow-100 text-yellow-700' : 'bg-red-100 text-red-700',
+      )}
+    >
       {value}%
     </span>
   );
@@ -206,7 +233,9 @@ function RegionTable({ data }: { data: RegionMetrics[] }) {
                 <td className="py-3.5 px-4 text-right font-mono">{r.activeSubscribers}</td>
                 <td className="py-3.5 px-4 text-right font-mono">{formatNaira(r.arpu)}</td>
                 <td className="py-3.5 px-4 text-right font-mono">{formatNaira(r.targetRevenue)}</td>
-                <td className="py-3.5 pl-4 text-right"><AttainmentBadge value={r.attainment} /></td>
+                <td className="py-3.5 pl-4 text-right">
+                  <AttainmentBadge value={r.attainment} />
+                </td>
               </tr>
             ))}
           </tbody>
@@ -234,12 +263,133 @@ function SegmentTable({ data }: { data: { segment: string; count: number; active
           </thead>
           <tbody className="divide-y divide-border/40 font-body text-sm">
             {data.map((s, i) => (
-              <tr key={s.segment} className="hover:bg-surface-container-lowest transition-colors" style={{ animationDelay: `${i * 60}ms` }}>
-                <td className="py-3.5 pr-4 font-bold text-primary">{s.segment}</td>
+              <tr
+                key={s.segment}
+                className={cn(
+                  'hover:bg-surface-container-lowest transition-colors',
+                  s.segment === 'NEIGHBOURHOOD' ? 'bg-surface-container-low/40' : '',
+                )}
+                style={{ animationDelay: `${i * 60}ms` }}
+              >
+                <td className="py-3.5 pr-4 font-bold text-primary">{s.segment === 'NEIGHBOURHOOD' ? 'Neighbourhood (Home)' : s.segment}</td>
                 <td className="py-3.5 px-4 text-right font-mono">{s.count}</td>
                 <td className="py-3.5 px-4 text-right font-mono">{s.active}</td>
                 <td className="py-3.5 px-4 text-right font-mono font-bold">{formatNaira(s.mrc)}</td>
                 <td className="py-3.5 pl-4 text-right font-mono">{formatNaira(s.arpu)}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  );
+}
+
+function AgentSegmentTable({ data }: { data: { agent: string; segment: string; count: number; active: number; mrc: number }[] }) {
+  const agents = [...new Set(data.map((d) => d.agent))];
+  const segments = [...new Set(data.map((d) => d.segment))];
+  const hasData = data.some((d) => d.count > 0);
+  if (!hasData) return <EmptyChart message="No segment-per-agent data yet" icon={Database} />;
+  return (
+    <div className="overflow-x-auto -mx-6 md:-mx-8">
+      <div className="inline-block min-w-full align-middle px-6 md:px-8">
+        <table className="w-full text-left border-collapse">
+          <thead>
+            <tr className="border-b border-border/80 font-mono text-[10px] text-on-surface-variant font-bold uppercase tracking-widest">
+              <th className="pb-3 pr-4">Agent</th>
+              {segments.map((s) => (
+                <th key={s} className="pb-3 px-2 text-right">
+                  {s}
+                </th>
+              ))}
+              <th className="pb-3 pl-4 text-right">Total MRR</th>
+            </tr>
+          </thead>
+          <tbody className="divide-y divide-border/40 font-body text-sm">
+            {agents.map((agent, i) => {
+              const rows = data.filter((d) => d.agent === agent);
+              const totalMrc = rows.reduce((s, r) => s + r.mrc, 0);
+              return (
+                <tr key={agent} className="hover:bg-surface-container-lowest transition-colors">
+                  <td className="py-3 pr-4 font-bold text-primary whitespace-nowrap">{agent}</td>
+                  {segments.map((s) => {
+                    const r = rows.find((d) => d.segment === s);
+                    return (
+                      <td key={s} className="py-3 px-2 text-right font-mono text-[11px]">
+                        {r && r.count > 0 ? `₦${(r.mrc || 0).toLocaleString()}` : '-'}
+                      </td>
+                    );
+                  })}
+                  <td className="py-3 pl-4 text-right font-mono font-bold">{formatNaira(totalMrc)}</td>
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  );
+}
+
+function BtsPieChart({ data }: { data: { bts: string; region: string; count: number; active: number; mrc: number }[] }) {
+  const hasData = data.some((d) => d.mrc > 0);
+  const [ready, setReady] = useState(false);
+  useEffect(() => {
+    const t = setTimeout(() => setReady(true), 300);
+    return () => clearTimeout(t);
+  }, []);
+  if (!hasData) return <EmptyChart message="No BTS revenue data yet" icon={TrendingUp} />;
+  const sorted = [...data]
+    .filter((d) => d.mrc > 0)
+    .sort((a, b) => b.mrc - a.mrc)
+    .slice(0, 12);
+  return (
+    <div className="h-64 md:h-72 transition-opacity duration-500" style={{ opacity: ready ? 1 : 0 }}>
+      <ResponsiveContainer width="100%" height="100%">
+        <PieChart>
+          <Pie data={sorted} dataKey="mrc" nameKey="bts" cx="50%" cy="50%" innerRadius={55} outerRadius={95} paddingAngle={2}>
+            {sorted.map((_, i) => (
+              <Cell key={i} fill={COLORS[i % COLORS.length]} />
+            ))}
+          </Pie>
+          <Tooltip formatter={(v: number) => [formatNaira(v), 'MRR']} />
+          <Legend
+            verticalAlign="bottom"
+            height={24}
+            iconType="circle"
+            wrapperStyle={{ fontSize: 9, fontWeight: 700, textTransform: 'uppercase' }}
+          />
+        </PieChart>
+      </ResponsiveContainer>
+    </div>
+  );
+}
+
+function BtsTable({ data }: { data: { bts: string; region: string; count: number; active: number; mrc: number }[] }) {
+  const hasData = data.some((d) => d.count > 0);
+  if (!hasData) return <EmptyChart message="No BTS data yet. Assign BTS when adding records." icon={Database} />;
+  const sorted = [...data].filter((d) => d.count > 0).sort((a, b) => b.mrc - a.mrc);
+  return (
+    <div className="overflow-x-auto -mx-6 md:-mx-8 max-h-96 overflow-y-auto">
+      <div className="inline-block min-w-full align-middle px-6 md:px-8">
+        <table className="w-full text-left border-collapse">
+          <thead className="sticky top-0 bg-white">
+            <tr className="border-b border-border/80 font-mono text-[10px] text-on-surface-variant font-bold uppercase tracking-widest">
+              <th className="pb-3 pr-4">BTS</th>
+              <th className="pb-3 px-4">Region</th>
+              <th className="pb-3 px-4 text-right">Total</th>
+              <th className="pb-3 px-4 text-right">Active</th>
+              <th className="pb-3 pl-4 text-right">MRR</th>
+            </tr>
+          </thead>
+          <tbody className="divide-y divide-border/40 font-body text-sm">
+            {sorted.map((d, i) => (
+              <tr key={d.bts} className="hover:bg-surface-container-lowest transition-colors" style={{ animationDelay: `${i * 20}ms` }}>
+                <td className="py-2 pr-4 font-bold text-primary whitespace-nowrap">{d.bts}</td>
+                <td className="py-2 px-4 font-mono text-[11px]">{d.region}</td>
+                <td className="py-2 px-4 text-right font-mono">{d.count}</td>
+                <td className="py-2 px-4 text-right font-mono">{d.active}</td>
+                <td className="py-2 pl-4 text-right font-mono font-bold">{formatNaira(d.mrc)}</td>
               </tr>
             ))}
           </tbody>
@@ -277,7 +427,9 @@ function AgentTable({ data }: { data: AgentMetrics[] }) {
                 <td className="py-3 px-3 text-right font-mono font-bold">{formatNaira(a.mrc)}</td>
                 <td className="py-3 px-3 text-right font-mono">{formatNaira(a.nrc)}</td>
                 <td className="py-3 px-3 text-right font-mono">{formatNaira(a.targetRevenue)}</td>
-                <td className="py-3 pl-3 text-right"><AttainmentBadge value={a.attainment} /></td>
+                <td className="py-3 pl-3 text-right">
+                  <AttainmentBadge value={a.attainment} />
+                </td>
               </tr>
             ))}
           </tbody>
@@ -301,11 +453,17 @@ export default function SalesDashboard() {
             <div className="h-3 w-40 bg-surface-container-low rounded animate-pulse" />
           </header>
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 md:gap-5 mb-8 md:mb-10">
-            {Array.from({ length: 6 }).map((_, i) => <KpiSkeleton key={i} />)}
+            {Array.from({ length: 6 }).map((_, i) => (
+              <KpiSkeleton key={i} />
+            ))}
           </div>
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 md:gap-5 mb-8 md:mb-10">
-            <SectionCard><ChartSkeleton /></SectionCard>
-            <SectionCard><ChartSkeleton /></SectionCard>
+            <SectionCard>
+              <ChartSkeleton />
+            </SectionCard>
+            <SectionCard>
+              <ChartSkeleton />
+            </SectionCard>
           </div>
           <SectionCard className="mb-8">
             <div className="h-4 w-32 bg-surface-container-low rounded animate-pulse mb-6" />
@@ -332,10 +490,11 @@ export default function SalesDashboard() {
             <AlertCircle className="w-8 h-8 text-red-500" />
           </div>
           <h2 className="font-display text-xl font-bold text-primary">Could Not Load</h2>
-          <p className="text-on-surface-variant text-sm max-w-md text-center">
-            {error}. Check your connection and try again.
-          </p>
-          <button onClick={mutate} className="rounded-full bg-secondary text-white font-mono text-[10px] uppercase font-bold px-8 py-3 hover:scale-105 transition-transform shadow-lg">
+          <p className="text-on-surface-variant text-sm max-w-md text-center">{error}. Check your connection and try again.</p>
+          <button
+            onClick={mutate}
+            className="rounded-full bg-secondary text-white font-mono text-[10px] uppercase font-bold px-8 py-3 hover:scale-105 transition-transform shadow-lg"
+          >
             Retry
           </button>
         </div>
@@ -355,10 +514,16 @@ export default function SalesDashboard() {
             Import your sales records via CSV or add records manually to start tracking KPIs.
           </p>
           <div className="flex gap-4 pt-2">
-            <Link href="/admin/sales/import" className="rounded-full bg-secondary text-white font-mono text-[10px] uppercase font-bold px-8 py-3 hover:scale-105 transition-transform shadow-lg">
+            <Link
+              href="/admin/sales/import"
+              className="rounded-full bg-secondary text-white font-mono text-[10px] uppercase font-bold px-8 py-3 hover:scale-105 transition-transform shadow-lg"
+            >
               Import CSV
             </Link>
-            <Link href="/admin/sales/records" className="rounded-full border border-border font-mono text-[10px] uppercase font-bold px-8 py-3 hover:bg-surface-container-low transition-all">
+            <Link
+              href="/admin/sales/records"
+              className="rounded-full border border-border font-mono text-[10px] uppercase font-bold px-8 py-3 hover:bg-surface-container-low transition-all"
+            >
               Add Record
             </Link>
           </div>
@@ -367,14 +532,27 @@ export default function SalesDashboard() {
     );
   }
 
-  const { overall, regionMetrics, agentMetrics, segmentBreakdown, totalRecords } = data;
+  const { overall, regionMetrics, agentMetrics, segmentBreakdown, btsMetrics, agentSegmentBreakdown, totalRecords } = data;
 
   const kpiCards = [
     { label: 'Monthly Revenue', value: formatNaira(overall.mrr), icon: Banknote, color: 'text-secondary', detail: 'From active customers' },
     { label: 'Avg. per Customer', value: formatNaira(overall.arpu), icon: TrendingUp, color: 'text-green-600', detail: 'Monthly average' },
     { label: 'Active Customers', value: String(overall.activeSubscribers), icon: Users, color: 'text-blue-600', detail: 'Paying accounts' },
-    { label: 'Churn Rate', value: String(overall.churnRate), unit: '%', icon: UserX, color: 'text-red-500', detail: 'Lost / active customers' },
-    { label: 'Installation Fees', value: formatNaira(overall.nrcRevenue), icon: BarChart3, color: 'text-orange-500', detail: 'One-time charges' },
+    {
+      label: 'Churn Rate',
+      value: String(overall.churnRate),
+      unit: '%',
+      icon: UserX,
+      color: 'text-red-500',
+      detail: 'Lost / active customers',
+    },
+    {
+      label: 'Installation Fees',
+      value: formatNaira(overall.nrcRevenue),
+      icon: BarChart3,
+      color: 'text-orange-500',
+      detail: 'One-time charges',
+    },
     { label: 'Total Records', value: String(totalRecords), icon: Activity, color: 'text-purple-600', detail: 'All entries in system' },
   ];
 
@@ -386,14 +564,19 @@ export default function SalesDashboard() {
             <h1 className="text-2xl md:text-3xl font-display font-bold text-primary uppercase tracking-tight">Sales Dashboard</h1>
             <div className="flex items-center gap-2 mt-1 opacity-60">
               <Activity className="w-3 h-3 text-secondary" />
-              <p className="text-on-surface-variant font-mono text-[10px] uppercase tracking-widest font-bold">Live updates every 30 seconds</p>
             </div>
           </div>
           <div className="flex gap-3 shrink-0">
-            <Link href="/admin/sales/import" className="rounded-full bg-secondary text-white font-mono text-[10px] uppercase font-bold px-5 py-2.5 hover:scale-105 transition-transform shadow-lg">
+            <Link
+              href="/admin/sales/import"
+              className="rounded-full bg-secondary text-white font-mono text-[10px] uppercase font-bold px-5 py-2.5 hover:scale-105 transition-transform shadow-lg"
+            >
               Import
             </Link>
-            <Link href="/admin/sales/records" className="rounded-full border border-border font-mono text-[10px] uppercase font-bold px-5 py-2.5 hover:bg-surface-container-low transition-all">
+            <Link
+              href="/admin/sales/records"
+              className="rounded-full border border-border font-mono text-[10px] uppercase font-bold px-5 py-2.5 hover:bg-surface-container-low transition-all"
+            >
               Records
             </Link>
           </div>
@@ -426,6 +609,22 @@ export default function SalesDashboard() {
           <SectionCard>
             <SectionTitle icon={Database} label="Segment Breakdown" />
             <SegmentTable data={segmentBreakdown} />
+          </SectionCard>
+        </div>
+
+        <SectionCard className="mb-8 md:mb-12">
+          <SectionTitle icon={Users} label="Segment Breakdown by Agent" />
+          <AgentSegmentTable data={agentSegmentBreakdown || []} />
+        </SectionCard>
+
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 md:gap-5 mb-8 md:mb-10">
+          <SectionCard>
+            <SectionTitle icon={TrendingUp} label="BTS Revenue Distribution" />
+            <BtsPieChart data={btsMetrics || []} />
+          </SectionCard>
+          <SectionCard>
+            <SectionTitle icon={Database} label="Revenue by BTS" />
+            <BtsTable data={btsMetrics || []} />
           </SectionCard>
         </div>
 

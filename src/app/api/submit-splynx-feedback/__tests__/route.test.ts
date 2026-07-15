@@ -5,11 +5,13 @@ const feedbackRef = { id: 'feedback-id', path: 'feedbacks/feedback-id' };
 const mockTransactionGet = vi.fn();
 const mockTransactionSet = vi.fn();
 const mockTransactionUpdate = vi.fn();
-const mockRunTransaction = vi.fn(async (callback) => callback({
-  get: mockTransactionGet,
-  set: mockTransactionSet,
-  update: mockTransactionUpdate,
-}));
+const mockRunTransaction = vi.fn(async (callback) =>
+  callback({
+    get: mockTransactionGet,
+    set: mockTransactionSet,
+    update: mockTransactionUpdate,
+  }),
+);
 const mockCollection = vi.fn((name: string) => {
   if (name === 'feedback_tokens') {
     return { doc: vi.fn(() => tokenRef) };
@@ -36,9 +38,14 @@ import { POST } from '../route';
 const token = '11111111-1111-4111-8111-111111111111';
 
 function buildRequest(body: unknown) {
+  const headers = new Map<string, string>([
+    ['x-forwarded-for', '127.0.0.1'],
+    ['user-agent', 'test-agent'],
+  ]);
   return {
     json: () => Promise.resolve(body),
-  } as Request;
+    headers: { get: (name: string) => headers.get(name.toLowerCase()) ?? null },
+  } as unknown as Request;
 }
 
 function validTokenData(overrides: Record<string, unknown> = {}) {
@@ -72,37 +79,48 @@ describe('POST /api/submit-splynx-feedback', () => {
     expect(body).toEqual({ success: true, id: 'feedback-id' });
     expect(mockRunTransaction).toHaveBeenCalledTimes(1);
     expect(mockTransactionGet).toHaveBeenCalledWith(tokenRef);
-    expect(mockTransactionSet).toHaveBeenCalledWith(feedbackRef, expect.objectContaining({
-      category: 'Billing',
-      customerName: 'Token Customer',
-      customerEmail: 'token@example.com',
-      ratings: { overall: 5 },
-      comment: 'Great service.',
-      _source: 'splynx',
-    }));
-    expect(mockTransactionUpdate).toHaveBeenCalledWith(tokenRef, expect.objectContaining({
-      used: true,
-      submittedAt: expect.any(Number),
-    }));
+    expect(mockTransactionSet).toHaveBeenCalledWith(
+      feedbackRef,
+      expect.objectContaining({
+        category: 'Billing',
+        customerName: 'Token Customer',
+        customerEmail: 'token@example.com',
+        ratings: { overall: 5, invoiceAccuracy: null },
+        comment: 'Great service.',
+        _source: 'splynx',
+      }),
+    );
+    expect(mockTransactionUpdate).toHaveBeenCalledWith(
+      tokenRef,
+      expect.objectContaining({
+        used: true,
+        submittedAt: expect.any(Number),
+      }),
+    );
   });
 
-  it('correctly maps sub-ratings and satisfied status into the feedback doc', async () => {
-    const response = await POST(buildRequest({ 
-      token, 
-      rating: 4, 
-      satisfied: 'partially',
-      comment: 'Satisfactory but latency can improve.',
-      ratings: { stability: 5, latency: 2 } 
-    }));
+  it('correctly maps invoiceAccuracy into the feedback doc', async () => {
+    const response = await POST(
+      buildRequest({
+        token,
+        rating: 4,
+        satisfied: 'partially',
+        invoiceAccuracy: 5,
+        comment: 'Invoice was clear.',
+      }),
+    );
     const body = await response.json();
 
     expect(response.status).toBe(201);
     expect(body).toEqual({ success: true, id: 'feedback-id' });
-    expect(mockTransactionSet).toHaveBeenCalledWith(feedbackRef, expect.objectContaining({
-      ratings: { overall: 4, stability: 5, latency: 2 },
-      satisfied: 'partially',
-      comment: 'Satisfactory but latency can improve.',
-    }));
+    expect(mockTransactionSet).toHaveBeenCalledWith(
+      feedbackRef,
+      expect.objectContaining({
+        ratings: { overall: 4, invoiceAccuracy: 5 },
+        satisfied: 'partially',
+        comment: 'Invoice was clear.',
+      }),
+    );
   });
 
   it('does not create feedback when the token is already used', async () => {

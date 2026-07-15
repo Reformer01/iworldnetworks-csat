@@ -3,26 +3,35 @@ service cloud.firestore {
   match /databases/{database}/documents {
     // 1. PUBLIC FEEDBACK SUBMISSION
     // Unconditionally allow ANYONE to create feedback.
-    // This ensures customers can always submit reports.
+    // Limit document size to 100 KB to prevent storage DoS.
+    // Tighter 50 KB limit for Splynx-triggered feedbacks (fewer fields expected).
     match /feedbacks/{feedbackId} {
-      allow create: if true;
+      allow create: if true
+                     && request.resource.size < 100 * 1024
+                     && (!request.resource.data.keys().has('_source')
+                         || request.resource.data._source != 'splynx'
+                         || request.resource.size < 50 * 1024);
       
       // 2. ADMINISTRATIVE ACCESS
       // Strictly restricted to verified corporate accounts.
       // Must be logged in, email verified, and from @iworldnetworks.net.
       allow read, list, update, delete: if request.auth != null && 
-                                          request.auth.token.email_verified == true && 
-                                          request.auth.token.email.endsWith('@iworldnetworks.net');
+                                           request.auth.token.email_verified == true && 
+                                           request.auth.token.email.endsWith('@iworldnetworks.net');
     }
     
     // 3. SALES RECORDS
     // Admin SDK bypasses these rules; they protect against direct client SDK access.
-    // Soft-deleted records (deletedAt != null) are hidden from reads.
+    // Soft-deleted records (deletedAt != null) are hidden from get reads.
+    // Note: security rules cannot filter list queries — app code handles that.
     match /sales_records/{docId} {
-      allow read, list: if request.auth != null &&
-                          request.auth.token.email_verified == true &&
-                          request.auth.token.email.endsWith('@iworldnetworks.net') &&
-                          (!resource.data.keys().has('deletedAt') || resource.data.deletedAt == null);
+      allow get: if request.auth != null &&
+                   request.auth.token.email_verified == true &&
+                   request.auth.token.email.endsWith('@iworldnetworks.net') &&
+                   (!resource.data.keys().has('deletedAt') || resource.data.deletedAt == null);
+      allow list: if request.auth != null &&
+                    request.auth.token.email_verified == true &&
+                    request.auth.token.email.endsWith('@iworldnetworks.net');
       allow create, update, delete: if request.auth != null &&
                                        request.auth.token.email_verified == true &&
                                        request.auth.token.email.endsWith('@iworldnetworks.net');
@@ -38,24 +47,51 @@ service cloud.firestore {
                                        request.auth.token.email.endsWith('@iworldnetworks.net');
     }
 
-    // 6. SUPPORT REVENUE
+    // 5. SUPPORT REVENUE
     match /support_revenue/{docId} {
-      allow read, list: if request.auth != null &&
-                           request.auth.token.email_verified == true &&
-                           request.auth.token.email.endsWith('@iworldnetworks.net') &&
-                           (!resource.data.keys().has('deletedAt') || resource.data.deletedAt == null);
+      allow get: if request.auth != null &&
+                   request.auth.token.email_verified == true &&
+                   request.auth.token.email.endsWith('@iworldnetworks.net') &&
+                   (!resource.data.keys().has('deletedAt') || resource.data.deletedAt == null);
+      allow list: if request.auth != null &&
+                    request.auth.token.email_verified == true &&
+                    request.auth.token.email.endsWith('@iworldnetworks.net');
       allow create, update, delete: if request.auth != null &&
-                                        request.auth.token.email_verified == true &&
-                                        request.auth.token.email.endsWith('@iworldnetworks.net');
+                                         request.auth.token.email_verified == true &&
+                                         request.auth.token.email.endsWith('@iworldnetworks.net');
     }
-    // 5. SALES IMPORTS
+    // 6. SALES IMPORTS
     match /sales_imports/{docId} {
       allow read, list: if request.auth != null &&
-                          request.auth.token.email_verified == true &&
-                          request.auth.token.email.endsWith('@iworldnetworks.net');
+                           request.auth.token.email_verified == true &&
+                           request.auth.token.email.endsWith('@iworldnetworks.net');
       allow create: if request.auth != null &&
                        request.auth.token.email_verified == true &&
                        request.auth.token.email.endsWith('@iworldnetworks.net');
+    }
+
+    // 7. AUDIT LOGS — append-only; admins can read, only system writes via Admin SDK
+    match /audit_logs/{docId} {
+      allow read, list: if request.auth != null &&
+                           request.auth.token.email_verified == true &&
+                           request.auth.token.email.endsWith('@iworldnetworks.net');
+      allow create: if request.auth != null &&
+                       request.auth.token.email_verified == true &&
+                       request.auth.token.email.endsWith('@iworldnetworks.net');
+      allow update, delete: if false;
+    }
+
+    // 8. RATE LIMITING — only Admin SDK writes; direct reads blocked
+    match /rate_limits/{docId} {
+      allow read, write: if false;
+    }
+
+    // 9. FEEDBACK TOKENS — only Admin SDK writes; admin reads only
+    match /feedback_tokens/{docId} {
+      allow read: if request.auth != null &&
+                    request.auth.token.email_verified == true &&
+                    request.auth.token.email.endsWith('@iworldnetworks.net');
+      allow create, update, delete: if false;
     }
 
     // Default deny for everything else

@@ -2,18 +2,79 @@ import { SalesAgent, RegionalTarget, SalesRegion, SalesSegment, SaleQuarter } fr
 
 export const salesAgents: SalesAgent[] = [
   // Ogun team
-  { id: 'titilade-bakare', name: 'Titilade Bakare', region: 'Ogun', annualTarget: 4725000, annualCustomerTarget: 124, quarterlyRevenueTarget: { 'Q1': 1181250, 'Q2': 1181250, 'Q3': 1181250, 'Q4': 1181250 }, quarterlyCustomerTarget: { 'Q1': 31, 'Q2': 31, 'Q3': 31, 'Q4': 31 }, isActive: true },
-  { id: 'henry-adiene', name: 'Henry Adiene', region: 'Ogun', annualTarget: 1575000, annualCustomerTarget: 40, quarterlyRevenueTarget: { 'Q1': 393750, 'Q2': 393750, 'Q3': 393750, 'Q4': 393750 }, quarterlyCustomerTarget: { 'Q1': 10, 'Q2': 10, 'Q3': 10, 'Q4': 10 }, isActive: true },
-  { id: 'janet-oke', name: 'Janet Oke', region: 'Ogun', annualTarget: 4200000, annualCustomerTarget: 115, quarterlyRevenueTarget: { 'Q1': 1050000, 'Q2': 1050000, 'Q3': 1050000, 'Q4': 1050000 }, quarterlyCustomerTarget: { 'Q1': 29, 'Q2': 29, 'Q3': 29, 'Q4': 29 }, isActive: true },
+  {
+    id: 'titilade-bakare',
+    name: 'Titilade Bakare',
+    region: 'Ogun',
+    annualTarget: 4725000,
+    annualCustomerTarget: 124,
+    quarterlyRevenueTarget: { Q1: 1181250, Q2: 1181250, Q3: 1181250, Q4: 1181250 },
+    quarterlyCustomerTarget: { Q1: 31, Q2: 31, Q3: 31, Q4: 31 },
+    isActive: true,
+  },
+  {
+    id: 'henry-adiene',
+    name: 'Henry Adiene',
+    region: 'Ogun',
+    annualTarget: 1575000,
+    annualCustomerTarget: 40,
+    quarterlyRevenueTarget: { Q1: 393750, Q2: 393750, Q3: 393750, Q4: 393750 },
+    quarterlyCustomerTarget: { Q1: 10, Q2: 10, Q3: 10, Q4: 10 },
+    isActive: true,
+  },
+  {
+    id: 'janet-oke',
+    name: 'Janet Oke',
+    region: 'Ogun',
+    annualTarget: 4200000,
+    annualCustomerTarget: 115,
+    quarterlyRevenueTarget: { Q1: 1050000, Q2: 1050000, Q3: 1050000, Q4: 1050000 },
+    quarterlyCustomerTarget: { Q1: 29, Q2: 29, Q3: 29, Q4: 29 },
+    isActive: true,
+  },
   // Oyo team
-  { id: 'jeffery-udoji', name: 'Jeffery Udoji', region: 'Oyo', annualTarget: 7350000, annualCustomerTarget: 117, quarterlyRevenueTarget: { 'Q1': 1837500, 'Q2': 1837500, 'Q3': 1837500, 'Q4': 1837500 }, quarterlyCustomerTarget: { 'Q1': 29, 'Q2': 29, 'Q3': 29, 'Q4': 29 }, isActive: true },
-  { id: 'racheal-tumo', name: 'Racheal Tumo', region: 'Oyo', annualTarget: 3150000, annualCustomerTarget: 15, quarterlyRevenueTarget: { 'Q1': 787500, 'Q2': 787500, 'Q3': 787500, 'Q4': 787500 }, quarterlyCustomerTarget: { 'Q1': 4, 'Q2': 4, 'Q3': 4, 'Q4': 4 }, isActive: true },
+  {
+    id: 'jeffery-udoji',
+    name: 'Jeffery Udoji',
+    region: 'Oyo',
+    annualTarget: 7350000,
+    annualCustomerTarget: 117,
+    quarterlyRevenueTarget: { Q1: 1837500, Q2: 1837500, Q3: 1837500, Q4: 1837500 },
+    quarterlyCustomerTarget: { Q1: 29, Q2: 29, Q3: 29, Q4: 29 },
+    isActive: true,
+  },
   // Osun team
-  { id: 'emmanuel-oladimeji', name: 'Emmanuel Oladimeji', region: 'Osun', annualTarget: 3150000, annualCustomerTarget: 75, quarterlyRevenueTarget: { 'Q1': 787500, 'Q2': 787500, 'Q3': 787500, 'Q4': 787500 }, quarterlyCustomerTarget: { 'Q1': 19, 'Q2': 19, 'Q3': 19, 'Q4': 19 }, isActive: true },
-  { id: 'elizabeth-tola', name: 'Elizabeth Tola', region: 'Osun', annualTarget: 1350000, annualCustomerTarget: 21, quarterlyRevenueTarget: { 'Q1': 337500, 'Q2': 337500, 'Q3': 337500, 'Q4': 337500 }, quarterlyCustomerTarget: { 'Q1': 5, 'Q2': 5, 'Q3': 5, 'Q4': 5 }, isActive: true },
+  {
+    id: 'emmanuel-oladimeji',
+    name: 'Emmanuel Oladimeji',
+    region: 'Osun',
+    annualTarget: 3150000,
+    annualCustomerTarget: 75,
+    quarterlyRevenueTarget: { Q1: 787500, Q2: 787500, Q3: 787500, Q4: 787500 },
+    quarterlyCustomerTarget: { Q1: 19, Q2: 19, Q3: 19, Q4: 19 },
+    isActive: true,
+  },
+  {
+    id: 'elizabeth-tola',
+    name: 'Elizabeth Tola',
+    region: 'Osun',
+    annualTarget: 1350000,
+    annualCustomerTarget: 21,
+    quarterlyRevenueTarget: { Q1: 337500, Q2: 337500, Q3: 337500, Q4: 337500 },
+    quarterlyCustomerTarget: { Q1: 5, Q2: 5, Q3: 5, Q4: 5 },
+    isActive: true,
+  },
   // Ondo team
-  { id: 'kikachukwu-omordia', name: 'Kikachukwu Omordia', region: 'Ondo', annualTarget: 3150000, annualCustomerTarget: 69, quarterlyRevenueTarget: { 'Q1': 787500, 'Q2': 787500, 'Q3': 787500, 'Q4': 787500 }, quarterlyCustomerTarget: { 'Q1': 17, 'Q2': 17, 'Q3': 17, 'Q4': 17 }, isActive: true },
-  { id: 'ruth-suleimon', name: 'Ruth Suleimon', region: 'Ondo', annualTarget: 1350000, annualCustomerTarget: 27, quarterlyRevenueTarget: { 'Q1': 337500, 'Q2': 337500, 'Q3': 337500, 'Q4': 337500 }, quarterlyCustomerTarget: { 'Q1': 7, 'Q2': 7, 'Q3': 7, 'Q4': 7 }, isActive: true },
+  {
+    id: 'ruth-suleimon',
+    name: 'Ruth Suleimon',
+    region: 'Ondo',
+    annualTarget: 1350000,
+    annualCustomerTarget: 27,
+    quarterlyRevenueTarget: { Q1: 337500, Q2: 337500, Q3: 337500, Q4: 337500 },
+    quarterlyCustomerTarget: { Q1: 7, Q2: 7, Q3: 7, Q4: 7 },
+    isActive: true,
+  },
 ];
 
 export const regionalTargets: RegionalTarget[] = [
@@ -56,16 +117,24 @@ export const planCodes = [
   { code: '30Mbps', label: '30 Mbps', segment: 'ENTERPRISE' as const },
   { code: '50Mbps', label: '50 Mbps', segment: 'ENTERPRISE' as const },
   { code: '100Mbps', label: '100 Mbps', segment: 'ENTERPRISE' as const },
+  { code: 'N-10K', label: 'N-10K', segment: 'NEIGHBOURHOOD' as const },
+  { code: 'N-15K', label: 'N-15K', segment: 'NEIGHBOURHOOD' as const },
+  { code: 'N-22-5K', label: 'N-22.5K', segment: 'NEIGHBOURHOOD' as const },
 ];
 
 export const planPricing: Record<string, { mrc: number }> = {
   'H-Lite': { mrc: 27500 },
-  'H-Max':  { mrc: 36500 },
-  'H-Pro':  { mrc: 43500 },
+  'H-Max': { mrc: 36500 },
+  'H-Pro': { mrc: 43500 },
   'U-Lite': { mrc: 32500 },
-  'U-Max':  { mrc: 43500 },
-  'U-Pro':  { mrc: 58000 },
+  'U-Max': { mrc: 43500 },
+  'U-Pro': { mrc: 58000 },
+  'N-10K': { mrc: 10000 },
+  'N-15K': { mrc: 15000 },
+  'N-22-5K': { mrc: 22500 },
 };
+
+export const SEGMENTS_THAT_ROLL_UP_TO_SME: SalesSegment[] = ['NEIGHBOURHOOD'];
 
 export function getPlanMrc(planCode: string): number | null {
   return planPricing[planCode]?.mrc ?? null;
@@ -78,15 +147,16 @@ export function getRegionForLocation(location: string): SalesRegion {
   const osunCities = ['oshogbo', 'osogbo'];
   const ondoCities = ['akure'];
 
-  if (ondoCities.some(c => loc.includes(c))) return 'Ondo';
-  if (osunCities.some(c => loc.includes(c))) return 'Osun';
-  if (ogunCities.some(c => loc.includes(c))) return 'Ogun';
-  if (ibadanCities.some(c => loc.includes(c))) return 'Oyo';
-  return 'Ogun';
+  if (ondoCities.some((c) => loc.includes(c))) return 'Ondo';
+  if (osunCities.some((c) => loc.includes(c))) return 'Osun';
+  if (ogunCities.some((c) => loc.includes(c))) return 'Ogun';
+  if (ibadanCities.some((c) => loc.includes(c))) return 'Oyo';
+  return 'Oyo';
 }
 
 export function getSegmentForPlan(planCode: string): SalesSegment {
   const code = planCode.toUpperCase();
+  if (code.startsWith('N-')) return 'NEIGHBOURHOOD';
   if (code.startsWith('H-')) return 'HOME';
   if (code.startsWith('U-')) return 'SME';
   return 'ENTERPRISE';
@@ -103,18 +173,22 @@ export function parseNairaAmount(value: string): number {
 
 export function getQuarterFromMonth(month: string): SaleQuarter {
   const m = month.toLowerCase();
-  if (['june', 'july', 'august'].includes(m)) return 'QUARTER 1';
-  if (['september', 'october', 'november'].includes(m)) return 'QUARTER 2';
-  if (['december', 'january', 'february'].includes(m)) return 'QUARTER 3';
+  if (['july', 'august', 'september'].includes(m)) return 'QUARTER 1';
+  if (['october', 'november', 'december'].includes(m)) return 'QUARTER 2';
+  if (['january', 'february', 'march'].includes(m)) return 'QUARTER 3';
   return 'QUARTER 4';
 }
 
 export function getMonthsForQuarter(quarter: SaleQuarter): string[] {
   const map: Record<SaleQuarter, string[]> = {
-    'QUARTER 1': ['June', 'July', 'August'],
-    'QUARTER 2': ['September', 'October', 'November'],
-    'QUARTER 3': ['December', 'January', 'February'],
-    'QUARTER 4': ['March', 'April', 'May'],
+    'QUARTER 1': ['July', 'August', 'September'],
+    'QUARTER 2': ['October', 'November', 'December'],
+    'QUARTER 3': ['January', 'February', 'March'],
+    'QUARTER 4': ['April', 'May', 'June'],
   };
   return map[quarter];
+}
+
+export function getAgentByEmail(email: string): SalesAgent | undefined {
+  return salesAgents.find((a) => a.id === email.split('@')[0].replace(/\./g, '-'));
 }

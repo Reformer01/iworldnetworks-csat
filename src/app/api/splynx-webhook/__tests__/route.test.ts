@@ -34,8 +34,17 @@ import { POST } from '../route';
 
 const secret = 'test-webhook-secret';
 
-function sign(body: string) {
+function sign256(body: string) {
+  return createHmac('sha256', secret).update(body).digest('hex');
+}
+
+function sign1(body: string) {
   return createHmac('sha1', secret).update(body).digest('hex');
+}
+
+// Backward compatibility alias
+function sign(body: string) {
+  return sign1(body);
 }
 
 function buildRequest(body: string, headers: Record<string, string> = {}) {
@@ -80,25 +89,32 @@ describe('POST /api/splynx-webhook', () => {
       },
     });
 
-    const response = await POST(buildRequest(body, {
-      'content-type': 'application/json',
-      'x-splynx-signature': sign(body),
-    }));
+    const response = await POST(
+      buildRequest(body, {
+        'content-type': 'application/json',
+        'x-splynx-signature': sign(body),
+      }),
+    );
     const json = await response.json();
 
     expect(response.status).toBe(200);
     expect(json.success).toBe(true);
-    expect(mocks.createFeedbackToken).toHaveBeenCalledWith(mocks.db, expect.objectContaining({
-      customerName: 'Ada Customer',
-      customerEmail: 'ada@example.com',
-      servicePlan: 'Fiber 50',
-      location: 'Lagos',
-      sourceEvent: 'customer/update',
-    }));
-    expect(mocks.sendFeedbackEmail).toHaveBeenCalledWith(expect.objectContaining({
-      to: 'ada@example.com',
-      feedbackUrl: 'http://localhost:9002/feedback?token=token-123',
-    }));
+    expect(mocks.createFeedbackToken).toHaveBeenCalledWith(
+      mocks.db,
+      expect.objectContaining({
+        customerName: 'Ada Customer',
+        customerEmail: 'ada@example.com',
+        servicePlan: 'Fiber 50',
+        location: 'Lagos',
+        sourceEvent: 'customer/update',
+      }),
+    );
+    expect(mocks.sendFeedbackEmail).toHaveBeenCalledWith(
+      expect.objectContaining({
+        to: 'ada@example.com',
+        feedbackUrl: 'http://localhost:9002/feedback?token=token-123',
+      }),
+    );
   });
 
   it('accepts a signed form-encoded webhook payload', async () => {
@@ -112,26 +128,33 @@ describe('POST /api/splynx-webhook', () => {
       'data[attributes][service_name]': 'Support Case',
     }).toString();
 
-    const response = await POST(buildRequest(body, {
-      'content-type': 'application/x-www-form-urlencoded',
-      'x-splynx-signature': sign(body),
-    }));
+    const response = await POST(
+      buildRequest(body, {
+        'content-type': 'application/x-www-form-urlencoded',
+        'x-splynx-signature': sign256(body),
+      }),
+    );
 
     expect(response.status).toBe(200);
-    expect(mocks.createFeedbackToken).toHaveBeenCalledWith(mocks.db, expect.objectContaining({
-      customerName: 'Form Customer',
-      customerEmail: 'form@example.com',
-      servicePlan: 'Support Case',
-      sourceEvent: 'tickets/ticket/update',
-    }));
+    expect(mocks.createFeedbackToken).toHaveBeenCalledWith(
+      mocks.db,
+      expect.objectContaining({
+        customerName: 'Form Customer',
+        customerEmail: 'form@example.com',
+        servicePlan: 'Support Case',
+        sourceEvent: 'tickets/ticket/update',
+      }),
+    );
   });
 
   it('rejects incorrectly signed payloads before processing', async () => {
     const body = JSON.stringify({ type: 'event' });
-    const response = await POST(buildRequest(body, {
-      'content-type': 'application/json',
-      'x-splynx-signature': 'bad-signature',
-    }));
+    const response = await POST(
+      buildRequest(body, {
+        'content-type': 'application/json',
+        'x-splynx-signature': 'invalid-signature',
+      }),
+    );
     const json = await response.json();
 
     expect(response.status).toBe(401);
@@ -146,14 +169,15 @@ describe('POST /api/splynx-webhook', () => {
 
     const fetchMock = vi.fn().mockResolvedValue({
       ok: true,
-      json: () => Promise.resolve({
-        main_attributes: {
-          first_name: 'Enriched',
-          last_name: 'Customer',
-          email: 'enriched@example.com',
-          city: 'Abeokuta',
-        },
-      }),
+      json: () =>
+        Promise.resolve({
+          main_attributes: {
+            first_name: 'Enriched',
+            last_name: 'Customer',
+            email: 'enriched@example.com',
+            city: 'Abeokuta',
+          },
+        }),
     });
     vi.stubGlobal('fetch', fetchMock);
 
@@ -166,10 +190,12 @@ describe('POST /api/splynx-webhook', () => {
       },
     });
 
-    const response = await POST(buildRequest(body, {
-      'content-type': 'application/json',
-      'x-splynx-signature': sign(body),
-    }));
+    const response = await POST(
+      buildRequest(body, {
+        'content-type': 'application/json',
+        'x-splynx-signature': sign(body),
+      }),
+    );
 
     expect(response.status).toBe(200);
     expect(fetchMock).toHaveBeenCalledWith(
@@ -178,13 +204,16 @@ describe('POST /api/splynx-webhook', () => {
         headers: expect.objectContaining({
           Authorization: expect.stringMatching(/^Basic /),
         }),
-      })
+      }),
     );
-    expect(mocks.createFeedbackToken).toHaveBeenCalledWith(mocks.db, expect.objectContaining({
-      customerName: 'Enriched Customer',
-      customerEmail: 'enriched@example.com',
-      location: 'Abeokuta',
-    }));
+    expect(mocks.createFeedbackToken).toHaveBeenCalledWith(
+      mocks.db,
+      expect.objectContaining({
+        customerName: 'Enriched Customer',
+        customerEmail: 'enriched@example.com',
+        location: 'Abeokuta',
+      }),
+    );
   });
 
   it('supports Splynx-EA signature auth for customer enrichment', async () => {
@@ -208,10 +237,12 @@ describe('POST /api/splynx-webhook', () => {
       },
     });
 
-    const response = await POST(buildRequest(body, {
-      'content-type': 'application/json',
-      'x-splynx-signature': sign(body),
-    }));
+    const response = await POST(
+      buildRequest(body, {
+        'content-type': 'application/json',
+        'x-splynx-signature': sign(body),
+      }),
+    );
 
     expect(response.status).toBe(200);
     expect(fetchMock).toHaveBeenCalledWith(
@@ -220,7 +251,7 @@ describe('POST /api/splynx-webhook', () => {
         headers: expect.objectContaining({
           Authorization: expect.stringMatching(/^Splynx-EA \(key=api-key&nonce=\d+&signature=[A-F0-9]{64}\)$/),
         }),
-      })
+      }),
     );
   });
 });

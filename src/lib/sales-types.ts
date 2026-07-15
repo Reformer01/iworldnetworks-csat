@@ -1,8 +1,9 @@
 export type SalesRegion = 'Ogun' | 'Oyo' | 'Osun' | 'Ondo';
-export type SalesSegment = 'HOME' | 'SME' | 'ENTERPRISE';
+export type SalesSegment = 'HOME' | 'SME' | 'ENTERPRISE' | 'NEIGHBOURHOOD' | 'MANAGED_SERVICES';
 export type AccountStatus = 'Active' | 'Inactive' | 'Blocked' | 'Refunded' | 'Retrieved';
 export type PackageType = 'Outright' | 'Lease';
 export type SaleQuarter = 'QUARTER 1' | 'QUARTER 2' | 'QUARTER 3' | 'QUARTER 4';
+export type CustomerType = 'new' | 'revived';
 
 export interface SalesRecord {
   id?: string;
@@ -23,6 +24,9 @@ export interface SalesRecord {
   accountStatus: AccountStatus;
   statusNotes: string;
   importBatchId: string;
+  customerType: CustomerType;
+  revivedByAgent: string;
+  bts: string;
   createdAt?: number;
   updatedAt?: number;
   deletedAt?: number;
@@ -92,5 +96,85 @@ export interface SupportRevenueRecord {
   notes: string;
   createdAt?: number;
   updatedAt?: number;
+  deletedAt?: number;
+}
+
+export interface BtsStation {
+  id: number;
+  name: string;
+  region: string;
+  host: string;
+}
+
+export interface SupportStaffKPI {
+  id: string;
+  staffId: string;
+  staffName: string;
+  role: TicketRole;
+  periodStart: number;
+  periodEnd: number;
+  ticketsAssigned: number;
+  ticketsResolved: number;
+  ticketsEscalated: number;
+  ticketsReopened: number;
+  avgResolutionTimeHours: number;
+  slaComplianceRate: number; // percentage
+  firstContactResolutionRate: number; // percentage
+  avgCustomerSatisfaction: number; // 1-5 from feedback
+  slaBreaches: number;
+  createdAt: number;
+  updatedAt: number;
+}
+
+export interface SupportStaffKPIInput {
+  staffId: string;
+  staffName: string;
+  role: TicketRole;
+  periodStart: number;
+  periodEnd: number;
+}
+
+// Ticket types
+export type TicketStatus = 'open' | 'assigned' | 'in_progress' | 'resolved' | 'closed';
+export type ComplaintType = 'No Connectivity' | 'Slow Speed' | 'Hardware Issue' | 'Installation Issue' | 'Billing Issue' | 'Other';
+export type TicketRole = 'Front-end Support' | 'Back-end Support' | 'Technical' | 'Field Staff' | 'Billing';
+
+export interface FollowUp {
+  id: string;
+  from: string;
+  to: string;
+  message: string;
+  channel: 'whatsapp' | 'system';
+  timestamp: number;
+}
+
+export interface Ticket {
+  id?: string;
+  ticketNumber: number;
+  customerName: string;
+  customerPhone: string;
+  customerEmail?: string;
+  location: string;
+  region: SalesRegion;
+  bts?: string;
+  complaintType: ComplaintType;
+  description: string;
+  createdBy: string;
+  assignedTo?: string;
+  escalatedTo?: string;
+  status: TicketStatus;
+  createdAt: number;
+  assignedAt?: number;
+  escalatedAt?: number;
+  resolvedAt?: number;
+  closedAt?: number;
+  slaBreached: boolean;
+  resolutionNotes?: string;
+  firstTimeFix?: boolean;
+  delayReasons?: string[];
+  delayNotes?: string;
+  followUps: FollowUp[];
+  createdByAgent?: string;
+  updatedAt: number;
   deletedAt?: number;
 }

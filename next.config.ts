@@ -12,17 +12,17 @@ const securityHeaders = [
       "font-src 'self' https://fonts.gstatic.com",
       "img-src 'self' blob: data: https://*.googleapis.com https://*.gstatic.com https://placehold.co https://images.unsplash.com https://picsum.photos",
       "connect-src 'self' https://*.firebaseio.com https://*.googleapis.com wss://*.firebaseio.com ws://localhost:* wss://localhost:* http://localhost:* https://localhost:*",
-      "frame-src https://*.firebaseapp.com https://accounts.google.com",
+      'frame-src https://*.firebaseapp.com https://accounts.google.com',
       "object-src 'none'",
       "base-uri 'self'",
       "form-action 'self'",
-      "upgrade-insecure-requests",
+      'upgrade-insecure-requests',
     ].join('; '),
   },
   { key: 'X-Frame-Options', value: 'DENY' },
   { key: 'X-Content-Type-Options', value: 'nosniff' },
   { key: 'X-XSS-Protection', value: '1; mode=block' },
-  { key: 'Referrer-Policy', value: 'strict-origin-when-cross-origin' },
+  { key: 'Referrer-Policy', value: 'no-referrer' },
   { key: 'Strict-Transport-Security', value: 'max-age=63072000; includeSubDomains; preload' },
   {
     key: 'Permissions-Policy',
@@ -31,6 +31,7 @@ const securityHeaders = [
 ];
 
 const nextConfig: NextConfig = {
+  output: 'standalone',
   poweredByHeader: false,
   typescript: {
     ignoreBuildErrors: false,

@@ -2,8 +2,9 @@ import { NextRequest } from 'next/server';
 import { getAdminFirestore } from '@/lib/firebase-admin';
 import { verifyAdminToken } from '@/lib/admin-auth';
 import { isRateLimited } from '@/lib/rate-limit';
-import { SalesMetrics, RegionMetrics, AgentMetrics, SalesRecord } from '@/lib/sales-types';
-import { salesAgents, regionalTargets, getRegionForLocation, getQuarterFromMonth } from '@/lib/sales-staff';
+import { SalesMetrics, RegionMetrics, AgentMetrics, SalesRecord, BtsStation } from '@/lib/sales-types';
+import { salesAgents, regionalTargets, getRegionForLocation, getQuarterFromMonth, SEGMENTS_THAT_ROLL_UP_TO_SME } from '@/lib/sales-staff';
+import { btsStations } from '@/lib/bts-data';
 import { success, error, unauthorized, tooMany, serverError } from '@/lib/api-response';
 import { logError } from '@/lib/logger';
 
@@ -31,7 +32,7 @@ function computeMetrics(records: RecordDoc[], region?: string): SalesMetrics {
     blockedSubscribers: blockedCount,
     newCustomers: filtered.length,
     churnedCustomers: inactiveCount,
-    churnRate: (filtered.length - blockedCount) > 0 ? Math.round((inactiveCount / (filtered.length - blockedCount)) * 10000) / 100 : 0,
+    churnRate: filtered.length - blockedCount > 0 ? Math.round((inactiveCount / (filtered.length - blockedCount)) * 10000) / 100 : 0,
     nrcRevenue,
     totalRevenue: mrr + nrcRevenue,
     avgNrc: filtered.length > 0 ? Math.round(nrcRevenue / filtered.length) : 0,
@@ -57,7 +58,7 @@ export async function GET(request: NextRequest) {
     const snapshot = await db.collection('sales_records').orderBy('serialNumber', 'desc').limit(2000).get();
     const records: RecordDoc[] = snapshot.docs
       .filter((doc) => !doc.data().deletedAt)
-      .map((doc) => ({ id: doc.id, ...doc.data() } as RecordDoc));
+      .map((doc) => ({ id: doc.id, ...doc.data() }) as RecordDoc);
 
     const overall = computeMetrics(records);
 
@@ -88,8 +89,19 @@ export async function GET(request: NextRequest) {
       };
     });
 
-    const segments: SalesRecord['segment'][] = ['HOME', 'SME', 'ENTERPRISE'];
+    const segments: SalesRecord['segment'][] = ['HOME', 'SME', 'ENTERPRISE', 'NEIGHBOURHOOD', 'MANAGED_SERVICES'];
     const segmentBreakdown = segments.map((seg) => {
+      if (seg === 'SME') {
+        const smeRecords = records.filter((r) => SEGMENTS_THAT_ROLL_UP_TO_SME.includes(r.segment));
+        const smeActive = smeRecords.filter((r) => r.accountStatus === 'Active');
+        return {
+          segment: 'SME',
+          count: smeRecords.length,
+          active: smeActive.length,
+          mrc: smeActive.reduce((sum, r) => sum + (r.mrc || 0), 0),
+          arpu: smeActive.length > 0 ? Math.round(smeActive.reduce((sum, r) => sum + (r.mrc || 0), 0) / smeActive.length) : 0,
+        };
+      }
       const segRecords = records.filter((r) => r.segment === seg);
       const segActive = segRecords.filter((r) => r.accountStatus === 'Active');
       return {
@@ -101,11 +113,40 @@ export async function GET(request: NextRequest) {
       };
     });
 
+    const btsMetrics = btsStations.map((bts) => {
+      const btsRecords = records.filter((r) => r.bts === bts.name);
+      const btsActive = btsRecords.filter((r) => r.accountStatus === 'Active');
+      return {
+        bts: bts.name,
+        region: bts.region,
+        count: btsRecords.length,
+        active: btsActive.length,
+        mrc: btsActive.reduce((sum, r) => sum + (r.mrc || 0), 0),
+      };
+    });
+
+    const agentSegmentBreakdown = salesAgents.flatMap((agent) => {
+      const agentRecords = records.filter((r) => r.salesAgent === agent.name);
+      return segments.map((seg) => {
+        const segRecords = agentRecords.filter((r) => r.segment === seg);
+        const segActive = segRecords.filter((r) => r.accountStatus === 'Active');
+        return {
+          agent: agent.name,
+          segment: seg,
+          count: segRecords.length,
+          active: segActive.length,
+          mrc: segActive.reduce((sum, r) => sum + (r.mrc || 0), 0),
+        };
+      });
+    });
+
     return success({
       overall,
       regionMetrics,
       agentMetrics,
       segmentBreakdown,
+      btsMetrics,
+      agentSegmentBreakdown,
       totalRecords: records.length,
     });
   } catch (err: unknown) {

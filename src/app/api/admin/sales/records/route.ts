@@ -1,14 +1,15 @@
 import { NextRequest } from 'next/server';
 import { getAdminFirestore } from '@/lib/firebase-admin';
 import { verifyAdminToken } from '@/lib/admin-auth';
-import { isSuperAdmin } from '@/lib/admin-config';
+import { isSuperAdmin, isEditor } from '@/lib/admin-config';
 import { isRateLimited } from '@/lib/rate-limit';
 import { salesRecordSchema } from '@/lib/validations/sales';
-import { getRegionForLocation, getSegmentForPlan, getQuarterFromMonth } from '@/lib/sales-staff';
+import { getRegionForLocation, getSegmentForPlan, getQuarterFromMonth, getAgentByEmail } from '@/lib/sales-staff';
 import { success, error, unauthorized, forbidden, tooMany, notFound, serverError, validateOrigin } from '@/lib/api-response';
 import { writeAuditLog } from '@/lib/audit-log';
 import type { SalesRecord } from '@/lib/sales-types';
 import { logError } from '@/lib/logger';
+import { salesAgents } from '@/lib/sales-staff';
 
 type RecordDoc = SalesRecord & { id: string };
 
@@ -26,10 +27,17 @@ export async function GET(request: NextRequest) {
       return unauthorized();
     }
 
+    const isSuper = isSuperAdmin(admin.email);
+    const resolvedAgent = !isSuper ? getAgentByEmail(admin.email)?.name : undefined;
+
+    if (!isSuper && !resolvedAgent) {
+      return success({ records: [], total: 0, page: 1, pageSize: 50, totalPages: 0 });
+    }
+
     const { searchParams } = new URL(request.url);
     const region = searchParams.get('region');
     const status = searchParams.get('status');
-    const agent = searchParams.get('agent');
+    const agent = isSuper ? searchParams.get('agent') : resolvedAgent;
     const importBatchId = searchParams.get('importBatchId');
     const search = searchParams.get('search')?.toLowerCase();
     const page = Math.max(1, parseInt(searchParams.get('page') || '1'));
@@ -46,14 +54,15 @@ export async function GET(request: NextRequest) {
     const snapshot = await query.get();
     const records: RecordDoc[] = snapshot.docs
       .filter((doc) => !doc.data().deletedAt)
-      .map((doc) => ({ id: doc.id, ...doc.data() } as RecordDoc));
+      .map((doc) => ({ id: doc.id, ...doc.data() }) as RecordDoc);
 
     const filtered = search
-      ? records.filter((r) =>
-          r.customerName?.toLowerCase().includes(search) ||
-          r.location?.toLowerCase().includes(search) ||
-          r.planCode?.toLowerCase().includes(search) ||
-          r.salesAgent?.toLowerCase().includes(search),
+      ? records.filter(
+          (r) =>
+            r.customerName?.toLowerCase().includes(search) ||
+            r.location?.toLowerCase().includes(search) ||
+            r.planCode?.toLowerCase().includes(search) ||
+            r.salesAgent?.toLowerCase().includes(search),
         )
       : records;
 
@@ -147,8 +156,8 @@ export async function PUT(request: NextRequest) {
     if (!admin) {
       return unauthorized();
     }
-    if (!isSuperAdmin(admin.email)) {
-      return error('Only super admins can edit records.', 403);
+    if (!isSuperAdmin(admin.email) && !isEditor(admin.email)) {
+      return error('Only authorised editors can modify records.', 403);
     }
 
     const body = await request.json().catch(() => null);
@@ -208,8 +217,8 @@ export async function DELETE(request: NextRequest) {
     if (!admin) {
       return unauthorized();
     }
-    if (!isSuperAdmin(admin.email)) {
-      return error('Only super admins can delete records.', 403);
+    if (!isSuperAdmin(admin.email) && !isEditor(admin.email)) {
+      return error('Only authorised editors can delete records.', 403);
     }
 
     const body = await request.json().catch(() => null);

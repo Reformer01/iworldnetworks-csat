@@ -1,26 +1,31 @@
 import { NextRequest, NextResponse } from 'next/server';
 
-export type ApiResponse<T> = {
-  success: true;
-  data: T;
-} | {
-  success: false;
-  error: string;
-  errors?: Record<string, string[]>;
-  code?: string;
-};
+export type ApiResponse<T> =
+  | {
+      success: true;
+      data: T;
+    }
+  | {
+      success: false;
+      error: string;
+      errors?: Record<string, string[]>;
+      code?: string;
+    };
 
 export function success<T>(data: T, status = 200) {
   return NextResponse.json({ success: true, data } satisfies ApiResponse<T>, { status });
 }
 
 export function error(message: string, status = 400, opts?: { errors?: Record<string, string[]>; code?: string }) {
-  return NextResponse.json({
-    success: false,
-    error: message,
-    ...(opts?.errors ? { errors: opts.errors } : {}),
-    ...(opts?.code ? { code: opts.code } : {}),
-  } satisfies ApiResponse<never>, { status });
+  return NextResponse.json(
+    {
+      success: false,
+      error: message,
+      ...(opts?.errors ? { errors: opts.errors } : {}),
+      ...(opts?.code ? { code: opts.code } : {}),
+    } satisfies ApiResponse<never>,
+    { status },
+  );
 }
 
 export function unauthorized(message = 'Unauthorized.') {
@@ -46,8 +51,10 @@ export function serverError(message = 'Internal server error.') {
 const ALLOWED_ORIGINS = [
   'http://localhost:9002',
   'http://localhost:3000',
+  'http://localhost:3001',
   'https://iworldnetworks-csat.web.app',
   'https://iworldnetworks-csat.firebaseapp.com',
+  'https://csat.iwn.ng',
 ];
 
 export function validateOrigin(request: NextRequest): boolean {

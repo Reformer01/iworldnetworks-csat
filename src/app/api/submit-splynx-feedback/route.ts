@@ -8,30 +8,8 @@ const splynxFeedbackSchema = z.object({
   token: z.string().uuid(),
   rating: z.coerce.number().int().min(1).max(5),
   satisfied: z.enum(['yes', 'no', 'partially']).optional(),
+  invoiceAccuracy: z.coerce.number().int().min(1).max(5).optional(),
   comment: z.string().max(1000).optional().default(''),
-  ratings: z.object({
-    stability: z.coerce.number().min(1).max(5).optional(),
-    latency: z.coerce.number().min(1).max(5).optional(),
-    peakPerformance: z.coerce.number().min(1).max(5).optional(),
-    professionalism: z.coerce.number().min(1).max(5).optional(),
-    clarity: z.coerce.number().min(1).max(5).optional(),
-    responsiveness: z.coerce.number().min(1).max(5).optional(),
-    knowledge: z.coerce.number().min(1).max(5).optional(),
-    friendliness: z.coerce.number().min(1).max(5).optional(),
-    fcr: z.enum(['Yes', 'No']).optional(),
-    resolutionSpeed: z.coerce.number().min(1).max(5).optional(),
-    repairQuality: z.coerce.number().min(1).max(5).optional(),
-    conduct: z.coerce.number().min(1).max(5).optional(),
-    signal: z.coerce.number().min(1).max(5).optional(),
-    punctuality: z.coerce.number().min(1).max(5).optional(),
-    quality: z.coerce.number().min(1).max(5).optional(),
-    explanation: z.coerce.number().min(1).max(5).optional(),
-    timeliness: z.coerce.number().min(1).max(5).optional(),
-    accuracy: z.coerce.number().min(1).max(5).optional(),
-    reconnection: z.coerce.number().min(1).max(5).optional(),
-    usedPortal: z.enum(['Yes', 'No']).optional(),
-    portalEase: z.coerce.number().min(1).max(5).optional(),
-  }).partial().optional().default({}),
 });
 
 export async function POST(request: NextRequest) {
@@ -45,13 +23,15 @@ export async function POST(request: NextRequest) {
     if (!validation.success) {
       return NextResponse.json(
         { success: false, error: 'Validation failed.', details: validation.error.flatten().fieldErrors },
-        { status: 400 }
+        { status: 400 },
       );
     }
 
-    const { token, rating, satisfied, comment, ratings } = validation.data;
+    const { token, rating, satisfied, invoiceAccuracy, comment } = validation.data;
     const db = getAdminFirestore();
     const tokenRef = db.collection('feedback_tokens').doc(token);
+    const clientIp = request.headers.get('x-forwarded-for')?.split(',')[0]?.trim() || request.headers.get('x-real-ip')?.trim() || 'unknown';
+    const userAgent = request.headers.get('user-agent')?.slice(0, 500) || 'unknown';
 
     const now = new Date();
     const nowISO = now.toISOString();
@@ -80,7 +60,7 @@ export async function POST(request: NextRequest) {
         servicePlan: tokenData.servicePlan || '',
         ratings: {
           overall: rating,
-          ...ratings,
+          invoiceAccuracy: invoiceAccuracy || null,
         },
         satisfied: satisfied || null,
         comment,
@@ -98,6 +78,8 @@ export async function POST(request: NextRequest) {
         status: 'open',
         _source: 'splynx',
         aiAnalysis: null,
+        clientIp,
+        userAgent,
       };
 
       transaction.set(feedbackRef, feedbackData);

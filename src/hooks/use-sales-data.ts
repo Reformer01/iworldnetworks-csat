@@ -12,6 +12,8 @@ export interface MetricsResponse {
   regionMetrics: RegionMetrics[];
   agentMetrics: AgentMetrics[];
   segmentBreakdown: { segment: string; count: number; active: number; mrc: number; arpu: number }[];
+  btsMetrics: { bts: string; region: string; count: number; active: number; mrc: number }[];
+  agentSegmentBreakdown: { agent: string; segment: string; count: number; active: number; mrc: number }[];
   totalRecords: number;
 }
 
@@ -84,41 +86,44 @@ export function useSalesRecords(params?: {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  const fetchRecords = useCallback(async (showLoading = true) => {
-    if (authLoading) return;
-    if (!user || !user.emailVerified || !isAllowedDomain(user.email || '')) {
-      setRecords([]);
-      setLoading(false);
-      return;
-    }
+  const fetchRecords = useCallback(
+    async (showLoading = true) => {
+      if (authLoading) return;
+      if (!user || !user.emailVerified || !isAllowedDomain(user.email || '')) {
+        setRecords([]);
+        setLoading(false);
+        return;
+      }
 
-    try {
-      if (showLoading) setLoading(true);
-      const token = await user.getIdToken();
-      const sp = new URLSearchParams();
-      if (params?.region) sp.set('region', params.region);
-      if (params?.status) sp.set('status', params.status);
-      if (params?.agent) sp.set('agent', params.agent);
-      if (params?.search) sp.set('search', params.search);
-      if (params?.page) sp.set('page', String(params.page));
-      if (params?.pageSize) sp.set('pageSize', String(params.pageSize));
-      const qs = sp.toString();
-      const res = await fetch(`/api/admin/sales/records${qs ? `?${qs}` : ''}`, {
-        headers: { Authorization: `Bearer ${token}` },
-      });
-      if (!res.ok) throw new Error(`Failed: ${res.statusText}`);
-      const result = await res.json();
-      const responseData = result.data as RecordsResponse | undefined;
-      setRecords(responseData?.records || []);
-      setTotal(responseData?.total || 0);
-      setTotalPages(responseData?.totalPages || 1);
-      setError(null);
-    } catch (err: unknown) {
-      setError(err instanceof Error ? err.message : 'Error fetching records');
-    } finally {
-      if (showLoading) setLoading(false);
-    }
-  }, [user, authLoading, params?.region, params?.status, params?.agent, params?.search, params?.page, params?.pageSize]);
+      try {
+        if (showLoading) setLoading(true);
+        const token = await user.getIdToken();
+        const sp = new URLSearchParams();
+        if (params?.region) sp.set('region', params.region);
+        if (params?.status) sp.set('status', params.status);
+        if (params?.agent) sp.set('agent', params.agent);
+        if (params?.search) sp.set('search', params.search);
+        if (params?.page) sp.set('page', String(params.page));
+        if (params?.pageSize) sp.set('pageSize', String(params.pageSize));
+        const qs = sp.toString();
+        const res = await fetch(`/api/admin/sales/records${qs ? `?${qs}` : ''}`, {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        if (!res.ok) throw new Error(`Failed: ${res.statusText}`);
+        const result = await res.json();
+        const responseData = result.data as RecordsResponse | undefined;
+        setRecords(responseData?.records || []);
+        setTotal(responseData?.total || 0);
+        setTotalPages(responseData?.totalPages || 1);
+        setError(null);
+      } catch (err: unknown) {
+        setError(err instanceof Error ? err.message : 'Error fetching records');
+      } finally {
+        if (showLoading) setLoading(false);
+      }
+    },
+    [user, authLoading, params?.region, params?.status, params?.agent, params?.search, params?.page, params?.pageSize],
+  );
 
   useEffect(() => {
     fetchRecords(true);
@@ -134,7 +139,10 @@ export async function createSalesRecord(data: SalesRecordFormData, user: User) {
     headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
     body: JSON.stringify(data),
   });
-  if (!res.ok) { const d = await res.json().catch(() => ({})); throw new Error(d.error || 'Failed to create'); }
+  if (!res.ok) {
+    const d = await res.json().catch(() => ({}));
+    throw new Error(d.error || 'Failed to create');
+  }
   const result = await res.json();
   return result.data as { id: string };
 }
@@ -146,7 +154,10 @@ export async function updateSalesRecord(id: string, data: Partial<SalesRecordFor
     headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
     body: JSON.stringify({ id, ...data }),
   });
-  if (!res.ok) { const d = await res.json().catch(() => ({})); throw new Error(d.error || 'Failed to update'); }
+  if (!res.ok) {
+    const d = await res.json().catch(() => ({}));
+    throw new Error(d.error || 'Failed to update');
+  }
   const result = await res.json();
   return result.data as Record<string, never>;
 }
@@ -158,7 +169,10 @@ export async function deleteSalesRecord(id: string, user: User) {
     headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
     body: JSON.stringify({ id }),
   });
-  if (!res.ok) { const d = await res.json().catch(() => ({})); throw new Error(d.error || 'Failed to delete'); }
+  if (!res.ok) {
+    const d = await res.json().catch(() => ({}));
+    throw new Error(d.error || 'Failed to delete');
+  }
   const result = await res.json();
   return result.data as { action: string };
 }
@@ -170,7 +184,10 @@ export async function importSalesRecords(records: SalesRecordFormData[], source:
     headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
     body: JSON.stringify({ records, source, fileName }),
   });
-  if (!res.ok) { const d = await res.json().catch(() => ({})); throw new Error(d.error || 'Failed to import'); }
+  if (!res.ok) {
+    const d = await res.json().catch(() => ({}));
+    throw new Error(d.error || 'Failed to import');
+  }
   const result = await res.json();
   return result.data as { batchId: string; recordCount: number };
 }

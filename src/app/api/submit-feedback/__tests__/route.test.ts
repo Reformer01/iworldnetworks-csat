@@ -7,8 +7,8 @@ vi.mock('@/lib/firebase-admin', () => ({
   getAdminFirestore: () => ({ collection: mockCollection }),
 }));
 
-vi.mock('@/lib/rate-limit', () => ({
-  isRateLimited: vi.fn().mockReturnValue(false),
+vi.mock('@/lib/rate-limit-firestore', () => ({
+  isRateLimitedFirestore: vi.fn().mockResolvedValue(false),
 }));
 
 vi.mock('@/ai/flows/analyze-customer-feedback-sentiment', () => ({
@@ -28,7 +28,10 @@ import { POST } from '../route';
 function buildRequest(body: unknown) {
   return {
     json: () => Promise.resolve(body),
-    headers: new Map([['x-forwarded-for', '127.0.0.1']]),
+    headers: new Map<string, string>([
+      ['x-forwarded-for', '127.0.0.1'],
+      ['origin', 'http://localhost:9002'],
+    ]),
     url: 'http://localhost:9002/api/submit-feedback',
   } as unknown as Request;
 }
@@ -59,7 +62,10 @@ describe('POST /api/submit-feedback', () => {
   });
 
   it('returns 400 on invalid JSON', async () => {
-    const req = { json: () => Promise.reject(new Error('Invalid JSON')), headers: new Map() } as unknown as Request;
+    const req = {
+      json: () => Promise.reject(new Error('Invalid JSON')),
+      headers: new Map([['origin', 'http://localhost:9002']]),
+    } as unknown as Request;
     const response = await POST(req);
     const body = await response.json();
     expect(response.status).toBe(400);

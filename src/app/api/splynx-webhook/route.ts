@@ -19,11 +19,25 @@ function getString(value: unknown): string {
 
 function verifySignature(payload: string, signature: string, secret: string): boolean {
   try {
-    const expected = createHmac('sha1', secret).update(payload).digest('hex');
-    const expectedBuf = Buffer.from(expected, 'utf-8');
+    // Support both SHA-256 (new) and SHA-1 (legacy) for backward compatibility
+    const expectedSha256 = createHmac('sha256', secret).update(payload).digest('hex');
+    const expectedSha1 = createHmac('sha1', secret).update(payload).digest('hex');
+
     const sigBuf = Buffer.from(signature, 'utf-8');
-    if (expectedBuf.length !== sigBuf.length) return false;
-    return timingSafeEqual(expectedBuf, sigBuf);
+
+    // Try SHA-256 first
+    const expectedSha256Buf = Buffer.from(expectedSha256, 'utf-8');
+    if (expectedSha256Buf.length === sigBuf.length && timingSafeEqual(expectedSha256Buf, sigBuf)) {
+      return true;
+    }
+
+    // Fall back to SHA-1 for legacy webhooks
+    const expectedSha1Buf = Buffer.from(expectedSha1, 'utf-8');
+    if (expectedSha1Buf.length === sigBuf.length && timingSafeEqual(expectedSha1Buf, sigBuf)) {
+      return true;
+    }
+
+    return false;
   } catch {
     return false;
   }
@@ -177,6 +191,7 @@ export async function POST(request: NextRequest) {
 
     const baseUrl = getFeedbackBaseUrl(request);
     const feedbackUrl = `${baseUrl}/feedback?token=${token}`;
+    const popupUrl = `${baseUrl}/feedback/popup?token=${token}&embed=true`;
 
     if (customerData.customerEmail) {
       sendFeedbackEmail({
@@ -194,6 +209,8 @@ export async function POST(request: NextRequest) {
       success: true,
       token,
       url: feedbackUrl,
+      popupUrl,
+      embedHtml: `<iframe src="${popupUrl}" width="100%" height="500" frameborder="0" style="border-radius: 12px; border: 1px solid #e5e7eb;"></iframe>`,
       customer: { name: customerData.customerName, email: customerData.customerEmail },
     });
   } catch (err) {

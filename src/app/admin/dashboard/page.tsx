@@ -69,7 +69,7 @@ export default function AdminDashboard() {
     const rangeMs = rangeMsMap[timeRange] ?? 30 * 24 * 60 * 60 * 1000;
 
     const now = Date.now();
-    return allFeedbacks.filter((f: FeedbackDoc) => (now - (f.timestamp ?? 0)) <= rangeMs);
+    return allFeedbacks.filter((f: FeedbackDoc) => now - (f.timestamp ?? 0) <= rangeMs);
   }, [allFeedbacks, timeRange, dateRange]);
 
   const metrics = useMemo(() => {
@@ -339,10 +339,6 @@ export default function AdminDashboard() {
       <header className="flex flex-col md:flex-row justify-between items-start md:items-center gap-6 mb-12">
         <div>
           <h1 className="text-3xl font-display font-bold text-primary uppercase tracking-tight">Admin Dashboard</h1>
-          <div className="flex items-center gap-2 mt-2 opacity-60">
-            <Activity className="w-3 h-3 text-secondary" />
-            <p className="text-on-surface-variant font-mono text-[10px] uppercase tracking-widest font-bold">Live Dashboard</p>
-          </div>
         </div>
         <div className="flex items-center gap-4 flex-wrap">
           <Select
@@ -430,12 +426,8 @@ export default function AdminDashboard() {
             key={i}
             className="bg-white p-6 rounded-2xl whisper-shadow border border-border group hover:border-secondary transition-all min-h-[184px]"
           >
-            <div className="flex justify-between items-start mb-5">
+            <div className="mb-5">
               <item.icon className={cn('w-6 h-6', item.color)} />
-              <div className="flex items-center gap-1">
-                <span className="w-1.5 h-1.5 bg-green-500 rounded-full animate-pulse"></span>
-                <span className="font-mono text-[10px] text-on-surface-variant font-bold uppercase">LIVE</span>
-              </div>
             </div>
             <p className="font-mono text-[10px] uppercase text-on-surface-variant mb-1 font-bold">{item.label}</p>
             <div className="flex items-baseline gap-1">

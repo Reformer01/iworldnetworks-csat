@@ -1,22 +1,27 @@
 import { z } from 'zod';
 
-export const salesRecordSchema = z.object({
-  serialNumber: z.coerce.number().int().min(0).default(0),
-  customerName: z.string().min(1, 'Customer name is required').max(200).trim(),
-  location: z.string().min(1, 'Location is required').trim(),
-  nrc: z.coerce.number().min(0).default(0),
-  mrc: z.coerce.number().min(0).default(0),
-  planCode: z.string().min(1, 'Plan code is required').trim(),
-  saleDate: z.string().trim().default(''),
-  quarter: z.enum(['QUARTER 1', 'QUARTER 2', 'QUARTER 3', 'QUARTER 4']),
-  month: z.string().trim().default(''),
-  packageType: z.enum(['Outright', 'Lease']).default('Outright'),
-  salesAgent: z.string().trim().default(''),
-  meansOfSale: z.string().trim().default(''),
-  accountStatus: z.enum(['Active', 'Inactive', 'Blocked', 'Refunded', 'Retrieved']).default('Active'),
-  statusNotes: z.string().trim().default(''),
-  importBatchId: z.string().trim().default(''),
-}).strict();
+export const salesRecordSchema = z
+  .object({
+    serialNumber: z.coerce.number().int().min(0).default(0),
+    customerName: z.string().min(1, 'Customer name is required').max(200).trim(),
+    location: z.string().min(1, 'Location is required').trim(),
+    nrc: z.coerce.number().min(0).default(0),
+    mrc: z.coerce.number().min(0).default(0),
+    planCode: z.string().min(1, 'Plan code is required').trim(),
+    saleDate: z.string().trim().default(''),
+    quarter: z.enum(['QUARTER 1', 'QUARTER 2', 'QUARTER 3', 'QUARTER 4']),
+    month: z.string().trim().default(''),
+    packageType: z.enum(['Outright', 'Lease']).default('Outright'),
+    salesAgent: z.string().trim().default(''),
+    meansOfSale: z.string().trim().default(''),
+    accountStatus: z.enum(['Active', 'Inactive', 'Blocked', 'Refunded', 'Retrieved']).default('Active'),
+    statusNotes: z.string().trim().default(''),
+    importBatchId: z.string().trim().default(''),
+    customerType: z.enum(['new', 'revived']).optional(),
+    revivedByAgent: z.string().trim().optional(),
+    bts: z.string().trim().optional(),
+  })
+  .strict();
 
 export const salesImportSchema = z.object({
   records: z.array(salesRecordSchema).min(1, 'At least one record is required'),
