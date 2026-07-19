@@ -8,25 +8,34 @@ import { useToast } from '@/hooks/use-toast';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { Loader2, Upload, FileSpreadsheet, CheckCircle2, AlertCircle } from 'lucide-react';
-import { getRegionForLocation, getSegmentForPlan, getQuarterFromMonth, parseNairaAmount } from '@/lib/sales-staff';
+import {
+  getRegionForLocation,
+  getSegmentForPlan,
+  getQuarterFromMonth,
+  parseNairaAmount,
+  getBtsForLocation,
+  getBtsByRegion,
+} from '@/lib/sales-staff';
 
 function parseCSV(text: string): Record<string, string>[] {
-  const lines = text.split('\n').filter(l => l.trim());
+  const lines = text.split('\n').filter((l) => l.trim());
   if (lines.length < 2) return [];
-  const headers = lines[0].split(',').map(h => h.trim().replace(/^"|"$/g, ''));
+  const headers = lines[0].split(',').map((h) => h.trim().replace(/^"|"$/g, ''));
   const records: Record<string, string>[] = [];
   for (let i = 1; i < lines.length; i++) {
-    const values = lines[i].split(',').map(v => v.trim().replace(/^"|"$/g, ''));
+    const values = lines[i].split(',').map((v) => v.trim().replace(/^"|"$/g, ''));
     if (values.length !== headers.length) continue;
     const record: Record<string, string> = {};
-    headers.forEach((h, idx) => { record[h] = values[idx] || ''; });
+    headers.forEach((h, idx) => {
+      record[h] = values[idx] || '';
+    });
     records.push(record);
   }
   return records;
 }
 
 const VALID_STATUSES = ['Active', 'Inactive', 'Blocked', 'Refunded', 'Retrieved'] as const;
-type AccountStatus = typeof VALID_STATUSES[number];
+type AccountStatus = (typeof VALID_STATUSES)[number];
 
 function normalizeStatus(raw: string): { accountStatus: AccountStatus; statusNotes: string } {
   const s = raw.trim().toLowerCase();
@@ -57,13 +66,23 @@ function mapCSVToSchema(row: Record<string, string>, index: number) {
   const packageType = row.Package_Type || row.packageType || row.PACKAGE_TYPE || '';
   const serialNumber = parseInt(String(row.S_N || row.S_N || row.Serial_Number || index)) || index;
   const rawStatusNotes = row.Last_Subscription || row.statusNotes || row.Status_Notes || '';
+  const btsFromCsv = row.BTS || row.Bts || row.Base_Station || row.Tower || row.Site || '';
 
   const mrc = parseNairaAmount(mrcRaw);
   const nrc = parseNairaAmount(nrcRaw);
   const region = getRegionForLocation(location);
   const segment = getSegmentForPlan(planCode);
-  const quarter = (['QUARTER 1', 'QUARTER 2', 'QUARTER 3', 'QUARTER 4'].includes(rawQuarter) ? rawQuarter : getQuarterFromMonth(month)) as 'QUARTER 1' | 'QUARTER 2' | 'QUARTER 3' | 'QUARTER 4';
+  const quarter = (['QUARTER 1', 'QUARTER 2', 'QUARTER 3', 'QUARTER 4'].includes(rawQuarter) ? rawQuarter : getQuarterFromMonth(month)) as
+    | 'QUARTER 1'
+    | 'QUARTER 2'
+    | 'QUARTER 3'
+    | 'QUARTER 4';
   const { accountStatus, statusNotes: parsedNotes } = normalizeStatus(status);
+
+  // Auto-assign BTS based on location
+  const suggestedBts = getBtsForLocation(location);
+  const assignedBts = btsFromCsv || suggestedBts[0]?.name || '';
+  const btsOptions = suggestedBts.map((b) => b.name);
 
   return {
     serialNumber,
@@ -80,8 +99,10 @@ function mapCSVToSchema(row: Record<string, string>, index: number) {
     saleDate,
     quarter,
     month,
-    packageType: ['Outright', 'Lease'].includes(packageType) ? packageType as 'Outright' | 'Lease' : 'Outright',
+    packageType: ['Outright', 'Lease'].includes(packageType) ? (packageType as 'Outright' | 'Lease') : 'Outright',
     statusNotes: parsedNotes || rawStatusNotes,
+    bts: assignedBts,
+    btsOptions,
   };
 }
 
@@ -90,10 +111,14 @@ export default function SalesImport() {
   const { user } = useUser(auth);
   const { toast } = useToast();
   const fileRef = useRef<HTMLInputElement>(null);
-  const [parsedRecords, setParsedRecords] = useState<ReturnType<typeof mapCSVToSchema>[]>([]);
+  const [parsedRecords, setParsedRecords] = useState<Array<ReturnType<typeof mapCSVToSchema> & { btsOptions: string[] }>>([]);
   const [importing, setImporting] = useState(false);
   const [importResult, setImportResult] = useState<{ batchId: string; recordCount: number } | null>(null);
   const [fileName, setFileName] = useState('');
+
+  const updateBts = (index: number, bts: string) => {
+    setParsedRecords((prev) => prev.map((r, i) => (i === index ? { ...r, bts } : r)));
+  };
 
   const handleFile = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -105,9 +130,9 @@ export default function SalesImport() {
       const rows = parseCSV(text);
       const mapped = rows.map((r, i) => mapCSVToSchema(r, i + 1));
       setParsedRecords(mapped);
-      toast({ title: "File Parsed", description: `${mapped.length} records found.` });
+      toast({ title: 'File Parsed', description: `${mapped.length} records found.` });
     } catch (err: unknown) {
-      toast({ variant: "destructive", title: "Parse Error", description: err instanceof Error ? err.message : 'Failed to parse file' });
+      toast({ variant: 'destructive', title: 'Parse Error', description: err instanceof Error ? err.message : 'Failed to parse file' });
     }
   };
 
@@ -115,14 +140,14 @@ export default function SalesImport() {
     if (!user || parsedRecords.length === 0) return;
     setImporting(true);
     try {
-      const payload = parsedRecords.map(({ region, segment, ...rest }) => ({ ...rest, importBatchId: '' }));
+      const payload = parsedRecords.map(({ region, segment, btsOptions, ...rest }) => ({ ...rest, importBatchId: '' }));
       const result = await importSalesRecords(payload, 'csv_upload', fileName, user);
       setImportResult(result);
-      toast({ title: "Import Complete", description: `${result.recordCount} records imported.` });
+      toast({ title: 'Import Complete', description: `${result.recordCount} records imported.` });
       setParsedRecords([]);
       if (fileRef.current) fileRef.current.value = '';
     } catch (e: unknown) {
-      toast({ variant: "destructive", title: "Import Failed", description: e instanceof Error ? e.message : 'Failed to import' });
+      toast({ variant: 'destructive', title: 'Import Failed', description: e instanceof Error ? e.message : 'Failed to import' });
     } finally {
       setImporting(false);
     }
@@ -142,10 +167,15 @@ export default function SalesImport() {
           <div className="bg-white p-6 md:p-8 rounded-2xl whisper-shadow border border-border">
             <h3 className="font-display font-bold text-lg uppercase tracking-tight mb-6">1. Choose File</h3>
             <div className="space-y-6">
-              <div className="border-2 border-dashed border-border rounded-2xl p-10 text-center hover:border-secondary transition-colors cursor-pointer" onClick={() => fileRef.current?.click()}>
+              <div
+                className="border-2 border-dashed border-border rounded-2xl p-10 text-center hover:border-secondary transition-colors cursor-pointer"
+                onClick={() => fileRef.current?.click()}
+              >
                 <FileSpreadsheet className="w-10 h-10 text-on-surface-variant/40 mx-auto mb-4" />
                 <p className="font-mono text-[10px] uppercase font-bold text-on-surface-variant">Select a CSV file</p>
-                <p className="font-mono text-[8px] text-on-surface-variant/40 mt-2">Expected columns: Name, Location, Plan, MRC, NRC, Date, Sales Agent, Payment Method, Status</p>
+                <p className="font-mono text-[8px] text-on-surface-variant/40 mt-2">
+                  Expected columns: Name, Location, Plan, MRC, NRC, Date, Sales Agent, Payment Method, Status
+                </p>
               </div>
               <input ref={fileRef} type="file" accept=".csv" className="hidden" onChange={handleFile} />
               {parsedRecords.length > 0 && (
@@ -157,7 +187,11 @@ export default function SalesImport() {
                   </div>
                 </div>
               )}
-              <Button className="w-full rounded-full bg-secondary text-white font-mono text-[10px] uppercase font-bold py-6" onClick={handleImport} disabled={importing || parsedRecords.length === 0}>
+              <Button
+                className="w-full rounded-full bg-secondary text-white font-mono text-[10px] uppercase font-bold py-6"
+                onClick={handleImport}
+                disabled={importing || parsedRecords.length === 0}
+              >
                 {importing ? <Loader2 className="w-3 h-3 animate-spin mr-2" /> : <Upload className="w-3 h-3 mr-2" />}
                 {importing ? `Importing ${parsedRecords.length}...` : `Import ${parsedRecords.length} Records`}
               </Button>
@@ -165,7 +199,9 @@ export default function SalesImport() {
                 <div className="flex items-center gap-3 p-4 bg-green-50 rounded-xl">
                   <CheckCircle2 className="w-5 h-5 text-green-600" />
                   <div>
-                    <p className="font-bold text-green-800 font-mono text-[11px]">{importResult.recordCount} records imported successfully</p>
+                    <p className="font-bold text-green-800 font-mono text-[11px]">
+                      {importResult.recordCount} records imported successfully
+                    </p>
                     <p className="font-mono text-[9px] text-green-600">Batch: {importResult.batchId}</p>
                   </div>
                 </div>
@@ -190,6 +226,7 @@ export default function SalesImport() {
                       <th className="py-3 px-4 text-right">MRC</th>
                       <th className="py-3 px-4">Agent</th>
                       <th className="py-3 px-4">Status</th>
+                      <th className="py-3 px-4">BTS</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-border/40 font-body text-sm">
@@ -201,10 +238,33 @@ export default function SalesImport() {
                         <td className="py-2 px-4 text-right font-mono font-bold">₦{(r.mrc || 0).toLocaleString()}</td>
                         <td className="py-2 px-4 font-mono text-[11px] whitespace-nowrap">{r.salesAgent}</td>
                         <td className="py-2 px-4">
-                          <span className={cn(
-                            "px-2 py-0.5 rounded-full text-[10px] font-bold font-mono",
-                            r.accountStatus === 'Active' ? "bg-green-100 text-green-600" : "bg-red-100 text-red-600"
-                          )}>{r.accountStatus}</span>
+                          <span
+                            className={cn(
+                              'px-2 py-0.5 rounded-full text-[10px] font-bold font-mono',
+                              r.accountStatus === 'Active' ? 'bg-green-100 text-green-600' : 'bg-red-100 text-red-600',
+                            )}
+                          >
+                            {r.accountStatus}
+                          </span>
+                        </td>
+                        <td className="py-2 px-4">
+                          <select
+                            value={r.bts || ''}
+                            onChange={(e) => updateBts(i, e.target.value)}
+                            className="w-full max-w-xs px-2 py-1 text-sm border border-border rounded bg-white focus:outline-none focus:ring-2 focus:ring-secondary"
+                          >
+                            <option value="">— Select BTS —</option>
+                            {r.btsOptions?.map((bts) => (
+                              <option key={bts} value={bts}>
+                                {bts}
+                              </option>
+                            ))}
+                            {r.bts && !r.btsOptions?.includes(r.bts) && <option value={r.bts}>{r.bts} (manual)</option>}
+                          </select>
+                          {r.bts && <span className="ml-2 text-[9px] font-mono text-green-600">✓ Assigned</span>}
+                          {!r.bts && r.btsOptions?.length === 0 && (
+                            <span className="ml-2 text-[9px] font-mono text-red-600">⚠ No BTS found</span>
+                          )}
                         </td>
                       </tr>
                     ))}
@@ -214,7 +274,9 @@ export default function SalesImport() {
             ) : (
               <div className="py-16 text-center">
                 <AlertCircle className="w-8 h-8 text-on-surface-variant/20 mx-auto mb-4" />
-                <p className="font-mono text-sm text-on-surface-variant opacity-40 uppercase font-bold tracking-widest">Upload a CSV to preview</p>
+                <p className="font-mono text-sm text-on-surface-variant opacity-40 uppercase font-bold tracking-widest">
+                  Upload a CSV to preview
+                </p>
               </div>
             )}
           </div>

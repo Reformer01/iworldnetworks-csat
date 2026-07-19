@@ -5,20 +5,25 @@ import Link from 'next/link';
 import Image from 'next/image';
 import { usePathname, useRouter } from 'next/navigation';
 import {
-  TrendingUp, Database, Upload, Target, ArrowLeft, LayoutDashboard, ShieldAlert, Send, Menu, LogOut
+  TrendingUp,
+  Database,
+  Upload,
+  Target,
+  ArrowLeft,
+  LayoutDashboard,
+  ShieldAlert,
+  Send,
+  Menu,
+  LogOut,
+  BarChart3,
+  Wifi,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 import { useAuth, useUser } from '@/firebase';
 import { signOut } from 'firebase/auth';
 import { isAllowedDomain } from '@/lib/admin-config';
-import {
-  Sheet,
-  SheetContent,
-  SheetHeader,
-  SheetTitle,
-  SheetTrigger,
-} from "@/components/ui/sheet";
+import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from '@/components/ui/sheet';
 
 interface SalesLayoutProps {
   children: React.ReactNode;
@@ -26,6 +31,8 @@ interface SalesLayoutProps {
 
 const salesNavItems = [
   { name: 'Dashboard', href: '/admin/sales', icon: TrendingUp },
+  { name: 'Monthly Revenue', href: '/admin/sales/monthly-revenue', icon: BarChart3 },
+  { name: 'BTS Audit', href: '/admin/bts/audit', icon: Wifi },
   { name: 'Records', href: '/admin/sales/records', icon: Database },
   { name: 'Import Data', href: '/admin/sales/import', icon: Upload },
   { name: 'Targets', href: '/admin/sales/targets', icon: Target },
@@ -40,7 +47,9 @@ export function SalesLayout({ children }: SalesLayoutProps) {
   const handleLogout = async () => {
     try {
       await fetch('/api/auth/session/clear', { method: 'POST' });
-    } catch { /* skip */ }
+    } catch {
+      /* skip */
+    }
     if (auth) {
       await signOut(auth);
       router.push('/admin/login');
@@ -79,7 +88,10 @@ export function SalesLayout({ children }: SalesLayoutProps) {
               Your account <strong>{user.email}</strong> needs to be verified first.
             </p>
           </div>
-          <button onClick={handleLogout} className="rounded-full border border-border font-mono text-[10px] uppercase font-bold px-8 py-3 hover:bg-surface-container-low transition-all">
+          <button
+            onClick={handleLogout}
+            className="rounded-full border border-border font-mono text-[10px] uppercase font-bold px-8 py-3 hover:bg-surface-container-low transition-all"
+          >
             Sign Out
           </button>
         </div>
@@ -87,16 +99,14 @@ export function SalesLayout({ children }: SalesLayoutProps) {
     );
   }
 
-  const NavLink = ({ item }: { item: typeof salesNavItems[number] }) => {
+  const NavLink = ({ item }: { item: (typeof salesNavItems)[number] }) => {
     const isActive = pathname === item.href;
     return (
       <Link
         href={item.href}
         className={cn(
           'flex items-center gap-4 py-2.5 px-5 transition-all group rounded-xl',
-          isActive
-            ? 'text-primary font-bold bg-surface-container-low'
-            : 'text-on-surface-variant hover:bg-surface-container-low font-bold'
+          isActive ? 'text-primary font-bold bg-surface-container-low' : 'text-on-surface-variant hover:bg-surface-container-low font-bold',
         )}
       >
         <item.icon className={cn('w-4 h-4', isActive ? 'text-secondary' : 'group-hover:text-secondary transition-colors')} />
@@ -109,7 +119,10 @@ export function SalesLayout({ children }: SalesLayoutProps) {
     <div className="bg-background min-h-screen flex flex-col">
       <header className="fixed top-0 w-full z-50 h-14 flex items-center px-4 md:px-6">
         <div className="flex items-center gap-3 w-full max-w-screen-2xl mx-auto">
-          <Link href="/admin/dashboard" className="flex items-center gap-2 text-on-surface-variant hover:text-secondary transition-colors font-mono text-[10px] uppercase font-bold shrink-0">
+          <Link
+            href="/admin/dashboard"
+            className="flex items-center gap-2 text-on-surface-variant hover:text-secondary transition-colors font-mono text-[10px] uppercase font-bold shrink-0"
+          >
             <ArrowLeft className="w-3.5 h-3.5" />
             <span className="hidden sm:inline">Back to Admin</span>
           </Link>
@@ -126,9 +139,7 @@ export function SalesLayout({ children }: SalesLayoutProps) {
                 href={item.href}
                 className={cn(
                   'px-4 py-1.5 rounded-full font-mono text-[10px] uppercase font-bold tracking-wider transition-all',
-                  pathname === item.href
-                    ? 'bg-secondary text-white'
-                    : 'text-on-surface-variant hover:bg-surface-container-low'
+                  pathname === item.href ? 'bg-secondary text-white' : 'text-on-surface-variant hover:bg-surface-container-low',
                 )}
               >
                 {item.name}
@@ -137,7 +148,10 @@ export function SalesLayout({ children }: SalesLayoutProps) {
           </nav>
 
           <div className="ml-auto flex items-center gap-3">
-            <button onClick={handleLogout} className="hidden md:flex items-center gap-1.5 text-on-surface-variant hover:text-destructive transition-colors font-mono text-[10px] uppercase font-bold">
+            <button
+              onClick={handleLogout}
+              className="hidden md:flex items-center gap-1.5 text-on-surface-variant hover:text-destructive transition-colors font-mono text-[10px] uppercase font-bold"
+            >
               <LogOut className="w-3.5 h-3.5" />
               Sign Out
             </button>
@@ -169,9 +183,7 @@ export function SalesLayout({ children }: SalesLayoutProps) {
                           href={item.href}
                           className={cn(
                             'flex items-center gap-3 py-2.5 px-4 rounded-xl font-mono text-[10px] uppercase font-bold tracking-wider transition-all',
-                            pathname === item.href
-                              ? 'bg-secondary text-white'
-                              : 'text-on-surface-variant hover:bg-surface-container-low'
+                            pathname === item.href ? 'bg-secondary text-white' : 'text-on-surface-variant hover:bg-surface-container-low',
                           )}
                         >
                           <item.icon className="w-4 h-4" />
@@ -180,7 +192,10 @@ export function SalesLayout({ children }: SalesLayoutProps) {
                       ))}
                     </nav>
                     <div className="px-3 pb-6 pt-4 border-t border-border mx-3">
-                      <button onClick={handleLogout} className="w-full flex items-center justify-center gap-2 rounded-full border border-destructive/20 px-4 py-2.5 text-destructive hover:bg-destructive hover:text-white transition-colors font-mono text-[10px] font-bold uppercase tracking-wider">
+                      <button
+                        onClick={handleLogout}
+                        className="w-full flex items-center justify-center gap-2 rounded-full border border-destructive/20 px-4 py-2.5 text-destructive hover:bg-destructive hover:text-white transition-colors font-mono text-[10px] font-bold uppercase tracking-wider"
+                      >
                         <LogOut className="w-3.5 h-3.5" />
                         Sign Out
                       </button>
@@ -194,9 +209,7 @@ export function SalesLayout({ children }: SalesLayoutProps) {
       </header>
 
       <main className="pt-14 px-4 md:px-6 flex-1">
-        <div className="max-w-screen-2xl mx-auto py-6 md:py-8">
-          {children}
-        </div>
+        <div className="max-w-screen-2xl mx-auto py-6 md:py-8">{children}</div>
       </main>
 
       <footer className="bg-white/80 border-t border-border py-6">

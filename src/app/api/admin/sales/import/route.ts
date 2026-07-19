@@ -3,7 +3,7 @@ import { getAdminFirestore } from '@/lib/firebase-admin';
 import { verifyAdminToken } from '@/lib/admin-auth';
 import { isRateLimited } from '@/lib/rate-limit';
 import { salesImportSchema } from '@/lib/validations/sales';
-import { getRegionForLocation, getSegmentForPlan, getQuarterFromMonth } from '@/lib/sales-staff';
+import { getRegionForLocation, getSegmentForPlan, getQuarterFromMonth, getBtsForLocation } from '@/lib/sales-staff';
 import { success, error, unauthorized, forbidden, tooMany, serverError, validateOrigin } from '@/lib/api-response';
 import { writeAuditLog } from '@/lib/audit-log';
 import { logError } from '@/lib/logger';
@@ -36,15 +36,20 @@ export async function POST(request: NextRequest) {
 
     const db = getAdminFirestore();
     const batchId = `import_${Date.now()}`;
-    const enrichedRecords = records.map((r) => ({
-      ...r,
-      region: getRegionForLocation(r.location || ''),
-      segment: r.planCode ? getSegmentForPlan(r.planCode) : 'ENTERPRISE',
-      quarter: r.quarter || getQuarterFromMonth(r.month),
-      importBatchId: batchId,
-      createdAt: Date.now(),
-      updatedAt: Date.now(),
-    }));
+    const enrichedRecords = records.map((r) => {
+      const suggestedBts = getBtsForLocation(r.location || '');
+      const assignedBts = r.bts || suggestedBts[0]?.name || '';
+      return {
+        ...r,
+        region: getRegionForLocation(r.location || ''),
+        segment: r.planCode ? getSegmentForPlan(r.planCode) : 'ENTERPRISE',
+        quarter: r.quarter || getQuarterFromMonth(r.month),
+        bts: assignedBts,
+        importBatchId: batchId,
+        createdAt: Date.now(),
+        updatedAt: Date.now(),
+      };
+    });
 
     const batch = db.batch();
     for (const record of enrichedRecords) {

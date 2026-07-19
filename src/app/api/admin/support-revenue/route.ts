@@ -1,141 +1,203 @@
 import { NextRequest } from 'next/server';
 import { getAdminFirestore } from '@/lib/firebase-admin';
 import { verifyAdminToken } from '@/lib/admin-auth';
-import { isRateLimited } from '@/lib/rate-limit';
-import { supportRevenueSchema } from '@/lib/validations/support-revenue';
-import { getRegionForLocation } from '@/lib/sales-staff';
 import { isSuperAdmin } from '@/lib/admin-config';
-import { success, error, unauthorized, forbidden, tooMany, notFound, serverError, validateOrigin } from '@/lib/api-response';
+import { isRateLimited } from '@/lib/rate-limit';
+import { writeAuditLog } from '@/lib/audit-log';
+import type { SupportRevenueDoc } from '@/lib/support-revenue-types';
+import { error, serverError, unauthorized, forbidden, tooMany, notFound, success, validateOrigin } from '@/lib/api-response';
 import { logError } from '@/lib/logger';
-
-type Doc = Record<string, unknown> & { id: string };
 
 export const dynamic = 'force-dynamic';
 
 export async function GET(request: NextRequest) {
   try {
-    if (isRateLimited(request, 120, 60 * 1000)) return tooMany();
+    if (isRateLimited(request, 120, 60 * 1000)) {
+      return tooMany();
+    }
 
-    const admin = await verifyAdminToken(request.headers.get('authorization'));
-    if (!admin) return unauthorized();
-
-    const { searchParams } = new URL(request.url);
-    const region = searchParams.get('region');
-    const projectType = searchParams.get('projectType');
+    const authHeader = request.headers.get('authorization');
+    const admin = await verifyAdminToken(authHeader);
+    if (!admin) {
+      return unauthorized();
+    }
 
     const db = getAdminFirestore();
-    let query: FirebaseFirestore.Query = db.collection('support_revenue').limit(2000);
+    let query = db.collection('support_revenue').orderBy('createdAt', 'desc');
 
-    if (region) query = query.where('region', '==', region);
+    const { searchParams } = new URL(request.url);
+    const projectType = searchParams.get('projectType');
     if (projectType) query = query.where('projectType', '==', projectType);
 
-    const snapshot = await query.get();
-    const docs: Doc[] = snapshot.docs
-      .filter((d) => !d.data().deletedAt)
-      .map((d) => ({ id: d.id, ...d.data() } as Doc));
+    const snapshot = await query.limit(2000).get();
+    const docs = snapshot.docs;
 
-    docs.sort((a, b) => ((b.createdAt as number) || 0) - ((a.createdAt as number) || 0));
+    const records: SupportRevenueDoc[] = docs
+      .filter((doc) => !doc.data().deletedAt)
+      .map((doc) => ({ id: doc.id, ...doc.data() }) as SupportRevenueDoc);
 
-    return success({ records: docs, total: docs.length });
+    return success({ records, count: records.length });
   } catch (err: unknown) {
-    logError('[support-revenue] GET error', { error: err instanceof Error ? err.message : 'Unknown' });
+    const message = err instanceof Error ? err.message : 'Unknown error';
+    logError('[admin-support-revenue] GET error', { error: message });
     return serverError();
   }
 }
 
 export async function POST(request: NextRequest) {
   try {
-    if (isRateLimited(request, 60, 60 * 1000)) return tooMany();
-    if (!validateOrigin(request)) return forbidden();
-
-    const admin = await verifyAdminToken(request.headers.get('authorization'));
-    if (!admin) return unauthorized();
-
-    const body = await request.json().catch(() => null);
-    if (!body) return error('Invalid JSON body.');
-
-    const validation = supportRevenueSchema.safeParse(body);
-    if (!validation.success) {
-      return error('Validation failed.', 400, { errors: validation.error.flatten().fieldErrors });
+    if (isRateLimited(request, 60, 60 * 1000)) {
+      return tooMany();
     }
 
-    const data = validation.data;
-    const region = getRegionForLocation(data.location);
+    if (!validateOrigin(request)) return forbidden();
+
+    const authHeader = request.headers.get('authorization');
+    const admin = await verifyAdminToken(authHeader);
+    if (!admin) {
+      return unauthorized();
+    }
+
+    const body = await request.json().catch(() => null);
+    if (!body) {
+      return error('Invalid JSON body.');
+    }
+
+    const { location, projectType, items } = body;
+    const totalAmount =
+      items?.reduce((sum: number, item: { quantity: number; unitPrice: number }) => sum + item.quantity * item.unitPrice, 0) || 0;
 
     const db = getAdminFirestore();
     const docRef = await db.collection('support_revenue').add({
-      ...data,
-      region,
+      ...body,
+      totalAmount,
       createdAt: Date.now(),
       updatedAt: Date.now(),
     });
 
+    await writeAuditLog({
+      action: 'create',
+      collection: 'support_revenue',
+      recordId: docRef.id,
+      userId: admin.uid,
+      userEmail: admin.email,
+      changes: body,
+    });
+
     return success({ id: docRef.id }, 201);
   } catch (err: unknown) {
-    logError('[support-revenue] POST error', { error: err instanceof Error ? err.message : 'Unknown' });
+    const message = err instanceof Error ? err.message : 'Unknown error';
+    logError('[admin-support-revenue] POST error', { error: message });
     return serverError();
   }
 }
 
 export async function PUT(request: NextRequest) {
   try {
-    if (isRateLimited(request, 60, 60 * 1000)) return tooMany();
+    if (isRateLimited(request, 60, 60 * 1000)) {
+      return tooMany();
+    }
+
     if (!validateOrigin(request)) return forbidden();
 
-    const admin = await verifyAdminToken(request.headers.get('authorization'));
-    if (!admin) return unauthorized();
-    if (!isSuperAdmin(admin.email)) return forbidden();
+    const authHeader = request.headers.get('authorization');
+    const admin = await verifyAdminToken(authHeader);
+    if (!admin) {
+      return unauthorized();
+    }
+    if (!isSuperAdmin(admin.email) && !isEditor(admin.email)) {
+      return error('Only authorized editors can modify records.', 403);
+    }
 
     const body = await request.json().catch(() => null);
-    if (!body || !body.id) return error('Record ID required.');
-
-    const { id, ...updateData } = body;
-    const validation = supportRevenueSchema.partial().safeParse(updateData);
-    if (!validation.success) {
-      return error('Validation failed.', 400, { errors: validation.error.flatten().fieldErrors });
+    if (!body || !body.id) {
+      return error('Record ID required.');
     }
+
+    const { id, items, ...updateData } = body;
+    const totalAmount =
+      items?.reduce((sum: number, item: { quantity: number; unitPrice: number }) => sum + item.quantity * item.unitPrice, 0) || 0;
 
     const db = getAdminFirestore();
     const docRef = db.collection('support_revenue').doc(id);
     const prev = await docRef.get();
-    if (!prev.exists) return notFound('Record not found.');
+
+    if (!prev.exists) {
+      return notFound('Record not found.');
+    }
 
     await docRef.update({
-      ...validation.data,
-      region: validation.data.location ? getRegionForLocation(validation.data.location) : undefined,
+      ...updateData,
+      totalAmount,
       updatedAt: Date.now(),
+    });
+
+    await writeAuditLog({
+      action: 'update',
+      collection: 'support_revenue',
+      recordId: id,
+      userId: admin.uid,
+      userEmail: admin.email,
+      changes: updateData,
+      previousState: prev.data() as Record<string, unknown>,
     });
 
     return success({});
   } catch (err: unknown) {
-    logError('[support-revenue] PUT error', { error: err instanceof Error ? err.message : 'Unknown' });
+    const message = err instanceof Error ? err.message : 'Unknown error';
+    logError('[admin-support-revenue] PUT error', { error: message });
     return serverError();
   }
 }
 
 export async function DELETE(request: NextRequest) {
   try {
-    if (isRateLimited(request, 60, 60 * 1000)) return tooMany();
+    if (isRateLimited(request, 60, 60 * 1000)) {
+      return tooMany();
+    }
+
     if (!validateOrigin(request)) return forbidden();
 
-    const admin = await verifyAdminToken(request.headers.get('authorization'));
-    if (!admin) return unauthorized();
-    if (!isSuperAdmin(admin.email)) return forbidden();
+    const authHeader = request.headers.get('authorization');
+    const admin = await verifyAdminToken(authHeader);
+    if (!admin) {
+      return unauthorized();
+    }
+    if (!isSuperAdmin(admin.email) && !isEditor(admin.email)) {
+      return error('Only authorized editors can delete records.', 403);
+    }
 
     const body = await request.json().catch(() => null);
-    if (!body || !body.id) return error('Record ID required.');
+    if (!body || !body.id) {
+      return error('Record ID required.');
+    }
 
     const db = getAdminFirestore();
     const docRef = db.collection('support_revenue').doc(body.id);
     const doc = await docRef.get();
-    if (!doc.exists) return notFound('Record not found.');
-    if (doc.data()?.deletedAt) return success({ action: 'already_deleted' });
 
-    await docRef.update({ deletedAt: Date.now(), updatedAt: Date.now() });
+    if (!doc.exists) {
+      return notFound('Record not found.');
+    }
+
+    await docRef.update({
+      deletedAt: Date.now(),
+      updatedAt: Date.now(),
+    });
+
+    await writeAuditLog({
+      action: 'delete',
+      collection: 'support_revenue',
+      recordId: body.id,
+      userId: admin.uid,
+      userEmail: admin.email,
+      previousState: doc.data() as Record<string, unknown>,
+    });
 
     return success({ action: 'deleted' });
   } catch (err: unknown) {
-    logError('[support-revenue] DELETE error', { error: err instanceof Error ? err.message : 'Unknown' });
+    const message = err instanceof Error ? err.message : 'Unknown error';
+    logError('[admin-support-revenue] DELETE error', { error: message });
     return serverError();
   }
 }

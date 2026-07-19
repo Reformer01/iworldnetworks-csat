@@ -1,86 +1,140 @@
-'use client';
-
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useCallback, useEffect } from 'react';
 import { useAuth, useUser } from '@/firebase';
-import type { User } from 'firebase/auth';
-import type { SupportRevenueRecord } from '@/lib/sales-types';
-import type { SupportRevenueFormData } from '@/lib/validations/support-revenue';
-import { isAllowedDomain } from '@/lib/admin-config';
+import type { SupportRevenueDoc } from '@/lib/support-revenue-types';
+import { isSuperAdmin } from '@/lib/admin-config';
 
-export type SupportRevenueDoc = SupportRevenueRecord & { id: string };
+interface UseSupportRevenueOptions {
+  projectType?: string;
+}
 
-export function useSupportRevenue(params?: { region?: string; projectType?: string }) {
-  const auth = useAuth();
-  const { user, loading: authLoading } = useUser(auth);
+export function useSupportRevenue(options: UseSupportRevenueOptions = {}) {
   const [records, setRecords] = useState<SupportRevenueDoc[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  const fetchRecords = useCallback(async (showLoading = true) => {
-    if (authLoading) return;
-    if (!user || !user.emailVerified || !isAllowedDomain(user.email || '')) {
-      setRecords([]);
+  const auth = useAuth();
+  const { user } = useUser(auth);
+
+  const fetchRecords = useCallback(async () => {
+    if (!user) {
       setLoading(false);
       return;
     }
+
     try {
-      if (showLoading) setLoading(true);
+      setLoading(true);
       const token = await user.getIdToken();
-      const sp = new URLSearchParams();
-      if (params?.region) sp.set('region', params.region);
-      if (params?.projectType) sp.set('projectType', params.projectType);
-      const qs = sp.toString();
-      const res = await fetch(`/api/admin/support-revenue${qs ? `?${qs}` : ''}`, {
+      if (!token) {
+        setError('Not authenticated');
+        return;
+      }
+
+      const params = new URLSearchParams();
+      if (options.projectType) {
+        params.set('projectType', options.projectType);
+      }
+
+      const url = `/api/admin/support-revenue${params.toString() ? '?' + params.toString() : ''}`;
+      const response = await fetch(url, {
         headers: { Authorization: `Bearer ${token}` },
       });
-      if (!res.ok) throw new Error(`Failed: ${res.statusText}`);
-      const result = await res.json();
-      setRecords(result.data?.records || []);
-      setError(null);
-    } catch (err: unknown) {
-      setError(err instanceof Error ? err.message : 'Error fetching records');
+      const data = await response.json();
+
+      if (data.success) {
+        setRecords(data.data || []);
+        setError(null);
+      } else {
+        setError(data.error || 'Failed to load records');
+      }
+    } catch (err) {
+      setError('Failed to load support revenue records');
     } finally {
-      if (showLoading) setLoading(false);
+      setLoading(false);
     }
-  }, [user, authLoading, params?.region, params?.projectType]);
+  }, [user, options.projectType]);
 
-  useEffect(() => { fetchRecords(true); }, [fetchRecords]);
+  useEffect(() => {
+    fetchRecords();
+  }, [fetchRecords]);
 
-  return { records, loading, error, mutate: () => fetchRecords(true) };
-}
+  const createSupportRevenue = async (payload: Partial<SupportRevenueDoc>, currentUser: any) => {
+    try {
+      const token = await currentUser.getIdToken();
+      const response = await fetch('/api/admin/support-revenue', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify(payload),
+      });
+      const data = await response.json();
 
-export async function createSupportRevenue(data: SupportRevenueFormData, user: User) {
-  const token = await user.getIdToken();
-  const res = await fetch('/api/admin/support-revenue', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-    body: JSON.stringify(data),
-  });
-  if (!res.ok) { const d = await res.json().catch(() => ({})); throw new Error(d.error || 'Failed to create'); }
-  const result = await res.json();
-  return result.data as { id: string };
-}
+      if (!response.ok) {
+        throw new Error(data.error || 'Failed to create record');
+      }
 
-export async function updateSupportRevenue(id: string, data: Partial<SupportRevenueFormData>, user: User) {
-  const token = await user.getIdToken();
-  const res = await fetch('/api/admin/support-revenue', {
-    method: 'PUT',
-    headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-    body: JSON.stringify({ id, ...data }),
-  });
-  if (!res.ok) { const d = await res.json().catch(() => ({})); throw new Error(d.error || 'Failed to update'); }
-  const result = await res.json();
-  return result.data as Record<string, never>;
-}
+      await fetchRecords();
+      return data;
+    } catch (err) {
+      throw err;
+    }
+  };
 
-export async function deleteSupportRevenue(id: string, user: User) {
-  const token = await user.getIdToken();
-  const res = await fetch('/api/admin/support-revenue', {
-    method: 'DELETE',
-    headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-    body: JSON.stringify({ id }),
-  });
-  if (!res.ok) { const d = await res.json().catch(() => ({})); throw new Error(d.error || 'Failed to delete'); }
-  const result = await res.json();
-  return result.data as { action: string };
+  const updateSupportRevenue = async (id: string, payload: Partial<SupportRevenueDoc>, currentUser: any) => {
+    try {
+      const token = await currentUser.getIdToken();
+      const response = await fetch(`/api/admin/support-revenue/${id}`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify(payload),
+      });
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.error || 'Failed to update record');
+      }
+
+      await fetchRecords();
+      return data;
+    } catch (err) {
+      throw err;
+    }
+  };
+
+  const deleteSupportRevenue = async (id: string, currentUser: any) => {
+    try {
+      const token = await currentUser.getIdToken();
+      const response = await fetch(`/api/admin/support-revenue/${id}`, {
+        method: 'DELETE',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`,
+        },
+      });
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.error || 'Failed to delete record');
+      }
+
+      await fetchRecords();
+      return data;
+    } catch (err) {
+      throw err;
+    }
+  };
+
+  return {
+    records,
+    loading,
+    error,
+    createSupportRevenue,
+    updateSupportRevenue,
+    deleteSupportRevenue,
+    mutate: fetchRecords,
+  };
 }

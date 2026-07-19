@@ -1,4 +1,7 @@
 import { SalesAgent, RegionalTarget, SalesRegion, SalesSegment, SaleQuarter } from './sales-types';
+import { getBtsForLocation, getBtsByRegion, getRegionsFromBts } from './bts-data';
+
+export type { SalesRegion, SalesSegment, SaleQuarter };
 
 export const salesAgents: SalesAgent[] = [
   // Ogun team
@@ -192,3 +195,5 @@ export function getMonthsForQuarter(quarter: SaleQuarter): string[] {
 export function getAgentByEmail(email: string): SalesAgent | undefined {
   return salesAgents.find((a) => a.id === email.split('@')[0].replace(/\./g, '-'));
 }
+
+export { getBtsForLocation, getBtsByRegion, getRegionsFromBts } from './bts-data';

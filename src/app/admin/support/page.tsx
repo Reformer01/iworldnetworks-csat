@@ -399,8 +399,8 @@ export default function AdminSupport() {
               {backendStaff.map((kpi) => (
                 <div key={kpi.staffId} className="bg-white p-5 border border-border whisper-shadow rounded-xl">
                   <div className="flex items-center gap-3 mb-4">
-                    <div className="w-10 h-10 rounded-full bg-blue-100 flex items-center justify-center">
-                      <Users className="w-5 h-5 text-blue-600" />
+                    <div className="w-10 h-10 rounded-full border border-border flex items-center justify-center">
+                      <Users className="w-5 h-5 text-on-surface-variant" />
                     </div>
                     <div>
                       <div className="font-semibold text-on-surface">{kpi.staffName}</div>
@@ -409,33 +409,33 @@ export default function AdminSupport() {
                   </div>
 
                   <div className="grid grid-cols-2 gap-3">
-                    <div className="bg-blue-50 p-3 rounded-lg">
-                      <div className="font-mono text-[10px] text-blue-600 uppercase tracking-wider">Resolution Time</div>
-                      <div className="font-mono text-lg font-bold text-blue-800">
+                    <div className="p-3 rounded-lg border border-border/50">
+                      <div className="font-mono text-[10px] text-on-surface-variant uppercase tracking-wider">Resolution Time</div>
+                      <div className="font-mono text-lg font-bold text-on-surface">
                         {kpi.avgResolutionTimeHours < 1
                           ? `${Math.round(kpi.avgResolutionTimeHours * 60)}m`
                           : `${kpi.avgResolutionTimeHours.toFixed(1)}h`}
                       </div>
                     </div>
-                    <div className="bg-green-50 p-3 rounded-lg">
-                      <div className="font-mono text-[10px] text-green-600 uppercase tracking-wider">SLA Compliance</div>
-                      <div className="font-mono text-lg font-bold text-green-800">{kpi.slaComplianceRate.toFixed(1)}%</div>
+                    <div className="p-3 rounded-lg border border-border/50">
+                      <div className="font-mono text-[10px] text-on-surface-variant uppercase tracking-wider">SLA Compliance</div>
+                      <div className="font-mono text-lg font-bold text-on-surface">{kpi.slaComplianceRate.toFixed(1)}%</div>
                     </div>
-                    <div className="bg-amber-50 p-3 rounded-lg">
-                      <div className="font-mono text-[10px] text-amber-600 uppercase tracking-wider">FCR Rate</div>
-                      <div className="font-mono text-lg font-bold text-amber-800">{kpi.firstContactResolutionRate.toFixed(1)}%</div>
+                    <div className="p-3 rounded-lg border border-border/50">
+                      <div className="font-mono text-[10px] text-on-surface-variant uppercase tracking-wider">FCR Rate</div>
+                      <div className="font-mono text-lg font-bold text-on-surface">{kpi.firstContactResolutionRate.toFixed(1)}%</div>
                     </div>
-                    <div className="bg-purple-50 p-3 rounded-lg">
-                      <div className="font-mono text-[10px] text-purple-600 uppercase tracking-wider">Open Tickets</div>
-                      <div className="font-mono text-lg font-bold text-purple-800">{kpi.currentOpenTickets}</div>
+                    <div className="p-3 rounded-lg border border-border/50">
+                      <div className="font-mono text-[10px] text-on-surface-variant uppercase tracking-wider">Open Tickets</div>
+                      <div className="font-mono text-lg font-bold text-on-surface">{kpi.currentOpenTickets}</div>
                     </div>
-                    <div className="bg-slate-50 p-3 rounded-lg col-span-2">
-                      <div className="font-mono text-[10px] text-slate-600 uppercase tracking-wider">Daily Avg Tickets</div>
-                      <div className="font-mono text-lg font-bold text-slate-800">{kpi.avgDailyTickets.toFixed(1)}</div>
+                    <div className="p-3 rounded-lg border border-border/50 col-span-2">
+                      <div className="font-mono text-[10px] text-on-surface-variant uppercase tracking-wider">Daily Avg Tickets</div>
+                      <div className="font-mono text-lg font-bold text-on-surface">{kpi.avgDailyTickets.toFixed(1)}</div>
                     </div>
-                    <div className="bg-red-50 p-3 rounded-lg col-span-2">
-                      <div className="font-mono text-[10px] text-red-600 uppercase tracking-wider">SLA Breaches</div>
-                      <div className="font-mono text-lg font-bold text-red-800">{kpi.slaBreaches}</div>
+                    <div className="p-3 rounded-lg border border-border/50 col-span-2">
+                      <div className="font-mono text-[10px] text-on-surface-variant uppercase tracking-wider">SLA Breaches</div>
+                      <div className="font-mono text-lg font-bold text-on-surface">{kpi.slaBreaches}</div>
                     </div>
                   </div>
                 </div>

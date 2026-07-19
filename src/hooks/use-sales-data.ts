@@ -17,6 +17,25 @@ export interface MetricsResponse {
   totalRecords: number;
 }
 
+export interface MonthlyRevenueData {
+  month: string;
+  monthKey: string;
+  revenue: number;
+  nrcRevenue: number;
+  mrr: number;
+  newCustomers: number;
+}
+
+export interface MonthlyRevenueResponse {
+  overallMonthly: MonthlyRevenueData[];
+  regionMonthly: { region: string; monthlyData: MonthlyRevenueData[] }[];
+  agentMonthly: { agent: string; region: string; monthlyData: MonthlyRevenueData[] }[];
+  segmentMonthly: { segment: string; monthlyData: MonthlyRevenueData[] }[];
+  totalNewCustomers: number;
+  totalRevenue: number;
+  monthOrder: string[];
+}
+
 export type SalesRecordDoc = SalesRecord & { id: string };
 
 export interface RecordsResponse {
@@ -68,6 +87,49 @@ export function useSalesMetrics(region?: string) {
   }, [fetchMetrics]);
 
   return { data, loading, error, mutate: fetchMetrics };
+}
+
+export function useSalesMonthlyRevenue(params?: { region?: string; segment?: string; agent?: string }) {
+  const auth = useAuth();
+  const { user, loading: authLoading } = useUser(auth);
+  const [data, setData] = useState<MonthlyRevenueResponse | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  const fetchMonthlyRevenue = useCallback(async () => {
+    if (authLoading) return;
+    if (!user || !user.emailVerified || !isAllowedDomain(user.email || '')) {
+      setLoading(false);
+      return;
+    }
+
+    try {
+      setLoading(true);
+      const token = await user.getIdToken();
+      const sp = new URLSearchParams();
+      if (params?.region) sp.set('region', params.region);
+      if (params?.segment) sp.set('segment', params.segment);
+      if (params?.agent) sp.set('agent', params.agent);
+      const qs = sp.toString();
+      const res = await fetch(`/api/admin/sales/monthly-revenue${qs ? `?${qs}` : ''}`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (!res.ok) throw new Error(`Failed: ${res.statusText}`);
+      const result = await res.json();
+      setData(result.data as MonthlyRevenueResponse);
+      setError(null);
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : 'Error fetching monthly revenue');
+    } finally {
+      setLoading(false);
+    }
+  }, [user, authLoading, params?.region, params?.segment, params?.agent]);
+
+  useEffect(() => {
+    fetchMonthlyRevenue();
+  }, [fetchMonthlyRevenue]);
+
+  return { data, loading, error, mutate: fetchMonthlyRevenue };
 }
 
 export function useSalesRecords(params?: {

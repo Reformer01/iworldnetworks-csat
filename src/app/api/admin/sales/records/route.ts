@@ -4,7 +4,7 @@ import { verifyAdminToken } from '@/lib/admin-auth';
 import { isSuperAdmin, isEditor } from '@/lib/admin-config';
 import { isRateLimited } from '@/lib/rate-limit';
 import { salesRecordSchema } from '@/lib/validations/sales';
-import { getRegionForLocation, getSegmentForPlan, getQuarterFromMonth, getAgentByEmail } from '@/lib/sales-staff';
+import { getRegionForLocation, getSegmentForPlan, getQuarterFromMonth, getAgentByEmail, getBtsForLocation } from '@/lib/sales-staff';
 import { success, error, unauthorized, forbidden, tooMany, notFound, serverError, validateOrigin } from '@/lib/api-response';
 import { writeAuditLog } from '@/lib/audit-log';
 import type { SalesRecord } from '@/lib/sales-types';
@@ -115,6 +115,7 @@ export async function POST(request: NextRequest) {
     const region = getRegionForLocation(data.location);
     const segment = getSegmentForPlan(data.planCode);
     const quarter = data.quarter || getQuarterFromMonth(data.month);
+    const bts = data.bts || getBtsForLocation(data.location)?.[0]?.name || '';
 
     const db = getAdminFirestore();
     const docRef = await db.collection('sales_records').add({
@@ -122,6 +123,7 @@ export async function POST(request: NextRequest) {
       region,
       segment,
       quarter,
+      bts,
       createdAt: Date.now(),
       updatedAt: Date.now(),
     });
@@ -183,6 +185,7 @@ export async function PUT(request: NextRequest) {
       ...validation.data,
       region: validation.data.location ? getRegionForLocation(validation.data.location) : undefined,
       segment: validation.data.planCode ? getSegmentForPlan(validation.data.planCode) : undefined,
+      bts: validation.data.location ? getBtsForLocation(validation.data.location)?.[0]?.name || '' : undefined,
       updatedAt: Date.now(),
     });
 

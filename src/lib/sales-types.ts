@@ -106,6 +106,76 @@ export interface BtsStation {
   host: string;
 }
 
+export type BtsStatus = 'Active' | 'Inactive' | 'Dismantled' | 'Under Maintenance' | 'Planned';
+export type BtsSiteType = 'Tower' | 'Rooftop' | 'Indoor' | 'Pole' | 'Wall Mount';
+
+export interface BtsAuditRecord {
+  id?: string;
+  btsName: string;
+  btsId?: number;
+  region: string;
+  siteType: BtsSiteType;
+  status: BtsStatus;
+  latitude?: number;
+  longitude?: number;
+  address?: string;
+  host?: string;
+
+  // Customer metrics
+  activeCustomers: number;
+  totalCustomers: number;
+  enterpriseCustomers: number;
+  retailCustomers: number;
+
+  // Revenue metrics (NGN)
+  monthlyRecurringRevenue: number;
+  targetMrr: number; // 5M minimum
+  attainmentPercentage: number;
+  nrcRevenue: number;
+  totalRevenue: number;
+
+  // Splynx integration
+  splynxRouterIds: number[];
+  splynxRouterNames: string[];
+  lastSplynxSync?: number;
+
+  // Operational
+  lastOutageDate?: number;
+  outageCountThisMonth: number;
+  maintenanceNotes?: string;
+
+  // Audit metadata
+  auditedBy: string;
+  auditedAt: number;
+  auditPeriod: string; // e.g., "2025-W03" or "2025-01"
+  createdAt?: number;
+  updatedAt?: number;
+  deletedAt?: number;
+}
+
+export interface BtsWeeklySnapshot {
+  id?: string;
+  btsName: string;
+  weekStart: number;
+  weekEnd: number;
+  activeCustomers: number;
+  mrr: number;
+  attainmentPercentage: number;
+  outages: number;
+  notes?: string;
+  createdAt: number;
+}
+
+export interface BtsRevenueTarget {
+  btsName: string;
+  minimumMrr: number; // 5,000,000
+  stretchMrr: number; // 7,500,000
+  targetEnterpriseCustomers: number;
+  targetRetailCustomers: number;
+  region: string;
+  isActive: boolean;
+}
+
 export interface SupportStaffKPI {
   id: string;
   staffId: string;
