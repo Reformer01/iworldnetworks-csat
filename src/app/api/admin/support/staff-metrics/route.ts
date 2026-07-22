@@ -3,7 +3,7 @@ import { getAdminFirestore } from '@/lib/firebase-admin';
 import { verifySupportToken } from '@/lib/admin-auth';
 import { isRateLimited } from '@/lib/rate-limit';
 import { success, error, unauthorized, tooMany, serverError } from '@/lib/api-response';
-import { logError } from '@/lib/logger';
+import { logError, logInfo } from '@/lib/logger';
 
 export const dynamic = 'force-dynamic';
 
@@ -371,12 +371,96 @@ export async function POST(request: NextRequest) {
       return unauthorized();
     }
 
-    // Allow manual KPI calculation trigger
     const { searchParams } = new URL(request.url);
     const period = (searchParams.get('period') as 'weekly' | 'monthly' | 'quarterly') || 'monthly';
 
-    // Reuse GET logic
-    return GET(request);
+    const periodStart = calculatePeriodStart(period);
+    const periodEnd = getPeriodEnd();
+
+    const db = getAdminFirestore();
+    const staffMembers = await getStaffMembers(db);
+
+    const kpis: SupportStaffKPI[] = [];
+
+    for (const staff of staffMembers) {
+      const tickets = await getTicketsForStaff(db, staff.id, periodStart, periodEnd);
+      const feedbacks = await getFeedbackForStaff(db, staff.name, periodStart, periodEnd);
+      const kpi = calculateKPIs(staff, tickets, feedbacks, periodStart, periodEnd);
+      kpis.push(kpi);
+    }
+
+    // Save KPI snapshot to Firestore
+    const snapshotId = `${period}_${periodStart}`;
+    const snapshotRef = db.collection('staff_kpi_snapshots').doc(snapshotId);
+    await snapshotRef.set({
+      period,
+      periodStart,
+      periodEnd,
+      kpis,
+      calculatedAt: Date.now(),
+      calculatedBy: user.email,
+    });
+
+    // Also save individual staff KPI records for historical tracking
+    const batch = db.batch();
+    for (const kpi of kpis) {
+      const kpiDocId = `${kpi.staffId}_${periodStart}`;
+      const kpiRef = db.collection('staff_kpi_records').doc(kpiDocId);
+      batch.set(kpiRef, kpi);
+    }
+    await batch.commit();
+
+    logInfo('[support-staff-metrics] KPI snapshot saved', { period, staffCount: kpis.length });
+
+    // Calculate team aggregates (same as GET)
+    const teamTotals = kpis.reduce(
+      (acc, kpi) => ({
+        totalTicketsAssigned: acc.totalTicketsAssigned + kpi.ticketsAssigned,
+        totalTicketsResolved: acc.totalTicketsResolved + kpi.ticketsResolved,
+        totalTicketsEscalated: acc.totalTicketsEscalated + kpi.ticketsEscalated,
+        totalSlaBreaches: acc.totalSlaBreaches + kpi.slaBreaches,
+        avgResolutionTime: acc.avgResolutionTime + kpi.avgResolutionTimeHours,
+        avgSatisfaction: acc.avgSatisfaction + kpi.customerSatisfactionScore,
+        avgFcr: acc.avgFcr + kpi.firstContactResolutionRate,
+        totalOpenTickets: acc.totalOpenTickets + kpi.currentOpenTickets,
+      }),
+      {
+        totalTicketsAssigned: 0,
+        totalTicketsResolved: 0,
+        totalTicketsEscalated: 0,
+        totalSlaBreaches: 0,
+        avgResolutionTime: 0,
+        avgSatisfaction: 0,
+        avgFcr: 0,
+        totalOpenTickets: 0,
+      },
+    );
+
+    const teamCount = kpis.length;
+    const teamAverages = {
+      avgResolutionTimeHours: Math.round((teamTotals.avgResolutionTime / teamCount) * 100) / 100,
+      avgCustomerSatisfaction: Math.round((teamTotals.avgSatisfaction / teamCount) * 10) / 10,
+      avgFirstContactResolutionRate: Math.round((teamTotals.avgFcr / teamCount) * 100) / 100,
+      totalTicketsAssigned: teamTotals.totalTicketsAssigned,
+      totalTicketsResolved: teamTotals.totalTicketsResolved,
+      totalTicketsEscalated: teamTotals.totalTicketsEscalated,
+      totalSlaBreaches: teamTotals.totalSlaBreaches,
+      totalOpenTickets: teamTotals.totalOpenTickets,
+    };
+
+    return NextResponse.json({
+      success: true,
+      data: {
+        period,
+        periodStart,
+        periodEnd,
+        teamAverages,
+        staffKPIs: kpis,
+        saved: true,
+        snapshotId,
+        calculatedAt: Date.now(),
+      },
+    });
   } catch (err: unknown) {
     const message = err instanceof Error ? err.message : 'Unknown error';
     logError('[support-staff-metrics] POST error', { error: message });

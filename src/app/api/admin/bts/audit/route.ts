@@ -86,15 +86,15 @@ export async function POST(request: NextRequest) {
 
     // Check for duplicate BTS name in same audit period
     const auditPeriod = body.auditPeriod || getCurrentAuditPeriod();
-    const existing = await db
+    const existingSnap = await db
       .collection('bts_audit_records')
       .where('btsName', '==', body.btsName)
       .where('auditPeriod', '==', auditPeriod)
-      .where('deletedAt', '==', null)
-      .limit(1)
+      .limit(2)
       .get();
 
-    if (!existing.empty) {
+    const existingRecord = existingSnap.docs.find((doc) => !doc.data().deletedAt);
+    if (existingRecord) {
       return error('BTS audit record already exists for this period', 409);
     }
 

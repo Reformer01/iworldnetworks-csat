@@ -55,6 +55,83 @@
         { "fieldPath": "importBatchId", "order": "ASCENDING" },
         { "fieldPath": "createdAt", "order": "DESCENDING" }
       ]
+    },
+    {
+      "collectionGroup": "sales_records",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "serialNumber", "order": "DESCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "bts_audit_records",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "btsName", "order": "ASCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "bts_audit_records",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "status", "order": "ASCENDING" },
+        { "fieldPath": "btsName", "order": "ASCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "bts_audit_records",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "region", "order": "ASCENDING" },
+        { "fieldPath": "btsName", "order": "ASCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "bts_audit_records",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "auditPeriod", "order": "ASCENDING" },
+        { "fieldPath": "btsName", "order": "ASCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "tickets",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "assignedTo", "order": "ASCENDING" },
+        { "fieldPath": "createdAt", "order": "ASCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "feedbacks",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "category", "order": "ASCENDING" },
+        { "fieldPath": "timestamp", "order": "ASCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "staff",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "department", "order": "ASCENDING" },
+        { "fieldPath": "role", "order": "ASCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "bts_customer_sites",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "createdAt", "order": "DESCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "bts_customer_sites",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "importBatchId", "order": "ASCENDING" },
+        { "fieldPath": "createdAt", "order": "DESCENDING" }
+      ]
     }
   ],
   "fieldOverrides": []

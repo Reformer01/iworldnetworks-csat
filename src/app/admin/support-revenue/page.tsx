@@ -3,7 +3,13 @@
 import React, { useState } from 'react';
 import { AdminLayout } from '@/components/layout/AdminLayout';
 import { useAuth, useUser } from '@/firebase';
-import { useSupportRevenue, createSupportRevenue, updateSupportRevenue, deleteSupportRevenue, type SupportRevenueDoc } from '@/hooks/use-support-revenue';
+import {
+  useSupportRevenue,
+  createSupportRevenue,
+  updateSupportRevenue,
+  deleteSupportRevenue,
+  type SupportRevenueDoc,
+} from '@/hooks/use-support-revenue';
 import { useToast } from '@/hooks/use-toast';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
@@ -49,18 +55,21 @@ export default function SupportRevenue() {
   const [form, setForm] = useState(emptyForm());
   const [saving, setSaving] = useState(false);
 
-  const resetForm = () => { setForm(emptyForm()); setEditId(null); };
+  const resetForm = () => {
+    setForm(emptyForm());
+    setEditId(null);
+  };
 
   const filtered = records.filter((r) => {
     if (!search) return true;
     const q = search.toLowerCase();
-    return [r.customerName, r.location, r.projectType, r.agentName, r.notes]
-      .some(f => f?.toLowerCase().includes(q));
+    return [r.customerName, r.location, r.projectType, r.agentName, r.notes].some((f) => f?.toLowerCase().includes(q));
   });
 
   const computedTotal = form.items.reduce((sum, item) => sum + item.quantity * item.unitPrice, 0);
 
   const openEdit = (r: SupportRevenueDoc) => {
+    if (!r.id) return;
     setEditId(r.id);
     setForm({
       customerName: r.customerName || '',
@@ -82,30 +91,30 @@ export default function SupportRevenue() {
       const payload = { ...form, totalAmount: computedTotal || form.totalAmount };
       if (editId) {
         await updateSupportRevenue(editId, payload, user);
-        toast({ title: "Updated", description: "Revenue record updated." });
+        toast({ title: 'Updated', description: 'Revenue record updated.' });
       } else {
         await createSupportRevenue(payload, user);
-        toast({ title: "Created", description: "Revenue record added." });
+        toast({ title: 'Created', description: 'Revenue record added.' });
       }
       setIsOpen(false);
       resetForm();
       mutate();
     } catch (e: unknown) {
-      toast({ variant: "destructive", title: "Error", description: e instanceof Error ? e.message : 'Failed to save' });
+      toast({ variant: 'destructive', title: 'Error', description: e instanceof Error ? e.message : 'Failed to save' });
     } finally {
       setSaving(false);
     }
   };
 
-  const handleDelete = async (id: string) => {
-    if (!user) return;
+  const handleDelete = async (id?: string) => {
+    if (!user || !id) return;
     if (!confirm('Delete this record?')) return;
     try {
       await deleteSupportRevenue(id, user);
-      toast({ title: "Deleted", description: "Record removed." });
+      toast({ title: 'Deleted', description: 'Record removed.' });
       mutate();
     } catch (e: unknown) {
-      toast({ variant: "destructive", title: "Error", description: e instanceof Error ? e.message : 'Failed to delete' });
+      toast({ variant: 'destructive', title: 'Error', description: e instanceof Error ? e.message : 'Failed to delete' });
     }
   };
 
@@ -114,9 +123,7 @@ export default function SupportRevenue() {
   };
 
   const updateItem = (index: number, field: string, value: string | number) => {
-    const items = form.items.map((item, i) =>
-      i === index ? { ...item, [field]: value } : item
-    );
+    const items = form.items.map((item, i) => (i === index ? { ...item, [field]: value } : item));
     setForm({ ...form, items });
   };
 
@@ -131,7 +138,13 @@ export default function SupportRevenue() {
           <h1 className="text-2xl font-display font-bold text-primary uppercase tracking-tight">Support Revenue</h1>
           <p className="text-on-surface-variant font-mono text-[10px] uppercase tracking-widest font-bold mt-1">{records.length} records</p>
         </div>
-        <Dialog open={isOpen} onOpenChange={(v) => { if (!v) resetForm(); setIsOpen(v); }}>
+        <Dialog
+          open={isOpen}
+          onOpenChange={(v) => {
+            if (!v) resetForm();
+            setIsOpen(v);
+          }}
+        >
           <DialogTrigger asChild>
             <Button className="rounded-full bg-secondary text-white font-mono text-[10px] uppercase font-bold px-8 shadow-lg hover:scale-105 transition-transform">
               <Plus className="w-3 h-3 mr-2" /> Add Record
@@ -147,23 +160,39 @@ export default function SupportRevenue() {
             <div className="grid grid-cols-2 gap-4 py-4">
               <div className="col-span-2">
                 <label className="font-mono text-[10px] uppercase font-bold text-on-surface-variant">Customer Name</label>
-                <Input className="rounded-xl mt-1" value={form.customerName} onChange={(e) => setForm({ ...form, customerName: e.target.value })} />
+                <Input
+                  className="rounded-xl mt-1"
+                  value={form.customerName}
+                  onChange={(e) => setForm({ ...form, customerName: e.target.value })}
+                />
               </div>
               <div>
                 <label className="font-mono text-[10px] uppercase font-bold text-on-surface-variant">Location</label>
                 <Select value={form.location} onValueChange={(v) => setForm({ ...form, location: v })}>
-                  <SelectTrigger className="rounded-xl mt-1"><SelectValue /></SelectTrigger>
+                  <SelectTrigger className="rounded-xl mt-1">
+                    <SelectValue />
+                  </SelectTrigger>
                   <SelectContent>
-                    {locations.map(l => <SelectItem key={l.name} value={l.name}>{l.name} ({l.region})</SelectItem>)}
+                    {locations.map((l) => (
+                      <SelectItem key={l.name} value={l.name}>
+                        {l.name} ({l.region})
+                      </SelectItem>
+                    ))}
                   </SelectContent>
                 </Select>
               </div>
               <div>
                 <label className="font-mono text-[10px] uppercase font-bold text-on-surface-variant">Project Type</label>
                 <Select value={form.projectType} onValueChange={(v) => setForm({ ...form, projectType: v })}>
-                  <SelectTrigger className="rounded-xl mt-1"><SelectValue /></SelectTrigger>
+                  <SelectTrigger className="rounded-xl mt-1">
+                    <SelectValue />
+                  </SelectTrigger>
                   <SelectContent>
-                    {projectTypes.map(p => <SelectItem key={p} value={p}>{p}</SelectItem>)}
+                    {projectTypes.map((p) => (
+                      <SelectItem key={p} value={p}>
+                        {p}
+                      </SelectItem>
+                    ))}
                   </SelectContent>
                 </Select>
               </div>
@@ -173,18 +202,41 @@ export default function SupportRevenue() {
                   {form.items.map((item, i) => (
                     <div key={i} className="flex gap-3 items-start">
                       <div className="flex-1">
-                        <Input className="rounded-xl" placeholder="Item name" value={item.name} onChange={(e) => updateItem(i, 'name', e.target.value)} />
+                        <Input
+                          className="rounded-xl"
+                          placeholder="Item name"
+                          value={item.name}
+                          onChange={(e) => updateItem(i, 'name', e.target.value)}
+                        />
                       </div>
                       <div className="w-20">
-                        <Input className="rounded-xl" type="number" placeholder="Qty" min={1} value={item.quantity || ''} onFocus={(e) => e.target.select()} onChange={(e) => updateItem(i, 'quantity', parseInt(e.target.value) || 1)} />
+                        <Input
+                          className="rounded-xl"
+                          type="number"
+                          placeholder="Qty"
+                          min={1}
+                          value={item.quantity || ''}
+                          onFocus={(e) => e.target.select()}
+                          onChange={(e) => updateItem(i, 'quantity', parseInt(e.target.value) || 1)}
+                        />
                       </div>
                       <div className="w-28">
-                        <Input className="rounded-xl" type="number" placeholder="Unit price" min={0} value={item.unitPrice || ''} onFocus={(e) => e.target.select()} onChange={(e) => updateItem(i, 'unitPrice', e.target.value === '' ? 0 : Number(e.target.value))} />
+                        <Input
+                          className="rounded-xl"
+                          type="number"
+                          placeholder="Unit price"
+                          min={0}
+                          value={item.unitPrice || ''}
+                          onFocus={(e) => e.target.select()}
+                          onChange={(e) => updateItem(i, 'unitPrice', e.target.value === '' ? 0 : Number(e.target.value))}
+                        />
                       </div>
                       <div className="w-20 flex items-center justify-end font-mono text-sm font-bold pt-2">
                         ₦{(item.quantity * item.unitPrice).toLocaleString()}
                       </div>
-                      <button onClick={() => removeItem(i)} className="pt-2 text-destructive hover:text-destructive/80"><Trash2 className="w-4 h-4" /></button>
+                      <button onClick={() => removeItem(i)} className="pt-2 text-destructive hover:text-destructive/80">
+                        <Trash2 className="w-4 h-4" />
+                      </button>
                     </div>
                   ))}
                   <Button variant="outline" className="rounded-full font-mono text-[10px] uppercase font-bold" onClick={addItem}>
@@ -197,25 +249,53 @@ export default function SupportRevenue() {
               </div>
               <div>
                 <label className="font-mono text-[10px] uppercase font-bold text-on-surface-variant">Date</label>
-                <Input className="rounded-xl mt-1" type="date" value={form.date} onChange={(e) => setForm({ ...form, date: e.target.value })} />
+                <Input
+                  className="rounded-xl mt-1"
+                  type="date"
+                  value={form.date}
+                  onChange={(e) => setForm({ ...form, date: e.target.value })}
+                />
               </div>
               <div>
                 <label className="font-mono text-[10px] uppercase font-bold text-on-surface-variant">Installation Tech</label>
                 <Select value={form.agentName} onValueChange={(v) => setForm({ ...form, agentName: v })}>
-                  <SelectTrigger className="rounded-xl mt-1"><SelectValue placeholder="Select tech" /></SelectTrigger>
+                  <SelectTrigger className="rounded-xl mt-1">
+                    <SelectValue placeholder="Select tech" />
+                  </SelectTrigger>
                   <SelectContent>
-                    {fieldTechnicians.map(s => <SelectItem key={s.id} value={s.name}>{s.name}</SelectItem>)}
+                    {fieldTechnicians.map((s) => (
+                      <SelectItem key={s.id} value={s.name}>
+                        {s.name}
+                      </SelectItem>
+                    ))}
                   </SelectContent>
                 </Select>
               </div>
               <div className="col-span-2">
                 <label className="font-mono text-[10px] uppercase font-bold text-on-surface-variant">Notes</label>
-                <Textarea className="rounded-xl mt-1 min-h-[80px]" value={form.notes} onChange={(e) => setForm({ ...form, notes: e.target.value })} />
+                <Textarea
+                  className="rounded-xl mt-1 min-h-[80px]"
+                  value={form.notes}
+                  onChange={(e) => setForm({ ...form, notes: e.target.value })}
+                />
               </div>
             </div>
             <DialogFooter>
-              <Button variant="outline" className="rounded-full font-mono text-[10px] uppercase font-bold" onClick={() => { setIsOpen(false); resetForm(); }}>Cancel</Button>
-              <Button className="rounded-full bg-secondary text-white font-mono text-[10px] uppercase font-bold px-8" onClick={handleSave} disabled={saving}>
+              <Button
+                variant="outline"
+                className="rounded-full font-mono text-[10px] uppercase font-bold"
+                onClick={() => {
+                  setIsOpen(false);
+                  resetForm();
+                }}
+              >
+                Cancel
+              </Button>
+              <Button
+                className="rounded-full bg-secondary text-white font-mono text-[10px] uppercase font-bold px-8"
+                onClick={handleSave}
+                disabled={saving}
+              >
                 {saving && <Loader2 className="w-3 h-3 animate-spin mr-2" />}
                 {editId ? 'Update' : 'Create'}
               </Button>
@@ -227,20 +307,33 @@ export default function SupportRevenue() {
       <div className="flex flex-wrap items-center gap-4 mb-8">
         <div className="relative flex-1 min-w-[200px] max-w-sm">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-on-surface-variant" />
-          <Input className="rounded-xl pl-10" placeholder="Search customer name..." value={search} onChange={(e) => setSearch(e.target.value)} />
+          <Input
+            className="rounded-xl pl-10"
+            placeholder="Search customer name..."
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+          />
         </div>
         <Select value={filterProject} onValueChange={(v) => setFilterProject(v === 'All' ? '' : v)}>
-          <SelectTrigger className="w-[160px] rounded-xl font-mono text-[10px] uppercase font-bold"><SelectValue placeholder="Project Type" /></SelectTrigger>
+          <SelectTrigger className="w-[160px] rounded-xl font-mono text-[10px] uppercase font-bold">
+            <SelectValue placeholder="Project Type" />
+          </SelectTrigger>
           <SelectContent>
             <SelectItem value="All">All Types</SelectItem>
-            {projectTypes.map(p => <SelectItem key={p} value={p}>{p}</SelectItem>)}
+            {projectTypes.map((p) => (
+              <SelectItem key={p} value={p}>
+                {p}
+              </SelectItem>
+            ))}
           </SelectContent>
         </Select>
       </div>
 
       <div className="bg-white rounded-2xl whisper-shadow border border-border overflow-hidden mb-24">
         {loading ? (
-          <div className="py-20 flex justify-center"><Loader2 className="w-8 h-8 animate-spin text-secondary" /></div>
+          <div className="py-20 flex justify-center">
+            <Loader2 className="w-8 h-8 animate-spin text-secondary" />
+          </div>
         ) : (
           <div className="overflow-x-auto">
             <table className="w-full text-left border-collapse">
@@ -260,16 +353,24 @@ export default function SupportRevenue() {
                   <tr key={r.id} className="hover:bg-surface-container-lowest transition-colors">
                     <td className="py-3 px-4 font-bold text-primary whitespace-nowrap">{r.customerName}</td>
                     <td className="py-3 px-4 font-mono text-[11px]">{r.location}</td>
-                    <td className="py-3 px-4"><span className={cn("px-2 py-0.5 rounded-full text-[10px] font-bold font-mono", "bg-emerald-50 text-emerald-600")}>{r.projectType}</span></td>
+                    <td className="py-3 px-4">
+                      <span className={cn('px-2 py-0.5 rounded-full text-[10px] font-bold font-mono', 'bg-emerald-50 text-emerald-600')}>
+                        {r.projectType}
+                      </span>
+                    </td>
                     <td className="py-3 px-4 text-right font-mono font-bold">₦{(r.totalAmount || 0).toLocaleString()}</td>
                     <td className="py-3 px-4 font-mono text-[11px]">{r.agentName}</td>
                     <td className="py-3 px-4 font-mono text-[11px]">{r.date}</td>
                     <td className="py-3 px-4 text-right">
                       <div className="flex items-center justify-end gap-2">
-                        {user && isSuperAdmin(user.email || '') && (
+                        {user && r.id && isSuperAdmin(user.email || '') && (
                           <>
-                            <button onClick={() => openEdit(r)} className="p-1.5 hover:bg-muted rounded-lg transition-colors"><Edit3 className="w-3.5 h-3.5 text-on-surface-variant" /></button>
-                            <button onClick={() => handleDelete(r.id)} className="p-1.5 hover:bg-red-50 rounded-lg transition-colors"><Trash2 className="w-3.5 h-3.5 text-red-400" /></button>
+                            <button onClick={() => openEdit(r)} className="p-1.5 hover:bg-muted rounded-lg transition-colors">
+                              <Edit3 className="w-3.5 h-3.5 text-on-surface-variant" />
+                            </button>
+                            <button onClick={() => handleDelete(r.id)} className="p-1.5 hover:bg-red-50 rounded-lg transition-colors">
+                              <Trash2 className="w-3.5 h-3.5 text-red-400" />
+                            </button>
                           </>
                         )}
                       </div>
@@ -285,7 +386,10 @@ export default function SupportRevenue() {
                   {search || filterProject ? 'No Records Match Your Search' : 'No Support Revenue Records'}
                 </p>
                 {!search && !filterProject && (
-                  <Button className="mt-4 rounded-full bg-secondary text-white font-mono text-[10px] uppercase font-bold px-8 shadow-lg hover:scale-105 transition-transform" onClick={() => setIsOpen(true)}>
+                  <Button
+                    className="mt-4 rounded-full bg-secondary text-white font-mono text-[10px] uppercase font-bold px-8 shadow-lg hover:scale-105 transition-transform"
+                    onClick={() => setIsOpen(true)}
+                  >
                     <Plus className="w-3 h-3 mr-2" /> Add Your First Record
                   </Button>
                 )}

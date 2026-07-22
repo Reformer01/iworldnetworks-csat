@@ -2,7 +2,7 @@ import { NextRequest } from 'next/server';
 import { getAdminFirestore } from '@/lib/firebase-admin';
 import { verifyAdminToken } from '@/lib/admin-auth';
 import { isRateLimited } from '@/lib/rate-limit';
-import { success, unauthorized, serverError, error, notFound, forbidden, validateOrigin } from '@/lib/api-response';
+import { success, unauthorized, serverError, error, notFound, forbidden, tooMany, validateOrigin } from '@/lib/api-response';
 import { writeAuditLog } from '@/lib/audit-log';
 import type { FeedbackDoc } from '@/lib/feedback-types';
 import { logError } from '@/lib/logger';

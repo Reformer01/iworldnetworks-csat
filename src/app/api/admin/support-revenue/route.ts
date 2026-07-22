@@ -1,7 +1,7 @@
 import { NextRequest } from 'next/server';
 import { getAdminFirestore } from '@/lib/firebase-admin';
 import { verifyAdminToken } from '@/lib/admin-auth';
-import { isSuperAdmin } from '@/lib/admin-config';
+import { isSuperAdmin, isEditor } from '@/lib/admin-config';
 import { isRateLimited } from '@/lib/rate-limit';
 import { writeAuditLog } from '@/lib/audit-log';
 import type { SupportRevenueDoc } from '@/lib/support-revenue-types';

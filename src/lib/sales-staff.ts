@@ -157,6 +157,8 @@ export function getRegionForLocation(location: string): SalesRegion {
   return 'Oyo';
 }
 
+export { CITY_TO_REGION } from './bts-data';
+
 export function getSegmentForPlan(planCode: string): SalesSegment {
   const code = planCode.toUpperCase();
   if (code.startsWith('N-')) return 'NEIGHBOURHOOD';

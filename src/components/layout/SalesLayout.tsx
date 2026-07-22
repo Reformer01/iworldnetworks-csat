@@ -17,6 +17,7 @@ import {
   LogOut,
   BarChart3,
   Wifi,
+  FileText,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
@@ -33,6 +34,7 @@ const salesNavItems = [
   { name: 'Dashboard', href: '/admin/sales', icon: TrendingUp },
   { name: 'Monthly Revenue', href: '/admin/sales/monthly-revenue', icon: BarChart3 },
   { name: 'BTS Audit', href: '/admin/bts/audit', icon: Wifi },
+  { name: 'BTS Data', href: '/admin/bts/import', icon: FileText },
   { name: 'Records', href: '/admin/sales/records', icon: Database },
   { name: 'Import Data', href: '/admin/sales/import', icon: Upload },
   { name: 'Targets', href: '/admin/sales/targets', icon: Target },

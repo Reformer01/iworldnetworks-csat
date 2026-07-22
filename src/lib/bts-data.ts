@@ -64,6 +64,35 @@ const LOCATION_TO_BTS_REGION: Record<string, string[]> = {
   osogbo: ['Osogbo'],
   oshogbo: ['Osogbo'],
   akure: ['Akure'],
+  abeokuta: ['Abeokuta'],
+  sagamu: ['Sagamu'],
+  shagamu: ['Sagamu'],
+  ota: ['Ota'],
+  'ijebu ode': ['Ijebu Ode'],
+  'orile imo': ['Ijebu Ode'],
+  orile: ['Ijebu Ode'],
+  mowe: ['Ibadan'],
+  ibo: ['Ibadan'],
+  lagos: ['Ibadan'],
+  oriye: ['Ibadan'],
+};
+
+export const CITY_TO_REGION: Record<string, string> = {
+  ibadan: 'Oyo',
+  abeokuta: 'Ogun',
+  sagamu: 'Ogun',
+  shagamu: 'Ogun',
+  ota: 'Ogun',
+  'ijebu ode': 'Ogun',
+  'orile imo': 'Ogun',
+  orile: 'Ogun',
+  osogbo: 'Osun',
+  oshogbo: 'Osun',
+  akure: 'Ondo',
+  mowe: 'Oyo',
+  ibo: 'Oyo',
+  lagos: 'Oyo',
+  oriye: 'Oyo',
 };
 
 export function getBtsForLocation(location: string): BtsStation[] {
