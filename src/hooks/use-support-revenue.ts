@@ -108,7 +108,7 @@ export function useSupportRevenue(options: UseSupportRevenueOptions = {}) {
       const data = await response.json();
 
       if (data.success) {
-        setRecords(data.records || []);
+        setRecords(data.data?.records || data.records || []);
         setError(null);
       } else {
         setError(data.error || 'Failed to load records');

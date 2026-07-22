@@ -115,8 +115,6 @@ export async function PUT(request: NextRequest) {
     }
 
     const { id, items, ...updateData } = body;
-    const totalAmount =
-      items?.reduce((sum: number, item: { quantity: number; unitPrice: number }) => sum + item.quantity * item.unitPrice, 0) || 0;
 
     const db = getAdminFirestore();
     const docRef = db.collection('support_revenue').doc(id);
@@ -126,11 +124,17 @@ export async function PUT(request: NextRequest) {
       return notFound('Record not found.');
     }
 
-    await docRef.update({
+    const updates: Record<string, unknown> = {
       ...updateData,
-      totalAmount,
       updatedAt: Date.now(),
-    });
+    };
+
+    if (items !== undefined) {
+      updates.totalAmount =
+        items.reduce((sum: number, item: { quantity: number; unitPrice: number }) => sum + item.quantity * item.unitPrice, 0) || 0;
+    }
+
+    await docRef.update(updates);
 
     await writeAuditLog({
       action: 'update',

@@ -34,11 +34,11 @@ export const btsStations: BtsStation[] = [
   { id: 32, name: 'Potoki', region: 'Sagamu', host: 'NA' },
   { id: 33, name: 'Pentagon', region: 'Sagamu', host: '' },
   { id: 34, name: 'Magboro', region: 'Sagamu', host: 'Pearl School Magboro' },
-  { id: 35, name: 'Odogbolu', region: 'Ijebu Ode', host: 'Ijebu Ode Anglican Diocese' },
-  { id: 36, name: 'Ijebu GRA', region: 'Ijebu Ode', host: 'Conference Hotel Ijebu Ode' },
-  { id: 37, name: 'NTA Ijebu', region: 'Ijebu Ode', host: 'Nigerian Television Authority' },
-  { id: 38, name: 'Ilamo', region: 'Ijebu Ode', host: '' },
-  { id: 39, name: 'CKA', region: 'Ijebu Ode', host: '' },
+  { id: 35, name: 'Odogbolu', region: 'Ijebu', host: 'Ijebu Ode Anglican Diocese' },
+  { id: 36, name: 'Ijebu GRA', region: 'Ijebu', host: 'Conference Hotel Ijebu Ode' },
+  { id: 37, name: 'NTA Ijebu', region: 'Ijebu', host: 'Nigerian Television Authority' },
+  { id: 38, name: 'Ilamo', region: 'Ijebu', host: '' },
+  { id: 39, name: 'CKA', region: 'Ijebu', host: '' },
   { id: 40, name: 'Omida Office', region: 'Abeokuta', host: '' },
   { id: 41, name: 'NTA Abeokuta', region: 'Abeokuta', host: '' },
   { id: 42, name: 'Rockcity', region: 'Abeokuta', host: '' },
@@ -68,9 +68,10 @@ const LOCATION_TO_BTS_REGION: Record<string, string[]> = {
   sagamu: ['Sagamu'],
   shagamu: ['Sagamu'],
   ota: ['Ota'],
-  'ijebu ode': ['Ijebu Ode'],
-  'orile imo': ['Ijebu Ode'],
-  orile: ['Ijebu Ode'],
+  ijebu: ['Ijebu'],
+  'ijebu ode': ['Ijebu'],
+  'orile imo': ['Ijebu'],
+  orile: ['Ijebu'],
   mowe: ['Ibadan'],
   ibo: ['Ibadan'],
   lagos: ['Ibadan'],
@@ -83,6 +84,7 @@ export const CITY_TO_REGION: Record<string, string> = {
   sagamu: 'Ogun',
   shagamu: 'Ogun',
   ota: 'Ogun',
+  ijebu: 'Ogun',
   'ijebu ode': 'Ogun',
   'orile imo': 'Ogun',
   orile: 'Ogun',
@@ -110,4 +112,15 @@ export function getBtsByRegion(region: string): BtsStation[] {
 
 export function getRegionsFromBts(): string[] {
   return [...new Set(btsStations.map((b) => b.region))];
+}
+
+export const BTS_REGIONS = ['Ibadan', 'Abeokuta', 'Ijebu', 'Osogbo', 'Sagamu', 'Akure', 'Ota'] as const;
+export type BtsImportRegion = (typeof BTS_REGIONS)[number];
+
+export function isBtsRegion(value: string): value is BtsImportRegion {
+  return BTS_REGIONS.includes(value as BtsImportRegion);
+}
+
+export function getStationsByRegion(region: string) {
+  return btsStations.filter((s) => s.region === region);
 }

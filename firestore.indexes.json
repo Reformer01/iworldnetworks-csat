@@ -132,6 +132,38 @@
         { "fieldPath": "importBatchId", "order": "ASCENDING" },
         { "fieldPath": "createdAt", "order": "DESCENDING" }
       ]
+    },
+    {
+      "collectionGroup": "bts_customer_sites",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "region", "order": "ASCENDING" },
+        { "fieldPath": "createdAt", "order": "DESCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "bts_customers",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "importBatchId", "order": "ASCENDING" },
+        { "fieldPath": "createdAt", "order": "DESCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "bts_customers",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "region", "order": "ASCENDING" },
+        { "fieldPath": "createdAt", "order": "DESCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "bts_customers",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "region", "order": "ASCENDING" },
+        { "fieldPath": "importBatchId", "order": "ASCENDING" }
+      ]
     }
   ],
   "fieldOverrides": []

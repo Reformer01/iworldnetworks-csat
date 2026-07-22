@@ -101,6 +101,7 @@ export const locations = [
   { name: 'Shagamu', region: 'Ogun' as const },
   { name: 'Ota', region: 'Ogun' as const },
   { name: 'Ijebu Ode', region: 'Ogun' as const },
+  { name: 'Ijebu', region: 'Ogun' as const },
   { name: 'Orile Imo', region: 'Ogun' as const },
   { name: 'Orile', region: 'Ogun' as const },
   { name: 'Sagamu', region: 'Ogun' as const },
@@ -146,7 +147,7 @@ export function getPlanMrc(planCode: string): number | null {
 export function getRegionForLocation(location: string): SalesRegion {
   const loc = location.toLowerCase().trim();
   const ibadanCities = ['ibadan', 'oriye', 'mowe', 'ibo', 'lagos'];
-  const ogunCities = ['abeokuta', 'shagamu', 'ota', 'ijebu ode', 'orile imo', 'orile', 'sagamu'];
+  const ogunCities = ['abeokuta', 'shagamu', 'ota', 'ijebu ode', 'ijebu', 'orile imo', 'orile', 'sagamu'];
   const osunCities = ['oshogbo', 'osogbo'];
   const ondoCities = ['akure'];
 
