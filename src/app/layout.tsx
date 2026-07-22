@@ -1,4 +1,3 @@
-
 import type { Metadata } from 'next';
 import { Outfit, JetBrains_Mono } from 'next/font/google';
 import './globals.css';
@@ -23,6 +22,9 @@ const jetbrainsMono = JetBrains_Mono({
 export const metadata: Metadata = {
   title: 'I-World Networks | Experience Seamless Connectivity',
   description: 'Helping you stay connected to what matters most.',
+  icons: {
+    icon: '/favicon.svg',
+  },
 };
 
 export default function RootLayout({
@@ -32,7 +34,10 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en" suppressHydrationWarning>
-      <body className={`${outfit.variable} ${jetbrainsMono.variable} font-body antialiased selection:bg-secondary/20 min-h-screen`} suppressHydrationWarning>
+      <body
+        className={`${outfit.variable} ${jetbrainsMono.variable} font-body antialiased selection:bg-secondary/20 min-h-screen`}
+        suppressHydrationWarning
+      >
         <FirebaseClientProvider>
           <FirebaseErrorListener />
           {children}

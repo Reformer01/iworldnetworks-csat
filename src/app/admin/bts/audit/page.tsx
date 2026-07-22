@@ -152,8 +152,8 @@ export default function BtsAuditPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [search, setSearch] = useState('');
-  const [filterStatus, setFilterStatus] = useState<string>('');
-  const [filterRegion, setFilterRegion] = useState<string>('');
+  const [filterStatus, setFilterStatus] = useState<string>('__all');
+  const [filterRegion, setFilterRegion] = useState<string>('__all');
   const [isOpen, setIsOpen] = useState(false);
   const [editRecord, setEditRecord] = useState<BtsAuditRecord | null>(null);
   const [form, setForm] = useState<Partial<BtsAuditRecord>>(emptyForm());
@@ -169,8 +169,8 @@ export default function BtsAuditPage() {
       setLoading(true);
       const token = await user.getIdToken();
       const params = new URLSearchParams();
-      if (filterStatus) params.set('status', filterStatus);
-      if (filterRegion) params.set('region', filterRegion);
+      if (filterStatus && filterStatus !== '__all') params.set('status', filterStatus);
+      if (filterRegion && filterRegion !== '__all') params.set('region', filterRegion);
       if (auditPeriod) params.set('auditPeriod', auditPeriod);
       params.set('pageSize', '200');
 
@@ -384,7 +384,7 @@ export default function BtsAuditPage() {
                 <SelectValue placeholder="Status" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="">All Statuses</SelectItem>
+                <SelectItem value="__all">All Statuses</SelectItem>
                 {STATUSES.map((s) => (
                   <SelectItem key={s} value={s}>
                     {s}
@@ -397,7 +397,7 @@ export default function BtsAuditPage() {
                 <SelectValue placeholder="Region" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="">All Regions</SelectItem>
+                <SelectItem value="__all">All Regions</SelectItem>
                 {REGIONS.map((r) => (
                   <SelectItem key={r} value={r}>
                     {r}

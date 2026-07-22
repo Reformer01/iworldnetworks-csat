@@ -488,7 +488,7 @@ export default function MonthlyRevenuePage() {
   const auth = useAuth();
   const { user, loading: authLoading } = useUser(auth);
   const [metric, setMetric] = useState<'revenue' | 'mrr' | 'nrcRevenue' | 'newCustomers'>('revenue');
-  const [regionFilter, setRegionFilter] = useState<string>('');
+  const [regionFilter, setRegionFilter] = useState<string>('__all');
 
   const { data, loading, error, mutate } = useSalesMonthlyRevenue({
     region: regionFilter || undefined,
@@ -539,10 +539,10 @@ export default function MonthlyRevenuePage() {
   if (!data) return null;
 
   const { overallMonthly, regionMonthly, agentMonthly, segmentMonthly, monthOrder } = data;
-
-  const filteredRegionMonthly = regionFilter ? regionMonthly.filter((r) => r.region === regionFilter) : regionMonthly;
-
-  const filteredAgentMonthly = regionFilter ? agentMonthly.filter((a) => a.region === regionFilter) : agentMonthly;
+  const filteredRegionMonthly =
+    regionFilter && regionFilter !== '__all' ? regionMonthly.filter((r) => r.region === regionFilter) : regionMonthly;
+  const filteredAgentMonthly =
+    regionFilter && regionFilter !== '__all' ? agentMonthly.filter((a) => a.region === regionFilter) : agentMonthly;
 
   const metricLabels: Record<typeof metric, string> = {
     revenue: 'Total Revenue',
@@ -583,7 +583,7 @@ export default function MonthlyRevenuePage() {
                 <SelectValue placeholder="All Regions" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="">All Regions</SelectItem>
+                <SelectItem value="__all">All Regions</SelectItem>
                 {regionalTargets.map((rt) => (
                   <SelectItem key={rt.region} value={rt.region}>
                     {rt.region}

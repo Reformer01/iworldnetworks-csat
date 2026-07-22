@@ -51,6 +51,15 @@ export async function GET(request: NextRequest) {
   } catch (err: unknown) {
     const message = err instanceof Error ? err.message : 'Unknown error';
     logError('[bts-audit] GET error', { error: message });
+
+    if (message.includes('requires an index') || message.includes('FAILED_PRECONDITION')) {
+      const indexUrl = message.match(/https:\/\/console\.firebase\.google\.com[^\s]*/)?.[0];
+      return error(
+        `Query requires a Firestore composite index. ${indexUrl ? 'Create it here: ' + indexUrl : 'Run: firebase deploy --only firestore:indexes'}`,
+        412,
+      );
+    }
+
     return serverError();
   }
 }
