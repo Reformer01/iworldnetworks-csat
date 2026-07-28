@@ -40,6 +40,11 @@ export async function GET(request: NextRequest) {
   } catch (err: unknown) {
     const message = err instanceof Error ? err.message : 'Unknown error';
     logError('[admin-support-revenue] GET error', { error: message });
+
+    if (message.includes('requires an index') || message.includes('FAILED_PRECONDITION')) {
+      return error('Query requires a Firestore composite index. Run: firebase deploy --only firestore:indexes', 412);
+    }
+
     return serverError();
   }
 }
@@ -63,13 +68,17 @@ export async function POST(request: NextRequest) {
       return error('Invalid JSON body.');
     }
 
-    const { location, projectType, items } = body;
+    const { location, projectType, items, description, customerName } = body;
     const totalAmount =
       items?.reduce((sum: number, item: { quantity: number; unitPrice: number }) => sum + item.quantity * item.unitPrice, 0) || 0;
 
     const db = getAdminFirestore();
     const docRef = await db.collection('support_revenue').add({
-      ...body,
+      location,
+      projectType,
+      items,
+      description,
+      customerName,
       totalAmount,
       createdAt: Date.now(),
       updatedAt: Date.now(),
@@ -114,7 +123,12 @@ export async function PUT(request: NextRequest) {
       return error('Record ID required.');
     }
 
-    const { id, items, ...updateData } = body;
+    const { id, items, ...rest } = body;
+    const ALLOWED_FIELDS = ['location', 'projectType', 'description', 'customerName', 'totalAmount'];
+    const updateData: Record<string, unknown> = { updatedAt: Date.now() };
+    for (const key of ALLOWED_FIELDS) {
+      if (key in rest) updateData[key] = rest[key];
+    }
 
     const db = getAdminFirestore();
     const docRef = db.collection('support_revenue').doc(id);
@@ -124,10 +138,7 @@ export async function PUT(request: NextRequest) {
       return notFound('Record not found.');
     }
 
-    const updates: Record<string, unknown> = {
-      ...updateData,
-      updatedAt: Date.now(),
-    };
+    const updates: Record<string, unknown> = { ...updateData };
 
     if (items !== undefined) {
       updates.totalAmount =

@@ -180,7 +180,37 @@ export async function PUT(request: NextRequest) {
       return error('Record ID required', 400);
     }
 
-    const { id, ...updateData } = body;
+    const { id, ...rest } = body;
+    const ALLOWED_FIELDS = [
+      'btsName',
+      'btsId',
+      'region',
+      'siteType',
+      'status',
+      'latitude',
+      'longitude',
+      'address',
+      'host',
+      'activeCustomers',
+      'totalCustomers',
+      'enterpriseCustomers',
+      'retailCustomers',
+      'monthlyRecurringRevenue',
+      'targetMrr',
+      'nrcRevenue',
+      'totalRevenue',
+      'splynxRouterIds',
+      'splynxRouterNames',
+      'lastOutageDate',
+      'outageCountThisMonth',
+      'maintenanceNotes',
+      'auditPeriod',
+    ];
+    const updateData: Record<string, unknown> = { auditedBy: admin.email, auditedAt: Date.now(), updatedAt: Date.now() };
+    for (const key of ALLOWED_FIELDS) {
+      if (key in rest) updateData[key] = rest[key];
+    }
+
     const db = getAdminFirestore();
     const docRef = db.collection('bts_audit_records').doc(id);
     const doc = await docRef.get();
@@ -189,25 +219,18 @@ export async function PUT(request: NextRequest) {
       return error('Record not found', 404);
     }
 
-    const updates = {
-      ...updateData,
-      auditedBy: admin.email,
-      auditedAt: Date.now(),
-      updatedAt: Date.now(),
-    };
-
     // Recalculate attainment if MRR or target changed
-    if (updates.monthlyRecurringRevenue !== undefined || updates.targetMrr !== undefined) {
+    if (rest.monthlyRecurringRevenue !== undefined || rest.targetMrr !== undefined) {
       const current = doc.data() as BtsAuditRecord;
-      const mrr = updates.monthlyRecurringRevenue ?? current.monthlyRecurringRevenue;
-      const target = updates.targetMrr ?? current.targetMrr;
-      updates.attainmentPercentage = target > 0 ? Math.round((mrr / target) * 10000) / 100 : 0;
+      const mrr = rest.monthlyRecurringRevenue ?? current.monthlyRecurringRevenue;
+      const target = rest.targetMrr ?? current.targetMrr;
+      updateData.attainmentPercentage = target > 0 ? Math.round((mrr / target) * 10000) / 100 : 0;
     }
 
-    await docRef.update(updates);
+    await docRef.update(updateData);
 
     // Update latest snapshot
-    const updated = { ...doc.data(), ...updates } as BtsAuditRecord;
+    const updated = { ...doc.data(), ...updateData } as BtsAuditRecord;
     await db
       .collection('bts_latest_audit')
       .doc(updated.btsName)
@@ -215,7 +238,7 @@ export async function PUT(request: NextRequest) {
 
     logInfo('[bts-audit] Updated audit record', { id, btsName: updated.btsName });
 
-    return success({ id, ...updates });
+    return success({ id, ...updateData });
   } catch (err: unknown) {
     const message = err instanceof Error ? err.message : 'Unknown error';
     logError('[bts-audit] PUT error', { error: message });

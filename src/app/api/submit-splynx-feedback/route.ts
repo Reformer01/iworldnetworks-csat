@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getAdminFirestore } from '@/lib/firebase-admin';
 import { mapSplynxEventToCategory } from '@/lib/splynx-categories';
+import { isRateLimitedFirestore } from '@/lib/rate-limit-firestore';
+import { validateOrigin, error as apiError } from '@/lib/api-response';
 import { logError } from '@/lib/logger';
 import { z } from 'zod';
 
@@ -14,6 +16,14 @@ const splynxFeedbackSchema = z.object({
 
 export async function POST(request: NextRequest) {
   try {
+    if (await isRateLimitedFirestore(request, 10, 60 * 1000)) {
+      return NextResponse.json({ success: false, error: 'Too many requests.' }, { status: 429 });
+    }
+
+    if (!validateOrigin(request)) {
+      return NextResponse.json({ success: false, error: 'Invalid origin.' }, { status: 403 });
+    }
+
     const body = await request.json().catch(() => null);
     if (!body) {
       return NextResponse.json({ success: false, error: 'Invalid JSON.' }, { status: 400 });
@@ -43,7 +53,7 @@ export async function POST(request: NextRequest) {
         return { status: 404, body: { success: false, error: 'Invalid token.' } };
       }
 
-      const tokenData = tokenDoc.data()!;
+      const tokenData = tokenDoc.data() ?? {};
       if (tokenData.used) {
         return { status: 410, body: { success: false, error: 'Token already used.' } };
       }

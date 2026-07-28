@@ -60,7 +60,8 @@ export default function AdminLoginPage() {
       });
 
       if (!sessionRes.ok) {
-        toast({ variant: 'destructive', title: 'Session Error', description: 'Could not establish secure session. Please try again.' });
+        const sessionErr = await sessionRes.json().catch(() => ({ error: 'Could not establish secure session.' }));
+        toast({ variant: 'destructive', title: 'Session Error', description: sessionErr.error || 'Please try again.' });
         setIsAuthenticating(false);
         return;
       }

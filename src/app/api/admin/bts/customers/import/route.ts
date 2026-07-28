@@ -90,13 +90,42 @@ function parseNaira(value: string): number {
 
 function findBtsMatch(siteName: string, regionStations: typeof btsStations): { name: string; region: string } | null {
   const normalized = siteName.toLowerCase().trim();
+  // Remove common suffixes/prefixes and brackets for better matching
+  const cleaned = normalized
+    .replace(/\[[^\]]*\]/g, '') // Remove [brackets] like [Office Core], [Alagbado]
+    .replace(/\b(bts|core|office|fm)\b/g, '') // Remove common words
+    .replace(/[\[\]()]/g, '')
+    .replace(/\s+/g, ' ')
+    .trim();
 
+  // 1. Exact substring match on cleaned name
+  for (const bts of regionStations) {
+    if (cleaned.includes(bts.name.toLowerCase())) {
+      return { name: bts.name, region: bts.region };
+    }
+  }
+
+  // 2. Exact substring match on original normalized name
   for (const bts of regionStations) {
     if (normalized.includes(bts.name.toLowerCase())) {
       return { name: bts.name, region: bts.region };
     }
   }
 
+  // 3. Word-based fuzzy matching on cleaned name
+  for (const bts of regionStations) {
+    const btsWords = bts.name.toLowerCase().split(/[\s-/]+/);
+    const siteWords = cleaned.split(/[\s-/]+/);
+    const matchCount = btsWords.filter((w) => siteWords.includes(w)).length;
+    if (matchCount >= Math.min(btsWords.length, 3)) {
+      return { name: bts.name, region: bts.region };
+    }
+    if (matchCount >= 2 && matchCount === btsWords.length) {
+      return { name: bts.name, region: bts.region };
+    }
+  }
+
+  // 4. Word-based fuzzy matching on original normalized name
   for (const bts of regionStations) {
     const btsWords = bts.name.toLowerCase().split(/[\s-/]+/);
     const siteWords = normalized.split(/[\s-/]+/);
@@ -350,6 +379,15 @@ export async function GET(request: NextRequest) {
   } catch (err: unknown) {
     const message = err instanceof Error ? err.message : 'Unknown error';
     logError('[bts-customers-import] GET error', { error: message });
+
+    if (message.includes('requires an index') || message.includes('FAILED_PRECONDITION')) {
+      const indexUrl = message.match(/https:\/\/console\.firebase\.google\.com[^\s]*/)?.[0];
+      return error(
+        `Query requires a Firestore composite index. ${indexUrl ? 'Create it here: ' + indexUrl : 'Run: firebase deploy --only firestore:indexes'}`,
+        412,
+      );
+    }
+
     return serverError();
   }
 }

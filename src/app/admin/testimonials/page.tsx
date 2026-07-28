@@ -1,4 +1,3 @@
-
 'use client';
 
 import React, { useState, useMemo } from 'react';
@@ -15,11 +14,11 @@ import type { FeedbackDoc } from '@/lib/feedback-types';
 export default function AdminTestimonials() {
   const [filter, setFilter] = useState<'Home' | 'Business' | 'Spotlight'>('Home');
   const [copiedId, setCopiedId] = useState<string | null>(null);
-  const workspaceImg = PlaceHolderImages.find(img => img.id === 'workspace')!;
+  const workspaceImg = PlaceHolderImages.find((img) => img.id === 'workspace')!;
   const auth = useAuth();
   const { user } = useUser(auth);
 
-  const { feedbacks } = useAdminFeedbacks();
+  const { feedbacks, loading } = useAdminFeedbacks();
 
   const testimonials = useMemo(() => {
     return feedbacks.filter((f: FeedbackDoc) => f.category === 'Testimonials');
@@ -58,7 +57,9 @@ export default function AdminTestimonials() {
     <AdminLayout>
       <div className="mb-12">
         <h1 className="text-primary mb-4 font-display text-3xl md:text-display-lg tracking-tight uppercase font-black">Success Stories</h1>
-        <p className="font-body-lg text-body-lg text-on-surface-variant max-w-2xl">Curate high-impact testimonials for marketing and identify potential customer advocates for regional spotlight interviews.</p>
+        <p className="font-body-lg text-body-lg text-on-surface-variant max-w-2xl">
+          Curate high-impact testimonials for marketing and identify potential customer advocates for regional spotlight interviews.
+        </p>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-12 gap-8 mb-16">
@@ -67,14 +68,14 @@ export default function AdminTestimonials() {
             {[
               { id: 'Home', label: 'Residential (H-Series)' },
               { id: 'Business', label: 'Corporate (U-Series & Enterprise)' },
-              { id: 'Spotlight', label: 'Ready to Feature', icon: Sparkles }
+              { id: 'Spotlight', label: 'Ready to Feature', icon: Sparkles },
             ].map((tab) => (
-              <button 
+              <button
                 key={tab.id}
-                onClick={() => setFilter(tab.id as "Home" | "Business" | "Spotlight")} 
+                onClick={() => setFilter(tab.id as 'Home' | 'Business' | 'Spotlight')}
                 className={cn(
-                  "px-8 py-4 font-mono text-[10px] uppercase tracking-widest transition-all flex items-center gap-2 whitespace-nowrap", 
-                  filter === tab.id ? "border-b-2 border-secondary text-secondary font-bold" : "text-on-surface-variant"
+                  'px-8 py-4 font-mono text-[10px] uppercase tracking-widest transition-all flex items-center gap-2 whitespace-nowrap',
+                  filter === tab.id ? 'border-b-2 border-secondary text-secondary font-bold' : 'text-on-surface-variant',
                 )}
               >
                 {tab.icon && <tab.icon className="w-3 h-3" />}
@@ -85,7 +86,10 @@ export default function AdminTestimonials() {
 
           <div className="space-y-6">
             {filteredTestimonials.map((item: FeedbackDoc) => (
-              <div key={item.id} className="bg-white border border-border p-8 rounded-xl whisper-shadow relative group hover:border-secondary transition-all">
+              <div
+                key={item.id}
+                className="bg-white border border-border p-8 rounded-xl whisper-shadow relative group hover:border-secondary transition-all"
+              >
                 {item.spotlightInterview === 'Yes' && (
                   <div className="absolute -top-3 -right-3 bg-secondary text-white px-4 py-1 rounded-full text-[10px] font-mono font-bold shadow-lg flex items-center gap-2 z-10">
                     <UserCheck className="w-3 h-3" /> Spotlight Ready
@@ -94,24 +98,37 @@ export default function AdminTestimonials() {
                 <div className="flex justify-between items-start mb-6">
                   <div className="flex gap-1">
                     {[...Array(5)].map((_, i) => (
-                      <Star key={i} className={cn("w-4 h-4", i < Number(item.ratings?.signal ?? 5) ? "fill-secondary text-secondary" : "text-border")} />
+                      <Star
+                        key={i}
+                        className={cn('w-4 h-4', i < Number(item.ratings?.signal ?? 5) ? 'fill-secondary text-secondary' : 'text-border')}
+                      />
                     ))}
                   </div>
                   <div className="flex flex-col items-end">
-                    <span className="font-mono text-[10px] uppercase text-secondary font-bold">{item.referralSource || 'Unknown'} Referral</span>
-                    <span className="font-mono text-[8px] uppercase text-on-surface-variant/40 mt-1">{new Date(item.timestamp ?? 0).toLocaleDateString()}</span>
+                    <span className="font-mono text-[10px] uppercase text-secondary font-bold">
+                      {item.referralSource || 'Unknown'} Referral
+                    </span>
+                    <span className="font-mono text-[8px] uppercase text-on-surface-variant/40 mt-1">
+                      {new Date(item.timestamp ?? 0).toLocaleDateString()}
+                    </span>
                   </div>
                 </div>
-                 <blockquote className="text-primary leading-tight mb-8 font-display text-2xl font-bold italic">
-                   &ldquo;{item.comment}&rdquo;
-                 </blockquote>
+                <blockquote className="text-primary leading-tight mb-8 font-display text-2xl font-bold italic">
+                  &ldquo;{item.comment}&rdquo;
+                </blockquote>
                 <div className="flex flex-col sm:flex-row justify-between items-start sm:items-end border-t border-border/50 pt-6 gap-6">
                   <div>
                     <p className="font-mono text-xs font-bold text-primary">{item.customerName}</p>
-                    <p className="text-on-surface-variant text-[10px] font-mono opacity-60 uppercase">{item.location} Hub • {item.servicePlan}</p>
+                    <p className="text-on-surface-variant text-[10px] font-mono opacity-60 uppercase">
+                      {item.location} Hub • {item.servicePlan}
+                    </p>
                   </div>
                   <div className="flex gap-2 w-full sm:w-auto">
-                    <Button onClick={() => handleCopy(item.id ?? '', item.comment ?? '')} size="sm" className="flex-1 sm:flex-none bg-primary text-white rounded-full font-mono text-[10px] px-6 uppercase font-bold">
+                    <Button
+                      onClick={() => handleCopy(item.id ?? '', item.comment ?? '')}
+                      size="sm"
+                      className="flex-1 sm:flex-none bg-primary text-white rounded-full font-mono text-[10px] px-6 uppercase font-bold"
+                    >
                       {copiedId === item.id ? <Check className="w-3 h-3 mr-2" /> : <Copy className="w-3 h-3 mr-2" />}
                       {copiedId === item.id ? 'Copied' : 'Copy Text'}
                     </Button>
@@ -119,9 +136,16 @@ export default function AdminTestimonials() {
                 </div>
               </div>
             ))}
-            {filteredTestimonials.length === 0 && (
+            {loading && (
+              <div className="text-center py-24">
+                <div className="w-8 h-8 border-4 border-secondary/20 border-t-secondary rounded-full animate-spin mx-auto" />
+              </div>
+            )}
+            {!loading && filteredTestimonials.length === 0 && (
               <div className="text-center py-24 bg-white border border-dashed border-border rounded-xl">
-                <p className="font-mono text-sm text-on-surface-variant opacity-40 uppercase font-bold tracking-widest">No Stories Found in this Node</p>
+                <p className="font-mono text-sm text-on-surface-variant opacity-40 uppercase font-bold tracking-widest">
+                  No Stories Found in this Node
+                </p>
               </div>
             )}
           </div>
@@ -135,7 +159,9 @@ export default function AdminTestimonials() {
               <span className="text-[56px] font-mono font-black">{stats.spotlightCount}</span>
               <span className="text-sm font-display font-bold">Advocates</span>
             </div>
-            <p className="text-[10px] font-mono opacity-70 leading-relaxed uppercase font-bold">Customers ready for spotlight features in {new Date().getFullYear()}.</p>
+            <p className="text-[10px] font-mono opacity-70 leading-relaxed uppercase font-bold">
+              Customers ready for spotlight features in {new Date().getFullYear()}.
+            </p>
           </div>
 
           <div className="bg-white border border-border p-8 rounded-xl whisper-shadow">
@@ -152,14 +178,14 @@ export default function AdminTestimonials() {
               )}
             </div>
           </div>
-          
+
           <div className="relative h-64 rounded-xl overflow-hidden grayscale brightness-50 contrast-125 group">
-            <Image 
-              src={workspaceImg.imageUrl} 
-              alt="Engagement Hub" 
-              fill 
+            <Image
+              src={workspaceImg.imageUrl}
+              alt="Engagement Hub"
+              fill
               sizes="(max-width: 768px) 100vw, (max-width: 1200px) 33vw, 33vw"
-              className="object-cover group-hover:scale-110 transition-transform duration-1000" 
+              className="object-cover group-hover:scale-110 transition-transform duration-1000"
             />
             <div className="absolute inset-0 flex items-center justify-center p-8 text-center border-4 border-white/20 m-4 rounded-lg">
               <p className="text-white font-mono text-[10px] uppercase font-bold tracking-widest">Regional Growth Hub v2.6</p>

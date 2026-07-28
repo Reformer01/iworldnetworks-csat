@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { SALES_REGIONS, SALE_QUARTERS, PACKAGE_TYPES, ACCOUNT_STATUSES } from '../sales-types';
 
 export const salesRecordSchema = z
   .object({
@@ -9,12 +10,12 @@ export const salesRecordSchema = z
     mrc: z.coerce.number().min(0).default(0),
     planCode: z.string().min(1, 'Plan code is required').trim(),
     saleDate: z.string().trim().default(''),
-    quarter: z.enum(['QUARTER 1', 'QUARTER 2', 'QUARTER 3', 'QUARTER 4']),
+    quarter: z.enum(SALE_QUARTERS),
     month: z.string().trim().default(''),
-    packageType: z.enum(['Outright', 'Lease']).default('Outright'),
+    packageType: z.enum(PACKAGE_TYPES).default('Outright'),
     salesAgent: z.string().trim().default(''),
     meansOfSale: z.string().trim().default(''),
-    accountStatus: z.enum(['Active', 'Inactive', 'Blocked', 'Refunded', 'Retrieved']).default('Active'),
+    accountStatus: z.enum(ACCOUNT_STATUSES).default('Active'),
     statusNotes: z.string().trim().default(''),
     importBatchId: z.string().trim().default(''),
     customerType: z.enum(['new', 'revived']).optional(),
@@ -31,7 +32,7 @@ export const salesImportSchema = z.object({
 
 export const salesTargetSchema = z.object({
   month: z.string().regex(/^\d{4}-(0[1-9]|1[0-2])$/, 'Must be YYYY-MM format'),
-  region: z.enum(['Ogun', 'Oyo', 'Osun', 'Ondo']).optional(),
+  region: z.enum(SALES_REGIONS).optional(),
   agentName: z.string().trim().optional(),
   targetRevenue: z.coerce.number().min(0),
   targetCustomers: z.coerce.number().int().min(0),

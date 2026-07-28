@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getAdminFirestore } from '@/lib/firebase-admin';
 import { verifySupportToken } from '@/lib/admin-auth';
 import { isRateLimited } from '@/lib/rate-limit';
-import { success, error, unauthorized, tooMany, serverError } from '@/lib/api-response';
+import { success, error, unauthorized, forbidden, tooMany, serverError, validateOrigin } from '@/lib/api-response';
 import { logError, logInfo } from '@/lib/logger';
 
 export const dynamic = 'force-dynamic';
@@ -364,6 +364,8 @@ export async function POST(request: NextRequest) {
     if (isRateLimited(request, 10, 60 * 1000)) {
       return tooMany();
     }
+
+    if (!validateOrigin(request)) return forbidden();
 
     const authHeader = request.headers.get('authorization');
     const user = await verifySupportToken(authHeader);

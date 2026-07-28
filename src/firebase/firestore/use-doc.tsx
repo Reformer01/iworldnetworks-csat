@@ -11,15 +11,15 @@ export function useDoc<T = DocumentData>(docRef: DocumentReference<T> | null) {
 
   useEffect(() => {
     isMounted.current = true;
-    
+
     if (!docRef) {
       setData(null);
-      setLoading(false);
+      if (loading !== false) setLoading(false);
       return;
     }
 
-    setLoading(true);
-    
+    if (loading !== true) setLoading(true);
+
     const unsubscribe = onSnapshot(
       docRef,
       (snapshot: DocumentSnapshot<T>) => {
@@ -30,7 +30,7 @@ export function useDoc<T = DocumentData>(docRef: DocumentReference<T> | null) {
       },
       (err: FirestoreError) => {
         if (!isMounted.current) return;
-        
+
         // PERMANENT FIX: Silence permission denied errors to prevent UI crashes.
         if (err.code === 'permission-denied') {
           console.warn('Firestore: Permission denied at', docRef.path);
@@ -39,7 +39,7 @@ export function useDoc<T = DocumentData>(docRef: DocumentReference<T> | null) {
           setError(err);
         }
         setLoading(false);
-      }
+      },
     );
 
     return () => {

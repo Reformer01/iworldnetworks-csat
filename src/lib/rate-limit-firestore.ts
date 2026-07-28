@@ -2,6 +2,7 @@ import { createHash } from 'crypto';
 import { NextRequest } from 'next/server';
 import { getAdminFirestore } from '@/lib/firebase-admin';
 import { FieldValue } from 'firebase-admin/firestore';
+import { logError } from '@/lib/logger';
 
 function getClientIp(req: NextRequest): string {
   return req.headers.get('x-forwarded-for')?.split(',')[0]?.trim() || req.headers.get('x-real-ip')?.trim() || '127.0.0.1';
@@ -63,7 +64,8 @@ export async function isRateLimitedFirestore(req: NextRequest, limit: number, wi
     });
 
     return result;
-  } catch {
+  } catch (err) {
+    logError('[rate-limit-firestore] Error', { error: err instanceof Error ? err.message : String(err) });
     return false;
   }
 }

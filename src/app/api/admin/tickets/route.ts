@@ -69,6 +69,11 @@ export async function GET(request: NextRequest) {
   } catch (err: unknown) {
     const message = err instanceof Error ? err.message : 'Unknown error';
     logError('[tickets] GET error', { error: message });
+
+    if (message.includes('requires an index') || message.includes('FAILED_PRECONDITION')) {
+      return error('Query requires a Firestore composite index. Run: firebase deploy --only firestore:indexes', 412);
+    }
+
     return serverError();
   }
 }
@@ -280,7 +285,12 @@ export async function PUT(request: NextRequest) {
       return error('Ticket ID and updates required.', 400);
     }
 
-    const { id, ...updateData } = body;
+    const { id, ...rest } = body;
+    const ALLOWED_FIELDS: (keyof Ticket)[] = ['status', 'assignedTo', 'description', 'delayReasons', 'delayNotes', 'followUps'];
+    const updateData: Partial<Ticket> = { updatedAt: Date.now() };
+    for (const key of ALLOWED_FIELDS) {
+      if (key in rest) (updateData as Record<string, unknown>)[key] = rest[key];
+    }
 
     const db = getAdminFirestore();
     const docRef = db.collection('tickets').doc(id);
@@ -292,11 +302,7 @@ export async function PUT(request: NextRequest) {
 
     const previousData = previousDoc.data() as Ticket;
 
-    // Prepare updates with timestamp
-    const updates: Partial<Ticket> = {
-      ...updateData,
-      updatedAt: Date.now(),
-    };
+    const updates: Partial<Ticket> = { ...updateData };
 
     // Auto-update status timestamps
     if (updates.status && updates.status !== previousData.status) {

@@ -46,36 +46,46 @@ export default function FeedbackPage() {
       return;
     }
 
+    let cancelled = false;
     async function validateToken() {
       try {
         const res = await fetch(`/api/feedback-token/validate?token=${encodeURIComponent(token!)}`);
         const data = await res.json();
 
         if (!res.ok || !data.success) {
-          setErrorMessage(data.error || 'Invalid token.');
-          setPageState('error');
+          if (!cancelled) {
+            setErrorMessage(data.error || 'Invalid token.');
+            setPageState('error');
+          }
           return;
         }
 
-        setCustomer({
-          customerName: data.customerName,
-          customerEmail: data.customerEmail,
-          servicePlan: data.servicePlan,
-          location: data.location,
-          serviceDate: data.serviceDate,
-          sourceEvent: data.sourceEvent,
-        });
+        if (!cancelled) {
+          setCustomer({
+            customerName: data.customerName,
+            customerEmail: data.customerEmail,
+            servicePlan: data.servicePlan,
+            location: data.location,
+            serviceDate: data.serviceDate,
+            sourceEvent: data.sourceEvent,
+          });
 
-        const mappedCat = mapSplynxEventToCategory(data.sourceEvent || '');
-        setCategory(mappedCat);
-        setPageState('form');
+          const mappedCat = mapSplynxEventToCategory(data.sourceEvent || '');
+          setCategory(mappedCat);
+          setPageState('form');
+        }
       } catch {
-        setErrorMessage('Network error. Please check your connection.');
-        setPageState('error');
+        if (!cancelled) {
+          setErrorMessage('Network error. Please check your connection.');
+          setPageState('error');
+        }
       }
     }
 
     validateToken();
+    return () => {
+      cancelled = true;
+    };
   }, [token]);
 
   async function handleSubmit() {

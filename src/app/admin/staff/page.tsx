@@ -3,15 +3,7 @@
 import React, { useMemo, useState } from 'react';
 import { AdminLayout } from '@/components/layout/AdminLayout';
 import { Search, UsersRound, AlertTriangle, MessageSquare, TrendingUp } from 'lucide-react';
-import {
-  Area,
-  AreaChart,
-  CartesianGrid,
-  ResponsiveContainer,
-  Tooltip,
-  XAxis,
-  YAxis,
-} from 'recharts';
+import { Area, AreaChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
 import { useAdminFeedbacks } from '@/hooks/use-admin-feedbacks';
 import { cn } from '@/lib/utils';
 import { staffRoster, type FeedbackCategory, type StaffProfile } from '@/lib/staff';
@@ -95,55 +87,57 @@ function formatDate(timestamp?: number, fallback?: string) {
 export default function StaffPerformancePage() {
   const [search, setSearch] = useState('');
   const [selectedStaffId, setSelectedStaffId] = useState(staffRoster[0]?.id || '');
-  const { feedbacks } = useAdminFeedbacks();
+  const { feedbacks, loading } = useAdminFeedbacks();
 
   const staffAnalytics = useMemo(() => {
     const feedbackList = (feedbacks || []) as FeedbackRecord[];
 
-    return staffRoster.map((staff) => {
-      const dimensions = getDimensions(staff);
-      const staffFeedbacks = feedbackList
-        .filter((feedback) => feedback.staffName === staff.name && staff.categories.includes(feedback.category as FeedbackCategory))
-        .sort((a, b) => Number(b.timestamp || 0) - Number(a.timestamp || 0));
+    return staffRoster
+      .map((staff) => {
+        const dimensions = getDimensions(staff);
+        const staffFeedbacks = feedbackList
+          .filter((feedback) => feedback.staffName === staff.name && staff.categories.includes(feedback.category as FeedbackCategory))
+          .sort((a, b) => Number(b.timestamp || 0) - Number(a.timestamp || 0));
 
-      const ratingValues = staffFeedbacks.flatMap((feedback) => getNumericRatings(feedback, dimensions));
-      const avgRating = average(ratingValues);
-      const resolvedCount = staffFeedbacks.filter((feedback) => feedback.status === 'resolved').length;
-      const resolvedRate = staffFeedbacks.length > 0 ? Math.round((resolvedCount / staffFeedbacks.length) * 100) : 0;
+        const ratingValues = staffFeedbacks.flatMap((feedback) => getNumericRatings(feedback, dimensions));
+        const avgRating = average(ratingValues);
+        const resolvedCount = staffFeedbacks.filter((feedback) => feedback.status === 'resolved').length;
+        const resolvedRate = staffFeedbacks.length > 0 ? Math.round((resolvedCount / staffFeedbacks.length) * 100) : 0;
 
-      const competency = dimensions.map((dimension) => {
-        const values = staffFeedbacks
-          .map((feedback) => feedback.ratings?.[dimension.key])
-          .filter((value): value is number => typeof value === 'number' && Number.isFinite(value));
+        const competency = dimensions.map((dimension) => {
+          const values = staffFeedbacks
+            .map((feedback) => feedback.ratings?.[dimension.key])
+            .filter((value): value is number => typeof value === 'number' && Number.isFinite(value));
 
-        return {
-          ...dimension,
-          score: average(values),
-        };
-      });
-
-      const trend = staffFeedbacks
-        .slice(0, 8)
-        .reverse()
-        .map((feedback) => {
-          const values = getNumericRatings(feedback, dimensions);
           return {
-            date: formatDate(feedback.timestamp, feedback.serviceDate),
-            score: Number(average(values).toFixed(2)),
+            ...dimension,
+            score: average(values),
           };
         });
 
-      return {
-        staff,
-        feedbacks: staffFeedbacks,
-        avgRating,
-        feedbackCount: staffFeedbacks.length,
-        resolvedRate,
-        competency,
-        trend,
-        lastActivity: staffFeedbacks[0]?.timestamp,
-      };
-    }).sort((a, b) => b.feedbackCount - a.feedbackCount || b.avgRating - a.avgRating || a.staff.name.localeCompare(b.staff.name));
+        const trend = staffFeedbacks
+          .slice(0, 8)
+          .reverse()
+          .map((feedback) => {
+            const values = getNumericRatings(feedback, dimensions);
+            return {
+              date: formatDate(feedback.timestamp, feedback.serviceDate),
+              score: Number(average(values).toFixed(2)),
+            };
+          });
+
+        return {
+          staff,
+          feedbacks: staffFeedbacks,
+          avgRating,
+          feedbackCount: staffFeedbacks.length,
+          resolvedRate,
+          competency,
+          trend,
+          lastActivity: staffFeedbacks[0]?.timestamp,
+        };
+      })
+      .sort((a, b) => b.feedbackCount - a.feedbackCount || b.avgRating - a.avgRating || a.staff.name.localeCompare(b.staff.name));
   }, [feedbacks]);
 
   const filteredStaff = useMemo(() => {
@@ -181,9 +175,7 @@ export default function StaffPerformancePage() {
               <UsersRound className="w-4 h-4 text-secondary" />
               <span className="font-mono text-[10px] uppercase tracking-widest text-on-surface-variant font-bold">Staff Intelligence</span>
             </div>
-            <h1 className="font-display text-3xl md:text-display-lg text-primary tracking-tight font-black uppercase">
-              Staff Performance
-            </h1>
+            <h1 className="font-display text-3xl md:text-display-lg text-primary tracking-tight font-black uppercase">Staff Performance</h1>
             <p className="text-on-surface-variant mt-3 max-w-2xl text-sm">
               Search agents, technicians, and billing staff, then review the feedback tied directly to each person.
             </p>
@@ -233,15 +225,17 @@ export default function StaffPerformancePage() {
                     type="button"
                     onClick={() => setSelectedStaffId(item.staff.id)}
                     className={cn(
-                      "text-left bg-white p-6 rounded-2xl whisper-shadow border transition-all hover:-translate-y-0.5 hover:border-secondary",
-                      isSelected ? "border-secondary ring-2 ring-secondary/10" : "border-border"
+                      'text-left bg-white p-6 rounded-2xl whisper-shadow border transition-all hover:-translate-y-0.5 hover:border-secondary',
+                      isSelected ? 'border-secondary ring-2 ring-secondary/10' : 'border-border',
                     )}
                   >
                     <div className="flex items-center gap-4 mb-6">
-                      <div className={cn(
-                        "w-14 h-14 rounded-full border flex items-center justify-center font-mono font-black",
-                        isSelected ? "bg-secondary text-white border-secondary" : "bg-surface-container-low text-secondary border-border"
-                      )}>
+                      <div
+                        className={cn(
+                          'w-14 h-14 rounded-full border flex items-center justify-center font-mono font-black',
+                          isSelected ? 'bg-secondary text-white border-secondary' : 'bg-surface-container-low text-secondary border-border',
+                        )}
+                      >
                         {initials}
                       </div>
                       <div className="min-w-0">
@@ -255,7 +249,7 @@ export default function StaffPerformancePage() {
                     <div className="flex justify-between items-end gap-4">
                       <div>
                         <p className="font-mono text-[9px] text-on-surface-variant uppercase tracking-widest mb-1">Avg Rating</p>
-                        <p className={cn("font-mono text-[30px] leading-none font-black", isSelected ? "text-secondary" : "text-primary")}>
+                        <p className={cn('font-mono text-[30px] leading-none font-black', isSelected ? 'text-secondary' : 'text-primary')}>
                           {item.avgRating > 0 ? item.avgRating.toFixed(2) : '0.00'}
                         </p>
                       </div>
@@ -273,8 +267,8 @@ export default function StaffPerformancePage() {
                         <span
                           key={tag}
                           className={cn(
-                            "px-3 py-1 rounded-full font-mono text-[9px] uppercase font-bold",
-                            tag === 'Needs Review' ? "bg-destructive/10 text-destructive" : "bg-secondary/10 text-secondary"
+                            'px-3 py-1 rounded-full font-mono text-[9px] uppercase font-bold',
+                            tag === 'Needs Review' ? 'bg-destructive/10 text-destructive' : 'bg-secondary/10 text-secondary',
                           )}
                         >
                           {tag}
@@ -285,7 +279,12 @@ export default function StaffPerformancePage() {
                 );
               })}
 
-              {filteredStaff.length === 0 && (
+              {loading && (
+                <div className="md:col-span-2 p-12 text-center">
+                  <div className="w-8 h-8 border-4 border-secondary/20 border-t-secondary rounded-full animate-spin mx-auto" />
+                </div>
+              )}
+              {!loading && filteredStaff.length === 0 && (
                 <div className="md:col-span-2 border-2 border-dashed border-border rounded-2xl p-12 text-center">
                   <p className="font-mono text-xs uppercase text-on-surface-variant font-bold">No matching staff found</p>
                 </div>
@@ -335,8 +334,8 @@ export default function StaffPerformancePage() {
                         <AreaChart data={selectedStaff.trend}>
                           <defs>
                             <linearGradient id="staffTrend" x1="0" y1="0" x2="0" y2="1">
-                              <stop offset="5%" stopColor="#448515" stopOpacity={0.18}/>
-                              <stop offset="95%" stopColor="#448515" stopOpacity={0}/>
+                              <stop offset="5%" stopColor="#448515" stopOpacity={0.18} />
+                              <stop offset="95%" stopColor="#448515" stopOpacity={0} />
                             </linearGradient>
                           </defs>
                           <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#eee" />
@@ -350,7 +349,9 @@ export default function StaffPerformancePage() {
                   </div>
 
                   <div className="space-y-5">
-                    <p className="font-mono text-[10px] uppercase tracking-widest text-on-surface-variant font-bold">Competency Breakdown</p>
+                    <p className="font-mono text-[10px] uppercase tracking-widest text-on-surface-variant font-bold">
+                      Competency Breakdown
+                    </p>
                     {selectedStaff.competency.map((dimension) => {
                       const score = Number(dimension.score.toFixed(1));
                       const width = Math.min(100, Math.max(0, (score / 5) * 100));
@@ -388,17 +389,21 @@ export default function StaffPerformancePage() {
                                 {feedback.category} | {feedback.location || 'Unknown region'}
                               </p>
                             </div>
-                            <span className={cn(
-                              "px-2 py-1 rounded-full font-mono text-[8px] uppercase font-bold",
-                              feedback.status === 'resolved' ? "bg-green-100 text-green-600" :
-                              feedback.status === 'open' ? "bg-emerald-50 text-emerald-600" :
-                              "bg-blue-100 text-blue-600"
-                            )}>
+                            <span
+                              className={cn(
+                                'px-2 py-1 rounded-full font-mono text-[8px] uppercase font-bold',
+                                feedback.status === 'resolved'
+                                  ? 'bg-green-100 text-green-600'
+                                  : feedback.status === 'open'
+                                    ? 'bg-emerald-50 text-emerald-600'
+                                    : 'bg-blue-100 text-blue-600',
+                              )}
+                            >
                               {feedback.status || 'open'}
                             </span>
                           </div>
                           {feedback.comment && (
-                             <p className="text-[13px] italic text-on-surface-variant leading-relaxed">&ldquo;{feedback.comment}&rdquo;</p>
+                            <p className="text-[13px] italic text-on-surface-variant leading-relaxed">&ldquo;{feedback.comment}&rdquo;</p>
                           )}
                           <div className="flex items-center justify-between mt-3 font-mono text-[9px] text-on-surface-variant/70 font-bold">
                             <span>{formatDate(feedback.timestamp, feedback.serviceDate)}</span>
@@ -411,7 +416,9 @@ export default function StaffPerformancePage() {
                     {selectedStaff.feedbacks.length === 0 && (
                       <div className="border-2 border-dashed border-border rounded-xl p-8 text-center">
                         <AlertTriangle className="w-6 h-6 text-on-surface-variant/40 mx-auto mb-3" />
-                        <p className="font-mono text-[10px] uppercase text-on-surface-variant font-bold">No feedback tied to this staff member yet</p>
+                        <p className="font-mono text-[10px] uppercase text-on-surface-variant font-bold">
+                          No feedback tied to this staff member yet
+                        </p>
                       </div>
                     )}
                   </div>

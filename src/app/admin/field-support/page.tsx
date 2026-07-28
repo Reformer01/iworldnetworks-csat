@@ -7,15 +7,7 @@ import { cn } from '@/lib/utils';
 import { useAuth, useUser } from '@/firebase';
 import { useAdminFeedbacks, updateFeedbackStatus } from '@/hooks/use-admin-feedbacks';
 import type { FeedbackDoc } from '@/lib/feedback-types';
-import { 
-  AreaChart, 
-  Area, 
-  XAxis, 
-  YAxis, 
-  CartesianGrid, 
-  Tooltip, 
-  ResponsiveContainer 
-} from 'recharts';
+import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 import { useToast } from '@/hooks/use-toast';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogTrigger, DialogFooter } from '@/components/ui/dialog';
 import { Textarea } from '@/components/ui/textarea';
@@ -25,12 +17,12 @@ export default function AdminFieldSupport() {
   const [barsAnimated, setBarsAnimated] = useState(false);
   const [selectedFeedback, setSelectedFeedback] = useState<FeedbackDoc | null>(null);
   const [resNotes, setResNotes] = useState('');
-  
+
   const auth = useAuth();
   const { user } = useUser(auth);
   const { toast } = useToast();
 
-  const { feedbacks, mutate } = useAdminFeedbacks();
+  const { feedbacks, loading, mutate } = useAdminFeedbacks();
 
   const fieldItems = useMemo(() => {
     return feedbacks.filter((f: FeedbackDoc) => f.category === 'FieldSupport');
@@ -38,13 +30,13 @@ export default function AdminFieldSupport() {
 
   const stats = useMemo(() => {
     if (fieldItems.length === 0) {
-      return { 
-        resolutionSpeed: '0.0', 
-        repairQuality: '0.0', 
-        conduct: '0.0', 
-        successRate: 0, 
-        sentiment: { pos: 0, neu: 0, frust: 0 }, 
-        avgTime: '—' 
+      return {
+        resolutionSpeed: '0.0',
+        repairQuality: '0.0',
+        conduct: '0.0',
+        successRate: 0,
+        sentiment: { pos: 0, neu: 0, frust: 0 },
+        avgTime: '—',
       };
     }
 
@@ -72,15 +64,15 @@ export default function AdminFieldSupport() {
       sentiment: {
         pos: Math.round((pos / fieldItems.length) * 100),
         neu: Math.round((neu / fieldItems.length) * 100),
-        frust: Math.round((frust / fieldItems.length) * 100)
+        frust: Math.round((frust / fieldItems.length) * 100),
       },
-      avgTime: `${avgHours}h`
+      avgTime: `${avgHours}h`,
     };
   }, [fieldItems]);
 
   const volumeData = useMemo(() => {
-    const groups: Record<string, { name: string, tickets: number, timestamp: number }> = {};
-    
+    const groups: Record<string, { name: string; tickets: number; timestamp: number }> = {};
+
     fieldItems.forEach((f: FeedbackDoc) => {
       const date = new Date(f.timestamp ?? 0);
       const label = date.toLocaleDateString([], { month: 'short', day: 'numeric' });
@@ -88,7 +80,7 @@ export default function AdminFieldSupport() {
         groups[label] = {
           name: label,
           tickets: 0,
-          timestamp: f.timestamp ?? 0
+          timestamp: f.timestamp ?? 0,
         };
       }
       groups[label].tickets += 1;
@@ -98,44 +90,47 @@ export default function AdminFieldSupport() {
       .sort((a, b) => a.timestamp - b.timestamp)
       .map(({ name, tickets }) => ({
         date: name,
-        tickets
+        tickets,
       }));
   }, [fieldItems]);
 
   const techLeaderboard = useMemo(() => {
     const techsRoster = [
-      { name: "Lukmon Obasa", region: "Akure" },
-      { name: "Christian Adejo", region: "Akure" },
-      { name: "Habeeb Hussein", region: "Ibadan" },
-      { name: "Joseph Dung N", region: "Ibadan" },
-      { name: "Alowo Temitope", region: "Ibadan" },
-      { name: "Timilehin Alabi", region: "Ibadan" },
-      { name: "Adekunle Ademiju", region: "Ibadan" },
-      { name: "Adebisi Ogusola", region: "Abeokuta" },
-      { name: "Kehinde Itehinola", region: "Abeokuta" },
-      { name: "Olopade Olusegun", region: "Abeokuta" },
-      { name: "Mubarak Raji", region: "Osogbo" }
+      { name: 'Lukmon Obasa', region: 'Akure' },
+      { name: 'Christian Adejo', region: 'Akure' },
+      { name: 'Habeeb Hussein', region: 'Ibadan' },
+      { name: 'Joseph Dung N', region: 'Ibadan' },
+      { name: 'Alowo Temitope', region: 'Ibadan' },
+      { name: 'Timilehin Alabi', region: 'Ibadan' },
+      { name: 'Adekunle Ademiju', region: 'Ibadan' },
+      { name: 'Adebisi Ogusola', region: 'Abeokuta' },
+      { name: 'Kehinde Itehinola', region: 'Abeokuta' },
+      { name: 'Olopade Olusegun', region: 'Abeokuta' },
+      { name: 'Mubarak Raji', region: 'Osogbo' },
     ];
 
-    return techsRoster.map((t: { name: string; region: string }) => {
-      const completions = fieldItems.filter((f: FeedbackDoc) => f.staffName === t.name).length;
-      return {
-        ...t,
-        completions
-      };
-    }).sort((a, b) => b.completions - a.completions).slice(0, 5);
+    return techsRoster
+      .map((t: { name: string; region: string }) => {
+        const completions = fieldItems.filter((f: FeedbackDoc) => f.staffName === t.name).length;
+        return {
+          ...t,
+          completions,
+        };
+      })
+      .sort((a, b) => b.completions - a.completions)
+      .slice(0, 5);
   }, [fieldItems]);
 
   const handleUpdateStatus = async (feedbackId: string, status: string) => {
     if (!user) return;
     try {
       await updateFeedbackStatus(feedbackId, status, resNotes, user);
-      toast({ title: "Status Updated", description: `Feedback marked as ${status}.` });
+      toast({ title: 'Status Updated', description: `Feedback marked as ${status}.` });
       mutate();
       setSelectedFeedback(null);
       setResNotes('');
     } catch (e: unknown) {
-      toast({ variant: "destructive", title: "Update Failed", description: e instanceof Error ? e.message : 'Error' });
+      toast({ variant: 'destructive', title: 'Update Failed', description: e instanceof Error ? e.message : 'Error' });
     }
   };
 
@@ -147,7 +142,9 @@ export default function AdminFieldSupport() {
   return (
     <AdminLayout>
       <div className="mb-12">
-        <h1 className="font-display text-3xl md:text-display-lg text-primary tracking-tight mb-2 uppercase font-black">Field Support Overview</h1>
+        <h1 className="font-display text-3xl md:text-display-lg text-primary tracking-tight mb-2 uppercase font-black">
+          Field Support Overview
+        </h1>
         <p className="text-on-surface-variant mt-2 max-w-2xl font-body-md">Track repair quality, speed, and success rates.</p>
       </div>
 
@@ -156,7 +153,9 @@ export default function AdminFieldSupport() {
           <Clock className="w-8 h-8 text-secondary mb-4" />
           <p className="font-mono text-[10px] text-on-surface-variant uppercase tracking-widest">Avg Repair Time</p>
           <h3 className="font-mono text-4xl font-black mt-2">{stats.avgTime}</h3>
-          <div className="flex items-center gap-2 mt-4 text-green-600 font-bold text-xs"><Zap className="w-4 h-4" /> Target: &lt; 24h</div>
+          <div className="flex items-center gap-2 mt-4 text-green-600 font-bold text-xs">
+            <Zap className="w-4 h-4" /> Target: &lt; 24h
+          </div>
         </div>
 
         <div className="bg-white p-8 border border-border whisper-shadow rounded-xl">
@@ -191,8 +190,8 @@ export default function AdminFieldSupport() {
               <AreaChart data={volumeData}>
                 <defs>
                   <linearGradient id="colorTicketsField" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="5%" stopColor="#448515" stopOpacity={0.1}/>
-                    <stop offset="95%" stopColor="#448515" stopOpacity={0}/>
+                    <stop offset="5%" stopColor="#448515" stopOpacity={0.1} />
+                    <stop offset="95%" stopColor="#448515" stopOpacity={0} />
                   </linearGradient>
                 </defs>
                 <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#eee" />
@@ -212,14 +211,17 @@ export default function AdminFieldSupport() {
               { label: 'Positive', val: stats.sentiment.pos, color: 'bg-secondary' },
               { label: 'Neutral', val: stats.sentiment.neu, color: 'bg-slate-400' },
               { label: 'Frustrated', val: stats.sentiment.frust, color: 'bg-destructive' },
-            ].map(item => (
+            ].map((item) => (
               <div key={item.label}>
                 <div className="flex justify-between mb-2">
                   <span className="font-mono text-[10px] uppercase tracking-wider">{item.label}</span>
                   <span className="font-bold text-xs">{item.val}%</span>
                 </div>
                 <div className="w-full bg-muted h-3 rounded-full overflow-hidden">
-                  <div className={cn("h-full transition-all duration-1000", item.color)} style={{ width: barsAnimated ? `${item.val}%` : '0%' }}></div>
+                  <div
+                    className={cn('h-full transition-all duration-1000', item.color)}
+                    style={{ width: barsAnimated ? `${item.val}%` : '0%' }}
+                  ></div>
                 </div>
               </div>
             ))}
@@ -241,14 +243,14 @@ export default function AdminFieldSupport() {
                   <p className="font-mono text-[10px] text-on-surface-variant uppercase">{tech.region}</p>
                 </div>
                 <div className="text-right">
-                  <p className="font-black text-secondary text-lg"><span className="font-mono">{tech.completions}</span></p>
+                  <p className="font-black text-secondary text-lg">
+                    <span className="font-mono">{tech.completions}</span>
+                  </p>
                   <p className="font-mono text-[8px] uppercase opacity-60">Jobs</p>
                 </div>
               </div>
             ))}
-            {techLeaderboard.length === 0 && (
-              <p className="text-[10px] font-mono opacity-40 text-center py-4">Waiting for data...</p>
-            )}
+            {techLeaderboard.length === 0 && <p className="text-[10px] font-mono opacity-40 text-center py-4">Waiting for data...</p>}
           </div>
         </section>
 
@@ -259,14 +261,21 @@ export default function AdminFieldSupport() {
               <div key={f.id} className="p-4 border border-border rounded-xl bg-surface-container-lowest flex flex-col gap-4">
                 <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2">
                   <div className="flex flex-wrap items-center gap-2">
-                    <span className={cn(
-                      "px-2 py-0.5 rounded-full text-[8px] font-mono font-bold uppercase",
-                      f.status === 'resolved' ? "bg-green-100 text-green-600" : 
-                      f.status === 'open' ? "bg-emerald-50 text-emerald-600 border border-emerald-200/50" : "bg-blue-100 text-blue-600"
-                    )}>
+                    <span
+                      className={cn(
+                        'px-2 py-0.5 rounded-full text-[8px] font-mono font-bold uppercase',
+                        f.status === 'resolved'
+                          ? 'bg-green-100 text-green-600'
+                          : f.status === 'open'
+                            ? 'bg-emerald-50 text-emerald-600 border border-emerald-200/50'
+                            : 'bg-blue-100 text-blue-600',
+                      )}
+                    >
                       {f.status}
                     </span>
-                    <span className="font-mono text-[9px] text-on-surface-variant uppercase font-bold">Tech: {f.staffName || 'Unknown'}</span>
+                    <span className="font-mono text-[9px] text-on-surface-variant uppercase font-bold">
+                      Tech: {f.staffName || 'Unknown'}
+                    </span>
                     {f.servicePlan && (
                       <span className="font-mono text-[9px] text-on-surface-variant/60 font-bold">Plan: {f.servicePlan}</span>
                     )}
@@ -276,8 +285,10 @@ export default function AdminFieldSupport() {
                   </span>
                 </div>
                 <div>
-                  <p className="font-mono text-xs font-bold text-primary">{f.customerName} <span className="opacity-40 font-normal">({f.location})</span></p>
-                   {f.comment && <p className="text-xs text-on-surface-variant italic mt-1 font-body">&ldquo;{f.comment}&rdquo;</p>}
+                  <p className="font-mono text-xs font-bold text-primary">
+                    {f.customerName} <span className="opacity-40 font-normal">({f.location})</span>
+                  </p>
+                  {f.comment && <p className="text-xs text-on-surface-variant italic mt-1 font-body">&ldquo;{f.comment}&rdquo;</p>}
                 </div>
 
                 <div className="flex items-center justify-between border-t border-border/50 pt-3 mt-1">
@@ -289,7 +300,15 @@ export default function AdminFieldSupport() {
 
                   <Dialog>
                     <DialogTrigger asChild>
-                      <Button variant="outline" size="sm" className="h-7 rounded-full px-4 font-mono text-[8px] uppercase font-bold" onClick={() => { setSelectedFeedback(f); setResNotes(f.resolutionNotes || ''); }}>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="h-7 rounded-full px-4 font-mono text-[8px] uppercase font-bold"
+                        onClick={() => {
+                          setSelectedFeedback(f);
+                          setResNotes(f.resolutionNotes || '');
+                        }}
+                      >
                         <MessageSquare className="w-2.5 h-2.5 mr-1" /> Take Action
                       </Button>
                     </DialogTrigger>
@@ -299,15 +318,29 @@ export default function AdminFieldSupport() {
                         <DialogDescription className="sr-only">Mark this feedback as resolved and add resolution notes.</DialogDescription>
                       </DialogHeader>
                       <div className="space-y-6 py-4">
-                         {f.comment && <div className="p-4 bg-muted rounded-xl text-sm italic">&ldquo;{f.comment}&rdquo;</div>}
+                        {f.comment && <div className="p-4 bg-muted rounded-xl text-sm italic">&ldquo;{f.comment}&rdquo;</div>}
                         <div className="space-y-2">
                           <label className="font-mono text-[10px] uppercase font-bold text-on-surface-variant">Resolution Notes</label>
-                          <Textarea placeholder="What was done to resolve this?" className="min-h-[120px] rounded-2xl" value={resNotes} onChange={(e) => setResNotes(e.target.value)} />
+                          <Textarea
+                            placeholder="What was done to resolve this?"
+                            className="min-h-[120px] rounded-2xl"
+                            value={resNotes}
+                            onChange={(e) => setResNotes(e.target.value)}
+                          />
                         </div>
                       </div>
                       <DialogFooter className="flex gap-2">
-                        <Button variant="outline" className="rounded-full font-mono text-[10px] uppercase font-bold" onClick={() => handleUpdateStatus(f.id, 'escalated')}>Escalate</Button>
-                        <Button className="rounded-full bg-secondary text-white font-mono text-[10px] uppercase font-bold px-8" onClick={() => handleUpdateStatus(f.id, 'resolved')}>
+                        <Button
+                          variant="outline"
+                          className="rounded-full font-mono text-[10px] uppercase font-bold"
+                          onClick={() => handleUpdateStatus(f.id, 'escalated')}
+                        >
+                          Escalate
+                        </Button>
+                        <Button
+                          className="rounded-full bg-secondary text-white font-mono text-[10px] uppercase font-bold px-8"
+                          onClick={() => handleUpdateStatus(f.id, 'resolved')}
+                        >
                           <CheckCircle2 className="w-3 h-3 mr-2" /> Mark Resolved
                         </Button>
                       </DialogFooter>
@@ -323,9 +356,16 @@ export default function AdminFieldSupport() {
                 )}
               </div>
             ))}
-            {fieldItems.length === 0 && (
+            {loading && (
+              <div className="py-12 text-center">
+                <div className="w-8 h-8 border-4 border-secondary/20 border-t-secondary rounded-full animate-spin mx-auto" />
+              </div>
+            )}
+            {!loading && fieldItems.length === 0 && (
               <div className="py-12 text-center border-2 border-dashed border-border rounded-xl">
-                <p className="font-mono text-xs text-on-surface-variant opacity-40 uppercase font-bold tracking-widest">No Field Support Records</p>
+                <p className="font-mono text-xs text-on-surface-variant opacity-40 uppercase font-bold tracking-widest">
+                  No Field Support Records
+                </p>
               </div>
             )}
           </div>

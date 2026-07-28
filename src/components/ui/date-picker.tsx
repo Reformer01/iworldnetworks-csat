@@ -22,6 +22,7 @@ export function DatePicker({ date, onSelect, className, placeholder }: DatePicke
 
   React.useEffect(() => {
     setSelected(date);
+    return () => {};
   }, [date]);
 
   return (
@@ -33,7 +34,7 @@ export function DatePicker({ date, onSelect, className, placeholder }: DatePicke
           className={cn(
             'justify-start text-left font-mono text-[10px] uppercase font-bold rounded-md border-border h-9 px-4 w-full bg-white text-primary',
             !date && 'text-on-surface-variant',
-            className
+            className,
           )}
         >
           <CalendarIcon className="mr-2 h-3.5 w-3.5 text-secondary" />

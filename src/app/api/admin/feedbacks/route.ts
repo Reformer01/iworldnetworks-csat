@@ -66,6 +66,11 @@ export async function GET(request: NextRequest) {
   } catch (err: unknown) {
     const message = err instanceof Error ? err.message : 'Unknown error';
     logError('[admin-feedbacks] GET error', { error: message });
+
+    if (message.includes('requires an index') || message.includes('FAILED_PRECONDITION')) {
+      return error('Query requires a Firestore composite index. Run: firebase deploy --only firestore:indexes', 412);
+    }
+
     return serverError();
   }
 }
@@ -89,7 +94,13 @@ export async function PUT(request: NextRequest) {
       return error('Feedback ID required.');
     }
 
-    const { id, ...updates } = body;
+    const { id, ...rest } = body;
+    const ALLOWED_FIELDS = ['status', 'staffName', 'category', 'comment', 'location', 'servicePlan', 'ratings', 'satisfied', 'aiAnalysis'];
+    const updates: Record<string, unknown> = { updatedAt: Date.now() };
+    for (const key of ALLOWED_FIELDS) {
+      if (key in rest) updates[key] = rest[key];
+    }
+
     const db = getAdminFirestore();
     const docRef = db.collection('feedbacks').doc(id);
     const prev = await docRef.get();
@@ -98,10 +109,7 @@ export async function PUT(request: NextRequest) {
       return notFound('Feedback not found.');
     }
 
-    await docRef.update({
-      ...updates,
-      updatedAt: Date.now(),
-    });
+    await docRef.update(updates);
 
     await writeAuditLog({
       action: 'update',

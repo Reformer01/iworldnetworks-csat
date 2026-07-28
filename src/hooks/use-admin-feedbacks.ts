@@ -154,6 +154,9 @@ export function useAdminFeedbacks() {
 
   useEffect(() => {
     fetchFeedbacks();
+    return () => {
+      /* cleanup */
+    };
   }, [fetchFeedbacks]);
 
   return {

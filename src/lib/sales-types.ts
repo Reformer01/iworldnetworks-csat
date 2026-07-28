@@ -1,8 +1,13 @@
-export type SalesRegion = 'Ogun' | 'Oyo' | 'Osun' | 'Ondo';
-export type SalesSegment = 'HOME' | 'SME' | 'ENTERPRISE' | 'NEIGHBOURHOOD' | 'MANAGED_SERVICES';
-export type AccountStatus = 'Active' | 'Inactive' | 'Blocked' | 'Refunded' | 'Retrieved';
-export type PackageType = 'Outright' | 'Lease';
-export type SaleQuarter = 'QUARTER 1' | 'QUARTER 2' | 'QUARTER 3' | 'QUARTER 4';
+export const SALES_REGIONS = ['Ogun', 'Oyo', 'Osun', 'Ondo'] as const;
+export type SalesRegion = (typeof SALES_REGIONS)[number];
+export const SALES_SEGMENTS = ['HOME', 'SME', 'ENTERPRISE', 'NEIGHBOURHOOD', 'MANAGED_SERVICES'] as const;
+export type SalesSegment = (typeof SALES_SEGMENTS)[number];
+export const ACCOUNT_STATUSES = ['Active', 'Inactive', 'Blocked', 'Refunded', 'Retrieved'] as const;
+export type AccountStatus = (typeof ACCOUNT_STATUSES)[number];
+export const PACKAGE_TYPES = ['Outright', 'Lease'] as const;
+export type PackageType = (typeof PACKAGE_TYPES)[number];
+export const SALE_QUARTERS = ['QUARTER 1', 'QUARTER 2', 'QUARTER 3', 'QUARTER 4'] as const;
+export type SaleQuarter = (typeof SALE_QUARTERS)[number];
 export type CustomerType = 'new' | 'revived';
 
 export interface SalesRecord {

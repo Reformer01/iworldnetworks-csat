@@ -47,19 +47,17 @@ export async function GET(request: NextRequest) {
 
     const db = getAdminFirestore();
 
-    let query = db
-      .collection('support_staff_kpis')
-      .where('periodStart', '>=', periodStart)
-      .where('periodEnd', '<=', periodEnd)
-      .orderBy('periodStart', 'desc')
-      .limit(50);
+    let query = db.collection('support_staff_kpis').where('periodStart', '>=', periodStart).orderBy('periodStart', 'desc');
 
     if (staffId) {
       query = query.where('staffId', '==', staffId);
     }
 
     const snapshot = await query.get();
-    const kpis: SupportStaffKPI[] = snapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() }) as SupportStaffKPI);
+    let kpis: SupportStaffKPI[] = snapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() }) as SupportStaffKPI);
+
+    // Firestore only allows range on one field; filter periodEnd in-memory
+    kpis = kpis.filter((kpi) => kpi.periodEnd <= periodEnd).slice(0, 50);
 
     // Group by staff and calculate trends
     const staffMetrics = new Map<string, SupportStaffKPI[]>();
@@ -101,9 +99,12 @@ export async function GET(request: NextRequest) {
     });
   } catch (err: unknown) {
     const message = err instanceof Error ? err.message : 'Unknown error';
-    return new Response(JSON.stringify({ error: message }), {
-      status: 500,
-      headers: { 'Content-Type': 'application/json' },
-    });
+    logError('[staff-metrics-history] GET error', { error: message });
+
+    if (message.includes('requires an index') || message.includes('FAILED_PRECONDITION')) {
+      return error('Query requires a Firestore composite index. Run: firebase deploy --only firestore:indexes', 412);
+    }
+
+    return serverError();
   }
 }

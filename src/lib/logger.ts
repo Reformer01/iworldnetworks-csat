@@ -1,3 +1,5 @@
+import { randomUUID } from 'crypto';
+
 export interface LogEntry {
   level: 'info' | 'warn' | 'error';
   message: string;
@@ -9,11 +11,8 @@ export interface LogEntry {
   [key: string]: unknown;
 }
 
-let requestIdCounter = 0;
-
 export function generateRequestId(): string {
-  requestIdCounter += 1;
-  return `req_${Date.now()}_${requestIdCounter}`;
+  return `req_${randomUUID().slice(0, 8)}`;
 }
 
 function writeLog(entry: LogEntry): void {

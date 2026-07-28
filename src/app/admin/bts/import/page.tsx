@@ -46,8 +46,8 @@ const BTS_STATIONS_BY_REGION: Record<string, string[]> = {
   Ijebu: ['Odogbolu', 'Ijebu GRA', 'NTA Ijebu', 'Ilamo', 'CKA'],
   Osogbo: ['OSBC', 'NTA Osogbo', 'Rave', 'Osogbo Office', 'Odeomu'],
   Sagamu: ['Sagamu GRA', 'CRC', 'Akarigbo', 'Sagamu Extension', 'Potoki', 'Pentagon', 'Magboro'],
-  Akure: ['OSRC', 'Akure Office', 'Positive', 'Glow', 'Alagbaka Extension', 'Bolorunduro'],
-  Ota: ['Ota Estate', 'Syayis', 'AIT', 'Ota Office'],
+  Akure: ['OSRC', 'Akure Office', 'Positive', 'Glow', 'Alagbaka Extension', 'Bolorunduro', 'Breeze'],
+  Ota: ['Ota Estate', 'Syayis', 'AIT', 'Ota Office', 'Miliki BTS'],
 };
 
 function formatNaira(amount: number) {
@@ -213,7 +213,8 @@ export default function BtsDataImportPage() {
             .slice(0, 10),
         );
       }
-    } catch {
+    } catch (err) {
+      console.error('Failed to fetch import history:', err);
     } finally {
       setLoadingHistory(false);
     }

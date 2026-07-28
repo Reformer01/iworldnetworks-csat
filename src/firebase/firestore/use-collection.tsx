@@ -11,15 +11,15 @@ export function useCollection<T = DocumentData>(query: Query<T> | null) {
 
   useEffect(() => {
     isMounted.current = true;
-    
+
     if (!query) {
       setData(null);
       setLoading(false);
       return;
     }
 
-    setLoading(true);
-    
+    if (loading !== true) setLoading(true);
+
     const unsubscribe = onSnapshot(
       query,
       (snapshot: QuerySnapshot<T>) => {
@@ -34,9 +34,9 @@ export function useCollection<T = DocumentData>(query: Query<T> | null) {
       },
       (err: FirestoreError) => {
         if (!isMounted.current) return;
-        
+
         // SILENT HANDSHAKE: Do not crash on permission errors.
-        // This usually happens during the brief window when a user logs in 
+        // This usually happens during the brief window when a user logs in
         // but the security rules haven't synced with the new token.
         if (err.code === 'permission-denied') {
           console.warn('Firestore: Waiting for authorized session synchronization.');
@@ -46,7 +46,7 @@ export function useCollection<T = DocumentData>(query: Query<T> | null) {
           setError(err);
         }
         setLoading(false);
-      }
+      },
     );
 
     return () => {

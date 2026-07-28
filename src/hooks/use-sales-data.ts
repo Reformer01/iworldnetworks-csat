@@ -127,6 +127,7 @@ export function useSalesMonthlyRevenue(params?: { region?: string; segment?: str
 
   useEffect(() => {
     fetchMonthlyRevenue();
+    return () => {};
   }, [fetchMonthlyRevenue]);
 
   return { data, loading, error, mutate: fetchMonthlyRevenue };
@@ -189,6 +190,7 @@ export function useSalesRecords(params?: {
 
   useEffect(() => {
     fetchRecords(true);
+    return () => {};
   }, [fetchRecords]);
 
   return { records, total, totalPages, loading, error, mutate: () => fetchRecords(true) };

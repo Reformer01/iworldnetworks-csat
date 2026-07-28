@@ -22,21 +22,5 @@ export async function verifyAdminToken(authHeader: string | null): Promise<{ uid
   }
 }
 
-/**
- * Verifies the Firebase ID token for support staff access.
- * More permissive than verifyAdminToken - any authenticated user from allowed domain can access support metrics.
- */
-export async function verifySupportToken(authHeader: string | null): Promise<{ uid: string; email: string } | null> {
-  if (!authHeader?.startsWith('Bearer ')) return null;
-  const idToken = authHeader.slice(7);
-  try {
-    const decoded = await getAuth(getAdminApp()).verifyIdToken(idToken);
-    const email = decoded.email;
-    if (decoded.email_verified && email && isAllowedDomain(email)) {
-      return { uid: decoded.uid, email };
-    }
-    return null;
-  } catch {
-    return null;
-  }
-}
+/** @deprecated Use verifyAdminToken instead. Identical logic. */
+export const verifySupportToken = verifyAdminToken;

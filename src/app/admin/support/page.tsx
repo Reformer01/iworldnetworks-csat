@@ -58,7 +58,7 @@ export default function AdminSupport() {
   const auth = useAuth();
   const { user } = useUser(auth);
 
-  const { feedbacks } = useAdminFeedbacks();
+  const { feedbacks, loading: feedbacksLoading } = useAdminFeedbacks();
 
   // Fetch staff KPIs
   useEffect(() => {

@@ -30,6 +30,7 @@ export function DateRangePicker({ from, to, onSelect, className, placeholder }: 
 
   React.useEffect(() => {
     setSelected({ from, to });
+    return () => {};
   }, [from, to]);
 
   return (
@@ -40,7 +41,7 @@ export function DateRangePicker({ from, to, onSelect, className, placeholder }: 
           className={cn(
             'justify-start text-left font-mono text-[10px] uppercase font-bold rounded-full border-border h-9 px-4',
             !from && !to && 'text-on-surface-variant',
-            className
+            className,
           )}
         >
           <CalendarIcon className="mr-2 h-3.5 w-3.5" />
@@ -95,7 +96,10 @@ export function DateRangePicker({ from, to, onSelect, className, placeholder }: 
           {(from || to) && (
             <div className="flex justify-between items-center pt-3 border-t border-border mt-3">
               <button
-                onClick={() => { setSelected(undefined); onSelect(undefined); }}
+                onClick={() => {
+                  setSelected(undefined);
+                  onSelect(undefined);
+                }}
                 className="font-mono text-[10px] uppercase font-bold text-on-surface-variant hover:text-destructive transition-colors"
               >
                 Clear

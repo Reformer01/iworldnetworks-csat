@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getAdminFirestore } from '@/lib/firebase-admin';
 import { createFeedbackToken, getFeedbackBaseUrl } from '@/lib/feedback-token';
+import { isRateLimitedFirestore } from '@/lib/rate-limit-firestore';
+import { logError } from '@/lib/logger';
 import { z } from 'zod';
 
 const popupTokenSchema = z.object({
@@ -16,6 +18,10 @@ const popupTokenSchema = z.object({
 
 export async function POST(request: NextRequest) {
   try {
+    if (await isRateLimitedFirestore(request, 20, 60 * 1000)) {
+      return NextResponse.json({ success: false, error: 'Too many requests.' }, { status: 429 });
+    }
+
     const body = await request.json().catch(() => null);
     if (!body) {
       return NextResponse.json({ success: false, error: 'Invalid JSON.' }, { status: 400 });
@@ -52,6 +58,7 @@ export async function POST(request: NextRequest) {
       embedHtml: `<iframe src="${popupUrl}" width="100%" height="500" frameborder="0" style="border-radius: 12px; border: 1px solid #e5e7eb;"></iframe>`,
     });
   } catch (err) {
+    logError('[feedback-popup] POST error', { error: err instanceof Error ? err.message : String(err) });
     return NextResponse.json({ success: false, error: 'Internal server error.' }, { status: 500 });
   }
 }

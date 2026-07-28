@@ -20,35 +20,38 @@ export async function POST(request: NextRequest) {
     const body = await request.json().catch(() => null);
     const parsed = sessionSchema.safeParse(body);
     if (!parsed.success) {
-      return NextResponse.json({
-        success: false,
-        error: 'idToken is required',
-        code: 'VALIDATION_ERROR',
-      }, { status: 400 });
+      return NextResponse.json(
+        {
+          success: false,
+          error: 'idToken is required',
+          code: 'VALIDATION_ERROR',
+        },
+        { status: 400 },
+      );
     }
 
     const expiresIn = 60 * 60 * 24 * 5 * 1000;
     const adminApp = getAdminApp();
-    const sessionCookie = await getAuth(adminApp).createSessionCookie(
-      parsed.data.idToken,
-      { expiresIn },
-    );
+    const sessionCookie = await getAuth(adminApp).createSessionCookie(parsed.data.idToken, { expiresIn });
 
     const response = NextResponse.json({ success: true });
     response.cookies.set('__session', sessionCookie, {
       httpOnly: true,
       secure: process.env.NODE_ENV === 'production',
-      sameSite: 'strict',
-      path: '/admin',
+      sameSite: 'lax',
+      path: '/',
       maxAge: expiresIn / 1000,
     });
     return response;
   } catch (err) {
     logError('[session] POST error', { error: err instanceof Error ? err.message : String(err) });
-    return NextResponse.json({
-      success: false,
-      error: 'Session creation failed.',
-      code: 'SESSION_CREATE_FAILED',
-    }, { status: 500 });
+    return NextResponse.json(
+      {
+        success: false,
+        error: 'Session creation failed.',
+        code: 'SESSION_CREATE_FAILED',
+      },
+      { status: 500 },
+    );
   }
 }

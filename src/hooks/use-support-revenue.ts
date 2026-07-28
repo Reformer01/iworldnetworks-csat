@@ -122,6 +122,7 @@ export function useSupportRevenue(options: UseSupportRevenueOptions = {}) {
 
   useEffect(() => {
     fetchRecords();
+    return () => {};
   }, [fetchRecords]);
 
   return {

@@ -92,6 +92,9 @@ export default function SalesRecords() {
 
   useEffect(() => {
     setPage(0);
+    return () => {
+      /* cleanup */
+    };
   }, [search, filterRegion, filterStatus]);
 
   useEffect(() => {
@@ -102,18 +105,27 @@ export default function SalesRecords() {
         reader.onload = () => setLogoBase64(reader.result as string);
         reader.readAsDataURL(blob);
       })
-      .catch(() => {});
+      .catch(() => {
+        /* logo is optional */
+      });
+    return () => {
+      /* cleanup */
+    };
   }, []);
 
   useEffect(() => {
     const isEnterprise = getSegmentForPlan(form.planCode) === 'ENTERPRISE';
     if (isEnterprise) return;
     const planMrc = getPlanMrc(form.planCode);
-    setForm((prev) => {
-      const mrc = planMrc !== null ? planMrc : prev.mrc;
-      const nrc = Math.max(0, form.totalPaid - mrc);
-      return { ...prev, mrc, nrc };
-    });
+    if (planMrc !== null) {
+      setForm((prev) => {
+        const nrc = Math.max(0, form.totalPaid - planMrc);
+        return { ...prev, mrc: planMrc, nrc };
+      });
+    }
+    return () => {
+      /* cleanup */
+    };
   }, [form.planCode, form.totalPaid]);
 
   useEffect(() => {
@@ -123,6 +135,9 @@ export default function SalesRecords() {
         setForm((prev) => ({ ...prev, quarter: q }));
       }
     }
+    return () => {
+      /* cleanup */
+    };
   }, [form.month]);
 
   const handleSave = async () => {

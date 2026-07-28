@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { SalesRegion, TicketStatus, ComplaintType } from '../sales-types';
+import { SALES_REGIONS, TicketStatus, ComplaintType } from '../sales-types';
 
 export const ticketSchema = z
   .object({
@@ -7,7 +7,7 @@ export const ticketSchema = z
     customerPhone: z.string().min(1, 'Customer phone is required'),
     customerEmail: z.string().email('Valid email required').optional(),
     location: z.string().min(1, 'Location is required'),
-    region: z.enum(['Ogun', 'Oyo', 'Osun', 'Ondo'] as const),
+    region: z.enum(SALES_REGIONS),
     complaintType: z.enum(['No Connectivity', 'Slow Speed', 'Hardware Issue', 'Installation Issue', 'Billing Issue', 'Other'], {
       required_error: 'Please select a complaint type',
     }),

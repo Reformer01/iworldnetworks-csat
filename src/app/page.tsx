@@ -185,6 +185,7 @@ export default function LandingPage() {
       serviceTime: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: false }),
       submissionDate: new Date().toISOString().split('T')[0],
     }));
+    return () => {};
   }, []);
 
   const handleRating = (key: string, val: string | number) => {
@@ -388,7 +389,7 @@ export default function LandingPage() {
                     onChange={(e) => setFormData({ ...formData, isAnonymous: e.target.checked })}
                   />
                   <label htmlFor="anonymous-checkbox" className="font-mono text-[10px] text-on-surface-variant cursor-pointer font-bold">
-                    Submit anonymously — I'd prefer not to share my name
+                    Submit anonymously &mdash; I&apos;d prefer not to share my name
                   </label>
                 </div>
 

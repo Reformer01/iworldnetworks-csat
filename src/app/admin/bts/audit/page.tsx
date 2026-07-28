@@ -177,8 +177,8 @@ export default function BtsAuditPage() {
       const res = await fetch(`/api/admin/bts/audit?${params.toString()}`, {
         headers: { Authorization: `Bearer ${token}` },
       });
-      if (!res.ok) throw new Error(`Failed: ${res.statusText}`);
       const result = await res.json();
+      if (!res.ok) throw new Error(result.error || `Failed: ${res.statusText}`);
       setRecords(result.data.records || []);
       setError(null);
     } catch (err: unknown) {
@@ -189,7 +189,10 @@ export default function BtsAuditPage() {
   }, [user, authLoading, filterStatus, filterRegion, auditPeriod]);
 
   useEffect(() => {
-    fetchRecords();
+    const timeout = setTimeout(() => {
+      fetchRecords();
+    }, 100);
+    return () => clearTimeout(timeout);
   }, [fetchRecords]);
 
   const filteredRecords = useMemo(() => {
@@ -267,7 +270,8 @@ export default function BtsAuditPage() {
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
         body: JSON.stringify({ id }),
       });
-      if (!res.ok) throw new Error('Failed to delete');
+      const result = await res.json();
+      if (!res.ok) throw new Error(result.error || 'Failed to delete');
       toast({ title: 'Deleted', description: `${name} removed.` });
       fetchRecords();
     } catch (e: unknown) {
@@ -456,13 +460,27 @@ export default function BtsAuditPage() {
             <div className="py-16 text-center">
               <AlertCircle className="w-8 h-8 text-red-500 mx-auto mb-4" />
               <h3 className="font-display text-xl font-bold text-primary mb-2">Could Not Load</h3>
-              <p className="text-on-surface-variant text-sm max-w-md text-center">{error}</p>
-              <Button
-                className="mt-4 rounded-full bg-secondary text-white font-mono text-[10px] uppercase font-bold px-8 py-3 hover:scale-105 transition-transform shadow-lg"
-                onClick={fetchRecords}
-              >
-                Retry
-              </Button>
+              <p className="text-on-surface-variant text-sm max-w-md text-center mx-auto">{error}</p>
+              {error.includes('index') || error.includes('412') || error.includes('PRECONDITION') ? (
+                <div className="mt-4 flex flex-col items-center gap-3">
+                  <code className="bg-surface-container-low px-4 py-2 rounded-xl font-mono text-xs">
+                    firebase deploy --only firestore:indexes
+                  </code>
+                  <Button
+                    className="rounded-full bg-secondary text-white font-mono text-[10px] uppercase font-bold px-8 py-3 hover:scale-105 transition-transform shadow-lg"
+                    onClick={fetchRecords}
+                  >
+                    Retry After Deploying
+                  </Button>
+                </div>
+              ) : (
+                <Button
+                  className="mt-4 rounded-full bg-secondary text-white font-mono text-[10px] uppercase font-bold px-8 py-3 hover:scale-105 transition-transform shadow-lg"
+                  onClick={fetchRecords}
+                >
+                  Retry
+                </Button>
+              )}
             </div>
           ) : filteredRecords.length === 0 ? (
             <EmptyState message="No audit records found. Create your first BTS audit entry." />

@@ -41,6 +41,7 @@ function buildRequest(body: unknown) {
   const headers = new Map<string, string>([
     ['x-forwarded-for', '127.0.0.1'],
     ['user-agent', 'test-agent'],
+    ['origin', 'http://localhost:9002'],
   ]);
   return {
     json: () => Promise.resolve(body),
