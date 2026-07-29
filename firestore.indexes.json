@@ -1,5 +1,42 @@
 {
-  "indexes": [],
+  "indexes": [
+    {
+      "collectionGroup": "bts_audit_records",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "auditPeriod", "order": "ASCENDING" },
+        { "fieldPath": "btsName", "order": "ASCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "bts_audit_records",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "auditPeriod", "order": "ASCENDING" },
+        { "fieldPath": "status", "order": "ASCENDING" },
+        { "fieldPath": "btsName", "order": "ASCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "bts_audit_records",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "auditPeriod", "order": "ASCENDING" },
+        { "fieldPath": "region", "order": "ASCENDING" },
+        { "fieldPath": "btsName", "order": "ASCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "bts_audit_records",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "auditPeriod", "order": "ASCENDING" },
+        { "fieldPath": "status", "order": "ASCENDING" },
+        { "fieldPath": "region", "order": "ASCENDING" },
+        { "fieldPath": "btsName", "order": "ASCENDING" }
+      ]
+    }
+  ],
   "fieldOverrides": [
     {
       "collectionGroup": "bts_audit_records",
