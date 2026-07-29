@@ -276,6 +276,8 @@ export async function GET(request: NextRequest) {
       return tooMany();
     }
 
+    if (!validateOrigin(request)) return forbidden();
+
     const authHeader = request.headers.get('authorization');
     const user = await verifySupportToken(authHeader);
     if (!user) {
@@ -295,15 +297,15 @@ export async function GET(request: NextRequest) {
     // Filter by staffId if provided
     const staffToProcess = staffId ? staffMembers.filter((s) => s.id === staffId) : staffMembers;
 
-    const kpis: SupportStaffKPI[] = [];
-
-    for (const staff of staffToProcess) {
-      const tickets = await getTicketsForStaff(db, staff.id, periodStart, periodEnd);
-      const feedbacks = await getFeedbackForStaff(db, staff.name, periodStart, periodEnd);
-
-      const kpi = calculateKPIs(staff, tickets, feedbacks, periodStart, periodEnd);
-      kpis.push(kpi);
-    }
+    const kpis: SupportStaffKPI[] = await Promise.all(
+      staffToProcess.map(async (staff) => {
+        const [tickets, feedbacks] = await Promise.all([
+          getTicketsForStaff(db, staff.id, periodStart, periodEnd),
+          getFeedbackForStaff(db, staff.name, periodStart, periodEnd),
+        ]);
+        return calculateKPIs(staff, tickets, feedbacks, periodStart, periodEnd);
+      }),
+    );
 
     // Calculate team aggregates
     const teamTotals = kpis.reduce(

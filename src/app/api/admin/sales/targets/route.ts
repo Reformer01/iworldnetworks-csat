@@ -15,6 +15,8 @@ export async function GET(request: NextRequest) {
       return tooMany();
     }
 
+    if (!validateOrigin(request)) return forbidden();
+
     const authHeader = request.headers.get('authorization');
     const admin = await verifyAdminToken(authHeader);
     if (!admin) {
@@ -28,7 +30,12 @@ export async function GET(request: NextRequest) {
     return success({
       targets,
       staticTargets: {
-        agents: salesAgents.map((a) => ({ name: a.name, region: a.region, annualRevenueTarget: a.annualTarget, annualCustomerTarget: a.annualCustomerTarget })),
+        agents: salesAgents.map((a) => ({
+          name: a.name,
+          region: a.region,
+          annualRevenueTarget: a.annualTarget,
+          annualCustomerTarget: a.annualCustomerTarget,
+        })),
         regions: regionalTargets,
       },
     });

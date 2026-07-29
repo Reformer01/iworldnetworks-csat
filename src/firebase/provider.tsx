@@ -24,20 +24,14 @@ export const FirebaseProvider = ({
   auth,
 }: {
   children: ReactNode;
-  firebaseApp: FirebaseApp;
-  firestore: Firestore;
-  auth: Auth;
+  firebaseApp: FirebaseApp | null;
+  firestore: Firestore | null;
+  auth: Auth | null;
 }) => {
-  return (
-    <FirebaseContext.Provider value={{ firebaseApp, firestore, auth }}>
-      {children}
-    </FirebaseContext.Provider>
-  );
+  return <FirebaseContext.Provider value={{ firebaseApp, firestore, auth }}>{children}</FirebaseContext.Provider>;
 };
 
 export const useFirebase = () => useContext(FirebaseContext);
 export const useFirebaseApp = () => useContext(FirebaseContext).firebaseApp;
 export const useFirestore = () => useContext(FirebaseContext).firestore;
 export const useAuth = () => useContext(FirebaseContext).auth;
-
-

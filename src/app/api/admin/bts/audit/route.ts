@@ -36,7 +36,7 @@ export async function GET(request: NextRequest) {
     if (region) query = query.where('region', '==', region);
     if (auditPeriod) query = query.where('auditPeriod', '==', auditPeriod);
 
-    const snapshot = await query.get();
+    const snapshot = await query.limit(1000).get();
     const records: BtsAuditDoc[] = snapshot.docs
       .filter((doc) => !doc.data().deletedAt)
       .map((doc) => ({ id: doc.id, ...doc.data() }) as BtsAuditDoc);

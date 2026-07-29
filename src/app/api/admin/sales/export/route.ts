@@ -2,7 +2,7 @@ import { NextRequest } from 'next/server';
 import { getAdminFirestore } from '@/lib/firebase-admin';
 import { verifyAdminToken } from '@/lib/admin-auth';
 import { isRateLimited } from '@/lib/rate-limit';
-import { unauthorized, tooMany, serverError } from '@/lib/api-response';
+import { unauthorized, tooMany, forbidden, serverError, validateOrigin } from '@/lib/api-response';
 import type { SalesRecord } from '@/lib/sales-types';
 import { logError } from '@/lib/logger';
 
@@ -16,6 +16,8 @@ export async function GET(request: NextRequest) {
       return tooMany();
     }
 
+    if (!validateOrigin(request)) return forbidden();
+
     const authHeader = request.headers.get('authorization');
     const admin = await verifyAdminToken(authHeader);
     if (!admin) {
@@ -23,7 +25,7 @@ export async function GET(request: NextRequest) {
     }
 
     const db = getAdminFirestore();
-    const snapshot = await db.collection('sales_records').orderBy('serialNumber', 'desc').limit(5000).get();
+    const snapshot = await db.collection('sales_records').orderBy('serialNumber', 'desc').limit(2000).get();
     const records: RecordDoc[] = snapshot.docs
       .filter((doc) => !doc.data().deletedAt)
       .map((doc) => ({ id: doc.id, ...doc.data() }) as RecordDoc);

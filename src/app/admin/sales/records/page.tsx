@@ -15,8 +15,8 @@ import { salesAgents, planCodes, locations, getPlanMrc, getAgentByEmail, getSegm
 import { btsStations, getBtsForLocation } from '@/lib/bts-data';
 import { isSuperAdmin } from '@/lib/admin-config';
 import type { SaleQuarter, PackageType, AccountStatus, CustomerType } from '@/lib/sales-types';
-import jsPDF from 'jspdf';
-import autoTable from 'jspdf-autotable';
+import type jsPDFType from 'jspdf';
+import type autoTableType from 'jspdf-autotable';
 
 const accountStatuses = ['Active', 'Inactive', 'Blocked', 'Refunded', 'Retrieved'];
 const packageTypes = ['Outright', 'Lease'];
@@ -221,6 +221,8 @@ export default function SalesRecords() {
     if (!user) return;
     setExporting(true);
     try {
+      const jsPDF = (await import('jspdf')).default;
+      const { default: autoTable } = await import('jspdf-autotable');
       const doc = new jsPDF('landscape', 'mm', 'a4');
       const pageW = doc.internal.pageSize.getWidth();
 

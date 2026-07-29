@@ -5,7 +5,7 @@ import { isRateLimited } from '@/lib/rate-limit';
 import { SalesMetrics, RegionMetrics, AgentMetrics, SalesRecord, BtsStation } from '@/lib/sales-types';
 import { salesAgents, regionalTargets, getRegionForLocation, getQuarterFromMonth, SEGMENTS_THAT_ROLL_UP_TO_SME } from '@/lib/sales-staff';
 import { btsStations } from '@/lib/bts-data';
-import { success, error, unauthorized, tooMany, serverError } from '@/lib/api-response';
+import { success, error, unauthorized, tooMany, forbidden, serverError, validateOrigin } from '@/lib/api-response';
 import { logError } from '@/lib/logger';
 
 type RecordDoc = SalesRecord & { id: string };
@@ -44,6 +44,8 @@ export async function GET(request: NextRequest) {
     if (isRateLimited(request, 120, 60 * 1000)) {
       return tooMany();
     }
+
+    if (!validateOrigin(request)) return forbidden();
 
     const authHeader = request.headers.get('authorization');
     const admin = await verifyAdminToken(authHeader);

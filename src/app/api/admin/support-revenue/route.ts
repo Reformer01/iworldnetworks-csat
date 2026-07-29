@@ -16,6 +16,8 @@ export async function GET(request: NextRequest) {
       return tooMany();
     }
 
+    if (!validateOrigin(request)) return forbidden();
+
     const authHeader = request.headers.get('authorization');
     const admin = await verifyAdminToken(authHeader);
     if (!admin) {

@@ -45,7 +45,7 @@ export async function GET(request: NextRequest) {
     if (assignedTo) query = query.where('assignedTo', '==', assignedTo);
     if (createdBy) query = query.where('createdBy', '==', createdBy);
 
-    const snapshot = await query.orderBy('createdAt', 'desc').get();
+    const snapshot = await query.orderBy('createdAt', 'desc').limit(1000).get();
     const tickets: Ticket[] = snapshot.docs.map(
       (doc) =>
         ({

@@ -170,6 +170,8 @@ export async function GET(request: NextRequest) {
       return tooMany();
     }
 
+    if (!validateOrigin(request)) return forbidden();
+
     const authHeader = request.headers.get('authorization');
     const admin = await verifyAdminToken(authHeader);
     if (!admin) {
@@ -177,7 +179,7 @@ export async function GET(request: NextRequest) {
     }
 
     const db = getAdminFirestore();
-    const snapshot = await db.collection('splynx_bts_active_stats').orderBy('activeCustomers', 'desc').get();
+    const snapshot = await db.collection('splynx_bts_active_stats').orderBy('activeCustomers', 'desc').limit(100).get();
 
     const stats = snapshot.docs.map((doc) => doc.data());
 

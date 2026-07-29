@@ -10,10 +10,14 @@ import { firebaseConfig } from './config';
  * Ensures that initialization is idempotent.
  */
 export function initializeFirebase(): {
-  firebaseApp: FirebaseApp;
-  firestore: Firestore;
-  auth: Auth;
+  firebaseApp: FirebaseApp | null;
+  firestore: Firestore | null;
+  auth: Auth | null;
 } {
+  if (typeof window === 'undefined') {
+    return { firebaseApp: null, firestore: null, auth: null };
+  }
+
   const missingConfig = Object.entries(firebaseConfig)
     .filter(([, value]) => !value)
     .map(([key]) => key);
