@@ -54,35 +54,67 @@ function initFirebase() {
 
 // CSV Parsing (matches the import route logic)
 function parseCSV(text) {
-  const lines = text.split('\n').filter((l) => l.trim());
-  if (lines.length < 2) return [];
-  const headerLine = lines[0].replace(/^\uFEFF/, '');
-  const headers = headerLine.split(',').map((h) => h.trim().replace(/^"|"$/g, ''));
+  const normalized = text.replace(/^\uFEFF/, '');
+  const headers = [];
   const records = [];
-  for (let i = 1; i < lines.length; i++) {
-    const values = [];
-    let current = '';
-    let inQuotes = false;
-    for (const ch of lines[i]) {
-      if (ch === '"') {
-        inQuotes = !inQuotes;
-        continue;
-      }
-      if (ch === ',' && !inQuotes) {
-        values.push(current.trim());
-        current = '';
-        continue;
-      }
-      current += ch;
+  let row = [];
+  let field = '';
+  let inQuotes = false;
+  let rowIndex = 0;
+
+  const flushField = () => {
+    row.push(field);
+    field = '';
+  };
+
+  const flushRow = () => {
+    if (rowIndex === 0) {
+      headers.push(...row.map((h) => h.trim()));
+    } else if (row.some((v) => v.trim() !== '')) {
+      // Pad short rows so rows without trailing empty columns are not dropped
+      while (row.length < headers.length) row.push('');
+      const record = {};
+      headers.forEach((h, idx) => {
+        record[h] = (row[idx] || '').trim();
+      });
+      records.push(record);
     }
-    values.push(current.trim());
-    if (values.length !== headers.length) continue;
-    const record = {};
-    headers.forEach((h, idx) => {
-      record[h] = values[idx] || '';
-    });
-    records.push(record);
+    row = [];
+    rowIndex++;
+  };
+
+  for (let i = 0; i < normalized.length; i++) {
+    const ch = normalized[i];
+    if (inQuotes) {
+      if (ch === '"') {
+        if (normalized[i + 1] === '"') {
+          field += '"';
+          i++;
+        } else {
+          inQuotes = false;
+        }
+      } else {
+        field += ch;
+      }
+    } else if (ch === '"') {
+      inQuotes = true;
+    } else if (ch === ',') {
+      flushField();
+    } else if (ch === '\n' || ch === '\r') {
+      if (ch === '\r' && normalized[i + 1] === '\n') i++;
+      flushField();
+      flushRow();
+    } else {
+      field += ch;
+    }
   }
+
+  // Flush any remaining row when the file does not end with a newline
+  if (field !== '' || row.length > 0) {
+    flushField();
+    flushRow();
+  }
+
   return records;
 }
 
@@ -149,6 +181,7 @@ const BTS_STATIONS = {
     { id: 56, name: 'Obada Extension', host: '' },
     { id: 57, name: 'Miliki', host: '' },
     { id: 58, name: 'OGBC', host: '' },
+    { id: 59, name: 'Oshoba Hill', host: '' },
   ],
   Sagamu: [
     { id: 30, name: 'Sagamu GRA', host: 'Conference Hotel Sagamu' },
@@ -179,6 +212,29 @@ const ACCOUNT_TYPE_MAP = {
   neighborhood: 'NEIGHBOURHOOD',
 };
 
+// Explicit aliases for site names that fuzzy matching cannot resolve
+const SITE_ALIASES = {
+  'obada ext': 'Obada Extension',
+  'ota [office core]': 'Ota Office',
+  'osogbo-core': 'Osogbo Office',
+  'nta ibadan': 'NTA IBD',
+  // NTA satellite transmitter sites roll up into the NTA Abeokuta station
+  'nta ogbe': 'NTA Abeokuta',
+  'nta okegunya': 'NTA Abeokuta',
+  'nta okegunya 2': 'NTA Abeokuta',
+};
+
+// Maps import region -> sales region used by the BTS audit page
+const CITY_TO_SALES_REGION = {
+  Ibadan: 'Oyo',
+  Abeokuta: 'Ogun',
+  Sagamu: 'Ogun',
+  Ota: 'Ogun',
+  Ijebu: 'Ogun',
+  Osogbo: 'Osun',
+  Akure: 'Ondo',
+};
+
 function mapAccountType(raw) {
   const key = raw.trim().toLowerCase();
   return ACCOUNT_TYPE_MAP[key] || 'OTHER';
@@ -187,6 +243,16 @@ function mapAccountType(raw) {
 // Enhanced fuzzy matching (matches the updated import route)
 function findBtsMatch(siteName, regionStations) {
   const normalized = siteName.toLowerCase().trim();
+
+  // 0. Explicit alias mapping first (handles names fuzzy matching cannot resolve)
+  const aliasTarget = SITE_ALIASES[normalized];
+  if (aliasTarget) {
+    const aliasStation = regionStations.find((bts) => bts.name === aliasTarget);
+    if (aliasStation) {
+      return { name: aliasStation.name, region: aliasStation.region };
+    }
+  }
+
   const cleaned = normalized
     .replace(/\[[^\]]*\]/g, '')
     .replace(/\b(bts|core|office|fm)\b/g, '')
@@ -237,13 +303,116 @@ function findBtsMatch(siteName, regionStations) {
   return null;
 }
 
-// CSV files to import
-const CSV_FILES = [
-  { file: 'Database Master-Sheet  - IBADAN.csv', region: 'Ibadan' },
-  { file: 'Database Master-Sheet  - OTA.csv', region: 'Ota' },
-  { file: 'Database Master-Sheet  - AKURE.csv', region: 'Akure' },
-  { file: 'Database Master-Sheet  - OSOGBO.csv', region: 'Osogbo' },
-];
+// Auto-discover BTS master-sheet CSVs in the Downloads folder
+function discoverCsvFiles(downloadsPath) {
+  const files = fs
+    .readdirSync(downloadsPath)
+    .filter((f) => /^Database Master-Sheet/i.test(f) && f.toLowerCase().endsWith('.csv'));
+
+  const REGION_KEYWORDS = [
+    ['IBADAN', 'Ibadan'],
+    ['ABEOKUTA', 'Abeokuta'],
+    ['SAGAMU', 'Sagamu'],
+    ['IJEBU', 'Ijebu'],
+    ['OTA', 'Ota'],
+    ['OSOGBO', 'Osogbo'],
+    ['AKURE', 'Akure'],
+  ];
+
+  const found = [];
+  for (const file of files) {
+    const match = REGION_KEYWORDS.find(([kw]) => file.toUpperCase().includes(kw));
+    if (match) found.push({ file, region: match[1] });
+  }
+  return found;
+}
+
+function getCurrentAuditPeriod() {
+  const now = new Date();
+  const year = now.getFullYear();
+  const firstDayOfYear = new Date(year, 0, 1);
+  const pastDaysOfYear = (now - firstDayOfYear) / 86400000;
+  const week = Math.ceil((pastDaysOfYear + firstDayOfYear.getDay() + 1) / 7);
+  return `${year}-W${String(week).padStart(2, '0')}`;
+}
+
+// Auto-create/refresh BTS audit records for matched sites (matches the import route logic)
+async function syncAuditRecords(db, summaries, regionStations, region, now) {
+  const auditPeriod = getCurrentAuditPeriod();
+  let created = 0;
+  let updated = 0;
+
+  for (const summary of summaries) {
+    if (summary.matchStatus !== 'matched' || !summary.matchedBtsName) continue;
+    const btsName = summary.matchedBtsName;
+    const station = regionStations.find((s) => s.name === btsName);
+    const targetMrr = 5000000;
+
+    const metrics = {
+      activeCustomers: summary.activeCustomers,
+      totalCustomers: summary.totalCustomers,
+      enterpriseCustomers: summary.enterpriseCustomers,
+      retailCustomers: summary.retailCustomers,
+      monthlyRecurringRevenue: summary.totalMrr,
+      nrcRevenue: 0,
+      totalRevenue: summary.totalMrr,
+      attainmentPercentage: summary.totalMrr > 0 ? Math.round((summary.totalMrr / targetMrr) * 10000) / 100 : 0,
+      updatedAt: now,
+    };
+
+    const existingSnap = await db
+      .collection('bts_audit_records')
+      .where('btsName', '==', btsName)
+      .where('auditPeriod', '==', auditPeriod)
+      .limit(2)
+      .get();
+    const existingDoc = existingSnap.docs.find((d) => !d.data().deletedAt);
+
+    if (existingDoc) {
+      await existingDoc.ref.update(metrics);
+      await db.collection('bts_latest_audit').doc(btsName).set(
+        { ...existingDoc.data(), ...metrics, id: existingDoc.id },
+        { merge: true },
+      );
+      updated++;
+      continue;
+    }
+
+    const record = {
+      btsName,
+      ...(station && station.id !== undefined ? { btsId: station.id } : {}),
+      region: CITY_TO_SALES_REGION[region] || region,
+      siteType: 'Tower',
+      status: summary.activeCustomers > 0 ? 'Active' : 'Inactive',
+      ...(station && station.host ? { host: station.host } : {}),
+      activeCustomers: summary.activeCustomers,
+      totalCustomers: summary.totalCustomers,
+      enterpriseCustomers: summary.enterpriseCustomers,
+      retailCustomers: summary.retailCustomers,
+      monthlyRecurringRevenue: summary.totalMrr,
+      targetMrr,
+      attainmentPercentage: metrics.attainmentPercentage,
+      nrcRevenue: 0,
+      totalRevenue: summary.totalMrr,
+      splynxRouterIds: [],
+      splynxRouterNames: [],
+      outageCountThisMonth: 0,
+      maintenanceNotes: 'Auto-generated from CSV import',
+      auditedBy: 'system-import',
+      auditedAt: now,
+      auditPeriod,
+      createdAt: now,
+      updatedAt: now,
+    };
+
+    const docRef = await db.collection('bts_audit_records').add(record);
+    await db.collection('bts_latest_audit').doc(btsName).set({ ...record, id: docRef.id });
+    created++;
+  }
+
+  console.log(`   Audit records: ${created} created, ${updated} updated (period ${auditPeriod})`);
+  return { created, updated };
+}
 
 async function importRegion(db, csvPath, region) {
   console.log(`\n📥 Processing ${region}...`);
@@ -374,6 +543,10 @@ async function importRegion(db, csvPath, region) {
   }
   await siteBatch.commit();
 
+  // Auto-create/refresh BTS audit records for matched sites (current audit period)
+  console.log('   Syncing audit records...');
+  const auditSync = await syncAuditRecords(db, Array.from(siteMap.values()), regionStations, region, now);
+
   console.log(`   ✅ Import complete! Batch ID: ${importBatchId}`);
   return {
     success: true,
@@ -393,10 +566,22 @@ async function main() {
   const db = getFirestore(app);
   
   const downloadsPath = path.join(process.env.USERPROFILE || process.env.HOME, 'Downloads');
-  
+  const csvFiles = discoverCsvFiles(downloadsPath);
+
+  if (csvFiles.length === 0) {
+    console.log('⚠️ No Database Master-Sheet*.csv files found in Downloads.');
+    process.exit(1);
+  }
+
+  console.log(`Found ${csvFiles.length} CSV file(s) in Downloads:\n`);
+  for (const { file, region } of csvFiles) {
+    console.log(`   - ${file} (${region})`);
+  }
+  console.log('');
+
   const results = {};
-  
-  for (const { file, region } of CSV_FILES) {
+
+  for (const { file, region } of csvFiles) {
     const csvPath = path.join(downloadsPath, file);
     if (!fs.existsSync(csvPath)) {
       console.log(`⚠️ File not found: ${csvPath}`);

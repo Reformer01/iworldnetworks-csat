@@ -1,0 +1,14 @@
+
+context / {
+  type                proxy
+  handler             proxy-csat
+  addDefaultCharset   off
+  extraHeaders        <<<END_extraHeaders
+X-Forwarded-Proto: $scheme
+X-Forwarded-For: $proxy_add_x_forwarded_for
+END_extraHeaders
+}
+
+proxy proxy-csat {
+  proxyPass           http://127.0.0.1:3001
+}

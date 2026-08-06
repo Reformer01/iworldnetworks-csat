@@ -1,0 +1,52 @@
+   ▲ Next.js 15.5.9 (Turbopack)
+   - Local:        http://localhost:9002
+   - Network:      http://192.168.10.42:9002
+   - Environments: .env
+   - Experiments (use with caution):
+     · clientTraceMetadata
+
+ ✓ Starting...
+ ○ Compiling instrumentation Node.js ...
+ ✓ Compiled instrumentation Node.js in 4.1s
+ ○ Compiling instrumentation Edge ...
+ ✓ Compiled instrumentation Edge in 1547ms
+ ○ Compiling middleware ...
+ ✓ Compiled middleware in 1237ms
+ ✓ Ready in 17.6s
+ ○ Compiling / ...
+ ✓ Compiled / in 15.4s
+ ⚠ ./node_modules/@sentry/node/node_modules/@opentelemetry/instrumentation/build/esm/platform/node
+Package import-in-the-middle can't be external
+The request import-in-the-middle matches serverExternalPackages (or the default list).
+The package resolves to a different version when requested from the project directory (1.15.0) compared to the package requested from the importing module (3.1.0).
+Make sure to install the same version of the package in both locations.
+
+
+ ⚠ ./node_modules/@sentry/node/node_modules/@sentry/node-core/build/cjs/sdk
+Package import-in-the-middle can't be external
+The request import-in-the-middle matches serverExternalPackages (or the default list).
+The package resolves to a different version when requested from the project directory (1.15.0) compared to the package requested from the importing module (3.1.0).
+Make sure to install the same version of the package in both locations.
+
+
+ GET / 200 in 366ms
+ ○ Compiling /admin/login ...
+ ✓ Compiled /admin/login in 1535ms
+ GET /admin/login 200 in 1848ms
+ ○ Compiling /feedback ...
+ GET /feedback 200 in 1906ms
+ GET /feedback/popup 200 in 1795ms
+ ✓ Compiled /feedback in 4.1s
+ POST /api/admin/sales/metrics 405 in 9041ms
+ GET / 200 in 5863ms
+ ○ Compiling /api/admin/feedbacks ...
+ ✓ Compiled /api/admin/feedbacks in 1912ms
+ POST /api/admin/feedbacks 405 in 2316ms
+ ○ Compiling /api/feedback-popup ...
+ ✓ Compiled /api/feedback-popup in 546ms
+ POST /api/feedback-popup 400 in 2515ms
+ ○ Compiling /api/splynx-webhook ...
+ ✓ Compiled /api/splynx-webhook in 2.1s
+ POST /api/splynx-webhook 401 in 2460ms
+ GET /admin/login 200 in 349ms
+[?25h

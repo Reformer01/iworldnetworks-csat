@@ -3,53 +3,34 @@
 import React, { useState, useMemo, useCallback } from 'react';
 import { DateRange } from 'react-day-picker';
 import { AdminLayout } from '@/components/layout/AdminLayout';
-import { 
-  Database, 
-  Plus, 
-  Trash2, 
-  Edit, 
-  Search, 
-  SlidersHorizontal, 
-  Loader2, 
-  CheckCircle, 
-  XCircle, 
+import {
+  Database,
+  Plus,
+  Trash2,
+  Edit,
+  Search,
+  SlidersHorizontal,
+  Loader2,
+  CheckCircle,
+  XCircle,
   AlertTriangle,
   User,
   MapPin,
   Calendar,
   Layers,
   ChevronLeft,
-  ChevronRight
+  ChevronRight,
 } from 'lucide-react';
 import { useAuth, useUser } from '@/firebase';
-import { 
-  useAdminFeedbacks, 
-  createFeedback, 
-  editFeedback, 
-  deleteFeedback,
-  ValidationError
-} from '@/hooks/use-admin-feedbacks';
+import { useAdminFeedbacks, createFeedback, editFeedback, deleteFeedback, ValidationError } from '@/hooks/use-admin-feedbacks';
 import type { FeedbackDoc } from '@/lib/feedback-types';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
-import { 
-  Select, 
-  SelectContent, 
-  SelectItem, 
-  SelectTrigger, 
-  SelectValue 
-} from '@/components/ui/select';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useToast } from '@/hooks/use-toast';
-import { 
-  Dialog, 
-  DialogContent, 
-  DialogHeader, 
-  DialogTitle, 
-  DialogFooter,
-  DialogDescription
-} from '@/components/ui/dialog';
-import { cn } from '@/lib/utils';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from '@/components/ui/dialog';
+import { cn, toLocalDateString } from '@/lib/utils';
 import { DateRangePicker } from '@/components/ui/date-range-picker';
 import { DatePicker } from '@/components/ui/date-picker';
 
@@ -65,7 +46,7 @@ export default function AdminCrud() {
   const [filterLocation, setFilterLocation] = useState('ALL');
   const [filterStatus, setFilterStatus] = useState('ALL');
   const [dateRange, setDateRange] = useState<DateRange | undefined>(undefined);
-  
+
   // Pagination state
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 10;
@@ -74,14 +55,16 @@ export default function AdminCrud() {
   const [isCreateOpen, setIsCreateOpen] = useState(false);
   const [isEditOpen, setIsEditOpen] = useState(false);
   const [isDeleteOpen, setIsDeleteOpen] = useState(false);
-  
+
   const [selectedRecord, setSelectedRecord] = useState<any>(null);
   const [isActionLoading, setIsActionLoading] = useState(false);
 
   // Form State
   const [formName, setFormName] = useState('');
   const [formEmail, setFormEmail] = useState('');
-  const [formCategory, setFormCategory] = useState<'Reliability' | 'Support' | 'FieldSupport' | 'Testimonials' | 'Installation' | 'Billing'>('Reliability');
+  const [formCategory, setFormCategory] = useState<
+    'Reliability' | 'Support' | 'FieldSupport' | 'Testimonials' | 'Installation' | 'Billing'
+  >('Reliability');
   const [formLocation, setFormLocation] = useState('Ibadan');
   const [formPlan, setFormPlan] = useState('Enterprise');
   const [formComment, setFormComment] = useState('');
@@ -89,7 +72,7 @@ export default function AdminCrud() {
   const [formDateFeedback, setFormDateFeedback] = useState('');
   const [formStatus, setFormStatus] = useState<'open' | 'resolved' | 'escalated'>('open');
   const [formNotes, setFormNotes] = useState('');
-  
+
   // Dynamic Ratings form state
   const [ratingsState, setRatingsState] = useState<Record<string, string>>({});
   const [formErrors, setFormErrors] = useState<Record<string, string[]>>({});
@@ -117,9 +100,7 @@ export default function AdminCrud() {
       { key: 'repairQuality', label: 'Repair Quality (1-5)', type: 'rating' },
       { key: 'conduct', label: 'Technician Conduct (1-5)', type: 'rating' },
     ],
-    Testimonials: [
-      { key: 'signal', label: 'Overall Signal Rating (1-5)', type: 'rating' },
-    ],
+    Testimonials: [{ key: 'signal', label: 'Overall Signal Rating (1-5)', type: 'rating' }],
     Installation: [
       { key: 'punctuality', label: 'Punctuality Rating (1-5)', type: 'rating' },
       { key: 'quality', label: 'Installation Quality Rating (1-5)', type: 'rating' },
@@ -131,7 +112,7 @@ export default function AdminCrud() {
       { key: 'reconnection', label: 'Internet Restoration Rating (1-5)', type: 'rating' },
       { key: 'usedPortal', label: 'Used Payment Portal?', type: 'select', options: ['Yes', 'No'] },
       { key: 'portalEase', label: 'Portal Ease of Use Rating (1-5)', type: 'rating' },
-    ]
+    ],
   };
 
   // Reset form helper
@@ -140,19 +121,21 @@ export default function AdminCrud() {
     if (record) {
       setFormName(record.customerName || '');
       setFormEmail(record.customerEmail || '');
-      setFormCategory((record.category || 'Reliability') as 'Reliability' | 'Support' | 'FieldSupport' | 'Testimonials' | 'Installation' | 'Billing');
+      setFormCategory(
+        (record.category || 'Reliability') as 'Reliability' | 'Support' | 'FieldSupport' | 'Testimonials' | 'Installation' | 'Billing',
+      );
       setFormLocation(record.location || 'Ibadan');
       setFormPlan(record.servicePlan || 'Enterprise');
       setFormComment(record.comment || '');
       setFormStaffName(record.staffName || '');
       setFormStatus((record.status || 'open') as 'open' | 'resolved' | 'escalated');
       setFormNotes(record.resolutionNotes || '');
-      
-      const formattedDate = record.dateFeedback 
+
+      const formattedDate = record.dateFeedback
         ? new Date(record.dateFeedback).toISOString().substring(0, 10)
         : record.timestamp
-        ? new Date(record.timestamp).toISOString().substring(0, 10)
-        : new Date().toISOString().substring(0, 10);
+          ? new Date(record.timestamp).toISOString().substring(0, 10)
+          : new Date().toISOString().substring(0, 10);
       setFormDateFeedback(formattedDate);
 
       // Pre-fill ratings
@@ -181,11 +164,11 @@ export default function AdminCrud() {
   const filteredFeedbacks = useMemo(() => {
     if (!feedbacks) return [];
     return feedbacks.filter((f: FeedbackDoc) => {
-      const matchesSearch = 
-        f.customerName?.toLowerCase().includes(search.toLowerCase()) || 
+      const matchesSearch =
+        f.customerName?.toLowerCase().includes(search.toLowerCase()) ||
         f.comment?.toLowerCase().includes(search.toLowerCase()) ||
         f.customerEmail?.toLowerCase().includes(search.toLowerCase());
-        
+
       const matchesCategory = filterCategory === 'ALL' || f.category === filterCategory;
       const matchesLocation = filterLocation === 'ALL' || f.location === filterLocation;
       const matchesStatus = filterStatus === 'ALL' || f.status === filterStatus;
@@ -200,7 +183,7 @@ export default function AdminCrud() {
           if (ts > endOfDay.getTime()) matchesDate = false;
         }
       }
-      
+
       return matchesSearch && matchesCategory && matchesLocation && matchesStatus && matchesDate;
     });
   }, [feedbacks, search, filterCategory, filterLocation, filterStatus, dateRange]);
@@ -236,11 +219,11 @@ export default function AdminCrud() {
         staffName: formStaffName,
         dateFeedback: formDateFeedback,
         dateSubmitted: new Date().toISOString(),
-        ratings: parsedRatings
+        ratings: parsedRatings,
       };
 
       await createFeedback(payload, user);
-      toast({ title: "Feedback Logged", description: "Successfully created feedback record." });
+      toast({ title: 'Feedback Logged', description: 'Successfully created feedback record.' });
       mutate();
       setIsCreateOpen(false);
       resetForm();
@@ -248,9 +231,9 @@ export default function AdminCrud() {
       console.error(err);
       if (err instanceof ValidationError) {
         setFormErrors(err.details);
-        toast({ variant: "destructive", title: "Validation Failed", description: "Please check the highlighted fields." });
+        toast({ variant: 'destructive', title: 'Validation Failed', description: 'Please check the highlighted fields.' });
       } else {
-        toast({ variant: "destructive", title: "Creation Failed", description: err instanceof Error ? err.message : 'Error' });
+        toast({ variant: 'destructive', title: 'Creation Failed', description: err instanceof Error ? err.message : 'Error' });
       }
     } finally {
       setIsActionLoading(false);
@@ -281,11 +264,11 @@ export default function AdminCrud() {
         dateFeedback: formDateFeedback,
         status: formStatus,
         resolutionNotes: formNotes,
-        ratings: parsedRatings
+        ratings: parsedRatings,
       };
 
       await editFeedback(selectedRecord.id, payload, user);
-      toast({ title: "Feedback Updated", description: "Successfully updated record." });
+      toast({ title: 'Feedback Updated', description: 'Successfully updated record.' });
       mutate();
       setIsEditOpen(false);
       setSelectedRecord(null);
@@ -293,9 +276,9 @@ export default function AdminCrud() {
       console.error(err);
       if (err instanceof ValidationError) {
         setFormErrors(err.details);
-        toast({ variant: "destructive", title: "Validation Failed", description: "Please check the highlighted fields." });
+        toast({ variant: 'destructive', title: 'Validation Failed', description: 'Please check the highlighted fields.' });
       } else {
-        toast({ variant: "destructive", title: "Update Failed", description: err instanceof Error ? err.message : 'Error' });
+        toast({ variant: 'destructive', title: 'Update Failed', description: err instanceof Error ? err.message : 'Error' });
       }
     } finally {
       setIsActionLoading(false);
@@ -307,13 +290,13 @@ export default function AdminCrud() {
     setIsActionLoading(true);
     try {
       await deleteFeedback(selectedRecord.id, user);
-      toast({ title: "Feedback Deleted", description: "Successfully removed record." });
+      toast({ title: 'Feedback Deleted', description: 'Successfully removed record.' });
       mutate();
       setIsDeleteOpen(false);
       setSelectedRecord(null);
     } catch (err: unknown) {
       console.error(err);
-      toast({ variant: "destructive", title: "Delete Failed", description: err instanceof Error ? err.message : 'Error' });
+      toast({ variant: 'destructive', title: 'Delete Failed', description: err instanceof Error ? err.message : 'Error' });
     } finally {
       setIsActionLoading(false);
     }
@@ -331,8 +314,11 @@ export default function AdminCrud() {
               Super-admin feedback CRUD operations & logs controls
             </p>
           </div>
-          <Button 
-            onClick={() => { resetForm(); setIsCreateOpen(true); }}
+          <Button
+            onClick={() => {
+              resetForm();
+              setIsCreateOpen(true);
+            }}
             className="rounded-full bg-secondary text-white font-mono text-[10px] uppercase font-bold px-8 shadow-lg hover:scale-105 transition-transform"
           >
             <Plus className="w-3.5 h-3.5 mr-2" /> Add Record
@@ -343,36 +329,65 @@ export default function AdminCrud() {
         <section className="bg-white p-6 rounded-2xl border border-border whisper-shadow mb-8 flex flex-col md:flex-row gap-4 items-center justify-between">
           <div className="relative w-full md:max-w-xs">
             <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 opacity-40 text-primary" />
-            <Input 
-              placeholder="Search by customer name, comment..." 
+            <Input
+              placeholder="Search by customer name, comment..."
               value={search}
-              onChange={(e) => { setSearch(e.target.value); setCurrentPage(1); }}
+              onChange={(e) => {
+                setSearch(e.target.value);
+                setCurrentPage(1);
+              }}
               className="pl-10 rounded-full font-body text-xs border-border"
             />
           </div>
           <div className="flex flex-wrap gap-4 w-full md:w-auto items-center">
             <SlidersHorizontal className="w-4 h-4 opacity-40 hidden lg:block" />
-            <Select value={filterCategory} onValueChange={(val) => { setFilterCategory(val); setCurrentPage(1); }}>
+            <Select
+              value={filterCategory}
+              onValueChange={(val) => {
+                setFilterCategory(val);
+                setCurrentPage(1);
+              }}
+            >
               <SelectTrigger className="w-[150px] rounded-full font-mono text-[10px] uppercase font-bold bg-white">
                 <SelectValue placeholder="Department" />
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="ALL">All Departments</SelectItem>
-                {categories.map(cat => <SelectItem key={cat} value={cat}>{cat}</SelectItem>)}
+                {categories.map((cat) => (
+                  <SelectItem key={cat} value={cat}>
+                    {cat}
+                  </SelectItem>
+                ))}
               </SelectContent>
             </Select>
 
-            <Select value={filterLocation} onValueChange={(val) => { setFilterLocation(val); setCurrentPage(1); }}>
+            <Select
+              value={filterLocation}
+              onValueChange={(val) => {
+                setFilterLocation(val);
+                setCurrentPage(1);
+              }}
+            >
               <SelectTrigger className="w-[150px] rounded-full font-mono text-[10px] uppercase font-bold bg-white">
                 <SelectValue placeholder="Region" />
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="ALL">All Regions</SelectItem>
-                {locations.map(loc => <SelectItem key={loc} value={loc}>{loc}</SelectItem>)}
+                {locations.map((loc) => (
+                  <SelectItem key={loc} value={loc}>
+                    {loc}
+                  </SelectItem>
+                ))}
               </SelectContent>
             </Select>
 
-            <Select value={filterStatus} onValueChange={(val) => { setFilterStatus(val); setCurrentPage(1); }}>
+            <Select
+              value={filterStatus}
+              onValueChange={(val) => {
+                setFilterStatus(val);
+                setCurrentPage(1);
+              }}
+            >
               <SelectTrigger className="w-[150px] rounded-full font-mono text-[10px] uppercase font-bold bg-white">
                 <SelectValue placeholder="Status" />
               </SelectTrigger>
@@ -387,7 +402,10 @@ export default function AdminCrud() {
             <DateRangePicker
               from={dateRange?.from}
               to={dateRange?.to}
-              onSelect={(range) => { setDateRange(range); setCurrentPage(1); }}
+              onSelect={(range) => {
+                setDateRange(range);
+                setCurrentPage(1);
+              }}
             />
           </div>
         </section>
@@ -418,11 +436,16 @@ export default function AdminCrud() {
                       <span className="font-mono text-[10px] uppercase font-bold opacity-80">{f.category}</span>
                     </td>
                     <td className="p-6">
-                      <span className={cn(
-                        "px-3 py-1 rounded-full text-[9px] font-mono font-bold uppercase",
-                        f.status === 'resolved' ? "bg-green-100 text-green-600" : 
-                        f.status === 'open' ? "bg-emerald-50 text-emerald-600 border border-emerald-200/50" : "bg-blue-100 text-blue-600"
-                      )}>
+                      <span
+                        className={cn(
+                          'px-3 py-1 rounded-full text-[9px] font-mono font-bold uppercase',
+                          f.status === 'resolved'
+                            ? 'bg-green-100 text-green-600'
+                            : f.status === 'open'
+                              ? 'bg-emerald-50 text-emerald-600 border border-emerald-200/50'
+                              : 'bg-blue-100 text-blue-600',
+                        )}
+                      >
                         {f.status}
                       </span>
                     </td>
@@ -430,18 +453,25 @@ export default function AdminCrud() {
                       {f.dateFeedback || (f.timestamp ? new Date(f.timestamp).toLocaleDateString() : '—')}
                     </td>
                     <td className="p-6 text-right space-x-2">
-                      <Button 
-                        size="icon" 
-                        variant="ghost" 
-                        onClick={() => { setSelectedRecord(f); resetForm(f); setIsEditOpen(true); }}
+                      <Button
+                        size="icon"
+                        variant="ghost"
+                        onClick={() => {
+                          setSelectedRecord(f);
+                          resetForm(f);
+                          setIsEditOpen(true);
+                        }}
                         className="h-8 w-8 rounded-full text-secondary hover:bg-secondary/10"
                       >
                         <Edit className="w-4 h-4" />
                       </Button>
-                      <Button 
-                        size="icon" 
-                        variant="ghost" 
-                        onClick={() => { setSelectedRecord(f); setIsDeleteOpen(true); }}
+                      <Button
+                        size="icon"
+                        variant="ghost"
+                        onClick={() => {
+                          setSelectedRecord(f);
+                          setIsDeleteOpen(true);
+                        }}
                         className="h-8 w-8 rounded-full text-destructive hover:bg-destructive/10"
                       >
                         <Trash2 className="w-4 h-4" />
@@ -477,13 +507,14 @@ export default function AdminCrud() {
           {filteredFeedbacks.length > 0 && (
             <footer className="border-t border-border p-6 flex flex-col sm:flex-row items-center justify-between gap-4 bg-surface-container-lowest/10">
               <span className="font-mono text-[10px] text-on-surface-variant uppercase font-bold">
-                Showing {Math.min(filteredFeedbacks.length, (currentPage - 1) * itemsPerPage + 1)} - {Math.min(filteredFeedbacks.length, currentPage * itemsPerPage)} of {filteredFeedbacks.length} logs
+                Showing {Math.min(filteredFeedbacks.length, (currentPage - 1) * itemsPerPage + 1)} -{' '}
+                {Math.min(filteredFeedbacks.length, currentPage * itemsPerPage)} of {filteredFeedbacks.length} logs
               </span>
               <div className="flex gap-2">
-                <Button 
-                  onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
+                <Button
+                  onClick={() => setCurrentPage((prev) => Math.max(1, prev - 1))}
                   disabled={currentPage === 1}
-                  variant="outline" 
+                  variant="outline"
                   className="rounded-full h-8 w-8 p-0"
                 >
                   <ChevronLeft className="w-4 h-4" />
@@ -491,10 +522,10 @@ export default function AdminCrud() {
                 <div className="flex items-center px-4 font-mono text-xs font-bold text-primary">
                   Page {currentPage} of {totalPages}
                 </div>
-                <Button 
-                  onClick={() => setCurrentPage(prev => Math.min(totalPages, prev + 1))}
+                <Button
+                  onClick={() => setCurrentPage((prev) => Math.min(totalPages, prev + 1))}
                   disabled={currentPage === totalPages}
-                  variant="outline" 
+                  variant="outline"
                   className="rounded-full h-8 w-8 p-0"
                 >
                   <ChevronRight className="w-4 h-4" />
@@ -505,7 +536,13 @@ export default function AdminCrud() {
         </section>
 
         {/* CREATE DIALOG MODAL */}
-        <Dialog open={isCreateOpen} onOpenChange={(open) => { setIsCreateOpen(open); if(!open) resetForm(); }}>
+        <Dialog
+          open={isCreateOpen}
+          onOpenChange={(open) => {
+            setIsCreateOpen(open);
+            if (!open) resetForm();
+          }}
+        >
           <DialogContent className="max-w-xl rounded-3xl p-8 max-h-[85vh] overflow-y-auto">
             <DialogHeader>
               <DialogTitle className="font-display text-xl uppercase tracking-tight flex items-center gap-2">
@@ -519,25 +556,73 @@ export default function AdminCrud() {
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2">
                   <label className="font-mono text-[10px] uppercase font-bold text-on-surface-variant">Customer Name</label>
-                  <Input required className={cn(formErrors.customerName && "border-destructive text-destructive focus:border-destructive")} placeholder="Lukmon Obasa" value={formName} onChange={(e) => { setFormName(e.target.value); if(formErrors.customerName) setFormErrors(prev => { const copy = {...prev}; delete copy.customerName; return copy; }); }} />
-                  {formErrors.customerName && <p className="text-[10px] text-destructive mt-1 font-semibold">{formErrors.customerName[0]}</p>}
+                  <Input
+                    required
+                    className={cn(formErrors.customerName && 'border-destructive text-destructive focus:border-destructive')}
+                    placeholder="Lukmon Obasa"
+                    value={formName}
+                    onChange={(e) => {
+                      setFormName(e.target.value);
+                      if (formErrors.customerName)
+                        setFormErrors((prev) => {
+                          const copy = { ...prev };
+                          delete copy.customerName;
+                          return copy;
+                        });
+                    }}
+                  />
+                  {formErrors.customerName && (
+                    <p className="text-[10px] text-destructive mt-1 font-semibold">{formErrors.customerName[0]}</p>
+                  )}
                 </div>
                 <div className="space-y-2">
                   <label className="font-mono text-[10px] uppercase font-bold text-on-surface-variant">Customer Email</label>
-                  <Input required type="email" className={cn(formErrors.customerEmail && "border-destructive text-destructive focus:border-destructive")} placeholder="l.obasa@iworldnetworks.net" value={formEmail} onChange={(e) => { setFormEmail(e.target.value); if(formErrors.customerEmail) setFormErrors(prev => { const copy = {...prev}; delete copy.customerEmail; return copy; }); }} />
-                  {formErrors.customerEmail && <p className="text-[10px] text-destructive mt-1 font-semibold">{formErrors.customerEmail[0]}</p>}
+                  <Input
+                    required
+                    type="email"
+                    className={cn(formErrors.customerEmail && 'border-destructive text-destructive focus:border-destructive')}
+                    placeholder="l.obasa@iworldnetworks.net"
+                    value={formEmail}
+                    onChange={(e) => {
+                      setFormEmail(e.target.value);
+                      if (formErrors.customerEmail)
+                        setFormErrors((prev) => {
+                          const copy = { ...prev };
+                          delete copy.customerEmail;
+                          return copy;
+                        });
+                    }}
+                  />
+                  {formErrors.customerEmail && (
+                    <p className="text-[10px] text-destructive mt-1 font-semibold">{formErrors.customerEmail[0]}</p>
+                  )}
                 </div>
               </div>
 
               <div className="grid grid-cols-3 gap-4">
                 <div className="space-y-2">
                   <label className="font-mono text-[10px] uppercase font-bold text-on-surface-variant">Department</label>
-                  <Select value={formCategory} onValueChange={(val: string) => { setFormCategory(val as "Reliability" | "Support" | "FieldSupport" | "Testimonials" | "Installation" | "Billing"); setRatingsState({}); }}>
-                    <SelectTrigger className={cn("rounded-md font-mono text-[10px] uppercase font-bold bg-white", formErrors.category && "border-destructive text-destructive")}>
+                  <Select
+                    value={formCategory}
+                    onValueChange={(val: string) => {
+                      setFormCategory(val as 'Reliability' | 'Support' | 'FieldSupport' | 'Testimonials' | 'Installation' | 'Billing');
+                      setRatingsState({});
+                    }}
+                  >
+                    <SelectTrigger
+                      className={cn(
+                        'rounded-md font-mono text-[10px] uppercase font-bold bg-white',
+                        formErrors.category && 'border-destructive text-destructive',
+                      )}
+                    >
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
-                      {categories.map(cat => <SelectItem key={cat} value={cat}>{cat}</SelectItem>)}
+                      {categories.map((cat) => (
+                        <SelectItem key={cat} value={cat}>
+                          {cat}
+                        </SelectItem>
+                      ))}
                     </SelectContent>
                   </Select>
                   {formErrors.category && <p className="text-[10px] text-destructive mt-1 font-semibold">{formErrors.category[0]}</p>}
@@ -545,18 +630,41 @@ export default function AdminCrud() {
                 <div className="space-y-2">
                   <label className="font-mono text-[10px] uppercase font-bold text-on-surface-variant">Region</label>
                   <Select value={formLocation} onValueChange={setFormLocation}>
-                    <SelectTrigger className={cn("rounded-md font-mono text-[10px] uppercase font-bold bg-white", formErrors.location && "border-destructive text-destructive")}>
+                    <SelectTrigger
+                      className={cn(
+                        'rounded-md font-mono text-[10px] uppercase font-bold bg-white',
+                        formErrors.location && 'border-destructive text-destructive',
+                      )}
+                    >
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
-                      {locations.map(loc => <SelectItem key={loc} value={loc}>{loc}</SelectItem>)}
+                      {locations.map((loc) => (
+                        <SelectItem key={loc} value={loc}>
+                          {loc}
+                        </SelectItem>
+                      ))}
                     </SelectContent>
                   </Select>
                   {formErrors.location && <p className="text-[10px] text-destructive mt-1 font-semibold">{formErrors.location[0]}</p>}
                 </div>
                 <div className="space-y-2">
                   <label className="font-mono text-[10px] uppercase font-bold text-on-surface-variant">Service Plan</label>
-                  <Input required className={cn(formErrors.servicePlan && "border-destructive text-destructive focus:border-destructive")} placeholder="Enterprise" value={formPlan} onChange={(e) => { setFormPlan(e.target.value); if(formErrors.servicePlan) setFormErrors(prev => { const copy = {...prev}; delete copy.servicePlan; return copy; }); }} />
+                  <Input
+                    required
+                    className={cn(formErrors.servicePlan && 'border-destructive text-destructive focus:border-destructive')}
+                    placeholder="Enterprise"
+                    value={formPlan}
+                    onChange={(e) => {
+                      setFormPlan(e.target.value);
+                      if (formErrors.servicePlan)
+                        setFormErrors((prev) => {
+                          const copy = { ...prev };
+                          delete copy.servicePlan;
+                          return copy;
+                        });
+                    }}
+                  />
                   {formErrors.servicePlan && <p className="text-[10px] text-destructive mt-1 font-semibold">{formErrors.servicePlan[0]}</p>}
                 </div>
               </div>
@@ -564,7 +672,20 @@ export default function AdminCrud() {
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2">
                   <label className="font-mono text-[10px] uppercase font-bold text-on-surface-variant">Staff / Tech Name</label>
-                  <Input className={cn(formErrors.staffName && "border-destructive text-destructive focus:border-destructive")} placeholder="Christian Adejo" value={formStaffName} onChange={(e) => { setFormStaffName(e.target.value); if(formErrors.staffName) setFormErrors(prev => { const copy = {...prev}; delete copy.staffName; return copy; }); }} />
+                  <Input
+                    className={cn(formErrors.staffName && 'border-destructive text-destructive focus:border-destructive')}
+                    placeholder="Christian Adejo"
+                    value={formStaffName}
+                    onChange={(e) => {
+                      setFormStaffName(e.target.value);
+                      if (formErrors.staffName)
+                        setFormErrors((prev) => {
+                          const copy = { ...prev };
+                          delete copy.staffName;
+                          return copy;
+                        });
+                    }}
+                  />
                   {formErrors.staffName && <p className="text-[10px] text-destructive mt-1 font-semibold">{formErrors.staffName[0]}</p>}
                 </div>
                 <div className="space-y-2 flex flex-col justify-end">
@@ -572,19 +693,31 @@ export default function AdminCrud() {
                   <DatePicker
                     date={formDateFeedback ? new Date(formDateFeedback) : undefined}
                     placeholder="Select Date"
-                    className={formErrors.dateFeedback ? "border-destructive text-destructive" : ""}
+                    className={formErrors.dateFeedback ? 'border-destructive text-destructive' : ''}
                     onSelect={(date) => {
-                      setFormDateFeedback(date ? date.toISOString().split('T')[0] : '');
-                      if (formErrors.dateFeedback) setFormErrors(prev => { const copy = {...prev}; delete copy.dateFeedback; return copy; });
+                      setFormDateFeedback(date ? toLocalDateString(date) : '');
+                      if (formErrors.dateFeedback)
+                        setFormErrors((prev) => {
+                          const copy = { ...prev };
+                          delete copy.dateFeedback;
+                          return copy;
+                        });
                     }}
                   />
-                  {formErrors.dateFeedback && <p className="text-[10px] text-destructive mt-1 font-semibold">{formErrors.dateFeedback[0]}</p>}
+                  {formErrors.dateFeedback && (
+                    <p className="text-[10px] text-destructive mt-1 font-semibold">{formErrors.dateFeedback[0]}</p>
+                  )}
                 </div>
               </div>
 
               <div className="space-y-2">
                 <label className="font-mono text-[10px] uppercase font-bold text-on-surface-variant">Feedback Comment</label>
-                <Textarea placeholder="Explain customer concerns or telemetry heartbeat detailed descriptions..." className="min-h-[80px]" value={formComment} onChange={(e) => setFormComment(e.target.value)} />
+                <Textarea
+                  placeholder="Explain customer concerns or telemetry heartbeat detailed descriptions..."
+                  className="min-h-[80px]"
+                  value={formComment}
+                  onChange={(e) => setFormComment(e.target.value)}
+                />
               </div>
 
               {/* Dynamic ratings section based on category selection */}
@@ -595,27 +728,35 @@ export default function AdminCrud() {
                     <div key={field.key} className="space-y-2">
                       <label className="font-mono text-[10px] uppercase font-bold text-on-surface-variant">{field.label}</label>
                       {field.type === 'rating' ? (
-                        <Select 
-                          value={ratingsState[field.key] || ''} 
-                          onValueChange={(val) => setRatingsState(prev => ({ ...prev, [field.key]: val }))}
+                        <Select
+                          value={ratingsState[field.key] || ''}
+                          onValueChange={(val) => setRatingsState((prev) => ({ ...prev, [field.key]: val }))}
                         >
                           <SelectTrigger className="rounded-md font-mono text-[10px] uppercase font-bold bg-white">
                             <SelectValue placeholder="Rate 1-5" />
                           </SelectTrigger>
                           <SelectContent>
-                            {['5', '4', '3', '2', '1'].map(n => <SelectItem key={n} value={n}>{n} Stars</SelectItem>)}
+                            {['5', '4', '3', '2', '1'].map((n) => (
+                              <SelectItem key={n} value={n}>
+                                {n} Stars
+                              </SelectItem>
+                            ))}
                           </SelectContent>
                         </Select>
                       ) : (
-                        <Select 
-                          value={ratingsState[field.key] || ''} 
-                          onValueChange={(val) => setRatingsState(prev => ({ ...prev, [field.key]: val }))}
+                        <Select
+                          value={ratingsState[field.key] || ''}
+                          onValueChange={(val) => setRatingsState((prev) => ({ ...prev, [field.key]: val }))}
                         >
                           <SelectTrigger className="rounded-md font-mono text-[10px] uppercase font-bold bg-white">
                             <SelectValue placeholder="Select choice" />
                           </SelectTrigger>
                           <SelectContent>
-                            {field.options?.map(opt => <SelectItem key={opt} value={opt}>{opt}</SelectItem>)}
+                            {field.options?.map((opt) => (
+                              <SelectItem key={opt} value={opt}>
+                                {opt}
+                              </SelectItem>
+                            ))}
                           </SelectContent>
                         </Select>
                       )}
@@ -625,7 +766,9 @@ export default function AdminCrud() {
               </div>
 
               <DialogFooter className="flex justify-end gap-2 border-t border-border pt-6 mt-6">
-                <Button type="button" variant="outline" className="rounded-full" onClick={() => setIsCreateOpen(false)}>Cancel</Button>
+                <Button type="button" variant="outline" className="rounded-full" onClick={() => setIsCreateOpen(false)}>
+                  Cancel
+                </Button>
                 <Button type="submit" disabled={isActionLoading} className="rounded-full bg-secondary text-white px-8">
                   {isActionLoading ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : <Plus className="w-4 h-4 mr-2" />} Add Record
                 </Button>
@@ -635,7 +778,13 @@ export default function AdminCrud() {
         </Dialog>
 
         {/* EDIT DIALOG MODAL */}
-        <Dialog open={isEditOpen} onOpenChange={(open) => { setIsEditOpen(open); if(!open) setSelectedRecord(null); }}>
+        <Dialog
+          open={isEditOpen}
+          onOpenChange={(open) => {
+            setIsEditOpen(open);
+            if (!open) setSelectedRecord(null);
+          }}
+        >
           <DialogContent className="max-w-xl rounded-3xl p-8 max-h-[85vh] overflow-y-auto">
             <DialogHeader>
               <DialogTitle className="font-display text-xl uppercase tracking-tight flex items-center gap-2">
@@ -649,25 +798,73 @@ export default function AdminCrud() {
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2">
                   <label className="font-mono text-[10px] uppercase font-bold text-on-surface-variant">Customer Name</label>
-                  <Input required className={cn(formErrors.customerName && "border-destructive text-destructive focus:border-destructive")} placeholder="Lukmon Obasa" value={formName} onChange={(e) => { setFormName(e.target.value); if(formErrors.customerName) setFormErrors(prev => { const copy = {...prev}; delete copy.customerName; return copy; }); }} />
-                  {formErrors.customerName && <p className="text-[10px] text-destructive mt-1 font-semibold">{formErrors.customerName[0]}</p>}
+                  <Input
+                    required
+                    className={cn(formErrors.customerName && 'border-destructive text-destructive focus:border-destructive')}
+                    placeholder="Lukmon Obasa"
+                    value={formName}
+                    onChange={(e) => {
+                      setFormName(e.target.value);
+                      if (formErrors.customerName)
+                        setFormErrors((prev) => {
+                          const copy = { ...prev };
+                          delete copy.customerName;
+                          return copy;
+                        });
+                    }}
+                  />
+                  {formErrors.customerName && (
+                    <p className="text-[10px] text-destructive mt-1 font-semibold">{formErrors.customerName[0]}</p>
+                  )}
                 </div>
                 <div className="space-y-2">
                   <label className="font-mono text-[10px] uppercase font-bold text-on-surface-variant">Customer Email</label>
-                  <Input required type="email" className={cn(formErrors.customerEmail && "border-destructive text-destructive focus:border-destructive")} placeholder="l.obasa@iworldnetworks.net" value={formEmail} onChange={(e) => { setFormEmail(e.target.value); if(formErrors.customerEmail) setFormErrors(prev => { const copy = {...prev}; delete copy.customerEmail; return copy; }); }} />
-                  {formErrors.customerEmail && <p className="text-[10px] text-destructive mt-1 font-semibold">{formErrors.customerEmail[0]}</p>}
+                  <Input
+                    required
+                    type="email"
+                    className={cn(formErrors.customerEmail && 'border-destructive text-destructive focus:border-destructive')}
+                    placeholder="l.obasa@iworldnetworks.net"
+                    value={formEmail}
+                    onChange={(e) => {
+                      setFormEmail(e.target.value);
+                      if (formErrors.customerEmail)
+                        setFormErrors((prev) => {
+                          const copy = { ...prev };
+                          delete copy.customerEmail;
+                          return copy;
+                        });
+                    }}
+                  />
+                  {formErrors.customerEmail && (
+                    <p className="text-[10px] text-destructive mt-1 font-semibold">{formErrors.customerEmail[0]}</p>
+                  )}
                 </div>
               </div>
 
               <div className="grid grid-cols-3 gap-4">
                 <div className="space-y-2">
                   <label className="font-mono text-[10px] uppercase font-bold text-on-surface-variant">Department</label>
-                  <Select value={formCategory} onValueChange={(val: string) => { setFormCategory(val as "Reliability" | "Support" | "FieldSupport" | "Testimonials" | "Installation" | "Billing"); setRatingsState({}); }}>
-                    <SelectTrigger className={cn("rounded-md font-mono text-[10px] uppercase font-bold bg-white", formErrors.category && "border-destructive text-destructive")}>
+                  <Select
+                    value={formCategory}
+                    onValueChange={(val: string) => {
+                      setFormCategory(val as 'Reliability' | 'Support' | 'FieldSupport' | 'Testimonials' | 'Installation' | 'Billing');
+                      setRatingsState({});
+                    }}
+                  >
+                    <SelectTrigger
+                      className={cn(
+                        'rounded-md font-mono text-[10px] uppercase font-bold bg-white',
+                        formErrors.category && 'border-destructive text-destructive',
+                      )}
+                    >
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
-                      {categories.map(cat => <SelectItem key={cat} value={cat}>{cat}</SelectItem>)}
+                      {categories.map((cat) => (
+                        <SelectItem key={cat} value={cat}>
+                          {cat}
+                        </SelectItem>
+                      ))}
                     </SelectContent>
                   </Select>
                   {formErrors.category && <p className="text-[10px] text-destructive mt-1 font-semibold">{formErrors.category[0]}</p>}
@@ -675,18 +872,41 @@ export default function AdminCrud() {
                 <div className="space-y-2">
                   <label className="font-mono text-[10px] uppercase font-bold text-on-surface-variant">Region</label>
                   <Select value={formLocation} onValueChange={setFormLocation}>
-                    <SelectTrigger className={cn("rounded-md font-mono text-[10px] uppercase font-bold bg-white", formErrors.location && "border-destructive text-destructive")}>
+                    <SelectTrigger
+                      className={cn(
+                        'rounded-md font-mono text-[10px] uppercase font-bold bg-white',
+                        formErrors.location && 'border-destructive text-destructive',
+                      )}
+                    >
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
-                      {locations.map(loc => <SelectItem key={loc} value={loc}>{loc}</SelectItem>)}
+                      {locations.map((loc) => (
+                        <SelectItem key={loc} value={loc}>
+                          {loc}
+                        </SelectItem>
+                      ))}
                     </SelectContent>
                   </Select>
                   {formErrors.location && <p className="text-[10px] text-destructive mt-1 font-semibold">{formErrors.location[0]}</p>}
                 </div>
                 <div className="space-y-2">
                   <label className="font-mono text-[10px] uppercase font-bold text-on-surface-variant">Service Plan</label>
-                  <Input required className={cn(formErrors.servicePlan && "border-destructive text-destructive focus:border-destructive")} placeholder="Enterprise" value={formPlan} onChange={(e) => { setFormPlan(e.target.value); if(formErrors.servicePlan) setFormErrors(prev => { const copy = {...prev}; delete copy.servicePlan; return copy; }); }} />
+                  <Input
+                    required
+                    className={cn(formErrors.servicePlan && 'border-destructive text-destructive focus:border-destructive')}
+                    placeholder="Enterprise"
+                    value={formPlan}
+                    onChange={(e) => {
+                      setFormPlan(e.target.value);
+                      if (formErrors.servicePlan)
+                        setFormErrors((prev) => {
+                          const copy = { ...prev };
+                          delete copy.servicePlan;
+                          return copy;
+                        });
+                    }}
+                  />
                   {formErrors.servicePlan && <p className="text-[10px] text-destructive mt-1 font-semibold">{formErrors.servicePlan[0]}</p>}
                 </div>
               </div>
@@ -694,7 +914,20 @@ export default function AdminCrud() {
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2">
                   <label className="font-mono text-[10px] uppercase font-bold text-on-surface-variant">Staff / Tech Name</label>
-                  <Input className={cn(formErrors.staffName && "border-destructive text-destructive focus:border-destructive")} placeholder="Christian Adejo" value={formStaffName} onChange={(e) => { setFormStaffName(e.target.value); if(formErrors.staffName) setFormErrors(prev => { const copy = {...prev}; delete copy.staffName; return copy; }); }} />
+                  <Input
+                    className={cn(formErrors.staffName && 'border-destructive text-destructive focus:border-destructive')}
+                    placeholder="Christian Adejo"
+                    value={formStaffName}
+                    onChange={(e) => {
+                      setFormStaffName(e.target.value);
+                      if (formErrors.staffName)
+                        setFormErrors((prev) => {
+                          const copy = { ...prev };
+                          delete copy.staffName;
+                          return copy;
+                        });
+                    }}
+                  />
                   {formErrors.staffName && <p className="text-[10px] text-destructive mt-1 font-semibold">{formErrors.staffName[0]}</p>}
                 </div>
                 <div className="space-y-2 flex flex-col justify-end">
@@ -702,20 +935,27 @@ export default function AdminCrud() {
                   <DatePicker
                     date={formDateFeedback ? new Date(formDateFeedback) : undefined}
                     placeholder="Select Date"
-                    className={formErrors.dateFeedback ? "border-destructive text-destructive" : ""}
+                    className={formErrors.dateFeedback ? 'border-destructive text-destructive' : ''}
                     onSelect={(date) => {
-                      setFormDateFeedback(date ? date.toISOString().split('T')[0] : '');
-                      if (formErrors.dateFeedback) setFormErrors(prev => { const copy = {...prev}; delete copy.dateFeedback; return copy; });
+                      setFormDateFeedback(date ? toLocalDateString(date) : '');
+                      if (formErrors.dateFeedback)
+                        setFormErrors((prev) => {
+                          const copy = { ...prev };
+                          delete copy.dateFeedback;
+                          return copy;
+                        });
                     }}
                   />
-                  {formErrors.dateFeedback && <p className="text-[10px] text-destructive mt-1 font-semibold">{formErrors.dateFeedback[0]}</p>}
+                  {formErrors.dateFeedback && (
+                    <p className="text-[10px] text-destructive mt-1 font-semibold">{formErrors.dateFeedback[0]}</p>
+                  )}
                 </div>
               </div>
 
               <div className="grid grid-cols-2 gap-4 border-t border-border pt-4">
                 <div className="space-y-2">
                   <label className="font-mono text-[10px] uppercase font-bold text-on-surface-variant">Status</label>
-                  <Select value={formStatus} onValueChange={(val: string) => setFormStatus(val as "open" | "resolved" | "escalated")}>
+                  <Select value={formStatus} onValueChange={(val: string) => setFormStatus(val as 'open' | 'resolved' | 'escalated')}>
                     <SelectTrigger className="rounded-md font-mono text-[10px] uppercase font-bold bg-white">
                       <SelectValue />
                     </SelectTrigger>
@@ -730,12 +970,22 @@ export default function AdminCrud() {
 
               <div className="space-y-2">
                 <label className="font-mono text-[10px] uppercase font-bold text-on-surface-variant">Supervisor Notes</label>
-                <Textarea placeholder="Resolution details..." className="min-h-[80px]" value={formNotes} onChange={(e) => setFormNotes(e.target.value)} />
+                <Textarea
+                  placeholder="Resolution details..."
+                  className="min-h-[80px]"
+                  value={formNotes}
+                  onChange={(e) => setFormNotes(e.target.value)}
+                />
               </div>
 
               <div className="space-y-2">
                 <label className="font-mono text-[10px] uppercase font-bold text-on-surface-variant">Feedback Comment</label>
-                <Textarea placeholder="Explain customer concerns..." className="min-h-[80px]" value={formComment} onChange={(e) => setFormComment(e.target.value)} />
+                <Textarea
+                  placeholder="Explain customer concerns..."
+                  className="min-h-[80px]"
+                  value={formComment}
+                  onChange={(e) => setFormComment(e.target.value)}
+                />
               </div>
 
               {/* Dynamic ratings section based on category selection */}
@@ -746,27 +996,35 @@ export default function AdminCrud() {
                     <div key={field.key} className="space-y-2">
                       <label className="font-mono text-[10px] uppercase font-bold text-on-surface-variant">{field.label}</label>
                       {field.type === 'rating' ? (
-                        <Select 
-                          value={ratingsState[field.key] || ''} 
-                          onValueChange={(val) => setRatingsState(prev => ({ ...prev, [field.key]: val }))}
+                        <Select
+                          value={ratingsState[field.key] || ''}
+                          onValueChange={(val) => setRatingsState((prev) => ({ ...prev, [field.key]: val }))}
                         >
                           <SelectTrigger className="rounded-md font-mono text-[10px] uppercase font-bold bg-white">
                             <SelectValue placeholder="Rate 1-5" />
                           </SelectTrigger>
                           <SelectContent>
-                            {['5', '4', '3', '2', '1'].map(n => <SelectItem key={n} value={n}>{n} Stars</SelectItem>)}
+                            {['5', '4', '3', '2', '1'].map((n) => (
+                              <SelectItem key={n} value={n}>
+                                {n} Stars
+                              </SelectItem>
+                            ))}
                           </SelectContent>
                         </Select>
                       ) : (
-                        <Select 
-                          value={ratingsState[field.key] || ''} 
-                          onValueChange={(val) => setRatingsState(prev => ({ ...prev, [field.key]: val }))}
+                        <Select
+                          value={ratingsState[field.key] || ''}
+                          onValueChange={(val) => setRatingsState((prev) => ({ ...prev, [field.key]: val }))}
                         >
                           <SelectTrigger className="rounded-md font-mono text-[10px] uppercase font-bold bg-white">
                             <SelectValue placeholder="Select choice" />
                           </SelectTrigger>
                           <SelectContent>
-                            {field.options?.map(opt => <SelectItem key={opt} value={opt}>{opt}</SelectItem>)}
+                            {field.options?.map((opt) => (
+                              <SelectItem key={opt} value={opt}>
+                                {opt}
+                              </SelectItem>
+                            ))}
                           </SelectContent>
                         </Select>
                       )}
@@ -776,7 +1034,9 @@ export default function AdminCrud() {
               </div>
 
               <DialogFooter className="flex justify-end gap-2 border-t border-border pt-6 mt-6">
-                <Button type="button" variant="outline" className="rounded-full" onClick={() => setIsEditOpen(false)}>Cancel</Button>
+                <Button type="button" variant="outline" className="rounded-full" onClick={() => setIsEditOpen(false)}>
+                  Cancel
+                </Button>
                 <Button type="submit" disabled={isActionLoading} className="rounded-full bg-secondary text-white px-8">
                   {isActionLoading ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : <Edit className="w-4 h-4 mr-2" />} Save Changes
                 </Button>
@@ -786,7 +1046,13 @@ export default function AdminCrud() {
         </Dialog>
 
         {/* DELETE CONFIRMATION DIALOG */}
-        <Dialog open={isDeleteOpen} onOpenChange={(open) => { setIsDeleteOpen(open); if(!open) setSelectedRecord(null); }}>
+        <Dialog
+          open={isDeleteOpen}
+          onOpenChange={(open) => {
+            setIsDeleteOpen(open);
+            if (!open) setSelectedRecord(null);
+          }}
+        >
           <DialogContent className="max-w-md rounded-3xl p-8">
             <DialogHeader className="flex flex-col items-center text-center gap-4">
               <div className="w-16 h-16 bg-destructive/10 rounded-full flex items-center justify-center">
@@ -800,10 +1066,12 @@ export default function AdminCrud() {
               </div>
             </DialogHeader>
             <DialogFooter className="flex gap-2 justify-center mt-6 w-full">
-              <Button type="button" variant="outline" className="rounded-full flex-1" onClick={() => setIsDeleteOpen(false)}>Cancel</Button>
-              <Button 
-                type="button" 
-                onClick={handleDelete} 
+              <Button type="button" variant="outline" className="rounded-full flex-1" onClick={() => setIsDeleteOpen(false)}>
+                Cancel
+              </Button>
+              <Button
+                type="button"
+                onClick={handleDelete}
                 disabled={isActionLoading}
                 className="rounded-full bg-destructive text-white hover:bg-destructive/90 flex-1"
               >

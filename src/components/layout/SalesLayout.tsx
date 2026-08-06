@@ -18,6 +18,7 @@ import {
   BarChart3,
   Wifi,
   FileText,
+  Users,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
@@ -34,7 +35,8 @@ const salesNavItems = [
   { name: 'Dashboard', href: '/admin/sales', icon: TrendingUp },
   { name: 'Monthly Revenue', href: '/admin/sales/monthly-revenue', icon: BarChart3 },
   { name: 'BTS Audit', href: '/admin/bts/audit', icon: Wifi },
-  { name: 'BTS Data', href: '/admin/bts/import', icon: FileText },
+  { name: 'BTS Customers', href: '/admin/bts/customers', icon: Users },
+  { name: 'BTS Import', href: '/admin/bts/import', icon: FileText },
   { name: 'Records', href: '/admin/sales/records', icon: Database },
   { name: 'Import Data', href: '/admin/sales/import', icon: Upload },
   { name: 'Targets', href: '/admin/sales/targets', icon: Target },
@@ -216,7 +218,7 @@ export function SalesLayout({ children }: SalesLayoutProps) {
 
       <footer className="bg-white/80 border-t border-border py-6">
         <div className="max-w-screen-2xl mx-auto px-4 md:px-6 flex justify-between items-center">
-          <span className="font-mono text-[10px] font-bold text-primary uppercase">I-World Networks</span>
+          <Image src="/logo.png" alt="I-World Networks" width={110} height={33} className="h-6 w-auto object-contain" />
           <span className="font-mono text-[9px] text-on-surface-variant uppercase font-bold">Sales Dashboard</span>
         </div>
       </footer>

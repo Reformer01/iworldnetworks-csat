@@ -173,7 +173,7 @@ export default function AdminDashboard() {
       const ratingsArray = deptFeedbacks.flatMap(
         (f: FeedbackDoc) => Object.values(f.ratings || {}).filter((v) => typeof v === 'number') as number[],
       );
-      const avg = ratingsArray.length > 0 ? (ratingsArray.reduce((a, b) => a + b, 0) / ratingsArray.length).toFixed(1) + '/5' : 'â€”';
+      const avg = ratingsArray.length > 0 ? (ratingsArray.reduce((a, b) => a + b, 0) / ratingsArray.length).toFixed(1) + '/5' : '—';
 
       const actioned = deptFeedbacks.filter((f: FeedbackDoc) => f.status === 'resolved').length;
 
@@ -214,7 +214,7 @@ export default function AdminDashboard() {
       const periodLabel: Record<string, string> = { '7d': 'Last 7 Days', '30d': 'Last 30 Days', '90d': 'Last Quarter', '1y': 'Annual' };
       const period =
         dateRange?.from || dateRange?.to
-          ? `${dateRange.from ? dateRange.from.toLocaleDateString() : 'Start'} â€“ ${dateRange.to ? dateRange.to.toLocaleDateString() : 'Now'}`
+          ? `${dateRange.from ? dateRange.from.toLocaleDateString() : 'Start'} – ${dateRange.to ? dateRange.to.toLocaleDateString() : 'Now'}`
           : (periodLabel[timeRange] ?? timeRange);
 
       // ---- Cover / Header ----
@@ -223,7 +223,7 @@ export default function AdminDashboard() {
       doc.setTextColor(255, 255, 255);
       doc.setFont('helvetica', 'bold');
       doc.setFontSize(22);
-      doc.text('I-World Networks â€” Feedback Report', 14, 18);
+      doc.text('I-World Networks — Feedback Report', 14, 18);
       doc.setFontSize(10);
       doc.setFont('helvetica', 'normal');
       doc.text(`Period: ${period}  |  Generated: ${reportDate}  |  Total Records: ${filteredFeedbacks.length}`, 14, 30);
@@ -303,12 +303,12 @@ export default function AdminDashboard() {
       doc.text('Individual Feedback Log', 14, 14);
 
       const rows = filteredFeedbacks.map((f: FeedbackDoc) => [
-        f.customerName || 'â€”',
-        f.location || 'â€”',
-        f.category || 'â€”',
-        f.status || 'â€”',
-        f.comment ? f.comment.substring(0, 80) + (f.comment.length > 80 ? 'â€¦' : '') : 'â€”',
-        f.serviceDate || (f.timestamp ? new Date(f.timestamp).toLocaleDateString() : 'â€”'),
+        f.customerName || '—',
+        f.location || '—',
+        f.category || '—',
+        f.status || '—',
+        f.comment ? f.comment.substring(0, 80) + (f.comment.length > 80 ? '…' : '') : '—',
+        f.serviceDate || (f.timestamp ? new Date(f.timestamp).toLocaleDateString() : '—'),
       ]);
 
       autoTable(doc, {

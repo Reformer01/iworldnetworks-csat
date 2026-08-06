@@ -19,6 +19,7 @@ import {
   ChevronDown,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { parseCSV } from '@/lib/csv';
 
 const BTS_REGIONS = ['Ibadan', 'Abeokuta', 'Ijebu', 'Osogbo', 'Sagamu', 'Akure', 'Ota'] as const;
 
@@ -42,6 +43,7 @@ const BTS_STATIONS_BY_REGION: Record<string, string[]> = {
     'Obada Extension',
     'Miliki',
     'OGBC',
+    'Oshoba Hill',
   ],
   Ijebu: ['Odogbolu', 'Ijebu GRA', 'NTA Ijebu', 'Ilamo', 'CKA'],
   Osogbo: ['OSBC', 'NTA Osogbo', 'Rave', 'Osogbo Office', 'Odeomu'],
@@ -54,39 +56,6 @@ function formatNaira(amount: number) {
   if (amount >= 1000000) return '₦' + (amount / 1000000).toFixed(2) + 'M';
   if (amount >= 1000) return '₦' + (amount / 1000).toFixed(1) + 'K';
   return '₦' + amount.toLocaleString();
-}
-
-function parseCSV(text: string): Record<string, string>[] {
-  const lines = text.split('\n').filter((l) => l.trim());
-  if (lines.length < 2) return [];
-  const headerLine = lines[0].replace(/^\uFEFF/, '');
-  const headers = headerLine.split(',').map((h) => h.trim().replace(/^"|"$/g, ''));
-  const records: Record<string, string>[] = [];
-  for (let i = 1; i < lines.length; i++) {
-    const values: string[] = [];
-    let current = '';
-    let inQuotes = false;
-    for (const ch of lines[i]) {
-      if (ch === '"') {
-        inQuotes = !inQuotes;
-        continue;
-      }
-      if (ch === ',' && !inQuotes) {
-        values.push(current.trim());
-        current = '';
-        continue;
-      }
-      current += ch;
-    }
-    values.push(current.trim());
-    if (values.length !== headers.length) continue;
-    const record: Record<string, string> = {};
-    headers.forEach((h, idx) => {
-      record[h] = values[idx] || '';
-    });
-    records.push(record);
-  }
-  return records;
 }
 
 function parseNaira(value: string): number {

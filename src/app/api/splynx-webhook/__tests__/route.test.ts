@@ -5,6 +5,7 @@ import type { NextRequest } from 'next/server';
 const mocks = vi.hoisted(() => ({
   db: { label: 'db' },
   createFeedbackToken: vi.fn().mockResolvedValue({ token: 'token-123', expiresAt: Date.now() + 1000 }),
+  findFeedbackTokenByEventHash: vi.fn().mockResolvedValue(null),
   sendFeedbackEmail: vi.fn().mockResolvedValue(undefined),
   logError: vi.fn(),
   logWarn: vi.fn(),
@@ -17,6 +18,7 @@ vi.mock('@/lib/firebase-admin', () => ({
 
 vi.mock('@/lib/feedback-token', () => ({
   createFeedbackToken: mocks.createFeedbackToken,
+  findFeedbackTokenByEventHash: mocks.findFeedbackTokenByEventHash,
   getFeedbackBaseUrl: () => 'http://localhost:9002',
 }));
 
@@ -253,5 +255,61 @@ describe('POST /api/splynx-webhook', () => {
         }),
       }),
     );
+  });
+
+  it('stores the event hash so retried deliveries can be detected', async () => {
+    const body = JSON.stringify({
+      type: 'event',
+      call: 'payment/update',
+      data: {
+        customer_id: 9,
+        attributes: {},
+      },
+    });
+
+    const response = await POST(
+      buildRequest(body, {
+        'content-type': 'application/json',
+        'x-splynx-signature': sign(body),
+      }),
+    );
+
+    expect(response.status).toBe(200);
+    expect(mocks.findFeedbackTokenByEventHash).toHaveBeenCalledWith(mocks.db, expect.stringMatching(/^[a-f0-9]{64}$/));
+    expect(mocks.createFeedbackToken).toHaveBeenCalledWith(
+      mocks.db,
+      expect.objectContaining({
+        eventHash: expect.stringMatching(/^[a-f0-9]{64}$/),
+      }),
+    );
+  });
+
+  it('reuses the existing token and does not email again on a retried delivery', async () => {
+    mocks.findFeedbackTokenByEventHash.mockResolvedValueOnce({ token: 'existing-token', expiresAt: Date.now() + 1000 });
+
+    const body = JSON.stringify({
+      type: 'event',
+      call: 'payment/update',
+      data: {
+        customer_id: 7,
+        attributes: {
+          email: 'retry@example.com',
+        },
+      },
+    });
+
+    const response = await POST(
+      buildRequest(body, {
+        'content-type': 'application/json',
+        'x-splynx-signature': sign(body),
+      }),
+    );
+    const json = await response.json();
+
+    expect(response.status).toBe(200);
+    expect(json.deduped).toBe(true);
+    expect(json.token).toBe('existing-token');
+    expect(mocks.createFeedbackToken).not.toHaveBeenCalled();
+    expect(mocks.sendFeedbackEmail).not.toHaveBeenCalled();
   });
 });

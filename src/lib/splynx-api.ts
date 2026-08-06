@@ -1,9 +1,14 @@
 import { getAdminApp } from './firebase-admin';
+import { incrementNonce } from './splynx-nonce';
 
-const SPLYNX_API_HOST = process.env.SPLYNX_API_HOST;
-const SPLYNX_API_KEY = process.env.SPLYNX_API_KEY;
-const SPLYNX_API_SECRET = process.env.SPLYNX_API_SECRET;
-const SPLYNX_API_AUTH = (process.env.SPLYNX_API_AUTH || 'basic').toLowerCase();
+function getSplynxEnv() {
+  return {
+    host: process.env.SPLYNX_API_HOST,
+    key: process.env.SPLYNX_API_KEY,
+    secret: process.env.SPLYNX_API_SECRET,
+    auth: (process.env.SPLYNX_API_AUTH || 'basic').toLowerCase(),
+  };
+}
 
 export interface SplynxCustomer {
   id: number;
@@ -104,37 +109,89 @@ export interface PaginatedResponse<T> {
   total_pages: number;
 }
 
-function buildAuthHeader(): string {
-  if (SPLYNX_API_AUTH === 'signature') {
-    const nonce = String(Math.max(Date.now(), (globalThis as any).lastSplynxNonce || 0) + 1);
-    (globalThis as any).lastSplynxNonce = Number(nonce);
+export async function buildAuthHeader(): Promise<string> {
+  const env = getSplynxEnv();
+  if (env.auth === 'signature') {
     const crypto = require('crypto');
-    const signature = crypto.createHmac('sha256', SPLYNX_API_SECRET).update(`${nonce}${SPLYNX_API_KEY}`).digest('hex').toUpperCase();
-    return `Splynx-EA (key=${SPLYNX_API_KEY}&nonce=${nonce}&signature=${signature})`;
+    const nextNonce = await incrementNonce('default');
+    const nonce = String(Math.max(Date.now(), Number(nextNonce)));
+    (globalThis as any).lastSplynxNonce = Number(nonce);
+    const signature = crypto.createHmac('sha256', env.secret).update(`${nonce}${env.key}`).digest('hex').toUpperCase();
+    return `Splynx-EA (key=${env.key}&nonce=${nonce}&signature=${signature})`;
   }
-  return `Basic ${Buffer.from(`${SPLYNX_API_KEY}:${SPLYNX_API_SECRET}`).toString('base64')}`;
+
+  return `Basic ${Buffer.from(`${env.key}:${env.secret}`).toString('base64')}`;
 }
 
 async function splynxFetch<T>(endpoint: string, params?: URLSearchParams): Promise<T> {
-  if (!SPLYNX_API_HOST || !SPLYNX_API_KEY || !SPLYNX_API_SECRET) {
+  const env = getSplynxEnv();
+  if (!env.host || !env.key || !env.secret) {
     throw new Error('Splynx API credentials not configured');
   }
 
-  const url = `${SPLYNX_API_HOST.replace(/\/+$/, '')}/api/2.0${endpoint}${params ? `?${params.toString()}` : ''}`;
-  const response = await fetch(url, {
-    headers: {
-      Authorization: buildAuthHeader(),
-      Accept: 'application/json',
-    },
-    cache: 'no-store',
-  });
+  const url = `${env.host.replace(/\/+$/, '')}/api/2.0${endpoint}${params ? `?${params.toString()}` : ''}`;
+  const authHeader = await buildAuthHeader();
 
-  if (!response.ok) {
-    const text = await response.text().catch(() => '');
-    throw new Error(`Splynx API error ${response.status}: ${text}`);
+  // Retry with exponential backoff for rate limiting
+  const maxRetries = 3;
+  let lastError: Error;
+
+  for (let attempt = 0; attempt <= maxRetries; attempt++) {
+    try {
+      const response = await fetch(url, {
+        headers: {
+          Authorization: authHeader,
+          Accept: 'application/json',
+        },
+        cache: 'no-store',
+      });
+
+      if (!response.ok) {
+        const text = await response.text().catch(() => '');
+
+        // Check if this is a rate limit error that we should retry on
+        const isRateLimit =
+          response.status === 429 ||
+          (response.status === 8 && text.includes('RESOURCE_EXHAUSTED')) ||
+          response.status === 503 ||
+          response.status === 502 ||
+          response.status === 504;
+
+        if (isRateLimit && attempt < maxRetries) {
+          // Exponential backoff: 1s, 2s, 4s
+          const delay = Math.pow(2, attempt) * 1000;
+          await new Promise((resolve) => setTimeout(resolve, delay));
+          continue;
+        }
+
+        throw new Error(`Splynx API error ${response.status}: ${text}`);
+      }
+
+      return response.json();
+    } catch (error) {
+      lastError = error as Error;
+
+      // Check if this is a rate limit error that we should retry on
+      const isRateLimit =
+        error instanceof Error &&
+        (error.message.includes('RESOURCE_EXHAUSTED') ||
+          error.message.includes('429') ||
+          error.message.includes('503') ||
+          error.message.includes('502') ||
+          error.message.includes('504'));
+
+      if (isRateLimit && attempt < maxRetries) {
+        // Exponential backoff: 1s, 2s, 4s
+        const delay = Math.pow(2, attempt) * 1000;
+        await new Promise((resolve) => setTimeout(resolve, delay));
+        continue;
+      }
+
+      throw error;
+    }
   }
 
-  return response.json();
+  throw lastError!;
 }
 
 export async function getActiveCustomers(page = 1, perPage = 1000): Promise<PaginatedResponse<SplynxCustomer>> {
@@ -186,14 +243,16 @@ export async function getCustomerServices(customerId: number): Promise<SplynxSer
 }
 
 export function isSplynxConfigured(): boolean {
-  return !!(SPLYNX_API_HOST && SPLYNX_API_KEY && SPLYNX_API_SECRET);
+  const env = getSplynxEnv();
+  return !!(env.host && env.key && env.secret);
 }
 
 export function getSplynxConfig() {
+  const env = getSplynxEnv();
   return {
-    host: SPLYNX_API_HOST,
-    hasKey: !!SPLYNX_API_KEY,
-    hasSecret: !!SPLYNX_API_SECRET,
-    authMode: SPLYNX_API_AUTH,
+    host: env.host,
+    hasKey: !!env.key,
+    hasSecret: !!env.secret,
+    authMode: env.auth,
   };
 }

@@ -4,8 +4,10 @@ import { verifyAdminToken } from '@/lib/admin-auth';
 import { isRateLimited } from '@/lib/rate-limit';
 import { success, error, unauthorized, tooMany, serverError, validateOrigin } from '@/lib/api-response';
 import { logError, logInfo } from '@/lib/logger';
-import { btsStations, BTS_REGIONS, isBtsRegion, getStationsByRegion } from '@/lib/bts-data';
+import { btsStations, BTS_REGIONS, isBtsRegion, getStationsByRegion, findBtsMatch } from '@/lib/bts-data';
+import type { BtsAuditRecord } from '@/lib/sales-types';
 import { getRegionForLocation } from '@/lib/sales-staff';
+import { parseCSV } from '@/lib/csv';
 
 export const dynamic = 'force-dynamic';
 
@@ -48,39 +50,6 @@ const ACCOUNT_TYPE_MAP: Record<string, string> = {
   neighborhood: 'NEIGHBOURHOOD',
 };
 
-function parseCSV(text: string): Record<string, string>[] {
-  const lines = text.split('\n').filter((l) => l.trim());
-  if (lines.length < 2) return [];
-  const headerLine = lines[0].replace(/^\uFEFF/, '');
-  const headers = headerLine.split(',').map((h) => h.trim().replace(/^"|"$/g, ''));
-  const records: Record<string, string>[] = [];
-  for (let i = 1; i < lines.length; i++) {
-    const values: string[] = [];
-    let current = '';
-    let inQuotes = false;
-    for (const ch of lines[i]) {
-      if (ch === '"') {
-        inQuotes = !inQuotes;
-        continue;
-      }
-      if (ch === ',' && !inQuotes) {
-        values.push(current.trim());
-        current = '';
-        continue;
-      }
-      current += ch;
-    }
-    values.push(current.trim());
-    if (values.length !== headers.length) continue;
-    const record: Record<string, string> = {};
-    headers.forEach((h, idx) => {
-      record[h] = values[idx] || '';
-    });
-    records.push(record);
-  }
-  return records;
-}
-
 function parseNaira(value: string): number {
   if (!value || value === '—' || value === '-') return 0;
   const cleaned = value.replace(/^[₦Nn\s,#]+/, '').trim();
@@ -88,62 +57,115 @@ function parseNaira(value: string): number {
   return isNaN(num) ? 0 : num;
 }
 
-function findBtsMatch(siteName: string, regionStations: typeof btsStations): { name: string; region: string } | null {
-  const normalized = siteName.toLowerCase().trim();
-  // Remove common suffixes/prefixes and brackets for better matching
-  const cleaned = normalized
-    .replace(/\[[^\]]*\]/g, '') // Remove [brackets] like [Office Core], [Alagbado]
-    .replace(/\b(bts|core|office|fm)\b/g, '') // Remove common words
-    .replace(/[\[\]()]/g, '')
-    .replace(/\s+/g, ' ')
-    .trim();
-
-  // 1. Exact substring match on cleaned name
-  for (const bts of regionStations) {
-    if (cleaned.includes(bts.name.toLowerCase())) {
-      return { name: bts.name, region: bts.region };
-    }
-  }
-
-  // 2. Exact substring match on original normalized name
-  for (const bts of regionStations) {
-    if (normalized.includes(bts.name.toLowerCase())) {
-      return { name: bts.name, region: bts.region };
-    }
-  }
-
-  // 3. Word-based fuzzy matching on cleaned name
-  for (const bts of regionStations) {
-    const btsWords = bts.name.toLowerCase().split(/[\s-/]+/);
-    const siteWords = cleaned.split(/[\s-/]+/);
-    const matchCount = btsWords.filter((w) => siteWords.includes(w)).length;
-    if (matchCount >= Math.min(btsWords.length, 3)) {
-      return { name: bts.name, region: bts.region };
-    }
-    if (matchCount >= 2 && matchCount === btsWords.length) {
-      return { name: bts.name, region: bts.region };
-    }
-  }
-
-  // 4. Word-based fuzzy matching on original normalized name
-  for (const bts of regionStations) {
-    const btsWords = bts.name.toLowerCase().split(/[\s-/]+/);
-    const siteWords = normalized.split(/[\s-/]+/);
-    const matchCount = btsWords.filter((w) => siteWords.includes(w)).length;
-    if (matchCount >= Math.min(btsWords.length, 3)) {
-      return { name: bts.name, region: bts.region };
-    }
-    if (matchCount >= 2 && matchCount === btsWords.length) {
-      return { name: bts.name, region: bts.region };
-    }
-  }
-
-  return null;
-}
-
 function mapAccountType(raw: string): string {
   const key = raw.trim().toLowerCase();
   return ACCOUNT_TYPE_MAP[key] || 'OTHER';
+}
+
+/**
+ * Auto-create/refresh BTS audit records for matched sites so imported data
+ * shows up on the BTS audit page for the current audit period.
+ *
+ * Existing records are updated with fresh customer/revenue metrics only;
+ * manually-entered fields (status, siteType, address, outages, etc.) are preserved.
+ */
+async function syncAuditRecords(
+  db: FirebaseFirestore.Firestore,
+  summaries: BtsSiteSummary[],
+  regionStations: typeof btsStations,
+  now: number,
+): Promise<{ created: number; updated: number }> {
+  const auditPeriod = getCurrentAuditPeriod();
+  let created = 0;
+  let updated = 0;
+
+  for (const summary of summaries) {
+    if (summary.matchStatus !== 'matched' || !summary.matchedBtsName) continue;
+
+    const btsName = summary.matchedBtsName;
+    const station = regionStations.find((s) => s.name === btsName);
+    const targetMrr = 5000000;
+
+    const metrics = {
+      activeCustomers: summary.activeCustomers,
+      totalCustomers: summary.totalCustomers,
+      enterpriseCustomers: summary.enterpriseCustomers,
+      retailCustomers: summary.retailCustomers,
+      monthlyRecurringRevenue: summary.totalMrr,
+      nrcRevenue: 0,
+      totalRevenue: summary.totalMrr,
+      attainmentPercentage: summary.totalMrr > 0 ? Math.round((summary.totalMrr / targetMrr) * 10000) / 100 : 0,
+      updatedAt: now,
+    };
+
+    const existingSnap = await db
+      .collection('bts_audit_records')
+      .where('btsName', '==', btsName)
+      .where('auditPeriod', '==', auditPeriod)
+      .limit(2)
+      .get();
+    const existingDoc = existingSnap.docs.find((d) => !d.data().deletedAt);
+
+    if (existingDoc) {
+      await existingDoc.ref.update(metrics);
+      await db
+        .collection('bts_latest_audit')
+        .doc(btsName)
+        .set({ ...existingDoc.data(), ...metrics, id: existingDoc.id }, { merge: true });
+      updated++;
+      continue;
+    }
+
+    const record: BtsAuditRecord = {
+      btsName,
+      ...(station?.id !== undefined ? { btsId: station.id } : {}),
+      region: summary.region || getRegionForLocation(station?.region || ''),
+      siteType: 'Tower',
+      status: summary.activeCustomers > 0 ? 'Active' : 'Inactive',
+      ...(station?.host ? { host: station.host } : {}),
+      activeCustomers: summary.activeCustomers,
+      totalCustomers: summary.totalCustomers,
+      enterpriseCustomers: summary.enterpriseCustomers,
+      retailCustomers: summary.retailCustomers,
+      monthlyRecurringRevenue: summary.totalMrr,
+      targetMrr,
+      attainmentPercentage: metrics.attainmentPercentage,
+      nrcRevenue: 0,
+      totalRevenue: summary.totalMrr,
+      splynxRouterIds: [],
+      splynxRouterNames: [],
+      outageCountThisMonth: 0,
+      maintenanceNotes: 'Auto-generated from CSV import',
+      auditedBy: 'system-import',
+      auditedAt: now,
+      auditPeriod,
+      createdAt: now,
+      updatedAt: now,
+    };
+
+    const docRef = await db.collection('bts_audit_records').add(record);
+    await db
+      .collection('bts_latest_audit')
+      .doc(btsName)
+      .set({ ...record, id: docRef.id });
+    created++;
+  }
+
+  logInfo('[bts-customers-import] Audit sync', { created, updated, period: auditPeriod });
+  return { created, updated };
+}
+
+function getCurrentAuditPeriod(): string {
+  const now = new Date();
+  const year = now.getFullYear();
+  const week = getWeekNumber(now);
+  return `${year}-W${String(week).padStart(2, '0')}`;
+}
+
+function getWeekNumber(date: Date): number {
+  const firstDayOfYear = new Date(date.getFullYear(), 0, 1);
+  const pastDaysOfYear = (date.getTime() - firstDayOfYear.getTime()) / 86400000;
+  return Math.ceil((pastDaysOfYear + firstDayOfYear.getDay() + 1) / 7);
 }
 
 async function commitBatchChunked(
@@ -318,6 +340,9 @@ export async function POST(request: NextRequest) {
     await commitBatchChunked(db, customerOps);
     await commitBatchChunked(db, siteOps);
 
+    // Auto-create/refresh BTS audit records for matched sites (current audit period)
+    const auditSync = await syncAuditRecords(db, siteSummaries, regionStations, now);
+
     logInfo('[bts-customers-import] Done', {
       customers: customers.length,
       sites: siteSummaries.length,
@@ -326,6 +351,8 @@ export async function POST(request: NextRequest) {
       errors: parseErrors.length,
       batchId: importBatchId,
       region,
+      auditCreated: auditSync.created,
+      auditUpdated: auditSync.updated,
     });
 
     return success(
@@ -339,6 +366,8 @@ export async function POST(request: NextRequest) {
         unmatchedSites: unmatchedSites.size > 0 ? Array.from(unmatchedSites) : undefined,
         sites: siteSummaries,
         errors: parseErrors.length > 0 ? parseErrors : undefined,
+        auditRecordsCreated: auditSync.created,
+        auditRecordsUpdated: auditSync.updated,
       },
       201,
     );

@@ -208,8 +208,8 @@ describe('sales staff data integrity', () => {
 });
 
 describe('BTS data', () => {
-  it('has 57 stations', () => {
-    expect(btsStations).toHaveLength(57);
+  it('has 58 stations', () => {
+    expect(btsStations).toHaveLength(58);
   });
 
   it('includes Abeokuta and Ibadan stations', () => {

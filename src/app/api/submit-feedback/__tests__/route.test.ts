@@ -28,6 +28,7 @@ import { POST } from '../route';
 function buildRequest(body: unknown) {
   return {
     json: () => Promise.resolve(body),
+    method: 'POST',
     headers: new Map<string, string>([
       ['x-forwarded-for', '127.0.0.1'],
       ['origin', 'http://localhost:9002'],
@@ -64,6 +65,7 @@ describe('POST /api/submit-feedback', () => {
   it('returns 400 on invalid JSON', async () => {
     const req = {
       json: () => Promise.reject(new Error('Invalid JSON')),
+      method: 'POST',
       headers: new Map([['origin', 'http://localhost:9002']]),
     } as unknown as Request;
     const response = await POST(req);

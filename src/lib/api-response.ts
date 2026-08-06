@@ -57,13 +57,34 @@ const ALLOWED_ORIGINS = [
   'https://csat.iwn.ng',
 ];
 
+function isAllowedHost(host: string): boolean {
+  const hostname = host.split(':')[0].toLowerCase();
+  return ALLOWED_ORIGINS.some((origin) => new URL(origin).hostname === hostname);
+}
+
 export function validateOrigin(request: NextRequest): boolean {
   const origin = request.headers.get('origin');
   const referer = request.headers.get('referer');
   const host = request.headers.get('host');
+  const method = request.method.toUpperCase();
+
+  // Requests that reach the app through the trusted reverse proxy carry the
+  // proxy-stamped X-Forwarded-Proto header. For those, validity is determined
+  // by the Host header alone, because the proxy may strip or rewrite the
+  // Origin/Referer headers (LiteSpeed does this). A forged Origin from off-site
+  // still cannot bypass this: the proxy only forwards requests whose Host is
+  // CSAT's own hostname, and __session cookies are SameSite=Lax.
+  const behindTrustedProxy = !!(host && isAllowedHost(host) && request.headers.get('x-forwarded-proto'));
 
   const source = origin || (referer ? new URL(referer).origin : null);
-  if (!source) return false;
+
+  if (!source) {
+    // Same-origin GET/HEAD fetches carry no Origin header (per the Fetch spec)
+    // and no Referer (Referrer-Policy: no-referrer is set globally). These are
+    // read-only and protected by bearer auth, so they cannot be CSRF.
+    if ((method === 'GET' || method === 'HEAD') && host && isAllowedHost(host)) return true;
+    return behindTrustedProxy;
+  }
 
   if (ALLOWED_ORIGINS.includes(source)) return true;
 
@@ -74,5 +95,5 @@ export function validateOrigin(request: NextRequest): boolean {
     if (source === expectedOriginHttp) return true;
   }
 
-  return false;
+  return behindTrustedProxy;
 }

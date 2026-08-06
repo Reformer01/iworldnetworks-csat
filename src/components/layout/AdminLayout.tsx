@@ -246,7 +246,7 @@ export function AdminLayout({ children }: AdminLayoutProps) {
       <footer className="md:ml-64 bg-surface-bright border-t border-border py-8 md:py-12 relative z-50">
         <div className="max-w-container-max mx-auto px-margin-mobile md:px-margin-desktop flex flex-col md:flex-row justify-between items-start gap-8">
           <div className="space-y-4 text-center md:text-left">
-            <span className="font-mono text-[12px] font-bold text-primary uppercase">I-World Networks</span>
+            <Image src="/logo.png" alt="I-World Networks" width={110} height={33} className="h-7 w-auto object-contain mx-auto md:mx-0" />
             <p className="font-mono text-[10px] text-on-surface-variant uppercase font-bold">
               © 2026 I-World Networks. All rights reserved.
             </p>

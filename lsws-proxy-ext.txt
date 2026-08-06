@@ -1,0 +1,9 @@
+extprocessor proxy-csat {
+  type                    proxy
+  address                 http://127.0.0.1:3001
+  maxConns                100
+  pcKeepAliveTimeout      60
+  initTimeout             60
+  retryTimeout            0
+  respBuffer              0
+}

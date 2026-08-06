@@ -127,8 +127,9 @@ describe('forbidden', () => {
 });
 
 describe('validateOrigin', () => {
-  function mockRequest(headers: Record<string, string>) {
+  function mockRequest(headers: Record<string, string>, method = 'GET') {
     return {
+      method,
       headers: new Map(Object.entries(headers)),
     } as unknown as Request;
   }
@@ -158,14 +159,39 @@ describe('validateOrigin', () => {
     expect(validateOrigin(req)).toBe(true);
   });
 
-  it('blocks when no origin or referer present', () => {
-    const req = mockRequest({ host: 'myapp.com' });
+  it('blocks when no origin or referer present for non-GET requests', () => {
+    const req = mockRequest({ host: 'myapp.com' }, 'POST');
     expect(validateOrigin(req)).toBe(false);
   });
 
   it('blocks request with no headers at all', () => {
     const req = mockRequest({});
     expect(validateOrigin(req)).toBe(false);
+  });
+
+  it('allows header-less GET from an allowed host (no-referrer policy)', () => {
+    const req = mockRequest({ host: 'localhost:9002' });
+    expect(validateOrigin(req)).toBe(true);
+  });
+
+  it('blocks header-less GET from a disallowed host', () => {
+    const req = mockRequest({ host: 'evil-site.com' });
+    expect(validateOrigin(req)).toBe(false);
+  });
+
+  it('allows same-site POST behind trusted proxy when origin stripped', () => {
+    const req = mockRequest({ host: 'csat.iwn.ng', 'x-forwarded-proto': 'https' }, 'POST');
+    expect(validateOrigin(req)).toBe(true);
+  });
+
+  it('still blocks POST behind proxy from a disallowed host', () => {
+    const req = mockRequest({ host: 'evil-site.com', 'x-forwarded-proto': 'https' }, 'POST');
+    expect(validateOrigin(req)).toBe(false);
+  });
+
+  it('allows POST behind trusted proxy even when origin header is mangled', () => {
+    const req = mockRequest({ host: 'csat.iwn.ng', 'x-forwarded-proto': 'https', origin: 'https://localhost:3000' }, 'POST');
+    expect(validateOrigin(req)).toBe(true);
   });
 });
 

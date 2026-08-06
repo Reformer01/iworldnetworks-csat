@@ -5,7 +5,7 @@ import { SalesLayout } from '@/components/layout/SalesLayout';
 import { useAuth, useUser } from '@/firebase';
 import { useSalesRecords, createSalesRecord, updateSalesRecord, deleteSalesRecord, type SalesRecordDoc } from '@/hooks/use-sales-data';
 import { useToast } from '@/hooks/use-toast';
-import { cn } from '@/lib/utils';
+import { cn, toLocalDateString } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -322,7 +322,7 @@ export default function SalesRecords() {
         },
       });
 
-      const fdate = new Date().toISOString().split('T')[0];
+      const fdate = toLocalDateString(new Date());
       doc.save(`sales-records-${fdate}.pdf`);
       toast({ title: 'Exported', description: 'PDF file downloaded.' });
     } catch (e: unknown) {

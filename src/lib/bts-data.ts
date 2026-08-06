@@ -58,7 +58,23 @@ export const btsStations: BtsStation[] = [
   { id: 56, name: 'Obada Extension', region: 'Abeokuta', host: '' },
   { id: 57, name: 'Miliki', region: 'Abeokuta', host: '' },
   { id: 58, name: 'OGBC', region: 'Abeokuta', host: '' },
+  { id: 59, name: 'Oshoba Hill', region: 'Abeokuta', host: '' },
 ];
+
+/**
+ * Explicit aliases for site names that fuzzy matching cannot resolve.
+ * Keys are the lowercase site names exactly as they appear in the source CSVs.
+ */
+export const SITE_ALIASES: Record<string, string> = {
+  'obada ext': 'Obada Extension',
+  'ota [office core]': 'Ota Office',
+  'osogbo-core': 'Osogbo Office',
+  'nta ibadan': 'NTA IBD',
+  // NTA satellite transmitter sites roll up into the NTA Abeokuta station
+  'nta ogbe': 'NTA Abeokuta',
+  'nta okegunya': 'NTA Abeokuta',
+  'nta okegunya 2': 'NTA Abeokuta',
+};
 
 const LOCATION_TO_BTS_REGION: Record<string, string[]> = {
   ibadan: ['Ibadan'],
@@ -125,4 +141,67 @@ export function isBtsRegion(value: string): value is BtsImportRegion {
 
 export function getStationsByRegion(region: string) {
   return btsStations.filter((s) => s.region === region);
+}
+
+export function findBtsMatch(siteName: string, regionStations: BtsStation[]): { name: string; region: string } | null {
+  const normalized = siteName.toLowerCase().trim();
+
+  // 0. Explicit alias mapping first (handles names fuzzy matching cannot resolve)
+  const aliasTarget = SITE_ALIASES[normalized];
+  if (aliasTarget) {
+    const aliasStation = regionStations.find((bts) => bts.name === aliasTarget);
+    if (aliasStation) {
+      return { name: aliasStation.name, region: aliasStation.region };
+    }
+  }
+
+  // Remove common suffixes/prefixes and brackets for better matching
+  const cleaned = normalized
+    .replace(/\[[^\]]*\]/g, '') // Remove [brackets] like [Office Core], [Alagbado]
+    .replace(/\b(bts|core|office|fm)\b/g, '') // Remove common words
+    .replace(/[\[\]()]/g, '')
+    .replace(/\s+/g, ' ')
+    .trim();
+
+  // 1. Exact substring match on cleaned name
+  for (const bts of regionStations) {
+    if (cleaned.includes(bts.name.toLowerCase())) {
+      return { name: bts.name, region: bts.region };
+    }
+  }
+
+  // 2. Exact substring match on original normalized name
+  for (const bts of regionStations) {
+    if (normalized.includes(bts.name.toLowerCase())) {
+      return { name: bts.name, region: bts.region };
+    }
+  }
+
+  // 3. Word-based fuzzy matching on cleaned name
+  for (const bts of regionStations) {
+    const btsWords = bts.name.toLowerCase().split(/[\s-/]+/);
+    const siteWords = cleaned.split(/[\s-/]+/);
+    const matchCount = btsWords.filter((w) => siteWords.includes(w)).length;
+    if (matchCount >= Math.min(btsWords.length, 3)) {
+      return { name: bts.name, region: bts.region };
+    }
+    if (matchCount >= 2 && matchCount === btsWords.length) {
+      return { name: bts.name, region: bts.region };
+    }
+  }
+
+  // 4. Word-based fuzzy matching on original normalized name
+  for (const bts of regionStations) {
+    const btsWords = bts.name.toLowerCase().split(/[\s-/]+/);
+    const siteWords = normalized.split(/[\s-/]+/);
+    const matchCount = btsWords.filter((w) => siteWords.includes(w)).length;
+    if (matchCount >= Math.min(btsWords.length, 3)) {
+      return { name: bts.name, region: bts.region };
+    }
+    if (matchCount >= 2 && matchCount === btsWords.length) {
+      return { name: bts.name, region: bts.region };
+    }
+  }
+
+  return null;
 }

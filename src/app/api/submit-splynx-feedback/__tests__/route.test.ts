@@ -45,6 +45,7 @@ function buildRequest(body: unknown) {
   ]);
   return {
     json: () => Promise.resolve(body),
+    method: 'POST',
     headers: { get: (name: string) => headers.get(name.toLowerCase()) ?? null },
   } as unknown as Request;
 }

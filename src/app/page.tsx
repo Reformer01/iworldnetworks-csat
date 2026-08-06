@@ -17,7 +17,7 @@ import {
   Clock,
   Hammer,
 } from 'lucide-react';
-import { cn } from '@/lib/utils';
+import { cn, toLocalDateString } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Label } from '@/components/ui/label';
@@ -180,10 +180,10 @@ export default function LandingPage() {
   useEffect(() => {
     setFormData((prev) => ({
       ...prev,
-      serviceDate: new Date().toISOString().split('T')[0],
-      serviceDateEnd: new Date().toISOString().split('T')[0],
+      serviceDate: toLocalDateString(new Date()),
+      serviceDateEnd: toLocalDateString(new Date()),
       serviceTime: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: false }),
-      submissionDate: new Date().toISOString().split('T')[0],
+      submissionDate: toLocalDateString(new Date()),
     }));
     return () => {};
   }, []);
@@ -242,10 +242,10 @@ export default function LandingPage() {
           staffName: '',
           referralSource: 'Social Media',
           spotlightInterview: 'Maybe',
-          serviceDate: new Date().toISOString().split('T')[0],
-          serviceDateEnd: new Date().toISOString().split('T')[0],
+          serviceDate: toLocalDateString(new Date()),
+          serviceDateEnd: toLocalDateString(new Date()),
           serviceTime: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: false }),
-          submissionDate: new Date().toISOString().split('T')[0],
+          submissionDate: toLocalDateString(new Date()),
         });
       }, 3000);
     } catch (err: unknown) {
@@ -407,7 +407,7 @@ export default function LandingPage() {
                           onSelect={(date) => {
                             setFormData({
                               ...formData,
-                              serviceDate: date ? date.toISOString().split('T')[0] : '',
+                              serviceDate: date ? toLocalDateString(date) : '',
                             });
                             if (errors.serviceDate)
                               setErrors((prev) => {
@@ -430,7 +430,7 @@ export default function LandingPage() {
                           onSelect={(date) => {
                             setFormData({
                               ...formData,
-                              serviceDateEnd: date ? date.toISOString().split('T')[0] : '',
+                              serviceDateEnd: date ? toLocalDateString(date) : '',
                             });
                             if (errors.serviceDateEnd)
                               setErrors((prev) => {
@@ -457,7 +457,7 @@ export default function LandingPage() {
                         onSelect={(date) => {
                           setFormData({
                             ...formData,
-                            serviceDate: date ? date.toISOString().split('T')[0] : '',
+                            serviceDate: date ? toLocalDateString(date) : '',
                           });
                           if (errors.serviceDate)
                             setErrors((prev) => {
@@ -481,7 +481,7 @@ export default function LandingPage() {
                       onSelect={(date) => {
                         setFormData({
                           ...formData,
-                          submissionDate: date ? date.toISOString().split('T')[0] : '',
+                          submissionDate: date ? toLocalDateString(date) : '',
                         });
                         if (errors.submissionDate)
                           setErrors((prev) => {
@@ -919,8 +919,7 @@ export default function LandingPage() {
       <footer className="bg-white border-t border-border py-12">
         <div className="max-w-container-max mx-auto px-margin-mobile md:px-margin-desktop flex flex-col md:flex-row justify-between items-start gap-12">
           <div className="space-y-4">
-            <div className="font-mono text-[12px] font-bold text-primary uppercase">I-World Networks</div>
-
+            <Image src="/logo.png" alt="I-World Networks" width={110} height={33} className="h-8 w-auto object-contain" />
             <div className="font-mono text-[10px] text-on-surface-variant uppercase font-bold">© 2026 I-World Networks</div>
           </div>
           <div className="grid grid-cols-2 md:grid-cols-4 gap-x-12 gap-y-4">

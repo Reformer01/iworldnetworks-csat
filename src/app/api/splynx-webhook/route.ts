@@ -1,9 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { createHmac, timingSafeEqual } from 'crypto';
+import { createHash, createHmac, timingSafeEqual } from 'crypto';
 import { getAdminFirestore } from '@/lib/firebase-admin';
+import { incrementNonce } from '@/lib/splynx-nonce';
 import { logError, logWarn, logInfo } from '@/lib/logger';
 import { sendFeedbackEmail } from '@/lib/email';
-import { createFeedbackToken, getFeedbackBaseUrl } from '@/lib/feedback-token';
+import { createFeedbackToken, findFeedbackTokenByEventHash, getFeedbackBaseUrl } from '@/lib/feedback-token';
 
 let lastSplynxNonce = 0;
 
@@ -87,16 +88,22 @@ function parseWebhookPayload(rawBody: string, contentType: string): Record<strin
   return parseFormWebhookPayload(rawBody);
 }
 
-function nextSplynxNonce(): string {
-  lastSplynxNonce = Math.max(Date.now(), lastSplynxNonce + 1);
-  return String(lastSplynxNonce);
+async function nextSplynxNonce(): Promise<string> {
+  try {
+    const next = await incrementNonce('default');
+    lastSplynxNonce = Math.max(Date.now(), Number(next), lastSplynxNonce + 1);
+    return String(lastSplynxNonce);
+  } catch (err) {
+    lastSplynxNonce = Math.max(Date.now(), lastSplynxNonce + 1);
+    return String(lastSplynxNonce);
+  }
 }
 
-function buildSplynxAuthHeader(key: string, secret: string): string {
+async function buildSplynxAuthHeader(key: string, secret: string): Promise<string> {
   const authMode = (process.env.SPLYNX_API_AUTH || 'basic').toLowerCase();
 
   if (authMode === 'signature') {
-    const nonce = nextSplynxNonce();
+    const nonce = await nextSplynxNonce();
     const signature = createHmac('sha256', secret).update(`${nonce}${key}`).digest('hex').toUpperCase();
     return `Splynx-EA (key=${key}&nonce=${nonce}&signature=${signature})`;
   }
@@ -144,6 +151,25 @@ export async function POST(request: NextRequest) {
     const call = getString(payload.call);
     const attributes = isRecord(eventData.attributes) ? eventData.attributes : {};
 
+    const db = getAdminFirestore();
+
+    const eventHash = createHash('sha256').update(rawBody).digest('hex');
+    const existingToken = await findFeedbackTokenByEventHash(db, eventHash);
+    if (existingToken) {
+      const baseUrl = getFeedbackBaseUrl(request);
+      const feedbackUrl = `${baseUrl}/feedback?token=${existingToken.token}`;
+      const popupUrl = `${baseUrl}/feedback/popup?token=${existingToken.token}&embed=true`;
+      logInfo('[splynx-webhook] Duplicate delivery, reusing token', { customerId, eventHash });
+      return NextResponse.json({
+        success: true,
+        deduped: true,
+        token: existingToken.token,
+        url: feedbackUrl,
+        popupUrl,
+        embedHtml: `<iframe src="${popupUrl}" width="100%" height="500" frameborder="0" style="border-radius: 12px; border: 1px solid #e5e7eb;"></iframe>`,
+      });
+    }
+
     const customerData: Record<string, string> = {
       customerName: getString(attributes.name) || getString(attributes.customer_name) || `Customer #${customerId || 'unknown'}`,
       customerEmail: getString(attributes.email),
@@ -160,9 +186,10 @@ export async function POST(request: NextRequest) {
     if (splynxHost && splynxKey && splynxSecret && customerId) {
       try {
         const apiUrl = buildSplynxCustomerUrl(splynxHost, customerId);
+        const authHeader = await buildSplynxAuthHeader(splynxKey, splynxSecret);
         const response = await fetch(apiUrl, {
           headers: {
-            Authorization: buildSplynxAuthHeader(splynxKey, splynxSecret),
+            Authorization: authHeader,
           },
         });
         if (response.ok) {
@@ -179,7 +206,6 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    const db = getAdminFirestore();
     const { token } = await createFeedbackToken(db, {
       customerName: customerData.customerName,
       customerEmail: customerData.customerEmail,
@@ -187,6 +213,7 @@ export async function POST(request: NextRequest) {
       location: customerData.location,
       serviceDate: customerData.serviceDate,
       sourceEvent: customerData.sourceEvent,
+      eventHash,
     });
 
     const baseUrl = getFeedbackBaseUrl(request);
