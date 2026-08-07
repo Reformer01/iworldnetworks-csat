@@ -3,12 +3,13 @@
 import React, { useState, useEffect } from 'react';
 import { useSearchParams } from 'next/navigation';
 import { Star, Loader2, CheckCircle2, AlertCircle, ThumbsUp, ThumbsDown, Smile } from 'lucide-react';
-import { cn } from '@/lib/utils';
+import { cn, formatLocalDate } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
-import { mapSplynxEventToCategory, getCategoryLabel } from '@/lib/splynx-categories';
+import { resolveCategory, getCategoryLabel } from '@/lib/splynx-categories';
+import ShareFeedbackButtons from '@/components/ShareFormButtons';
 
 type PageState = 'loading' | 'form' | 'submitting' | 'success' | 'error';
 
@@ -26,6 +27,8 @@ const RATING_LABELS = ['', 'Poor', 'Fair', 'Good', 'Very Good', 'Excellent'];
 export default function FeedbackPage() {
   const searchParams = useSearchParams();
   const token = searchParams.get('token');
+  const subject = searchParams.get('subject');
+  const shareUrl = typeof window !== 'undefined' ? window.location.href : '';
 
   const [pageState, setPageState] = useState<PageState>('loading');
   const [errorMessage, setErrorMessage] = useState('');
@@ -70,8 +73,7 @@ export default function FeedbackPage() {
             sourceEvent: data.sourceEvent,
           });
 
-          const mappedCat = mapSplynxEventToCategory(data.sourceEvent || '');
-          setCategory(mappedCat);
+          setCategory(resolveCategory({ subject, tokenCategory: data.category, sourceEvent: data.sourceEvent || '' }));
           setPageState('form');
         }
       } catch {
@@ -86,7 +88,7 @@ export default function FeedbackPage() {
     return () => {
       cancelled = true;
     };
-  }, [token]);
+  }, [token, subject]);
 
   async function handleSubmit() {
     if (rating === 0 || pageState === 'submitting') return;
@@ -183,6 +185,12 @@ export default function FeedbackPage() {
             <p className="text-muted-foreground text-sm max-w-sm mx-auto leading-relaxed">
               Your feedback has been recorded. We appreciate you helping us improve our services.
             </p>
+            {customer?.serviceDate && (
+              <p className="text-xs text-muted-foreground">
+                Experience dated <span className="font-semibold text-primary">{formatLocalDate(customer.serviceDate)}</span>
+              </p>
+            )}
+            <ShareFeedbackButtons url="https://iwn.ng/feedback" label="Share the feedback page with someone who experienced our service" />
           </CardContent>
         </Card>
       </div>
@@ -198,6 +206,19 @@ export default function FeedbackPage() {
           <CardDescription className="text-white/70 text-xs mt-1">
             Department Rated: <span className="font-bold underline text-white">{getCategoryLabel(category)}</span>
           </CardDescription>
+          {customer?.serviceDate && (
+            <p className="text-white/80 text-[10px] mt-2">
+              Experience date: <span className="font-bold">{formatLocalDate(customer.serviceDate, 'en-US')}</span>
+            </p>
+          )}
+          <ShareFeedbackButtons
+            url={shareUrl}
+            customerName={customer?.customerName}
+            subject={getCategoryLabel(category)}
+            label="Share this survey"
+            compact
+            className="absolute top-3 right-3"
+          />
         </div>
 
         <CardContent className="space-y-8 p-6 md:p-8">
@@ -218,6 +239,10 @@ export default function FeedbackPage() {
               <div className="mt-1">
                 <span className="text-muted-foreground block">Plan</span>
                 <span className="font-semibold text-primary">{customer.servicePlan || 'Enterprise'}</span>
+              </div>
+              <div className="mt-1">
+                <span className="text-muted-foreground block">Experience Date</span>
+                <span className="font-semibold text-primary">{formatLocalDate(customer?.serviceDate)}</span>
               </div>
             </div>
           )}
@@ -345,6 +370,7 @@ export default function FeedbackPage() {
         </CardContent>
 
         <CardFooter className="flex-col gap-3 p-6 md:p-8 bg-muted/10 border-t border-border/50">
+          <ShareFeedbackButtons url={shareUrl} customerName={customer?.customerName} subject={getCategoryLabel(category)} />
           <Button
             className="w-full py-6 rounded-full font-mono text-xs uppercase tracking-widest font-bold shadow-lg transition-all"
             size="lg"

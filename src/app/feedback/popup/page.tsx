@@ -3,11 +3,12 @@
 import React, { useState, useEffect } from 'react';
 import { useSearchParams } from 'next/navigation';
 import { Star, Loader2, CheckCircle2, AlertCircle, ThumbsUp, ThumbsDown, Smile, X } from 'lucide-react';
-import { cn } from '@/lib/utils';
+import { cn, formatLocalDate } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardTitle, CardDescription, CardFooter } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
-import { mapSplynxEventToCategory } from '@/lib/splynx-categories';
+import { resolveCategory } from '@/lib/splynx-categories';
+import ShareFeedbackButtons from '@/components/ShareFormButtons';
 
 type PageState = 'loading' | 'form' | 'submitting' | 'success' | 'error';
 
@@ -22,10 +23,46 @@ interface CustomerData {
 
 const RATING_LABELS = ['', 'Poor', 'Fair', 'Good', 'Very Good', 'Excellent'];
 
+// Only these parent origins may receive postMessage payloads from the
+// embedded popup. Sending to '*' would leak token/feedback data to any
+// site that embeds the iframe.
+const ALLOWED_PARENT_ORIGINS = [
+  'https://portal.iwn.ng',
+  'https://csat.iwn.ng',
+  'http://localhost:3000',
+  'http://localhost:3001',
+  'http://localhost:9002',
+];
+
+function getParentOrigin(): string | null {
+  try {
+    if (window.location.ancestorOrigins && window.location.ancestorOrigins.length > 0) {
+      return window.location.ancestorOrigins[0];
+    }
+  } catch {
+    // not accessible in some browsers — fall through to referrer
+  }
+  try {
+    const referrer = new URL(document.referrer);
+    return referrer.origin;
+  } catch {
+    return null;
+  }
+}
+
+function sendToParent(message: Record<string, unknown>) {
+  if (window.parent === window) return;
+  const parentOrigin = getParentOrigin();
+  if (!parentOrigin || !ALLOWED_PARENT_ORIGINS.includes(parentOrigin)) return;
+  window.parent.postMessage(message, parentOrigin);
+}
+
 export default function FeedbackPopup() {
   const searchParams = useSearchParams();
   const token = searchParams.get('token');
   const isEmbed = searchParams.get('embed') === 'true';
+  const subject = searchParams.get('subject');
+  const shareUrl = typeof window !== 'undefined' ? window.location.href : '';
 
   const [pageState, setPageState] = useState<PageState>('loading');
   const [errorMessage, setErrorMessage] = useState('');
@@ -70,8 +107,7 @@ export default function FeedbackPopup() {
             sourceEvent: data.sourceEvent,
           });
 
-          const mappedCat = mapSplynxEventToCategory(data.sourceEvent || '');
-          setCategory(mappedCat);
+          setCategory(resolveCategory({ subject, tokenCategory: data.category, sourceEvent: data.sourceEvent || '' }));
           setPageState('form');
         }
       } catch {
@@ -86,7 +122,7 @@ export default function FeedbackPopup() {
     return () => {
       cancelled = true;
     };
-  }, [token]);
+  }, [token, subject]);
 
   async function handleSubmit() {
     if (rating === 0 || pageState === 'submitting') return;
@@ -114,9 +150,7 @@ export default function FeedbackPopup() {
       }
 
       setPageState('success');
-      if (isEmbed && window.parent !== window) {
-        window.parent.postMessage({ type: 'FEEDBACK_SUBMITTED', payload: data }, '*');
-      }
+      sendToParent({ type: 'FEEDBACK_SUBMITTED', payload: data });
     } catch {
       setErrorMessage('Network error. Your feedback was not submitted.');
       setPageState('error');
@@ -124,11 +158,10 @@ export default function FeedbackPopup() {
   }
 
   function handleClose() {
-    if (isEmbed && window.parent !== window) {
-      window.parent.postMessage({ type: 'FEEDBACK_CLOSED' }, '*');
-    } else {
-      window.close();
+    if (isEmbed) {
+      sendToParent({ type: 'FEEDBACK_CLOSED' });
     }
+    window.close();
   }
 
   const starColor = (star: number) => {
@@ -190,6 +223,18 @@ export default function FeedbackPopup() {
             <p className="text-muted-foreground text-sm max-w-sm mx-auto leading-relaxed">
               Your feedback has been recorded. We appreciate you helping us improve.
             </p>
+            {customer?.serviceDate && (
+              <p className="text-xs text-muted-foreground">
+                Experience dated <span className="font-semibold text-primary">{formatLocalDate(customer.serviceDate)}</span>
+              </p>
+            )}
+            {!isEmbed && (
+              <ShareFeedbackButtons
+                url="https://iwn.ng/feedback"
+                customerName={customer?.customerName}
+                label="Share the feedback page with another decision-maker"
+              />
+            )}
             <Button
               onClick={handleClose}
               className="w-full max-w-xs mx-auto mt-4 rounded-full bg-secondary text-white font-mono text-[10px] uppercase font-bold py-3"
@@ -213,10 +258,18 @@ export default function FeedbackPopup() {
           <p className="font-mono text-[10px] uppercase tracking-widest font-bold text-secondary mb-1">Payment Feedback</p>
           <CardTitle className="text-xl font-display font-bold">I-World Networks</CardTitle>
           <CardDescription className="text-white/70 text-xs mt-1">How was your payment experience?</CardDescription>
+          {customer?.serviceDate && (
+            <p className="text-white/80 text-[10px] mt-1">
+              Experience date: <span className="font-bold">{formatLocalDate(customer.serviceDate)}</span>
+            </p>
+          )}
           {!isEmbed && (
-            <button onClick={handleClose} className="absolute top-4 right-4 text-white/70 hover:text-white transition-colors">
-              <X className="w-5 h-5" />
-            </button>
+            <div className="absolute top-3 right-3 flex items-center gap-1">
+              <ShareFeedbackButtons url={shareUrl} customerName={customer?.customerName} label="Share" compact />
+              <button onClick={handleClose} className="text-white/70 hover:text-white transition-colors">
+                <X className="w-5 h-5" />
+              </button>
+            </div>
           )}
         </div>
 
@@ -235,6 +288,12 @@ export default function FeedbackPopup() {
                 <span className="text-muted-foreground block">Plan</span>
                 <span className="font-semibold text-primary">{customer.servicePlan || 'Enterprise'}</span>
               </div>
+              {customer.serviceDate && (
+                <div className="mt-1">
+                  <span className="text-muted-foreground block">Experience Date</span>
+                  <span className="font-semibold text-primary">{formatLocalDate(customer.serviceDate)}</span>
+                </div>
+              )}
             </div>
           )}
 
@@ -368,6 +427,7 @@ export default function FeedbackPopup() {
           <a href="/" target="_blank" className="text-[10px] text-secondary font-mono font-bold underline hover:no-underline">
             Want to share more details? Visit our full feedback page
           </a>
+          {!isEmbed && <ShareFeedbackButtons url={shareUrl} customerName={customer?.customerName} label="Share this payment survey" />}
           {!isEmbed && <p className="text-[10px] text-muted-foreground font-mono">I-World Networks &mdash; reliably connected</p>}
         </CardFooter>
       </Card>
