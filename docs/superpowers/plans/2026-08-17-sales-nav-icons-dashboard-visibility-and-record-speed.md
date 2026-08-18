@@ -2,9 +2,9 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** Add icons to the sales menu links, let sales agents see the full dashboard (records stay agent-scoped), and remove the slow BTS re-resolution + awaited Firestore mirrors from record saves.
+**Goal:** Add icons to the sales menu links, let sales agents see the full dashboard (records stay agent-scoped), remove the slow BTS re-resolution + awaited Firestore mirrors from record saves, and refresh the stale (Aug-4) BTS customers + audit data on prod.
 
-**Architecture:** Three independent changes: (1) render the existing `item.icon` from `salesNavItems` in the desktop pill nav and add `Upload`/`Database` icons to the dashboard's Import/Records buttons; (2) remove the per-record agent filter in the metrics and monthly-revenue API routes while keeping the access gate (super-admin / editor / linked agent); (3) make record updates fast: PUT uses the submitted `bts` instead of always re-resolving, `resolveCustomerBts` caches the 2,801-row UISP endpoint list in-process via the existing `withCache` helper (5-min TTL), and the Firestore mirrors become fire-and-forget.
+**Architecture:** Three independent code changes: (1) render the existing `item.icon` from `salesNavItems` in the desktop pill nav and add `Upload`/`Database` icons to the dashboard's Import/Records buttons; (2) remove the per-record agent filter in the metrics and monthly-revenue API routes while keeping the access gate (super-admin / editor / linked agent); (3) make record updates fast: PUT uses the submitted `bts` instead of always re-resolving, `resolveCustomerBts` caches the 2,801-row UISP endpoint list in-process via the existing `withCache` helper (5-min TTL), and the Firestore mirrors become fire-and-forget. Plus a data task (Task 8): re-run the existing BTS customers import (user-supplied Splynx CSVs) to refresh the 14-day-old BTS customers/audit snapshot — no code change, the route already upserts metrics and preserves manual audit fields.
 
 **Tech Stack:** Next.js App Router (TS), lucide-react, Prisma + MariaDB, Firebase Admin (mirror only), vitest.
 
@@ -536,3 +536,44 @@ Expected: `health: 200`, app `online`.
 - [ ] **Step 5: Smoke-test the save path**
 
 Log into https://csat.iwn.ng as an admin (super-admin or editor), open a sales record, change any field, and save. Expected: the save completes quickly (previously it waited on the UISP scan + Firestore mirror). Also verify the dashboard and Monthly Revenue pages still load, and that the records list still shows only the logged-in agent's records when signed in as a non-super-admin agent.
+
+### Task 8: Refresh BTS customers + audit data on prod
+
+**Context (verified 2026-08-18):** the BTS customers/audit data is the Aug-4 migration snapshot — internally consistent (53 audit records, 0 dupes; 2,222 customers, 0 missing btsName; site sums = customer counts; all 53 sites in the static station list) but 14 days stale. `SplynxBtsActiveStat` is empty (no live source). The import route (`POST /api/admin/bts/customers/import`) upserts audit metrics + site summaries + customers and preserves manual audit fields (status, notes, outage counts) — it just hasn't been run since migration. No cron exists for it (crontab = CyberCP system jobs only; PM2 runs only `csat`). The route requires per-region CSVs + an admin token, so the refresh needs the user's Splynx exports.
+
+**Files:**
+- No code changes. Uses the existing import route + admin UI.
+
+**Interfaces:**
+- Consumes: 7 region CSVs from Splynx (same columns as the Aug-4 import: `S/N`, `Name of Subscriber`, `BTS / Sites`, `Status`, `Account Type`, `Monthly Subcription Plan (₦)`, `PLAN`).
+- Produces: fresh `BtsCustomer` rows (new batch ids), refreshed `BtsCustomerSite` summaries, refreshed audit metrics; `lastSyncAt`/`createdAt` advance to today. Side benefit: fresher `BtsCustomer` improves future sales-record BTS attribution (the 41/115 match rate was against this same stale snapshot).
+
+- [ ] **Step 1: User exports the 7 region CSVs from Splynx**
+
+Same export as the Aug-4 import: one CSV per region (Abeokuta, Ibadan, Sagamu, Osogbo, Ijebu, Ota, Akure), same columns. While exporting, confirm the 53-site audit coverage is the intended set (53 audited sites vs 2,714 UISP sites with btsName — if more sites host customers, the export should include them).
+
+- [ ] **Step 2: Upload each CSV via the BTS customers import page**
+
+Log into https://csat.iwn.ng as a super-admin, go to the BTS customers import page, upload each region CSV. Expected: per-region success with `created`/`updated` counts (existing sites should show `updated` — the route refreshes metrics on matched sites).
+
+- [ ] **Step 3: Verify freshness and consistency**
+
+Re-run the read-only checks (base64-piped SQL via plink, as used during diagnosis):
+
+```bash
+SQL64=$(printf '%s' "SELECT 'audit_rows', COUNT(*), COUNT(DISTINCT btsName) FROM csat.BtsAdminAuditRecord; SELECT 'audit_lastSync', FROM_UNIXTIME(MAX(lastSyncAt)/1000) FROM csat.BtsAdminAuditRecord; SELECT 'site_sum_total', SUM(totalCustomers), SUM(activeCustomers) FROM csat.BtsCustomerSite; SELECT 'customer_rows', COUNT(*) FROM csat.BtsCustomer WHERE deletedAt IS NULL; SELECT 'customer_no_bts', COUNT(*) FROM csat.BtsCustomer WHERE deletedAt IS NULL AND (btsName IS NULL OR btsName=''); SELECT 'import_batches', importBatchId, COUNT(*) FROM csat.BtsCustomer GROUP BY importBatchId;" | base64 -w0) && SSH_PASS="$(sed -n 's/^PASSWORD=//p' .deploy-credentials.local)" && plink -ssh -batch -pw "$SSH_PASS" "root@92.112.194.251" "echo $SQL64 | base64 -d | mysql -N csat"
+```
+
+Expected: `audit_lastSync` = today; `customer_rows` ≥ 2,222 (or the new total); `site_sum_total.totalCustomers` = `customer_rows`; `customer_no_bts` = 0; new `bts_csv_*` batch ids present alongside the Aug-4 ones.
+
+- [ ] **Step 4: Confirm audit dupes still 0 and sites still real**
+
+```bash
+SQL64=$(printf '%s' "SELECT 'audit_dupes', COUNT(*) FROM (SELECT btsName FROM csat.BtsAdminAuditRecord GROUP BY btsName HAVING COUNT(*)>1) x; SELECT 'audit_not_in_static', COUNT(*) FROM csat.BtsAdminAuditRecord a LEFT JOIN (SELECT DISTINCT LOWER(REPLACE(name,' ','')) AS n FROM (SELECT 'Omida Office' AS name UNION ALL SELECT 'Sijuwola House' UNION ALL SELECT 'OSBC' UNION ALL SELECT 'Sagamu GRA' UNION ALL SELECT 'OSRC' UNION ALL SELECT 'Odogbolu' UNION ALL SELECT 'Ota Estate' UNION ALL SELECT 'Ologuneru' UNION ALL SELECT 'Space' UNION ALL SELECT 'AIT' UNION ALL SELECT 'Potoki' UNION ALL SELECT 'Obada Oko' UNION ALL SELECT 'IVD' UNION ALL SELECT 'NTA IJEBU-ODE' UNION ALL SELECT 'Laderin' UNION ALL SELECT 'Ewang' UNION ALL SELECT 'Sagamu Extension' UNION ALL SELECT 'Magboro' UNION ALL SELECT 'CFMC' UNION ALL SELECT 'Akure Office' UNION ALL SELECT 'Alagbaka Extension' UNION ALL SELECT 'Honor' UNION ALL SELECT 'OGBC' UNION ALL SELECT 'Rave Osogbo' UNION ALL SELECT 'Pentagon' UNION ALL SELECT 'Paramount' UNION ALL SELECT 'Oshoba Hill' UNION ALL SELECT 'Oleyo' UNION ALL SELECT 'Jericho' UNION ALL SELECT 'Dominion' UNION ALL SELECT 'Oloke' UNION ALL SELECT 'NTA IBADAN' UNION ALL SELECT 'NTA Abeokuta' UNION ALL SELECT 'NTA Osogbo' UNION ALL SELECT 'Osogbo-Core' UNION ALL SELECT 'ILAMO IJEBU' UNION ALL SELECT 'Ijebu Diocese Odogbolu' UNION ALL SELECT 'AIT [Alagbado]' UNION ALL SELECT 'Space FM' UNION ALL SELECT 'Obada Ext' UNION ALL SELECT 'Ota' UNION ALL SELECT 'Ijebu' UNION ALL SELECT 'Akure' UNION ALL SELECT 'Osogbo' UNION ALL SELECT 'Ibadan' UNION ALL SELECT 'Abeokuta' UNION ALL SELECT 'Sagamu') s) st ON LOWER(REPLACE(a.btsName,' ','')) = st.n WHERE st.n IS NULL;" | base64 -w0) && SSH_PASS="$(sed -n 's/^PASSWORD=//p' .deploy-credentials.local)" && plink -ssh -batch -pw "$SSH_PASS" "root@92.112.194.251" "echo $SQL64 | base64 -d | mysql -N csat"
+```
+
+Expected: `audit_dupes` = 0; `audit_not_in_static` = 0 (all audited sites are real stations). If the user exported additional sites beyond the 53, the static-list check may flag new names — those are expected and should be added to the static station list if they're real towers (note: the static list is the sales-side canonical list; new sites need a `bts-data.ts` entry to be usable by sales attribution).
+
+- [ ] **Step 5: Report the refresh**
+
+Summarize: new customer count, new site count, batch ids, freshness timestamp, and any coverage changes. Flag to the user whether the 53-site set grew or stayed the same.
