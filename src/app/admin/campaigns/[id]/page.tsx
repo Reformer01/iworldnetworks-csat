@@ -5,11 +5,12 @@ import Link from 'next/link';
 import { useParams } from 'next/navigation';
 import { SalesLayout } from '@/components/layout/SalesLayout';
 import { useAuth, useUser } from '@/firebase';
-import { fetchCampaign, campaignAction, type CampaignRecord } from '@/hooks/use-campaigns';
+import { fetchCampaign, campaignAction, deleteCampaign, type CampaignRecord } from '@/hooks/use-campaigns';
 import { useToast } from '@/hooks/use-toast';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
-import { Loader2, Send, XCircle, RotateCcw, Mail, ShieldAlert, ArrowLeft } from 'lucide-react';
+import { useRouter } from 'next/navigation';
+import { Loader2, Send, XCircle, RotateCcw, Mail, ShieldAlert, ArrowLeft, Trash2 } from 'lucide-react';
 import { isSuperAdmin } from '@/lib/admin-config';
 
 const STATUS_STYLES: Record<string, string> = {
@@ -36,9 +37,11 @@ export default function CampaignDetailPage() {
   const auth = useAuth();
   const { user } = useUser(auth);
   const { toast } = useToast();
+  const router = useRouter();
   const [campaign, setCampaign] = useState<CampaignRecord | null>(null);
   const [loading, setLoading] = useState(true);
   const [acting, setActing] = useState<string | null>(null);
+  const [deleting, setDeleting] = useState(false);
 
   const load = useCallback(async () => {
     if (!user) return;
@@ -75,6 +78,20 @@ export default function CampaignDetailPage() {
       toast({ variant: 'destructive', title: 'Action failed', description: err instanceof Error ? err.message : 'Unknown error' });
     } finally {
       setActing(null);
+    }
+  };
+
+  const handleDelete = async () => {
+    if (!user || deleting) return;
+    if (!window.confirm(`Delete campaign "${campaign?.name}"? Its emails will also be removed. This cannot be undone.`)) return;
+    setDeleting(true);
+    try {
+      await deleteCampaign(user, id);
+      toast({ title: 'Campaign deleted', description: 'The campaign and its emails were removed.' });
+      router.push('/admin/campaigns');
+    } catch (err) {
+      toast({ variant: 'destructive', title: 'Delete failed', description: err instanceof Error ? err.message : 'Unknown error' });
+      setDeleting(false);
     }
   };
 
@@ -150,12 +167,23 @@ export default function CampaignDetailPage() {
                     Cancel
                   </Button>
                 )}
-                <Link href={`/admin/emails?campaignId=${campaign.id}`}>
+                <Link href={`/admin/mailing?tab=emails&campaignId=${campaign.id}`}>
                   <Button variant="outline" className="rounded-xl font-mono text-[10px] uppercase font-bold">
                     <Mail className="w-3.5 h-3.5 mr-2" />
                     View Emails
                   </Button>
                 </Link>
+                {userIsSuper && (
+                  <Button
+                    variant="outline"
+                    disabled={deleting}
+                    onClick={handleDelete}
+                    className="rounded-xl font-mono text-[10px] uppercase font-bold text-rose-600 hover:text-rose-700 border-rose-200 hover:border-rose-300"
+                  >
+                    {deleting ? <Loader2 className="w-3.5 h-3.5 mr-2 animate-spin" /> : <Trash2 className="w-3.5 h-3.5 mr-2" />}
+                    Delete
+                  </Button>
+                )}
               </div>
             </header>
 
