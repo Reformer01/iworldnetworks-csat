@@ -333,6 +333,10 @@ async function processCampaignEmail(data: CampaignEmailJobData): Promise<void> {
 }
 
 export async function startEmailWorker(): Promise<void> {
+  if (process.env.MAIL_JOBS_DISABLED === 'true') {
+    logInfo('[email-worker] Skipped — MAIL_JOBS_DISABLED=true');
+    return;
+  }
   getEmailWorker();
   logInfo('[email-worker] Started');
 }
