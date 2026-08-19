@@ -84,7 +84,10 @@ export default function CampaignDetailPage() {
   return (
     <SalesLayout>
       <div className="max-w-4xl mx-auto">
-        <Link href="/admin/campaigns" className="inline-flex items-center gap-1.5 font-mono text-[10px] uppercase font-bold text-on-surface-variant hover:text-secondary transition-colors mb-4">
+        <Link
+          href="/admin/campaigns"
+          className="inline-flex items-center gap-1.5 font-mono text-[10px] uppercase font-bold text-on-surface-variant hover:text-secondary transition-colors mb-4"
+        >
           <ArrowLeft className="w-3.5 h-3.5" /> Campaigns
         </Link>
 
@@ -98,7 +101,12 @@ export default function CampaignDetailPage() {
               <div>
                 <div className="flex items-center gap-3">
                   <h1 className="text-2xl md:text-3xl font-display font-bold text-primary uppercase tracking-tight">{campaign.name}</h1>
-                  <span className={cn('inline-block px-2 py-0.5 rounded-full font-mono text-[9px] uppercase font-bold', STATUS_STYLES[campaign.status] || 'bg-zinc-100 text-zinc-600')}>
+                  <span
+                    className={cn(
+                      'inline-block px-2 py-0.5 rounded-full font-mono text-[9px] uppercase font-bold',
+                      STATUS_STYLES[campaign.status] || 'bg-zinc-100 text-zinc-600',
+                    )}
+                  >
                     {campaign.status}
                   </span>
                 </div>
@@ -123,7 +131,11 @@ export default function CampaignDetailPage() {
                     onClick={() => handleAction('retry')}
                     className="rounded-xl bg-amber-600 text-white font-mono text-[10px] uppercase font-bold hover:opacity-90 transition-all"
                   >
-                    {acting === 'retry' ? <Loader2 className="w-3.5 h-3.5 mr-2 animate-spin" /> : <RotateCcw className="w-3.5 h-3.5 mr-2" />}
+                    {acting === 'retry' ? (
+                      <Loader2 className="w-3.5 h-3.5 mr-2 animate-spin" />
+                    ) : (
+                      <RotateCcw className="w-3.5 h-3.5 mr-2" />
+                    )}
                     Retry Failed
                   </Button>
                 )}
@@ -170,12 +182,27 @@ export default function CampaignDetailPage() {
               <div className="bg-white p-5 rounded-2xl whisper-shadow border border-border">
                 <p className="font-mono text-[9px] uppercase tracking-widest font-bold text-on-surface-variant mb-2">Details</p>
                 <dl className="space-y-1.5 font-mono text-[11px]">
-                  <div className="flex justify-between gap-4"><dt className="text-on-surface-variant">Created by</dt><dd className="font-bold text-primary">{campaign.createdBy}</dd></div>
-                  <div className="flex justify-between gap-4"><dt className="text-on-surface-variant">Created</dt><dd className="font-bold text-primary">{new Date(campaign.createdAt).toLocaleString('en-GB')}</dd></div>
-                  <div className="flex justify-between gap-4"><dt className="text-on-surface-variant">Approved by</dt><dd className="font-bold text-primary">{campaign.approvedBy || '—'}</dd></div>
-                  <div className="flex justify-between gap-4"><dt className="text-on-surface-variant">Sent at</dt><dd className="font-bold text-primary">{campaign.sentAt ? new Date(campaign.sentAt).toLocaleString('en-GB') : '—'}</dd></div>
+                  <div className="flex justify-between gap-4">
+                    <dt className="text-on-surface-variant">Created by</dt>
+                    <dd className="font-bold text-primary">{campaign.createdBy}</dd>
+                  </div>
+                  <div className="flex justify-between gap-4">
+                    <dt className="text-on-surface-variant">Created</dt>
+                    <dd className="font-bold text-primary">{new Date(campaign.createdAt).toLocaleString('en-GB')}</dd>
+                  </div>
+                  <div className="flex justify-between gap-4">
+                    <dt className="text-on-surface-variant">Approved by</dt>
+                    <dd className="font-bold text-primary">{campaign.approvedBy || '—'}</dd>
+                  </div>
+                  <div className="flex justify-between gap-4">
+                    <dt className="text-on-surface-variant">Sent at</dt>
+                    <dd className="font-bold text-primary">{campaign.sentAt ? new Date(campaign.sentAt).toLocaleString('en-GB') : '—'}</dd>
+                  </div>
                   {campaign.error && (
-                    <div className="pt-2"><dt className="text-on-surface-variant mb-1">Error</dt><dd className="text-rose-600 break-words">{campaign.error}</dd></div>
+                    <div className="pt-2">
+                      <dt className="text-on-surface-variant mb-1">Error</dt>
+                      <dd className="text-rose-600 break-words">{campaign.error}</dd>
+                    </div>
                   )}
                 </dl>
               </div>

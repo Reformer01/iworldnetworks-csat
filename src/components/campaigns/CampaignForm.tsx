@@ -12,9 +12,7 @@ import { useToast } from '@/hooks/use-toast';
 import { createCampaign, fetchSegments, fetchAudienceCount, type CampaignSegmentOptions } from '@/hooks/use-campaigns';
 import type { User } from 'firebase/auth';
 
-export type Audience =
-  | { type: 'all' }
-  | { type: 'lifecycle' | 'city' | 'status' | 'servicePlan' | 'bts'; values: string[] };
+export type Audience = { type: 'all' } | { type: 'lifecycle' | 'city' | 'status' | 'servicePlan' | 'bts'; values: string[] };
 
 const AUDIENCE_TYPES = [
   { value: 'all', label: 'All customers' },
@@ -82,14 +80,19 @@ export function CampaignForm({ user, onCreated }: { user: User; onCreated: (id: 
     }
   };
 
-  const optionList = audienceType === 'all' ? [] : (options?.[audienceType as keyof CampaignSegmentOptions] || []);
+  const optionList = audienceType === 'all' ? [] : options?.[audienceType as keyof CampaignSegmentOptions] || [];
 
   return (
     <form onSubmit={handleSubmit} className="space-y-6">
       <div className="grid md:grid-cols-2 gap-4">
         <div className="space-y-2">
           <Label className="font-mono text-[10px] uppercase tracking-widest font-bold text-on-surface-variant">Name</Label>
-          <Input value={name} onChange={(e) => setName(e.target.value)} placeholder="e.g. August Downtime Notice" className="rounded-xl font-mono text-xs" />
+          <Input
+            value={name}
+            onChange={(e) => setName(e.target.value)}
+            placeholder="e.g. August Downtime Notice"
+            className="rounded-xl font-mono text-xs"
+          />
         </div>
         <div className="space-y-2">
           <Label className="font-mono text-[10px] uppercase tracking-widest font-bold text-on-surface-variant">Type</Label>
@@ -110,23 +113,47 @@ export function CampaignForm({ user, onCreated }: { user: User; onCreated: (id: 
 
       <div className="space-y-2">
         <Label className="font-mono text-[10px] uppercase tracking-widest font-bold text-on-surface-variant">Subject</Label>
-        <Input value={subject} onChange={(e) => setSubject(e.target.value)} placeholder="Email subject line" className="rounded-xl font-mono text-xs" />
+        <Input
+          value={subject}
+          onChange={(e) => setSubject(e.target.value)}
+          placeholder="Email subject line"
+          className="rounded-xl font-mono text-xs"
+        />
       </div>
 
       <div className="space-y-2">
         <Label className="font-mono text-[10px] uppercase tracking-widest font-bold text-on-surface-variant">Plain text body</Label>
-        <Textarea value={text} onChange={(e) => setText(e.target.value)} rows={5} placeholder="Plain text version (required)" className="rounded-xl font-mono text-xs" />
+        <Textarea
+          value={text}
+          onChange={(e) => setText(e.target.value)}
+          rows={5}
+          placeholder="Plain text version (required)"
+          className="rounded-xl font-mono text-xs"
+        />
       </div>
 
       <div className="space-y-2">
         <Label className="font-mono text-[10px] uppercase tracking-widest font-bold text-on-surface-variant">HTML body (optional)</Label>
-        <Textarea value={html} onChange={(e) => setHtml(e.target.value)} rows={6} placeholder="<p>HTML version</p>" className="rounded-xl font-mono text-xs" />
+        <Textarea
+          value={html}
+          onChange={(e) => setHtml(e.target.value)}
+          rows={6}
+          placeholder="<p>HTML version</p>"
+          className="rounded-xl font-mono text-xs"
+        />
       </div>
 
       <div className="space-y-3 bg-surface-container-low/50 p-4 rounded-2xl border border-border">
         <div className="flex flex-wrap items-center gap-3">
           <Label className="font-mono text-[10px] uppercase tracking-widest font-bold text-on-surface-variant">Audience</Label>
-          <Select value={audienceType} onValueChange={(v) => { setAudienceType(v); setValues([]); setCount(null); }}>
+          <Select
+            value={audienceType}
+            onValueChange={(v) => {
+              setAudienceType(v);
+              setValues([]);
+              setCount(null);
+            }}
+          >
             <SelectTrigger className="w-[180px] rounded-xl font-mono text-[10px] uppercase font-bold">
               <SelectValue placeholder="Segment" />
             </SelectTrigger>
@@ -158,9 +185,7 @@ export function CampaignForm({ user, onCreated }: { user: User; onCreated: (id: 
 
         {audienceType !== 'all' && (
           <div className="flex flex-wrap gap-2">
-            {optionList.length === 0 && (
-              <p className="font-mono text-[10px] text-on-surface-variant/60">No options loaded.</p>
-            )}
+            {optionList.length === 0 && <p className="font-mono text-[10px] text-on-surface-variant/60">No options loaded.</p>}
             {optionList.map((v) => (
               <button
                 key={v}
@@ -180,7 +205,11 @@ export function CampaignForm({ user, onCreated }: { user: User; onCreated: (id: 
         )}
       </div>
 
-      <Button type="submit" disabled={submitting} className="w-full rounded-full bg-secondary text-white font-mono text-[10px] uppercase font-bold py-5">
+      <Button
+        type="submit"
+        disabled={submitting}
+        className="w-full rounded-full bg-secondary text-white font-mono text-[10px] uppercase font-bold py-5"
+      >
         {submitting ? <Loader2 className="w-3.5 h-3.5 mr-2 animate-spin" /> : <Send className="w-3.5 h-3.5 mr-2" />}
         {submitting ? 'Creating…' : 'Create Draft'}
       </Button>

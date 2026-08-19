@@ -72,7 +72,13 @@ export default function CampaignsPage() {
         </header>
 
         <div className="flex flex-wrap items-center gap-3 mb-4">
-          <Select value={filterStatus} onValueChange={(v) => { setFilterStatus(v); setPage(1); }}>
+          <Select
+            value={filterStatus}
+            onValueChange={(v) => {
+              setFilterStatus(v);
+              setPage(1);
+            }}
+          >
             <SelectTrigger className="w-[150px] rounded-xl font-mono text-[10px] uppercase font-bold">
               <SelectValue placeholder="All Statuses" />
             </SelectTrigger>
@@ -98,9 +104,7 @@ export default function CampaignsPage() {
           ) : records.length === 0 ? (
             <div className="h-64 flex flex-col items-center justify-center text-center">
               <ShieldAlert className="w-10 h-10 text-on-surface-variant/20 mb-3" />
-              <p className="font-mono text-[11px] text-on-surface-variant/40 uppercase font-bold tracking-widest">
-                No campaigns yet
-              </p>
+              <p className="font-mono text-[11px] text-on-surface-variant/40 uppercase font-bold tracking-widest">No campaigns yet</p>
             </div>
           ) : (
             <div className="overflow-x-auto">
@@ -108,10 +112,7 @@ export default function CampaignsPage() {
                 <thead>
                   <tr className="border-b border-border/80">
                     {['Name', 'Type', 'Status', 'Audience', 'Created', ''].map((h) => (
-                      <th
-                        key={h}
-                        className="px-4 py-3 font-mono text-[9px] uppercase tracking-widest font-bold text-on-surface-variant"
-                      >
+                      <th key={h} className="px-4 py-3 font-mono text-[9px] uppercase tracking-widest font-bold text-on-surface-variant">
                         {h}
                       </th>
                     ))}
@@ -121,7 +122,10 @@ export default function CampaignsPage() {
                   {records.map((c) => (
                     <tr key={c.id} className="border-b border-border/50 last:border-0 hover:bg-surface-container-low/50 transition-colors">
                       <td className="px-4 py-3">
-                        <Link href={`/admin/campaigns/${c.id}`} className="font-mono text-xs font-bold text-primary hover:text-secondary transition-colors">
+                        <Link
+                          href={`/admin/campaigns/${c.id}`}
+                          className="font-mono text-xs font-bold text-primary hover:text-secondary transition-colors"
+                        >
                           {c.name}
                         </Link>
                         <p className="font-mono text-[9px] uppercase tracking-widest text-on-surface-variant/60 mt-0.5 truncate max-w-[280px]">
@@ -132,7 +136,12 @@ export default function CampaignsPage() {
                         <span className="font-mono text-[10px] uppercase font-bold text-on-surface-variant">{c.type}</span>
                       </td>
                       <td className="px-4 py-3">
-                        <span className={cn('inline-block px-2 py-0.5 rounded-full font-mono text-[9px] uppercase font-bold', CAMPAIGN_STATUS_STYLES[c.status] || 'bg-zinc-100 text-zinc-600')}>
+                        <span
+                          className={cn(
+                            'inline-block px-2 py-0.5 rounded-full font-mono text-[9px] uppercase font-bold',
+                            CAMPAIGN_STATUS_STYLES[c.status] || 'bg-zinc-100 text-zinc-600',
+                          )}
+                        >
                           {c.status}
                         </span>
                       </td>

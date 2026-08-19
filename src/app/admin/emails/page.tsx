@@ -219,9 +219,7 @@ function EmailsPageInner() {
         <div className={cn('bg-white p-0 overflow-hidden rounded-2xl whisper-shadow border border-border')}>
           {canApprove && selectedIds.size > 0 && (
             <div className="flex items-center gap-2 px-4 py-2.5 border-b border-border/80 bg-orange-50/60">
-              <span className="font-mono text-[10px] uppercase tracking-widest font-bold text-orange-800">
-                {selectedIds.size} selected
-              </span>
+              <span className="font-mono text-[10px] uppercase tracking-widest font-bold text-orange-800">{selectedIds.size} selected</span>
               <div className="ml-auto flex gap-2">
                 <Button
                   size="sm"
