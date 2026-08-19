@@ -177,3 +177,32 @@ Start Phase 3: Email Status Tracking & Persistence - add EmailJob Prisma model a
 ### Deployed
 - [x] Tarball (815 files) → extract → npm install → prisma generate → prisma migrate deploy ("All migrations applied") → build → pm2 restart
 - [x] Verified: health 200, site 200, campaigns-api 401, campaigns-id-api 401, segments-api 401, emails-api 401 (all auth-gated)
+
+---
+
+## Session 9: Mailing Pages Audit + Mail Stop
+**Date:** 2026-08-19
+**Status:** In progress (mail stopped, spam bug fixed, features shipped; consolidation pending user answer)
+
+### Audit Findings (evidence-based)
+- **Overdue-feedback spam bug (CRITICAL, fixed):** runOverdueFeedbackReminderJobDb re-emailed all 177 overdue customers EVERY 15-min sync run — 29,119 FeedbackToken rows created (~17k emails/day). Root cause: no dedup check in the MariaDB path (old Firestore path had one). Fix: findRecentFeedbackToken with window = REMINDER_MAX_OVERDUE_DAYS (send once per overdue episode). Locked with failing test first (39 tests in splynx-sync-db.test.ts).
+- **Email queue empty (0 EmailJob rows):** all real emails (reminders, churn surveys, win-back, overdue feedback, webhook feedback) are sent DIRECTLY, bypassing the queue — the Email Queue page looks broken/empty. This is the "practically can't do anything" feeling.
+- **Segment data is fine:** verified live — 3 lifecycles, 188 cities, 59 BTS, 2753 sendable customers. API + queries work.
+- **Missing features (user report):** no campaign delete, no segment/type filter on campaigns list, no per-option audience counts.
+- **Minor:** webhook creates tokens with empty customer data for some event types (no email sent — harmless); Firestore quota exhausted (RESOURCE_EXHAUSTED) on feedback-token mirror (best-effort, logged as warn).
+
+### Mail Stop (deployed + verified)
+- MAIL_JOBS_DISABLED=true env guard: skips the 4 scheduled email jobs in runHourlySyncDb (invoice reminders, churn surveys, win-back, overdue feedback) + skips startEmailWorker. Webhook path (invoice paid / ticket closed) NOT affected.
+- Verified: "[email-worker] Skipped — MAIL_JOBS_DISABLED=true", feedbackReminders: 0 (was 177), site 200.
+- Deploy gotcha: tarball from git ls-files includes untracked files but NOT uncommitted edits to tracked files — must commit before tarball; also npm run build on server is REQUIRED (next start serves .next, not src).
+
+### Features Shipped (deployed + verified)
+- DELETE /api/admin/campaigns/[id] (super admin) — deletes campaign + its EmailJob rows in a transaction; Delete buttons on list + detail pages (confirm dialog).
+- Campaigns list: type filter (campaign/downtime/notice/other) alongside status filter.
+- Segment builder: options now carry per-option audience counts (groupBy, sorted desc), filter box for large lists (188 cities), live selected-customer total.
+- 522 tests pass (39 in splynx-sync-db), tsc clean, build exit 0; deployed; site 200, campaigns-api 401, segments-api 401, mail still stopped.
+
+### Next Steps
+1. AWAITING user answer: consolidation design — merge churn surveys into Email Queue page (tabs) vs move under Sales nav vs show churn emails as EmailJob rows.
+2. Re-enable mail (remove MAIL_JOBS_DISABLED) after consolidation approved + verified.
+3. Optional: webhook empty-customer tokens (skip token creation when no email).
