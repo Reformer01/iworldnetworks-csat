@@ -93,6 +93,39 @@ export async function sendCampaign(campaignId: string): Promise<number> {
   return recipients.length;
 }
 
+// Re-enqueues only the failed EmailJob rows of a campaign (their payloads are
+// already stored on the rows). Returns how many were re-queued.
+export async function retryCampaignFailed(campaignId: string): Promise<number> {
+  const failed = await prisma.emailJob.findMany({
+    where: { campaignId, status: 'failed' },
+    select: { id: true, customerId: true, customerEmail: true, customerName: true, payload: true },
+  });
+  const queue = getEmailQueue();
+  let count = 0;
+  for (const row of failed) {
+    const payload = row.payload as { subject: string; html: string; text: string; campaignId: string };
+    try {
+      await queue.add(
+        'campaign',
+        {
+          type: 'campaign',
+          emailJobId: row.id,
+          customerId: row.customerId,
+          customerEmail: row.customerEmail,
+          customerName: row.customerName,
+          ...payload,
+        },
+        { priority: getPriorityForType('campaign') },
+      );
+      await prisma.emailJob.updateMany({ where: { id: row.id }, data: { status: 'pending', error: null } });
+      count++;
+    } catch {
+      // leave the row failed; it stays visible in the campaign audit
+    }
+  }
+  return count;
+}
+
 export async function getCampaignStats(campaignId: string) {
   const grouped = await prisma.emailJob.groupBy({
     by: ['status'],
@@ -106,6 +139,47 @@ export async function getCampaignStats(campaignId: string) {
     processing: count('processing'),
     sent: count('sent'),
     failed: count('failed'),
+  };
+}
+
+// BigInt -> number (epoch ms) so NextResponse.json can serialize.
+const toNum = (v: bigint | null): number | null => (v === null ? null : Number(v));
+
+export function serializeCampaign(c: {
+  id: string;
+  name: string;
+  type: string;
+  subject: string;
+  html: string | null;
+  text: string;
+  audienceJson: Prisma.JsonValue;
+  audienceCount: number;
+  status: string;
+  sentAt: bigint | null;
+  createdBy: string;
+  approvedAt: bigint | null;
+  approvedBy: string | null;
+  error: string | null;
+  createdAt: Date;
+  updatedAt: Date;
+}) {
+  return {
+    id: c.id,
+    name: c.name,
+    type: c.type,
+    subject: c.subject,
+    html: c.html,
+    text: c.text,
+    audienceJson: c.audienceJson,
+    audienceCount: c.audienceCount,
+    status: c.status,
+    sentAt: toNum(c.sentAt),
+    createdBy: c.createdBy,
+    approvedAt: toNum(c.approvedAt),
+    approvedBy: c.approvedBy,
+    error: c.error,
+    createdAt: c.createdAt.getTime(),
+    updatedAt: c.updatedAt.getTime(),
   };
 }
 
