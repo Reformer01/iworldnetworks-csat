@@ -6,7 +6,7 @@ import { getAllCustomers, getUnpaidInvoices, getDeletedInvoices } from './splynx
 import type { SplynxInvoice } from './splynx-api';
 import { sendInvoiceReminderEmail, sendChurnSurveyEmail, sendFeedbackEmail, sendWinBackEmail } from './email';
 import { hasDeliverableEmail } from './email-validity';
-import { createFeedbackToken, TOKEN_TTL_MS } from './feedback-token';
+import { createFeedbackToken, findRecentFeedbackToken, TOKEN_TTL_MS } from './feedback-token';
 import { logInfo, logWarn, logError } from './logger';
 import { buildCustomerFields, buildCustomerOverdueInfo, daysOverdue, formatDueDate, normalizeInvoiceForOverdue } from './splynx-mirror';
 import {
@@ -969,6 +969,15 @@ export async function runOverdueFeedbackReminderJobDb(
       continue;
     }
 
+    // Dedup: send at most once per overdue episode (the full reminder window).
+    // Without this, every 15-minute sync re-sends to every overdue customer.
+    const sourceEvent = `overdue:${customerId}`;
+    const recent = await findRecentFeedbackToken(customer.email, sourceEvent, REMINDER_MAX_OVERDUE_DAYS * 24 * 60 * 60 * 1000);
+    if (recent) {
+      result.skippedNoOverdue++;
+      continue;
+    }
+
     const token = randomUUID();
     const expiresAt = now + TOKEN_TTL_MS;
     await prisma.feedbackToken.create({
@@ -979,7 +988,7 @@ export async function runOverdueFeedbackReminderJobDb(
         servicePlan: '',
         location: '',
         serviceDate: '',
-        sourceEvent: `overdue:${customerId}`,
+        sourceEvent,
         eventHash: '',
         category: 'Billing',
         staffName: '',
@@ -993,7 +1002,7 @@ export async function runOverdueFeedbackReminderJobDb(
     await mirrorFeedbackTokenSet(token, {
       customerName: customer.name,
       customerEmail: customer.email,
-      sourceEvent: `overdue:${customerId}`,
+      sourceEvent,
       createdAt: now,
       expiresAt,
     });
