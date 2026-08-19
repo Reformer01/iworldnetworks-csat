@@ -1,0 +1,765 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "mysql"
+}
+
+model Feedback {
+  id                String   @id @default(cuid())
+  customerName      String?
+  customerEmail     String?  @db.VarChar(255)
+  category          String?
+  location          String?
+  servicePlan       String?
+  comment           String?  @db.Text
+  staffName         String?
+  ratings           Json?
+  referralSource    String?
+  spotlightInterview String?
+  serviceDate       String?
+  serviceTime       String?
+  submissionDate    String?
+  timestamp         BigInt   @default(0)
+  status            String   @default("new")
+  resolutionNotes   String?  @db.Text
+  aiAnalysis        Json?
+  satisfied         String?
+  source            String?
+  updatedAt         BigInt?
+  createdAt         DateTime @default(now())
+  updatedAtDb       DateTime @updatedAt
+
+  @@index([category])
+  @@index([timestamp])
+  @@index([location])
+  @@index([status])
+  @@index([customerEmail])
+}
+
+model FeedbackToken {
+  id            String   @id @default(cuid())
+  customerName  String
+  customerEmail String   @db.VarChar(255)
+  servicePlan   String
+  location      String
+  serviceDate   String
+  sourceEvent   String
+  used          Boolean  @default(false)
+  createdAt     BigInt
+  expiresAt     BigInt
+  openedAt      BigInt?
+  submittedAt   BigInt?
+  eventHash     String?
+  category      String?  @default("Reliability")
+  staffName     String?
+
+  @@index([customerEmail])
+  @@index([used])
+  @@index([expiresAt])
+  @@index([eventHash])
+}
+
+model Customer {
+  id                  String   @id @default(cuid())
+  customerId          String   @unique
+  customerName        String?
+  email               String?  @db.VarChar(255)
+  billingEmail        String?  @db.VarChar(255)
+  phone               String?
+  login               String?
+  city                String?
+  street              String?
+  status              String?
+  lifecycle           String?
+  online              Boolean?
+  lastOnlineAt        BigInt?
+  lastUpdateAt        BigInt?
+  mrrTotal            Float?
+  accountType         String?
+  category            String?
+  servicePlan         String?
+  firstSyncedAt       BigInt?
+  lastSyncAt          BigInt?
+  lastChangeAt        BigInt?
+  deleted             Boolean  @default(false)
+  reminder15SentAt    BigInt?
+  reminder30SentAt    BigInt?
+  churnSurveySentAt   BigInt?
+  churnSurveyToken    String?
+  winBackSentAt       BigInt?
+  winBackToken        String?
+  churnedAt           BigInt?
+  inactiveSince       BigInt?
+  emailOptOut         Boolean  @default(false)
+  emailInvalid        Boolean  @default(false)
+  overdueInfo         Json?
+  // UISP tower (site ancestor) attribution and endpoint match bookkeeping.
+  btsId               String?
+  btsName             String?
+  uispEndpointId      String?
+  uispEndpointName    String?
+  uispDeviceStatus    String?
+  uispOutageCount     Int?
+  matchState          String   @default("pending")
+  matchMethod         String?
+  matchScore          Float?
+  matchedAt           BigInt?
+  matchUpdatedAt      BigInt?
+  createdAt           DateTime @default(now())
+  updatedAt           DateTime @updatedAt
+
+  @@index([lifecycle])
+  @@index([city])
+  @@index([status])
+  @@index([customerId])
+  @@index([deleted])
+  @@index([lastSyncAt])
+  @@index([btsId])
+  @@index([matchState])
+}
+
+model Invoice {
+  id                String   @id @default(cuid())
+  invoiceId         String   @unique
+  customerId        String
+  number            String?
+  title             String?
+  total             Float    @default(0)
+  dueDate           BigInt?
+  date              BigInt?
+  status            String?
+  isPaid            Boolean  @default(false)
+  paidAt            BigInt?
+  reminder15SentAt  BigInt?
+  reminder30SentAt  BigInt?
+  syncedAt          BigInt?
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  @@index([customerId])
+  @@index([invoiceId])
+  @@index([isPaid])
+  @@index([dueDate])
+  @@index([syncedAt])
+}
+
+model BtsAuditRecord {
+  id          String   @id @default(cuid())
+  auditPeriod String
+  btsName     String
+  region      String?
+  status      String?
+  customerCount Int?
+  monthlyRevenue Float?
+  targetPaymentRate Float?
+  enterpriseCount Int?
+  createdAt   DateTime @default(now())
+
+  @@unique([auditPeriod, btsName])
+  @@index([auditPeriod, status, btsName])
+  @@index([auditPeriod, region, btsName])
+}
+
+model SalesRecord {
+  id        String   @id @default(cuid())
+  region    String
+  product   String
+  mrr       Float
+  nrr       Float
+  month     Int
+  year      Int
+  createdAt DateTime @default(now())
+
+  @@unique([region, product, month, year])
+  @@index([region])
+  @@index([month, year])
+}
+
+// Individual sales records (mirror of the Firestore `sales_records`
+// collection). MariaDB is the source of truth; Firestore is a write-only
+// best-effort mirror kept for rollback. Timestamps are epoch-ms BigInts for
+// parity with the Firestore docs.
+model SalesRecordEntry {
+  id             String  @id @default(cuid())
+  serialNumber   Int
+  customerName   String
+  location       String
+  region         String
+  segment        String
+  nrc            Float   @default(0)
+  mrc            Float   @default(0)
+  planCode       String
+  saleDate       String  @default("")
+  quarter        String
+  month          String  @default("")
+  packageType    String  @default("Outright")
+  salesAgent     String  @default("")
+  meansOfSale    String  @default("")
+  accountStatus  String  @default("Active")
+  statusNotes    String  @default("")
+  importBatchId  String  @default("")
+  customerType   String  @default("new")
+  revivedByAgent String  @default("")
+  bts            String  @default("")
+  deletedAt      BigInt?
+  createdAt      BigInt  @default(0)
+  updatedAt      BigInt  @default(0)
+
+  @@index([region, accountStatus])
+  @@index([salesAgent])
+  @@index([importBatchId])
+  @@index([serialNumber])
+  @@index([month])
+}
+
+// Monthly sales targets (mirror of the Firestore `sales_targets` collection).
+model SalesTarget {
+  id              String  @id @default(cuid())
+  month           String // YYYY-MM
+  region          String?
+  agentName       String?
+  targetRevenue   Float
+  targetCustomers Int
+  createdAt       BigInt  @default(0)
+  updatedAt       BigInt  @default(0)
+
+  @@index([month])
+}
+
+// CSV import metadata (mirror of the Firestore `sales_imports` collection).
+model SalesImport {
+  id          String  @id @default(cuid())
+  batchId     String  @unique
+  source      String  @default("csv_upload")
+  fileName    String  @default("")
+  recordCount Int     @default(0)
+  importedAt  BigInt  @default(0)
+  importedBy  String
+  status      String  @default("completed")
+}
+
+model ReadBudget {
+  id        String   @id @default("singleton")
+  date      DateTime @db.Date
+  used      Int      @default(0)
+  limit     Int      @default(50000)
+  updatedAt DateTime @updatedAt
+}
+
+model AdminUser {
+  id        String   @id @default(cuid())
+  email     String   @unique
+  name      String?
+  password  String
+  role      String   @default("editor")
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([email])
+}
+
+model SyncLock {
+  id        String   @id @default("splynx-hourly-sync")
+  leaseUntil BigInt
+  lastRunAt BigInt?
+  lastStatus String?
+  lastError String?
+  lastStats Json?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model ChurnSurvey {
+  id            String   @id @default(cuid())
+  customerId    String
+  customerName  String
+  customerEmail String
+  sentAt        BigInt
+  expiresAt     BigInt
+  used          Boolean  @default(false)
+  submittedAt   BigInt?
+  rating        Int?
+  reason        String?
+  comment       String?  @db.Text
+  clientIp      String?
+  createdAt     DateTime @default(now())
+
+  @@index([customerId])
+  @@index([used])
+  @@index([expiresAt])
+}
+
+model WinBackToken {
+  id        String   @id @default(cuid())
+  customerId String
+  token     String   @unique
+  sentAt    BigInt
+  createdAt DateTime @default(now())
+
+  @@index([customerId])
+}
+
+model FeedbackReminderToken {
+  id        String   @id @default(cuid())
+  customerId String
+  token     String   @unique
+  sentAt    BigInt
+  createdAt DateTime @default(now())
+
+  @@index([customerId])
+}
+
+model Journal {
+  id        String   @id @default(cuid())
+  type      String
+  payload   Json
+  status    String   @default("pending")
+  error     String?
+  result    Json?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([type])
+  @@index([status])
+  @@index([createdAt])
+}
+
+model SplynxMeta {
+  id        String   @id @default("sync")
+  invoicesApiDenied Boolean @default(false)
+  deniedAt  BigInt?
+  lastInvoiceSyncAt BigInt?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model UispSite {
+  id            String   @id
+  name          String
+  type          String
+  status        String?
+  suspended     Boolean?
+  parentId      String?
+  parentName    String?
+  // Nearest type=site ancestor (the BTS/tower this node hangs under).
+  // Endpoints map to their tower; site nodes map to themselves. Null when the
+  // node has no type=site ancestor (root customer location).
+  btsId         String?
+  btsName       String?
+  address       String?  @db.VarChar(500)
+  latitude      Float?
+  longitude     Float?
+  deviceCount   Int?
+  deviceOutageCount Int?
+  ucrmId        String?
+  // Contact/note/sla for the matching engine (Leaf B): synced from
+  // description.contact/note/sla so customers can match on phone/email.
+  contactName   String?   @db.Text
+  contactPhone  String?
+  contactEmail  String?
+  note          String?  @db.Text
+  sla           Float?
+  lastSyncAt    BigInt
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  @@index([type])
+  @@index([status])
+  @@index([parentId])
+  @@index([name])
+  @@index([btsId])
+}
+
+model UispDevice {
+  id            String   @id
+  siteId        String?
+  siteName      String?
+  name          String
+  role          String?
+  category      String?
+  model         String?
+  modelName     String?
+  mac           String?
+  hostname      String?
+  firmwareVersion String?
+  authorized    Boolean  @default(false)
+  status        String?
+  ipAddress     String?
+  cpu           Float?
+  downlinkCapacity Float?
+  uplinkCapacity Float?
+  downlinkUtilization Float?
+  uplinkUtilization Float?
+  lastSyncAt    BigInt
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  @@index([siteId])
+  @@index([role])
+  @@index([mac])
+  @@index([status])
+}
+
+model UispMeta {
+  id        String   @id @default("sync")
+  lastSyncAt BigInt?
+  lastStatus String?
+  lastError String?
+  lastStats Json?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+// BTS admin module (was Firestore: bts_customers). Read path is gated by
+// BTS_DB=1; writes are MariaDB-first with best-effort Firestore mirrors.
+model BtsCustomer {
+  id            String   @id
+  serialNumber  Int?
+  customerName  String?
+  btsName       String?
+  status        String?
+  accountType   String?
+  mrc           Int?
+  planCode      String?
+  region        String?
+  importBatchId String?
+  editedBy      String?
+  createdAt     BigInt?
+  updatedAt     BigInt?
+  deletedAt     BigInt?
+  lastSyncAt    BigInt
+  createdAtDb   DateTime @default(now())
+  updatedAtDb   DateTime @updatedAt
+
+  @@index([importBatchId])
+  @@index([region])
+  @@index([btsName])
+}
+
+// Per-import-batch BTS site summaries (was Firestore: bts_customer_sites).
+model BtsCustomerSite {
+  id            String   @id
+  btsName       String?
+  matchedBtsName String?
+  matchStatus   String?
+  region        String?
+  totalCustomers Int?
+  activeCustomers Int?
+  enterpriseCustomers Int?
+  retailCustomers Int?
+  smeCustomers  Int?
+  residentialCustomers Int?
+  partnersHosts Int?
+  neighbourhoodCustomers Int?
+  totalMrr      Int?
+  importBatchId String?
+  createdAt     BigInt?
+  lastSyncAt    BigInt
+  createdAtDb   DateTime @default(now())
+  updatedAtDb   DateTime @updatedAt
+
+  @@index([importBatchId])
+  @@index([region])
+}
+
+// BTS audit records (was Firestore: bts_audit_records; bts_latest_audit is a
+// derived snapshot no longer read on the DB path). Distinct from the legacy
+// sales-audit analytics BtsAuditRecord (bts-sync.ts) which keeps its table.
+model BtsAdminAuditRecord {
+  id           String   @id
+  btsName      String
+  btsId        Int?
+  region       String
+  siteType     String
+  status       String
+  latitude     Float?
+  longitude    Float?
+  address      String?
+  host         String?
+  activeCustomers Int?
+  totalCustomers Int?
+  enterpriseCustomers Int?
+  retailCustomers Int?
+  monthlyRecurringRevenue Int?
+  targetMrr    Int?
+  attainmentPercentage Float?
+  nrcRevenue   Int?
+  totalRevenue Int?
+  splynxRouterIds Json?
+  splynxRouterNames Json?
+  lastSplynxSync BigInt?
+  lastOutageDate BigInt?
+  outageCountThisMonth Int?
+  maintenanceNotes String?
+  auditedBy    String?
+  auditedAt    BigInt?
+  auditPeriod  String?
+  createdAt    BigInt?
+  updatedAt    BigInt?
+  deletedAt    BigInt?
+  lastSyncAt   BigInt
+  createdAtDb  DateTime @default(now())
+  updatedAtDb  DateTime @updatedAt
+
+  @@index([btsName])
+  @@index([region])
+  @@index([auditPeriod])
+  @@index([status])
+}
+
+// Support tickets (was Firestore: tickets). DB-first; Firestore mirrors
+// best-effort during cutover.
+model Ticket {
+  id            String   @id @default(cuid())
+  ticketNumber  Int
+  customerName  String?
+  customerPhone String?
+  customerEmail String?  @db.VarChar(255)
+  location      String?
+  region        String?
+  bts           String?
+  complaintType String?
+  description   String?  @db.Text
+  createdBy     String?
+  assignedTo    String?
+  escalatedTo   String?
+  status        String?
+  createdAt     BigInt?
+  assignedAt    BigInt?
+  escalatedAt   BigInt?
+  resolvedAt    BigInt?
+  closedAt      BigInt?
+  reopenedAt    BigInt?
+  reopenedCount Int?
+  slaBreached   Boolean?
+  resolutionNotes String? @db.Text
+  firstTimeFix  Boolean?
+  priority      Int?
+  delayReasons  Json?
+  delayNotes    String?  @db.Text
+  followUps     Json?
+  createdByAgent String?
+  updatedAt     BigInt?
+  deletedAt     BigInt?
+  lastSyncAt    BigInt?
+  createdAtDb   DateTime @default(now())
+  updatedAtDb   DateTime @updatedAt
+
+  @@index([ticketNumber])
+  @@index([status])
+  @@index([assignedTo])
+  @@index([deletedAt])
+  @@index([createdAt])
+}
+
+// Support revenue records (was Firestore: support_revenue).
+model SupportRevenue {
+  id          String   @id @default(cuid())
+  customerName String?
+  location    String?
+  region      String?
+  projectType String?
+  items       Json?
+  totalAmount Float?
+  description String?  @db.Text
+  notes       String?  @db.Text
+  date        String?
+  agentName   String?
+  createdAt   BigInt?
+  updatedAt   BigInt?
+  deletedAt   BigInt?
+  lastSyncAt  BigInt?
+  createdAtDb DateTime @default(now())
+  updatedAtDb DateTime @updatedAt
+
+  @@index([projectType])
+  @@index([region])
+  @@index([deletedAt])
+  @@index([createdAt])
+}
+
+// Persisted staff KPI snapshots (was Firestore: staff_kpi_records).
+// Id = `${staffId}_${periodStart}` — one row per staff x calendar bucket.
+model StaffKpiRecord {
+  id             String   @id
+  staffId        String
+  staffName      String?
+  role           String?
+  periodStart    BigInt
+  periodEnd      BigInt
+  ticketsAssigned Int?
+  ticketsResolved Int?
+  ticketsEscalated Int?
+  ticketsReopened Int?
+  ticketsClosed  Int?
+  avgResolutionTimeHours Float?
+  avgFirstResponseTimeHours Float?
+  avgTimeToAssignHours Float?
+  slaComplianceRate Float?
+  firstContactResolutionRate Float?
+  customerSatisfactionScore Float?
+  avgCustomerSatisfaction Float?
+  qualityScore   Float?
+  slaBreaches    Int?
+  slaBreachRate  Float?
+  priority1Resolved Int?
+  priority2Resolved Int?
+  priority3Resolved Int?
+  currentOpenTickets Int?
+  avgDailyTickets Float?
+  calculatedAt   BigInt?
+  lastSyncAt     BigInt?
+  createdAtDb    DateTime @default(now())
+  updatedAtDb    DateTime @updatedAt
+
+  @@index([staffId])
+  @@index([periodStart])
+}
+
+// Latest Splynx BTS sync result (was Firestore: splynx_bts_sync/latest).
+model SplynxBtsSyncMeta {
+  id                 String   @id @default("latest")
+  totalActiveCustomers Int?
+  mappedCustomers    Int?
+  unmappedCustomers  Int?
+  routerMapping      Json?
+  errors             Json?
+  syncedAt           BigInt?
+  syncedBy           String?
+  lastSyncAt         BigInt?
+  createdAtDb        DateTime @default(now())
+  updatedAtDb        DateTime @updatedAt
+}
+
+// Per-BTS active customer stats (was Firestore: splynx_bts_active_stats).
+model SplynxBtsActiveStat {
+  btsName        String   @id
+  region         String?
+  activeCustomers Int?
+  totalCustomers Int?
+  customersByTariff Json?
+  lastSynced     BigInt?
+  syncedAt       BigInt?
+  lastSyncAt     BigInt?
+  createdAtDb    DateTime @default(now())
+  updatedAtDb    DateTime @updatedAt
+
+  @@index([activeCustomers])
+}
+
+// Admin audit trail (was Firestore: sales_audit_log).
+model SalesAuditLog {
+  id           String   @id @default(cuid())
+  action       String
+  collection   String
+  recordId     String?
+  userId       String?
+  userEmail    String?
+  changes      Json?
+  previousState Json?
+  metadata     Json?
+  timestamp    BigInt
+  createdAtDb  DateTime @default(now())
+  updatedAtDb  DateTime @updatedAt
+
+  @@index([collection])
+  @@index([timestamp])
+  @@index([recordId])
+}
+
+// Splynx request nonce (was Firestore: splynx_nonces).
+model SplynxNonce {
+  key         String   @id
+  nonce       Int
+  updatedAt   BigInt?
+  lastSyncAt  BigInt?
+  createdAtDb DateTime @default(now())
+  updatedAtDb DateTime @updatedAt
+}
+
+// Unified reconciliation audit trail for the Splynx/UISP customer matching
+// (Leaf D). One row per field-level change or flag raised while reconciling.
+model ReconciliationLog {
+  id           String   @id @default(cuid())
+  kind         String
+  recordId     String
+  field        String
+  beforeValue  Json?
+  afterValue   Json?
+  action       String
+  reason       String?
+  createdAt    BigInt
+  createdAtDb  DateTime @default(now())
+  updatedAtDb  DateTime @updatedAt
+
+  @@index([recordId])
+  @@index([kind])
+}
+
+// Inbound UISP webhook events (Leaf B). Id is the UISP event id, making
+// reprocessing idempotent.
+model UispWebhookEvent {
+  id           String   @id
+  eventType    String?
+  payload      Json?
+  processedAt  BigInt?
+  error        String?
+  createdAt    BigInt
+  createdAtDb  DateTime @default(now())
+}
+
+// Persisted email job audit trail for the BullMQ mailing suite. One row per
+// queued email; the worker updates status as the job progresses. `bullJobId`
+// links back to the BullMQ job for queue-level debugging.
+model EmailJob {
+  id            String   @id @default(cuid())
+  bullJobId     String?
+  campaignId    String?
+  type          String
+  status        String   @default("pending") // pending/processing/sent/failed/pending_approval/approved/rejected
+  customerId    String?
+  customerEmail String?  @db.VarChar(255)
+  customerName  String?
+  payload       Json
+  result        Json?
+  error         String?  @db.Text
+  scheduledAt   BigInt?
+  sentAt        BigInt?
+  approvedAt    BigInt?
+  approvedBy    String?
+  retryCount    Int      @default(0)
+  maxRetries    Int      @default(3)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  @@index([type])
+  @@index([status])
+  @@index([customerEmail])
+  @@index([createdAt])
+  @@index([bullJobId])
+  @@index([campaignId])
+}
+
+model Campaign {
+  id            String   @id @default(cuid())
+  name          String
+  type          String   @default("campaign") // campaign/downtime/notice/other
+  subject       String
+  html          String?  @db.Text
+  text          String   @db.Text
+  audienceJson  Json // { type: 'all' } | { type: 'lifecycle'|'city'|'status'|'servicePlan'|'bts', values: string[] }
+  audienceCount Int      @default(0)
+  status        String   @default("draft") // draft/sending/sent/partial/failed/cancelled
+  sentAt        BigInt?
+  createdBy     String
+  approvedAt    BigInt?
+  approvedBy    String?
+  error         String?  @db.Text
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  @@index([status])
+  @@index([createdAt])
+}
