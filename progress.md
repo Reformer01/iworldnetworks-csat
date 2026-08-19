@@ -173,3 +173,7 @@ Start Phase 3: Email Status Tracking & Persistence - add EmailJob Prisma model a
 ### Next Steps
 1. Deploy to production (tarball → extract → prisma generate → prisma migrate deploy → build → pm2 restart)
 2. Verify health + auth gates on server
+
+### Deployed
+- [x] Tarball (815 files) → extract → npm install → prisma generate → prisma migrate deploy ("All migrations applied") → build → pm2 restart
+- [x] Verified: health 200, site 200, campaigns-api 401, campaigns-id-api 401, segments-api 401, emails-api 401 (all auth-gated)
