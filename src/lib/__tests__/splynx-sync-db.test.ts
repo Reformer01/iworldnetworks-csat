@@ -37,6 +37,10 @@ const emailMock = vi.hoisted(() => ({
   sendWinBackEmail: vi.fn(),
 }));
 
+const emailJobRepoMock = vi.hoisted(() => ({
+  createEmailJob: vi.fn().mockResolvedValue('test-email-job-id'),
+}));
+
 const syncDbMock = vi.hoisted(() => ({
   acquireSyncLock: vi.fn(),
   completeSyncRun: vi.fn(),
@@ -63,6 +67,7 @@ vi.mock('@/lib/firebase-admin', () => ({
 }));
 vi.mock('../splynx-api', () => apiMock);
 vi.mock('../email', () => emailMock);
+vi.mock('@/lib/repositories/email-job-repo', () => emailJobRepoMock);
 vi.mock('../email-validity', () => ({ hasDeliverableEmail: vi.fn(async () => true) }));
 vi.mock('../lib/db/sync', () => syncDbMock);
 vi.mock('../logger', () => loggerMock);

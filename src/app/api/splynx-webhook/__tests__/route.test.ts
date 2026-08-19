@@ -6,6 +6,7 @@ const mocks = vi.hoisted(() => ({
   db: { label: 'db' },
   createFeedbackToken: vi.fn().mockResolvedValue({ token: 'token-123', expiresAt: Date.now() + 1000 }),
   findFeedbackTokenByEventHash: vi.fn().mockResolvedValue(null),
+  findRecentFeedbackToken: vi.fn().mockResolvedValue(null),
   sendFeedbackEmail: vi.fn().mockResolvedValue(undefined),
   logError: vi.fn(),
   logWarn: vi.fn(),
@@ -19,6 +20,7 @@ vi.mock('@/lib/firebase-admin', () => ({
 vi.mock('@/lib/feedback-token', () => ({
   createFeedbackToken: mocks.createFeedbackToken,
   findFeedbackTokenByEventHash: mocks.findFeedbackTokenByEventHash,
+  findRecentFeedbackToken: mocks.findRecentFeedbackToken,
   getFeedbackBaseUrl: () => 'http://localhost:9002',
 }));
 
@@ -263,7 +265,9 @@ describe('POST /api/splynx-webhook', () => {
       call: 'payment/update',
       data: {
         customer_id: 9,
-        attributes: {},
+        attributes: {
+          email: 'test@example.com',
+        },
       },
     });
 
@@ -275,7 +279,7 @@ describe('POST /api/splynx-webhook', () => {
     );
 
     expect(response.status).toBe(200);
-    expect(mocks.findFeedbackTokenByEventHash).toHaveBeenCalledWith(mocks.db, expect.stringMatching(/^[a-f0-9]{64}$/));
+    expect(mocks.findFeedbackTokenByEventHash).toHaveBeenCalledWith(expect.stringMatching(/^[a-f0-9]{64}$/));
     expect(mocks.createFeedbackToken).toHaveBeenCalledWith(
       mocks.db,
       expect.objectContaining({

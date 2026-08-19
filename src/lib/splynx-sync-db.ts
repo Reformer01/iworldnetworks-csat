@@ -7,6 +7,7 @@ import type { SplynxInvoice } from './splynx-api';
 import { sendInvoiceReminderEmail, sendChurnSurveyEmail, sendFeedbackEmail, sendWinBackEmail } from './email';
 import { hasDeliverableEmail } from './email-validity';
 import { createFeedbackToken, findRecentFeedbackToken, TOKEN_TTL_MS } from './feedback-token';
+import { createEmailJob } from '@/lib/repositories/email-job-repo';
 import { logInfo, logWarn, logError } from './logger';
 import { buildCustomerFields, buildCustomerOverdueInfo, daysOverdue, formatDueDate, normalizeInvoiceForOverdue } from './splynx-mirror';
 import {
@@ -34,7 +35,6 @@ import { acquireSyncLock, completeSyncRun, setSplynxMeta } from './lib/db/sync';
 import { mapCustomer, mapInvoice } from './lib/db/sync-mirror';
 import { clearRouteCache } from './route-cache';
 import type { PrismaClient } from '@prisma/client';
-import { queueInvoiceReminder, queueChurnSurvey, queueWinBack, queueFeedbackRequest } from '@/lib/queues/email-producer';
 
 /** Firestore document data — known-key object with JSON-serializable values. */
 type FirestoreData = { [key: string]: string | number | boolean | null | undefined | string[] | number[] | boolean[] | FirestoreData };
@@ -689,6 +689,14 @@ export async function runReminderJobDb(now = Date.now(), unpaidRows?: Array<{ in
     }));
 
     try {
+      // Track email in audit log
+      await createEmailJob({
+        type: 'invoice_reminder',
+        customerId: String(customerId),
+        customerEmail: customer.email,
+        customerName: customer.name,
+        payload: { invoices: emailInvoices, reminderType },
+      });
       await sendInvoiceReminderEmail({
         to: customer.email,
         customerName: customer.name,
@@ -791,6 +799,14 @@ export async function runChurnSurveyJobDb(baseUrl: string, now = Date.now()): Pr
     };
 
     try {
+      // Track email in audit log
+      await createEmailJob({
+        type: 'churn_survey',
+        customerId: String(row.customerId),
+        customerEmail: row.email,
+        customerName: row.customerName || 'there',
+        payload: { churnUrl: `${baseUrl}/churn?token=${token}` },
+      });
       await sendChurnSurveyEmail({
         to: row.email,
         customerName: row.customerName || 'there',
@@ -879,6 +895,18 @@ export async function runWinBackJobDb(baseUrl: string, now = Date.now()): Promis
         category: 'Reliability',
         sourceEvent: 'winback',
         eventHash: `winback-${row.customerId}`,
+      });
+      // Track email in audit log
+      await createEmailJob({
+        type: 'winback',
+        customerId: String(row.customerId),
+        customerEmail: row.email,
+        customerName: row.customerName || 'there',
+        payload: {
+          portalUrl: 'https://portal.iwn.ng',
+          csatUrl: baseUrl,
+          feedbackUrl: `${baseUrl}/feedback/popup?token=${token}&embed=true`,
+        },
       });
       await sendWinBackEmail({
         to: row.email,
@@ -1007,6 +1035,14 @@ export async function runOverdueFeedbackReminderJobDb(
       expiresAt,
     });
 
+    // Track email in audit log
+    await createEmailJob({
+      type: 'feedback_request',
+      customerId: String(customerId),
+      customerEmail: customer.email,
+      customerName: customer.name,
+      payload: { feedbackUrl: `${baseUrl}/feedback?token=${token}&subject=Billing` },
+    });
     try {
       await sendFeedbackEmail({
         to: customer.email,

@@ -4,17 +4,27 @@ import { getAdminFirestore } from '@/lib/firebase-admin';
 import { incrementNonce } from '@/lib/splynx-nonce';
 import { logError, logWarn, logInfo } from '@/lib/logger';
 import { sendFeedbackEmail } from '@/lib/email';
-import { createFeedbackToken, findFeedbackTokenByEventHash, getFeedbackBaseUrl } from '@/lib/feedback-token';
+import { createFeedbackToken, findFeedbackTokenByEventHash, findRecentFeedbackToken, getFeedbackBaseUrl } from '@/lib/feedback-token';
 
 let lastSplynxNonce = 0;
 
-function isRecord(value: unknown): value is Record<string, unknown> {
+type JsonValue = string | number | boolean | null | JsonValue[] | { [key: string]: JsonValue };
+
+function isRecord(value: JsonValue): value is Record<string, JsonValue> {
   return typeof value === 'object' && value !== null && !Array.isArray(value);
 }
 
-function getString(value: unknown): string {
-  if (typeof value === 'string') return value;
-  if (typeof value === 'number') return String(value);
+function isStringValue(value: JsonValue): value is string {
+  return typeof value === 'string';
+}
+
+function isNumberValue(value: JsonValue): value is number {
+  return typeof value === 'number';
+}
+
+function getString(value: JsonValue): string {
+  if (isStringValue(value)) return value;
+  if (isNumberValue(value)) return String(value);
   return '';
 }
 
@@ -44,7 +54,7 @@ function verifySignature(payload: string, signature: string, secret: string): bo
   }
 }
 
-function setFormValue(target: Record<string, unknown>, key: string, value: string) {
+function setFormValue(target: Record<string, JsonValue>, key: string, value: string) {
   const parts = key.split(/\[|\]/).filter(Boolean);
   if (!parts.length || parts.some((part) => ['__proto__', 'prototype', 'constructor'].includes(part))) {
     return;
@@ -55,14 +65,16 @@ function setFormValue(target: Record<string, unknown>, key: string, value: strin
     if (!isRecord(cursor[part])) {
       cursor[part] = {};
     }
-    cursor = cursor[part] as Record<string, unknown>;
+    // SAFETY: the previous iteration just wrote a fresh empty object (or the
+    // guard above established it is a record), so the branch value is a record.
+    cursor = cursor[part] as Record<string, JsonValue>;
   }
 
   cursor[parts[parts.length - 1]] = value;
 }
 
-function parseFormWebhookPayload(rawBody: string): Record<string, unknown> {
-  const payload: Record<string, unknown> = {};
+function parseFormWebhookPayload(rawBody: string) {
+  const payload = {};
   const params = new URLSearchParams(rawBody);
 
   params.forEach((value, key) => {
@@ -72,7 +84,7 @@ function parseFormWebhookPayload(rawBody: string): Record<string, unknown> {
   return payload;
 }
 
-function parseWebhookPayload(rawBody: string, contentType: string): Record<string, unknown> {
+function parseWebhookPayload(rawBody: string, contentType: string) {
   const normalizedContentType = contentType.toLowerCase();
 
   if (normalizedContentType.includes('application/x-www-form-urlencoded')) {
@@ -93,7 +105,7 @@ async function nextSplynxNonce(): Promise<string> {
     const next = await incrementNonce('default');
     lastSplynxNonce = Math.max(Date.now(), Number(next), lastSplynxNonce + 1);
     return String(lastSplynxNonce);
-  } catch (err) {
+  } catch {
     lastSplynxNonce = Math.max(Date.now(), lastSplynxNonce + 1);
     return String(lastSplynxNonce);
   }
@@ -130,7 +142,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Invalid signature' }, { status: 401 });
     }
 
-    let payload: Record<string, unknown>;
+    let payload: Record<string, JsonValue>;
     try {
       payload = parseWebhookPayload(rawBody, request.headers.get('content-type') || '');
     } catch {
@@ -153,8 +165,13 @@ export async function POST(request: NextRequest) {
 
     const db = getAdminFirestore();
 
+    // Note: real-time Firestore mirror updates were removed — the hourly
+    // MariaDB sync (splynx-sync-db.ts) reconciles customers/invoices from the
+    // Splynx API and mirrors to Firestore best-effort, so per-event mirrors
+    // were redundant and burned Firestore quota.
+
     const eventHash = createHash('sha256').update(rawBody).digest('hex');
-    const existingToken = await findFeedbackTokenByEventHash(db, eventHash);
+    const existingToken = await findFeedbackTokenByEventHash(eventHash);
     if (existingToken) {
       const baseUrl = getFeedbackBaseUrl(request);
       const feedbackUrl = `${baseUrl}/feedback?token=${existingToken.token}`;
@@ -170,7 +187,7 @@ export async function POST(request: NextRequest) {
       });
     }
 
-    const customerData: Record<string, string> = {
+    const customerData = {
       customerName: getString(attributes.name) || getString(attributes.customer_name) || `Customer #${customerId || 'unknown'}`,
       customerEmail: getString(attributes.email),
       servicePlan: getString(attributes.tariff_name) || getString(attributes.plan_name) || getString(attributes.service_name),
@@ -178,6 +195,30 @@ export async function POST(request: NextRequest) {
       serviceDate: getString(eventData.date),
       sourceEvent: call || model,
     };
+
+    // Deduplicate by customer + event type (24h window)
+    if (customerData.customerEmail && customerData.sourceEvent) {
+      const recentToken = await findRecentFeedbackToken(customerData.customerEmail, customerData.sourceEvent);
+      if (recentToken) {
+        const baseUrl = getFeedbackBaseUrl(request);
+        const feedbackUrl = `${baseUrl}/feedback?token=${recentToken.token}`;
+        const popupUrl = `${baseUrl}/feedback/popup?token=${recentToken.token}&embed=true`;
+        logInfo('[splynx-webhook] Duplicate customer+event, reusing recent token', {
+          customerId,
+          customerEmail: customerData.customerEmail,
+          sourceEvent: customerData.sourceEvent,
+        });
+        return NextResponse.json({
+          success: true,
+          deduped: true,
+          token: recentToken.token,
+          url: feedbackUrl,
+          popupUrl,
+          embedHtml: `<iframe src="${popupUrl}" width="100%" height="500" frameborder="0" style="border-radius: 12px; border: 1px solid #e5e7eb;"></iframe>`,
+          customer: { name: customerData.customerName, email: customerData.customerEmail },
+        });
+      }
+    }
 
     const splynxHost = process.env.SPLYNX_API_HOST;
     const splynxKey = process.env.SPLYNX_API_KEY;
@@ -204,6 +245,13 @@ export async function POST(request: NextRequest) {
       } catch (apiErr) {
         logWarn('[splynx-webhook] Splynx API fetch failed', { customerId, error: String(apiErr) });
       }
+    }
+
+    // No email = no feedback token, no send. Avoids useless tokens for events
+    // without customer context (e.g. system events).
+    if (!customerData.customerEmail) {
+      logInfo('[splynx-webhook] No customer email, skipping token creation', { customerId, sourceEvent: customerData.sourceEvent });
+      return NextResponse.json({ success: true, skipped: true, reason: 'no_customer_email' });
     }
 
     const { token } = await createFeedbackToken(db, {
