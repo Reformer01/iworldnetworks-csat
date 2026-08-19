@@ -17,8 +17,10 @@ import {
   LogOut,
   BarChart3,
   Wifi,
-  FileText,
   Users,
+  CheckCircle2,
+  Mail,
+  Megaphone,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
@@ -34,9 +36,12 @@ interface SalesLayoutProps {
 const salesNavItems = [
   { name: 'Dashboard', href: '/admin/sales', icon: TrendingUp },
   { name: 'Monthly Revenue', href: '/admin/sales/monthly-revenue', icon: BarChart3 },
+  { name: 'Customers', href: '/admin/customers', icon: Users },
   { name: 'BTS Audit', href: '/admin/bts/audit', icon: Wifi },
   { name: 'BTS Customers', href: '/admin/bts/customers', icon: Users },
-  { name: 'BTS Import', href: '/admin/bts/import', icon: FileText },
+  { name: 'BTS Review', href: '/admin/bts/review', icon: CheckCircle2 },
+  { name: 'Emails', href: '/admin/emails', icon: Mail },
+  { name: 'Campaigns', href: '/admin/campaigns', icon: Megaphone },
   { name: 'Records', href: '/admin/sales/records', icon: Database },
   { name: 'Import Data', href: '/admin/sales/import', icon: Upload },
   { name: 'Targets', href: '/admin/sales/targets', icon: Target },

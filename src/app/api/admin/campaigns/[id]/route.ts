@@ -4,7 +4,7 @@ import { verifyAdminToken, verifySuperAdminToken } from '@/lib/admin-auth';
 import { isRateLimited } from '@/lib/rate-limit';
 import { success, error, unauthorized, forbidden, tooMany, notFound, serverError, validateOrigin } from '@/lib/api-response';
 import { logError } from '@/lib/logger';
-import { serializeCampaign, sendCampaign, retryCampaignFailed, finalizeCampaignStatus } from '@/lib/services/campaign-service';
+import { serializeCampaign, sendCampaign, retryCampaignFailed, getCampaignStats, finalizeCampaignStatus } from '@/lib/services/campaign-service';
 
 export const dynamic = 'force-dynamic';
 
@@ -21,7 +21,8 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
     if (!campaign) return notFound('Campaign not found');
 
     const status = await finalizeCampaignStatus(campaign);
-    return success(serializeCampaign({ ...campaign, status }));
+    const stats = await getCampaignStats(id);
+    return success({ ...serializeCampaign({ ...campaign, status }), stats });
   } catch (err: unknown) {
     const message = err instanceof Error ? err.message : 'Unknown error';
     logError('[admin-campaigns-id] GET error', { error: message });

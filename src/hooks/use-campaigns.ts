@@ -21,6 +21,7 @@ export interface CampaignRecord {
   error: string | null;
   createdAt: number;
   updatedAt: number;
+  stats?: { total: number; pending: number; processing: number; sent: number; failed: number };
 }
 
 export interface CampaignSegmentOptions {
