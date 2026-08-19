@@ -11,6 +11,7 @@ export async function createEmailJob(input: {
   customerName?: string | null;
   payload: Prisma.InputJsonValue;
   status?: string;
+  campaignId?: string | null;
 }): Promise<string> {
   const record = await prisma.emailJob.create({
     data: {
@@ -20,6 +21,7 @@ export async function createEmailJob(input: {
       customerName: input.customerName ?? null,
       payload: input.payload,
       status: input.status ?? 'pending',
+      campaignId: input.campaignId ?? null,
     },
     select: { id: true },
   });
