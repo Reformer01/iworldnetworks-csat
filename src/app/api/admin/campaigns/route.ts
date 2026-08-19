@@ -20,12 +20,14 @@ export async function GET(request: NextRequest) {
 
     const { searchParams } = new URL(request.url);
     const status = searchParams.get('status') || undefined;
+    const type = searchParams.get('type') || undefined;
     const search = searchParams.get('search')?.toLowerCase();
     const page = Math.max(1, parseInt(searchParams.get('page') || '1'));
     const pageSize = Math.min(Math.max(1, parseInt(searchParams.get('pageSize') || '50')), 200);
 
-    const where: { status?: string; OR?: { name: { contains: string } }[] } = {};
+    const where: { status?: string; type?: string; OR?: { name: { contains: string } }[] } = {};
     if (status) where.status = status;
+    if (type) where.type = type;
     if (search) where.OR = [{ name: { contains: search } }];
 
     const [records, total] = await Promise.all([

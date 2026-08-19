@@ -24,12 +24,17 @@ export interface CampaignRecord {
   stats?: { total: number; pending: number; processing: number; sent: number; failed: number };
 }
 
+export interface CampaignSegmentOption {
+  value: string;
+  count: number;
+}
+
 export interface CampaignSegmentOptions {
-  lifecycle: string[];
-  city: string[];
-  status: string[];
-  servicePlan: string[];
-  bts: string[];
+  lifecycle: CampaignSegmentOption[];
+  city: CampaignSegmentOption[];
+  status: CampaignSegmentOption[];
+  servicePlan: CampaignSegmentOption[];
+  bts: CampaignSegmentOption[];
 }
 
 interface CampaignsResponse {
@@ -40,7 +45,7 @@ interface CampaignsResponse {
   totalPages: number;
 }
 
-export function useCampaigns(params?: { status?: string; search?: string; page?: number; pageSize?: number }) {
+export function useCampaigns(params?: { status?: string; type?: string; search?: string; page?: number; pageSize?: number }) {
   const auth = useAuth();
   const { user, loading: authLoading } = useUser(auth);
   const [records, setRecords] = useState<CampaignRecord[]>([]);
@@ -63,6 +68,7 @@ export function useCampaigns(params?: { status?: string; search?: string; page?:
         const token = await user.getIdToken();
         const sp = new URLSearchParams();
         if (params?.status) sp.set('status', params.status);
+        if (params?.type) sp.set('type', params.type);
         if (params?.search) sp.set('search', params.search);
         if (params?.page) sp.set('page', String(params.page));
         if (params?.pageSize) sp.set('pageSize', String(params.pageSize));
@@ -83,7 +89,7 @@ export function useCampaigns(params?: { status?: string; search?: string; page?:
         if (showLoading) setLoading(false);
       }
     },
-    [user, authLoading, params?.status, params?.search, params?.page, params?.pageSize],
+    [user, authLoading, params?.status, params?.type, params?.search, params?.page, params?.pageSize],
   );
 
   useEffect(() => {
@@ -130,6 +136,10 @@ export async function campaignAction(
   action: 'send' | 'cancel' | 'retry',
 ): Promise<{ status: string; recipients?: number; retried?: number }> {
   return authedFetch(user, `/api/admin/campaigns/${id}`, { method: 'POST', body: JSON.stringify({ action }) });
+}
+
+export async function deleteCampaign(user: User, id: string): Promise<{ ok: boolean }> {
+  return authedFetch(user, `/api/admin/campaigns/${id}`, { method: 'DELETE' });
 }
 
 export async function fetchSegments(user: User): Promise<CampaignSegmentOptions> {

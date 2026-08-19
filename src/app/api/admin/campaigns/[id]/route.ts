@@ -130,3 +130,30 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
     return serverError();
   }
 }
+
+// DELETE is super-admin only. Removes the campaign and its EmailJob rows
+// (campaign emails are meaningless without the campaign).
+export async function DELETE(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+  try {
+    if (isRateLimited(request, 30, 60 * 1000)) return tooMany();
+    if (!validateOrigin(request)) return forbidden();
+
+    const admin = await verifySuperAdminToken(request.headers.get('authorization'));
+    if (!admin) return unauthorized();
+
+    const { id } = await params;
+    const campaign = await prisma.campaign.findUnique({ where: { id } });
+    if (!campaign) return notFound('Campaign not found');
+
+    await prisma.$transaction([
+      prisma.emailJob.deleteMany({ where: { campaignId: id } }),
+      prisma.campaign.delete({ where: { id } }),
+    ]);
+
+    return success({ ok: true, deleted: id });
+  } catch (err: unknown) {
+    const message = err instanceof Error ? err.message : 'Unknown error';
+    logError('[admin-campaigns-id] DELETE error', { error: message });
+    return serverError();
+  }
+}

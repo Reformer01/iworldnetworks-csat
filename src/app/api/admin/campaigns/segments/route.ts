@@ -8,22 +8,28 @@ import { countAudience, resolveAudienceIds, Audience } from '@/lib/services/camp
 
 export const dynamic = 'force-dynamic';
 
-// Segment options for the campaign builder. Values come from the unified
-// Customer table (Splynx commercial tags + UISP BTS data).
+// Segment options for the campaign builder, with per-option audience counts.
+// Values come from the unified Customer table (Splynx commercial tags + UISP
+// BTS data).
 async function getSegmentOptions() {
   const [lifecycles, cities, statuses, servicePlans, bts] = await Promise.all([
-    prisma.customer.findMany({ where: { deleted: false }, distinct: ['lifecycle'], select: { lifecycle: true } }),
-    prisma.customer.findMany({ where: { deleted: false }, distinct: ['city'], select: { city: true } }),
-    prisma.customer.findMany({ where: { deleted: false }, distinct: ['status'], select: { status: true } }),
-    prisma.customer.findMany({ where: { deleted: false }, distinct: ['servicePlan'], select: { servicePlan: true } }),
-    prisma.customer.findMany({ where: { deleted: false }, distinct: ['btsId'], select: { btsId: true } }),
+    prisma.customer.groupBy({ by: ['lifecycle'], where: { deleted: false }, _count: { _all: true } }),
+    prisma.customer.groupBy({ by: ['city'], where: { deleted: false }, _count: { _all: true } }),
+    prisma.customer.groupBy({ by: ['status'], where: { deleted: false }, _count: { _all: true } }),
+    prisma.customer.groupBy({ by: ['servicePlan'], where: { deleted: false }, _count: { _all: true } }),
+    prisma.customer.groupBy({ by: ['btsId'], where: { deleted: false }, _count: { _all: true } }),
   ]);
+  const toOptions = (rows: Array<Record<string, unknown> & { _count: { _all: number } }>, key: string) =>
+    rows
+      .filter((r) => !!r[key])
+      .map((r) => ({ value: String(r[key]), count: r._count._all }))
+      .sort((a, b) => b.count - a.count);
   return {
-    lifecycle: lifecycles.map((r) => r.lifecycle).filter((v): v is string => !!v),
-    city: cities.map((r) => r.city).filter((v): v is string => !!v),
-    status: statuses.map((r) => r.status).filter((v): v is string => !!v),
-    servicePlan: servicePlans.map((r) => r.servicePlan).filter((v): v is string => !!v),
-    bts: bts.map((r) => r.btsId).filter((v): v is string => !!v),
+    lifecycle: toOptions(lifecycles, 'lifecycle'),
+    city: toOptions(cities, 'city'),
+    status: toOptions(statuses, 'status'),
+    servicePlan: toOptions(servicePlans, 'servicePlan'),
+    bts: toOptions(bts, 'btsId'),
   };
 }
 

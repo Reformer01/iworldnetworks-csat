@@ -33,6 +33,7 @@ export function CampaignForm({ user, onCreated }: { user: User; onCreated: (id: 
   const [audienceType, setAudienceType] = useState('all');
   const [values, setValues] = useState<string[]>([]);
   const [options, setOptions] = useState<CampaignSegmentOptions | null>(null);
+  const [optionSearch, setOptionSearch] = useState('');
   const [count, setCount] = useState<number | null>(null);
   const [counting, setCounting] = useState(false);
   const [submitting, setSubmitting] = useState(false);
@@ -62,6 +63,12 @@ export function CampaignForm({ user, onCreated }: { user: User; onCreated: (id: 
     setValues((prev) => (prev.includes(v) ? prev.filter((x) => x !== v) : [...prev, v]));
   };
 
+  const optionList = audienceType === 'all' ? [] : (options?.[audienceType as keyof CampaignSegmentOptions] || []);
+  const filteredOptions = optionSearch.trim()
+    ? optionList.filter((o) => o.value.toLowerCase().includes(optionSearch.trim().toLowerCase()))
+    : optionList;
+  const selectedCount = optionList.filter((o) => values.includes(o.value)).reduce((sum, o) => sum + o.count, 0);
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!name.trim() || !subject.trim() || !text.trim()) {
@@ -79,8 +86,6 @@ export function CampaignForm({ user, onCreated }: { user: User; onCreated: (id: 
       setSubmitting(false);
     }
   };
-
-  const optionList = audienceType === 'all' ? [] : options?.[audienceType as keyof CampaignSegmentOptions] || [];
 
   return (
     <form onSubmit={handleSubmit} className="space-y-6">
@@ -151,6 +156,7 @@ export function CampaignForm({ user, onCreated }: { user: User; onCreated: (id: 
             onValueChange={(v) => {
               setAudienceType(v);
               setValues([]);
+              setOptionSearch('');
               setCount(null);
             }}
           >
@@ -184,23 +190,40 @@ export function CampaignForm({ user, onCreated }: { user: User; onCreated: (id: 
         </div>
 
         {audienceType !== 'all' && (
-          <div className="flex flex-wrap gap-2">
-            {optionList.length === 0 && <p className="font-mono text-[10px] text-on-surface-variant/60">No options loaded.</p>}
-            {optionList.map((v) => (
-              <button
-                key={v}
-                type="button"
-                onClick={() => toggleValue(v)}
-                className={cn(
-                  'px-2.5 py-1 rounded-full font-mono text-[10px] uppercase font-bold border transition-colors',
-                  values.includes(v)
-                    ? 'bg-secondary text-white border-secondary'
-                    : 'bg-white text-on-surface-variant border-border hover:border-secondary/50',
-                )}
-              >
-                {v}
-              </button>
-            ))}
+          <div className="space-y-2">
+            <div className="flex flex-wrap items-center gap-2">
+              <Input
+                value={optionSearch}
+                onChange={(e) => setOptionSearch(e.target.value)}
+                placeholder={`Filter ${optionList.length} options...`}
+                className="w-56 rounded-xl font-mono text-[10px]"
+              />
+              <span className="font-mono text-[9px] uppercase tracking-widest text-on-surface-variant/60 font-bold">
+                {selectedCount.toLocaleString()} selected customers
+              </span>
+            </div>
+            {filteredOptions.length === 0 && (
+              <p className="font-mono text-[10px] text-on-surface-variant/60">
+                {optionList.length === 0 ? 'No options loaded.' : 'No options match the filter.'}
+              </p>
+            )}
+            <div className="flex flex-wrap gap-2">
+              {filteredOptions.map((o) => (
+                <button
+                  key={o.value}
+                  type="button"
+                  onClick={() => toggleValue(o.value)}
+                  className={cn(
+                    'px-2.5 py-1 rounded-full font-mono text-[10px] uppercase font-bold border transition-colors',
+                    values.includes(o.value)
+                      ? 'bg-secondary text-white border-secondary'
+                      : 'bg-white text-on-surface-variant border-border hover:border-secondary/50',
+                  )}
+                >
+                  {o.value} · {o.count.toLocaleString()}
+                </button>
+              ))}
+            </div>
           </div>
         )}
       </div>
