@@ -206,3 +206,17 @@ Start Phase 3: Email Status Tracking & Persistence - add EmailJob Prisma model a
 1. AWAITING user answer: consolidation design — merge churn surveys into Email Queue page (tabs) vs move under Sales nav vs show churn emails as EmailJob rows.
 2. Re-enable mail (remove MAIL_JOBS_DISABLED) after consolidation approved + verified.
 3. Optional: webhook empty-customer tokens (skip token creation when no email).
+
+---
+
+## Session 10: Mailing Hub — Tabs Consolidation
+**Date:** 2026-08-19
+**Status:** Completed
+
+### Completed
+- [x] Extracted page bodies into reusable components: `CampaignsTab`, `EmailsTab`, `ChurnTab` under `src/components/mailing/`
+- [x] Created `/admin/mailing` hub page with 3 tabs (Campaigns / Email Queue / Churn Surveys), deep-linkable via `?tab=`
+- [x] Thin wrappers keep old routes working (`/admin/campaigns`, `/admin/emails`, `/admin/churn`)
+- [x] SalesLayout nav: replaced "Emails" + "Campaigns" with single "Mailing" link (Megaphone icon)
+- [x] Campaign detail "View Emails" link → `/admin/mailing?tab=emails&campaignId=...`
+- [x] 522 tests pass, tsc clean, build OK, deployed — all pages auth-gated (307), mail still stopped
