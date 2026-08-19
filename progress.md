@@ -218,5 +218,24 @@ Start Phase 3: Email Status Tracking & Persistence - add EmailJob Prisma model a
 - [x] Created `/admin/mailing` hub page with 3 tabs (Campaigns / Email Queue / Churn Surveys), deep-linkable via `?tab=`
 - [x] Thin wrappers keep old routes working (`/admin/campaigns`, `/admin/emails`, `/admin/churn`)
 - [x] SalesLayout nav: replaced "Emails" + "Campaigns" with single "Mailing" link (Megaphone icon)
-- [x] Campaign detail "View Emails" link → `/admin/mailing?tab=emails&campaignId=...`
+- [x] Campaign detail "View Emails" link → hub with emails tab pre-selected
 - [x] 522 tests pass, tsc clean, build OK, deployed — all pages auth-gated (307), mail still stopped
+
+---
+
+## Session 11: Email Tracking + Webhook Fix + Mail Re-enabled
+**Date:** 2026-08-19
+**Status:** Completed
+
+### Completed
+- [x] **Track Splynx-triggered emails**: Added `createEmailJob()` calls in `splynx-sync-db.ts` before each direct email send (invoice reminders, churn surveys, win-back, overdue feedback). Every email now has an audit record in EmailJob table with type, customer, payload, status.
+- [x] **Fixed webhook empty customer data**: Skip token creation when no customer email (avoids useless tokens for system events). Verified: only Invoices/Payments events create tokens.
+- [x] **Re-enabled mail jobs**: Removed `MAIL_JOBS_DISABLED=true` from server `.env`, restarted. Worker started, sync running normally.
+- [x] **Overdue-feedback dedup verified**: `feedbackReminders: 0` on sync run (dedup prevents re-sends).
+- [x] All 522 tests pass, tsc clean, build OK, deployed.
+
+### Verification
+- Site: 200, Mailing hub: 307 (auth), APIs: 401 (auth-gated)
+- Email worker: Started
+- Sync: Running normally, no spam
+- Webhook: Only creates tokens for events with emails
