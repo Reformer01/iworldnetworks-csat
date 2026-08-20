@@ -2,9 +2,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { SalesLayout } from '@/components/layout/SalesLayout';
-import { useAuth, useUser } from '@/firebase';
-import { useBtsCustomers, deleteBtsCustomer } from '@/hooks/use-bts-data';
-import { useToast } from '@/hooks/use-toast';
+import { useBtsCustomers } from '@/hooks/use-bts-data';
 import { cn, toLocalDateString } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -12,21 +10,21 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import {
   Loader2,
   Search,
-  Trash2,
-  Database,
   ChevronLeft,
   ChevronRight,
   Users,
   Wifi,
   DollarSign,
-  TrendingUp,
+  CheckCircle2,
   ShieldAlert,
+  RadioTower,
+  Activity,
+  AlertTriangle,
 } from 'lucide-react';
 import { BTS_REGIONS } from '@/lib/bts-data';
-import { isSuperAdmin } from '@/lib/admin-config';
 
+const LIFECYCLES = ['active', 'blocked', 'inactive', 'churned'] as const;
 const ACCOUNT_TYPES = ['ENTERPRISE', 'RETAIL', 'SME', 'RESIDENTIAL', 'PARTNERS_HOSTS', 'NEIGHBOURHOOD', 'OTHER'];
-const STATUSES = ['Active', 'Inactive'];
 
 function formatNaira(amount: number) {
   if (amount >= 1000000) return '₦' + (amount / 1000000).toFixed(2) + 'M';
@@ -52,7 +50,26 @@ function KpiCard({ label, value, icon: Icon, color }: { label: string; value: st
   );
 }
 
-function AccountBadge({ type }: { type: string }) {
+function LifecycleBadge({ lifecycle }: { lifecycle: string | null }) {
+  const styles: Record<string, string> = {
+    active: 'bg-green-100 text-green-700',
+    blocked: 'bg-amber-100 text-amber-700',
+    inactive: 'bg-orange-100 text-orange-700',
+    churned: 'bg-zinc-200 text-zinc-600',
+  };
+  return (
+    <span
+      className={cn(
+        'px-2 py-0.5 rounded-full text-[10px] font-bold font-mono whitespace-nowrap',
+        styles[lifecycle || ''] || 'bg-zinc-100 text-zinc-500',
+      )}
+    >
+      {lifecycle || '—'}
+    </span>
+  );
+}
+
+function AccountBadge({ type }: { type: string | null }) {
   const styles: Record<string, string> = {
     ENTERPRISE: 'bg-purple-100 text-purple-700',
     RETAIL: 'bg-blue-100 text-blue-700',
@@ -62,24 +79,59 @@ function AccountBadge({ type }: { type: string }) {
     NEIGHBOURHOOD: 'bg-cyan-100 text-cyan-700',
     OTHER: 'bg-zinc-100 text-zinc-600',
   };
+  const t = type || 'OTHER';
   return (
-    <span className={cn('px-2 py-0.5 rounded-full text-[10px] font-bold font-mono whitespace-nowrap', styles[type] || styles.OTHER)}>
-      {type === 'NEIGHBOURHOOD' ? 'Neighbourhood' : type === 'PARTNERS_HOSTS' ? 'Partners & Hosts' : type}
+    <span className={cn('px-2 py-0.5 rounded-full text-[10px] font-bold font-mono whitespace-nowrap', styles[t] || styles.OTHER)}>
+      {t === 'NEIGHBOURHOOD' ? 'Neighbourhood' : t === 'PARTNERS_HOSTS' ? 'Partners & Hosts' : t}
     </span>
   );
 }
 
+function MatchBadge({ state }: { state: string }) {
+  const styles: Record<string, string> = {
+    matched: 'bg-emerald-100 text-emerald-700',
+    manual: 'bg-violet-100 text-violet-700',
+    pending: 'bg-amber-100 text-amber-700',
+  };
+  return (
+    <span className={cn('px-2 py-0.5 rounded-full text-[10px] font-bold font-mono whitespace-nowrap', styles[state] || styles.pending)}>
+      {state}
+    </span>
+  );
+}
+
+function DeviceBadge({ status, outages }: { status: string | null; outages: number | null }) {
+  const ok = status === 'active';
+  return (
+    <div className="flex flex-col gap-0.5">
+      <span
+        className={cn(
+          'px-2 py-0.5 rounded-full text-[10px] font-bold font-mono whitespace-nowrap w-fit',
+          ok
+            ? 'bg-green-100 text-green-700'
+            : status === 'down' || status === 'disabled'
+              ? 'bg-red-100 text-red-700'
+              : 'bg-zinc-100 text-zinc-500',
+        )}
+      >
+        {status || 'unknown'}
+      </span>
+      {outages != null && outages > 0 && (
+        <span className="text-[10px] font-mono font-bold text-red-600">
+          {outages} outage{outages === 1 ? '' : 's'}
+        </span>
+      )}
+    </div>
+  );
+}
+
 export default function BtsCustomersPage() {
-  const auth = useAuth();
-  const { user } = useUser(auth);
-  const { toast } = useToast();
   const [search, setSearch] = useState('');
   const [debouncedSearch, setDebouncedSearch] = useState('');
   const [filterRegion, setFilterRegion] = useState('__all');
-  const [filterStatus, setFilterStatus] = useState('__all');
+  const [filterLifecycle, setFilterLifecycle] = useState('__all');
   const [filterAccountType, setFilterAccountType] = useState('__all');
   const [page, setPage] = useState(1);
-  const [deletingId, setDeletingId] = useState<string | null>(null);
   const PAGE_SIZE = 50;
 
   useEffect(() => {
@@ -89,33 +141,19 @@ export default function BtsCustomersPage() {
 
   useEffect(() => {
     setPage(1);
-  }, [debouncedSearch, filterRegion, filterStatus, filterAccountType]);
+  }, [debouncedSearch, filterRegion, filterLifecycle, filterAccountType]);
 
-  const { records, summary, total, totalPages, loading, mutate } = useBtsCustomers({
+  const { records, summary, total, totalPages, loading } = useBtsCustomers({
     search: debouncedSearch || undefined,
     region: filterRegion !== '__all' ? filterRegion : undefined,
-    status: filterStatus !== '__all' ? filterStatus : undefined,
+    lifecycle: filterLifecycle !== '__all' ? filterLifecycle : undefined,
     accountType: filterAccountType !== '__all' ? filterAccountType : undefined,
     page,
     pageSize: PAGE_SIZE,
   });
 
-  const handleDelete = async (id: string, customerName: string) => {
-    if (!user) return;
-    if (!window.confirm(`Delete ${customerName}? This removes the record from view.`)) return;
-    setDeletingId(id);
-    try {
-      await deleteBtsCustomer(id, user);
-      toast({ title: 'Record deleted', description: `${customerName} has been removed.` });
-      mutate();
-    } catch (e) {
-      toast({ variant: 'destructive', title: 'Delete failed', description: e instanceof Error ? e.message : 'Unknown error' });
-    } finally {
-      setDeletingId(null);
-    }
-  };
-
-  const userIsSuper = isSuperAdmin(user?.email || '');
+  const coveragePct = summary && summary.total > 0 ? Math.round(((summary.matched + summary.manual) / summary.total) * 1000) / 10 : 0;
+  const pendingPct = summary && summary.total > 0 ? Math.round((summary.pending / summary.total) * 1000) / 10 : 0;
 
   return (
     <SalesLayout>
@@ -124,26 +162,37 @@ export default function BtsCustomersPage() {
           <div>
             <h1 className="text-2xl md:text-3xl font-display font-bold text-primary uppercase tracking-tight">BTS Customers</h1>
             <p className="font-mono text-[10px] uppercase tracking-widest font-bold mt-1 opacity-60">
-              Imported customer records by BTS station
+              Live unified roster &mdash; Splynx customers on UISP towers · Intelligence is the source of truth for accurate counts
             </p>
           </div>
           <div className="flex items-center gap-2 shrink-0">
+            <a
+              href="/admin/intelligence"
+              className="hidden sm:inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-secondary text-white font-mono text-[10px] uppercase font-bold"
+            >
+              <Activity className="w-3 h-3" /> Intelligence
+            </a>
             <Search className="w-4 h-4 text-on-surface-variant" />
             <Input
               value={search}
               onChange={(e) => setSearch(e.target.value)}
-              placeholder="Search name, site, plan..."
+              placeholder="Search name, email, login..."
               className="w-64 rounded-xl font-mono text-xs"
             />
           </div>
         </header>
 
-        <div className="grid grid-cols-2 lg:grid-cols-5 gap-3 md:gap-4 mb-6">
-          <KpiCard label="Total Customers" value={(summary?.totalCustomers ?? 0).toLocaleString()} icon={Users} color="bg-secondary" />
-          <KpiCard label="Active" value={(summary?.activeCustomers ?? 0).toLocaleString()} icon={TrendingUp} color="bg-emerald-500" />
-          <KpiCard label="Total MRR" value={formatNaira(summary?.totalMrr ?? 0)} icon={DollarSign} color="bg-amber-500" />
-          <KpiCard label="Enterprise" value={(summary?.enterpriseCustomers ?? 0).toLocaleString()} icon={Wifi} color="bg-violet-500" />
-          <KpiCard label="Retail" value={(summary?.retailCustomers ?? 0).toLocaleString()} icon={Database} color="bg-sky-500" />
+        <div className="grid grid-cols-2 lg:grid-cols-6 gap-3 md:gap-4 mb-6">
+          <KpiCard label="Total" value={(summary?.total ?? 0).toLocaleString()} icon={Users} color="bg-slate-900" />
+          <KpiCard label="Coverage" value={`${coveragePct}%`} icon={CheckCircle2} color="bg-emerald-600" />
+          <KpiCard label="Matched" value={(summary?.matched ?? 0).toLocaleString()} icon={Wifi} color="bg-emerald-500" />
+          <KpiCard label="Manual" value={(summary?.manual ?? 0).toLocaleString()} icon={ShieldAlert} color="bg-violet-500" />
+          <KpiCard label="Pending" value={`${pendingPct}%`} icon={AlertTriangle} color="bg-amber-500" />
+          <KpiCard label="Towers" value={(summary?.towers ?? 0).toLocaleString()} icon={RadioTower} color="bg-sky-500" />
+        </div>
+        <div className="mb-4 font-mono text-[10px] leading-relaxed bg-amber-50 border border-amber-200 rounded-xl px-3 py-2 text-amber-800">
+          <strong>Coverage = (Matched + Manual) ÷ Total.</strong> Pending = need review. MRR below is active customers only — see
+          Intelligence for full breakdowns by region, BTS, plan, and payment.
         </div>
 
         <div className="flex flex-wrap items-center gap-3 mb-4">
@@ -160,15 +209,15 @@ export default function BtsCustomersPage() {
               ))}
             </SelectContent>
           </Select>
-          <Select value={filterStatus} onValueChange={setFilterStatus}>
+          <Select value={filterLifecycle} onValueChange={setFilterLifecycle}>
             <SelectTrigger className="w-[150px] rounded-xl font-mono text-[10px] uppercase font-bold">
-              <SelectValue placeholder="All Statuses" />
+              <SelectValue placeholder="All Lifecycles" />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="__all">All Statuses</SelectItem>
-              {STATUSES.map((s) => (
-                <SelectItem key={s} value={s}>
-                  {s}
+              <SelectItem value="__all">All Lifecycles</SelectItem>
+              {LIFECYCLES.map((l) => (
+                <SelectItem key={l} value={l}>
+                  {l}
                 </SelectItem>
               ))}
             </SelectContent>
@@ -187,7 +236,7 @@ export default function BtsCustomersPage() {
             </SelectContent>
           </Select>
           <span className="ml-auto font-mono text-[10px] uppercase tracking-widest opacity-60 font-bold">
-            {total.toLocaleString()} record{total === 1 ? '' : 's'}
+            {total.toLocaleString()} customer{total === 1 ? '' : 's'}
           </span>
         </div>
 
@@ -208,53 +257,45 @@ export default function BtsCustomersPage() {
               <table className="w-full text-left border-collapse">
                 <thead>
                   <tr className="border-b border-border/80 font-mono text-[10px] text-on-surface-variant font-bold uppercase tracking-widest">
-                    <th className="py-3 px-4">S/N</th>
+                    <th className="py-3 px-4">Tower</th>
                     <th className="py-3 px-4">Customer</th>
-                    <th className="py-3 px-4">BTS Site</th>
-                    <th className="py-3 px-4">Region</th>
-                    <th className="py-3 px-4">Status</th>
+                    <th className="py-3 px-4">Lifecycle</th>
                     <th className="py-3 px-4">Account Type</th>
-                    <th className="py-3 px-4 text-right">MRC</th>
-                    <th className="py-3 px-4 text-right">Imported</th>
-                    {userIsSuper && <th className="py-3 px-4 text-right">Actions</th>}
+                    <th className="py-3 px-4 text-right">MRR</th>
+                    <th className="py-3 px-4">Device Status</th>
+                    <th className="py-3 px-4">Match</th>
+                    <th className="py-3 px-4 text-right">Matched At</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-border/40 font-body text-sm">
                   {records.map((r) => (
                     <tr key={r.id} className="hover:bg-surface-container-lowest transition-colors">
-                      <td className="py-2.5 px-4 font-mono text-xs text-on-surface-variant">{r.serialNumber ?? '—'}</td>
-                      <td className="py-2.5 px-4 font-bold text-primary whitespace-nowrap">{r.customerName || '—'}</td>
-                      <td className="py-2.5 px-4 font-mono text-[11px] whitespace-nowrap">{r.btsName || '—'}</td>
-                      <td className="py-2.5 px-4 font-mono text-[11px]">{r.region || '—'}</td>
                       <td className="py-2.5 px-4">
-                        <span
-                          className={cn(
-                            'px-2 py-0.5 rounded-full text-[10px] font-bold font-mono',
-                            r.status === 'Active' ? 'bg-green-100 text-green-700' : 'bg-zinc-100 text-zinc-600',
-                          )}
-                        >
-                          {r.status || '—'}
-                        </span>
+                        <div className="flex items-center gap-2">
+                          <Wifi className="w-3.5 h-3.5 text-secondary shrink-0" />
+                          <span className="font-mono text-[11px] font-bold whitespace-nowrap">{r.btsName || '—'}</span>
+                        </div>
                       </td>
                       <td className="py-2.5 px-4">
-                        <AccountBadge type={r.accountType || 'OTHER'} />
+                        <p className="font-bold text-primary whitespace-nowrap">{r.customerName || '—'}</p>
+                        <p className="font-mono text-[10px] text-on-surface-variant/60 truncate max-w-[220px]">{r.email || ''}</p>
                       </td>
-                      <td className="py-2.5 px-4 text-right font-mono font-bold">{formatNaira(r.mrc || 0)}</td>
-                      <td className="py-2.5 px-4 text-right font-mono text-[11px] text-on-surface-variant">
-                        {r.createdAt ? toLocalDateString(new Date(r.createdAt)) : '—'}
+                      <td className="py-2.5 px-4">
+                        <LifecycleBadge lifecycle={r.lifecycle} />
                       </td>
-                      {userIsSuper && (
-                        <td className="py-2.5 px-4 text-right">
-                          <button
-                            onClick={() => handleDelete(r.id, r.customerName || r.id)}
-                            disabled={deletingId === r.id}
-                            className="text-on-surface-variant hover:text-destructive transition-colors disabled:opacity-40"
-                            title="Delete record"
-                          >
-                            {deletingId === r.id ? <Loader2 className="w-4 h-4 animate-spin" /> : <Trash2 className="w-4 h-4" />}
-                          </button>
-                        </td>
-                      )}
+                      <td className="py-2.5 px-4">
+                        <AccountBadge type={r.accountType} />
+                      </td>
+                      <td className="py-2.5 px-4 text-right font-mono font-bold">{formatNaira(r.mrrTotal ?? 0)}</td>
+                      <td className="py-2.5 px-4">
+                        <DeviceBadge status={r.uispDeviceStatus} outages={r.uispOutageCount} />
+                      </td>
+                      <td className="py-2.5 px-4">
+                        <MatchBadge state={r.matchState || 'pending'} />
+                      </td>
+                      <td className="py-2.5 px-4 text-right font-mono text-[11px] text-on-surface-variant whitespace-nowrap">
+                        {r.matchedAt ? toLocalDateString(new Date(r.matchedAt)) : '—'}
+                      </td>
                     </tr>
                   ))}
                 </tbody>

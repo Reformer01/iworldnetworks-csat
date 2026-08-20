@@ -1,5 +1,4 @@
 import { NextRequest } from 'next/server';
-import { getAdminFirestore } from '@/lib/firebase-admin';
 import { verifyAdminToken } from '@/lib/admin-auth';
 import { isSuperAdmin, isEditor } from '@/lib/admin-config';
 import { isRateLimited } from '@/lib/rate-limit';
@@ -7,6 +6,17 @@ import { writeAuditLog } from '@/lib/audit-log';
 import type { SupportRevenueDoc } from '@/lib/support-revenue-types';
 import { error, serverError, unauthorized, forbidden, tooMany, notFound, success, validateOrigin } from '@/lib/api-response';
 import { logError } from '@/lib/logger';
+import {
+  listSupportRevenueDb,
+  createSupportRevenueDb,
+  updateSupportRevenueDb,
+  softDeleteSupportRevenueDb,
+  supportRevenueFromRow,
+  mirrorSupportRevenueCreated,
+  mirrorSupportRevenueUpdated,
+  mirrorSupportRevenueDeleted,
+} from '@/lib/support-revenue-db';
+import { prisma } from '@/lib/prisma';
 
 export const dynamic = 'force-dynamic';
 
@@ -24,29 +34,15 @@ export async function GET(request: NextRequest) {
       return unauthorized();
     }
 
-    const db = getAdminFirestore();
-    let query = db.collection('support_revenue').orderBy('createdAt', 'desc');
-
     const { searchParams } = new URL(request.url);
     const projectType = searchParams.get('projectType');
-    if (projectType) query = query.where('projectType', '==', projectType);
 
-    const snapshot = await query.limit(2000).get();
-    const docs = snapshot.docs;
-
-    const records: SupportRevenueDoc[] = docs
-      .filter((doc) => !doc.data().deletedAt)
-      .map((doc) => ({ id: doc.id, ...doc.data() }) as SupportRevenueDoc);
+    const records = await listSupportRevenueDb(projectType, 2000);
 
     return success({ records, count: records.length });
   } catch (err: unknown) {
     const message = err instanceof Error ? err.message : 'Unknown error';
     logError('[admin-support-revenue] GET error', { error: message });
-
-    if (message.includes('requires an index') || message.includes('FAILED_PRECONDITION')) {
-      return error('Query requires a Firestore composite index. Run: firebase deploy --only firestore:indexes', 412);
-    }
-
     return serverError();
   }
 }
@@ -74,28 +70,31 @@ export async function POST(request: NextRequest) {
     const totalAmount =
       items?.reduce((sum: number, item: { quantity: number; unitPrice: number }) => sum + item.quantity * item.unitPrice, 0) || 0;
 
-    const db = getAdminFirestore();
-    const docRef = await db.collection('support_revenue').add({
+    const now = Date.now();
+    const doc: SupportRevenueDoc = {
       location,
       projectType,
       items,
       description,
       customerName,
       totalAmount,
-      createdAt: Date.now(),
-      updatedAt: Date.now(),
-    });
+      createdAt: now,
+      updatedAt: now,
+    };
+
+    const created = await createSupportRevenueDb(doc);
+    void mirrorSupportRevenueCreated(created);
 
     await writeAuditLog({
       action: 'create',
       collection: 'support_revenue',
-      recordId: docRef.id,
+      recordId: created.id,
       userId: admin.uid,
       userEmail: admin.email,
       changes: body,
     });
 
-    return success({ id: docRef.id }, 201);
+    return success({ id: created.id }, 201);
   } catch (err: unknown) {
     const message = err instanceof Error ? err.message : 'Unknown error';
     logError('[admin-support-revenue] POST error', { error: message });
@@ -126,28 +125,30 @@ export async function PUT(request: NextRequest) {
     }
 
     const { id, items, ...rest } = body;
-    const ALLOWED_FIELDS = ['location', 'projectType', 'description', 'customerName', 'totalAmount'];
-    const updateData: Record<string, unknown> = { updatedAt: Date.now() };
+    const ALLOWED_FIELDS: (keyof SupportRevenueDoc)[] = ['location', 'projectType', 'description', 'customerName', 'totalAmount'];
+    const updateData: Partial<SupportRevenueDoc> = { updatedAt: Date.now() };
     for (const key of ALLOWED_FIELDS) {
       if (key in rest) updateData[key] = rest[key];
     }
 
-    const db = getAdminFirestore();
-    const docRef = db.collection('support_revenue').doc(id);
-    const prev = await docRef.get();
-
-    if (!prev.exists) {
+    const row = await prisma.supportRevenue.findUnique({ where: { id } });
+    if (!row || row.deletedAt != null) {
       return notFound('Record not found.');
     }
+    const prev = supportRevenueFromRow(row);
 
-    const updates: Record<string, unknown> = { ...updateData };
+    const updates: Partial<SupportRevenueDoc> = { ...updateData };
 
     if (items !== undefined) {
+      updates.items = items;
       updates.totalAmount =
         items.reduce((sum: number, item: { quantity: number; unitPrice: number }) => sum + item.quantity * item.unitPrice, 0) || 0;
     }
 
-    await docRef.update(updates);
+    const updated = await updateSupportRevenueDb(id, { ...prev, ...updates });
+    if (updated) {
+      void mirrorSupportRevenueUpdated(id, updates);
+    }
 
     await writeAuditLog({
       action: 'update',
@@ -156,7 +157,7 @@ export async function PUT(request: NextRequest) {
       userId: admin.uid,
       userEmail: admin.email,
       changes: updateData,
-      previousState: prev.data() as Record<string, unknown>,
+      previousState: { ...prev },
     });
 
     return success({});
@@ -189,18 +190,14 @@ export async function DELETE(request: NextRequest) {
       return error('Record ID required.');
     }
 
-    const db = getAdminFirestore();
-    const docRef = db.collection('support_revenue').doc(body.id);
-    const doc = await docRef.get();
-
-    if (!doc.exists) {
+    const row = await prisma.supportRevenue.findUnique({ where: { id: body.id } });
+    if (!row) {
       return notFound('Record not found.');
     }
 
-    await docRef.update({
-      deletedAt: Date.now(),
-      updatedAt: Date.now(),
-    });
+    const now = Date.now();
+    await softDeleteSupportRevenueDb(body.id, now, now);
+    void mirrorSupportRevenueDeleted(body.id, now, now);
 
     await writeAuditLog({
       action: 'delete',
@@ -208,7 +205,7 @@ export async function DELETE(request: NextRequest) {
       recordId: body.id,
       userId: admin.uid,
       userEmail: admin.email,
-      previousState: doc.data() as Record<string, unknown>,
+      previousState: { ...supportRevenueFromRow(row) },
     });
 
     return success({ action: 'deleted' });

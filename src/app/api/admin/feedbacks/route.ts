@@ -6,16 +6,24 @@ import { success, unauthorized, serverError, error, notFound, forbidden, tooMany
 import { writeAuditLog } from '@/lib/audit-log';
 import type { FeedbackDoc } from '@/lib/feedback-types';
 import { logError } from '@/lib/logger';
+import { withCache, clearRouteCache } from '@/lib/route-cache';
+import { getFeedbacks } from '@/lib/lib/db/feedbacks';
 
 export const dynamic = 'force-dynamic';
 
-interface FeedbackQuery {
-  category?: string;
-  location?: string;
-  staffName?: string;
-  status?: string;
-  limit?: number;
-  page?: number;
+// Strangler-fig flag: when '1', reads come from MariaDB via Prisma. Defaults
+// to Firestore until the one-time data migration lands (see migration plan).
+const useDb = process.env.FEEDBACKS_DB === '1';
+
+async function fetchAllFeedbacks(): Promise<FeedbackDoc[]> {
+  if (useDb) {
+    return getFeedbacks(1000);
+  }
+  const db = getAdminFirestore();
+  const snapshot = await withCache('feedbacks-latest-1000', 60 * 1000, async () =>
+    db.collection('feedbacks').orderBy('timestamp', 'desc').limit(1000).get(),
+  );
+  return snapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() }));
 }
 
 export async function GET(request: NextRequest) {
@@ -35,29 +43,23 @@ export async function GET(request: NextRequest) {
     const { searchParams } = new URL(request.url);
     const category = searchParams.get('category');
     const location = searchParams.get('location');
-    const staffName = searchParams.get('staffName');
     const status = searchParams.get('status');
     const limit = Math.min(parseInt(searchParams.get('limit') || '50'), 1000);
     const page = Math.max(1, parseInt(searchParams.get('page') || '1'));
     const start = (page - 1) * limit;
 
-    const db = getAdminFirestore();
-    let query = db.collection('feedbacks').orderBy('timestamp', 'desc');
+    let docs = await fetchAllFeedbacks();
 
-    if (category) query = query.where('category', '==', category);
-    if (location) query = query.where('location', '==', location);
-    if (status) query = query.where('status', '==', status);
-
-    const snapshot = await query.limit(limit + start).get();
-    const docs = snapshot.docs;
+    if (category) docs = docs.filter((doc) => doc.category === category);
+    if (location) docs = docs.filter((doc) => doc.location === location);
+    if (status) docs = docs.filter((doc) => doc.status === status);
 
     if (docs.length <= start) {
-      return success({ feedbacks: [], page, pageSize: limit, total: 0 });
+      return success({ feedbacks: [], page, pageSize: limit, total: docs.length });
     }
 
-    const filtered = docs.slice(start, start + limit);
-    const feedbacks: FeedbackDoc[] = filtered.map((doc) => ({ id: doc.id, ...doc.data() }) as FeedbackDoc);
-    const total = Math.max(snapshot.size - start, 0);
+    const feedbacks = docs.slice(start, start + limit);
+    const total = docs.length;
 
     return success({
       feedbacks,
@@ -97,8 +99,18 @@ export async function PUT(request: NextRequest) {
     }
 
     const { id, ...rest } = body;
-    const ALLOWED_FIELDS = ['status', 'staffName', 'category', 'comment', 'location', 'servicePlan', 'ratings', 'satisfied', 'aiAnalysis'];
-    const updates: Record<string, unknown> = { updatedAt: Date.now() };
+    const ALLOWED_FIELDS: (keyof FeedbackDoc)[] = [
+      'status',
+      'staffName',
+      'category',
+      'comment',
+      'location',
+      'servicePlan',
+      'ratings',
+      'satisfied',
+      'aiAnalysis',
+    ];
+    const updates: Partial<FeedbackDoc> = { updatedAt: Date.now() };
     for (const key of ALLOWED_FIELDS) {
       if (key in rest) updates[key] = rest[key];
     }
@@ -120,8 +132,10 @@ export async function PUT(request: NextRequest) {
       userId: admin.uid,
       userEmail: admin.email,
       changes: updates,
-      previousState: prev.data() as Record<string, unknown>,
+      previousState: prev.data(),
     });
+
+    clearRouteCache();
 
     return success({});
   } catch (err: unknown) {

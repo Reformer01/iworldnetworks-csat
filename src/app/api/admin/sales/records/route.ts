@@ -1,19 +1,38 @@
 import { NextRequest } from 'next/server';
-import { getAdminFirestore } from '@/lib/firebase-admin';
 import { verifyAdminToken } from '@/lib/admin-auth';
-import { isSuperAdmin, isEditor } from '@/lib/admin-config';
+import { isSuperAdmin, isEditor, canManageSalesRecord, salesAgentForEmail } from '@/lib/admin-config';
 import { isRateLimited } from '@/lib/rate-limit';
 import { salesRecordSchema } from '@/lib/validations/sales';
-import { getRegionForLocation, getSegmentForPlan, getQuarterFromMonth, getAgentByEmail, getBtsForLocation } from '@/lib/sales-staff';
+import { getRegionForLocation, getSegmentForPlan, getQuarterFromMonth, getAgentByEmail } from '@/lib/sales-staff';
+import { getBtsForLocation } from '@/lib/bts-data';
+import { resolveCustomerBts } from '@/lib/bts-resolver';
 import { success, error, unauthorized, forbidden, tooMany, notFound, serverError, validateOrigin } from '@/lib/api-response';
 import { writeAuditLog } from '@/lib/audit-log';
-import type { SalesRecord } from '@/lib/sales-types';
 import { logError } from '@/lib/logger';
-import { salesAgents } from '@/lib/sales-staff';
-
-type RecordDoc = SalesRecord & { id: string };
+import { clearRouteCache } from '@/lib/route-cache';
+import {
+  listSalesRecordsDb,
+  createSalesRecordDb,
+  updateSalesRecordDb,
+  softDeleteSalesRecordDb,
+  getSalesRecordByIdDb,
+  mirrorSalesRecordCreated,
+  mirrorSalesRecordUpdated,
+  mirrorSalesRecordDeleted,
+} from '@/lib/sales-db';
 
 export const dynamic = 'force-dynamic';
+
+/**
+ * Unified-first BTS attribution (unified Customer mapping, then UISP endpoint
+ * scan, then the static station list), shared by create/update/import so BTS
+ * data stays accurate everywhere.
+ */
+async function resolveRecordBts(customerName: string, location: string): Promise<string> {
+  const resolved = await resolveCustomerBts(customerName);
+  if (resolved?.btsName) return resolved.btsName;
+  return getBtsForLocation(location)?.[0]?.name || '';
+}
 
 export async function GET(request: NextRequest) {
   try {
@@ -45,18 +64,7 @@ export async function GET(request: NextRequest) {
     const page = Math.max(1, parseInt(searchParams.get('page') || '1'));
     const pageSize = Math.min(Math.max(1, parseInt(searchParams.get('pageSize') || '50')), 500);
 
-    const db = getAdminFirestore();
-    let query: FirebaseFirestore.Query = db.collection('sales_records').limit(2000);
-
-    if (region) query = query.where('region', '==', region);
-    if (status) query = query.where('accountStatus', '==', status);
-    if (agent) query = query.where('salesAgent', '==', agent);
-    if (importBatchId) query = query.where('importBatchId', '==', importBatchId);
-
-    const snapshot = await query.get();
-    const records: RecordDoc[] = snapshot.docs
-      .filter((doc) => !doc.data().deletedAt)
-      .map((doc) => ({ id: doc.id, ...doc.data() }) as RecordDoc);
+    const records = await listSalesRecordsDb({ region, status, agent, importBatchId });
 
     const filtered = search
       ? records.filter(
@@ -114,32 +122,47 @@ export async function POST(request: NextRequest) {
     }
 
     const data = validation.data;
+    // Agents can only create records under their own name — they may not
+    // claim or reassign records to other agents.
+    const effectiveAgent =
+      isSuperAdmin(admin.email) || isEditor(admin.email) ? data.salesAgent : salesAgentForEmail(admin.email) || data.salesAgent;
+    if (!isSuperAdmin(admin.email) && !isEditor(admin.email) && !salesAgentForEmail(admin.email)) {
+      return forbidden('Your account is not linked to a sales agent.');
+    }
+
     const region = getRegionForLocation(data.location);
     const segment = getSegmentForPlan(data.planCode);
     const quarter = data.quarter || getQuarterFromMonth(data.month);
-    const bts = data.bts || getBtsForLocation(data.location)?.[0]?.name || '';
+    const bts = data.bts || (await resolveRecordBts(data.customerName, data.location));
+    const now = Date.now();
 
-    const db = getAdminFirestore();
-    const docRef = await db.collection('sales_records').add({
+    const doc = await createSalesRecordDb({
       ...data,
+      salesAgent: effectiveAgent,
       region,
       segment,
       quarter,
       bts,
-      createdAt: Date.now(),
-      updatedAt: Date.now(),
+      customerType: data.customerType ?? 'new',
+      createdAt: now,
+      updatedAt: now,
     });
 
     await writeAuditLog({
       action: 'create',
       collection: 'sales_records',
-      recordId: docRef.id,
+      recordId: doc.id,
       userId: admin.uid,
       userEmail: admin.email,
       changes: { ...data, region, segment, quarter },
     });
 
-    return success({ id: docRef.id }, 201);
+    // Best-effort Firestore mirror (rollback only) — never blocks.
+    await mirrorSalesRecordCreated(doc);
+
+    clearRouteCache();
+
+    return success({ id: doc.id }, 201);
   } catch (err: unknown) {
     const message = err instanceof Error ? err.message : 'Unknown error';
     logError('[sales-records] POST error', { error: message });
@@ -160,9 +183,6 @@ export async function PUT(request: NextRequest) {
     if (!admin) {
       return unauthorized();
     }
-    if (!isSuperAdmin(admin.email) && !isEditor(admin.email)) {
-      return error('Only authorised editors can modify records.', 403);
-    }
 
     const body = await request.json().catch(() => null);
     if (!body || !body.id) {
@@ -175,21 +195,38 @@ export async function PUT(request: NextRequest) {
       return error('Validation failed.', 400, { errors: validation.error.flatten().fieldErrors });
     }
 
-    const db = getAdminFirestore();
-    const docRef = db.collection('sales_records').doc(id);
-    const prev = await docRef.get();
-
-    if (!prev.exists) {
+    const prev = await getSalesRecordByIdDb(id);
+    if (!prev) {
       return notFound('Record not found.');
     }
 
-    await docRef.update({
-      ...validation.data,
-      region: validation.data.location ? getRegionForLocation(validation.data.location) : undefined,
-      segment: validation.data.planCode ? getSegmentForPlan(validation.data.planCode) : undefined,
-      bts: validation.data.location ? getBtsForLocation(validation.data.location)?.[0]?.name || '' : undefined,
+    // Agents may only touch records that carry their own name, and may not
+    // move a record to another agent.
+    const isAgentEditor = isSuperAdmin(admin.email) || isEditor(admin.email);
+    if (!isAgentEditor && !canManageSalesRecord(admin.email, prev.salesAgent)) {
+      return error('You can only modify records under your own name.', 403);
+    }
+    const changes = validation.data;
+    if (!isAgentEditor) {
+      changes.salesAgent = prev.salesAgent;
+    }
+
+    const updated = await updateSalesRecordDb(id, {
+      ...changes,
+      region: changes.location ? getRegionForLocation(changes.location) : undefined,
+      segment: changes.planCode ? getSegmentForPlan(changes.planCode) : undefined,
+      // Submitted bts wins; otherwise re-resolve (unified-first) only when the
+      // name/location actually changed — never a full UISP scan on save.
+      bts: changes.bts
+        ? changes.bts
+        : changes.location || changes.customerName
+          ? await resolveRecordBts(changes.customerName || prev.customerName, changes.location || prev.location)
+          : undefined,
       updatedAt: Date.now(),
     });
+    if (!updated) {
+      return notFound('Record not found.');
+    }
 
     await writeAuditLog({
       action: 'update',
@@ -198,8 +235,13 @@ export async function PUT(request: NextRequest) {
       userId: admin.uid,
       userEmail: admin.email,
       changes: validation.data,
-      previousState: prev.data() as Record<string, unknown>,
+      previousState: { ...prev },
     });
+
+    // Best-effort Firestore mirror (rollback only) — never blocks.
+    await mirrorSalesRecordUpdated(id, changes);
+
+    clearRouteCache();
 
     return success({});
   } catch (err: unknown) {
@@ -222,28 +264,26 @@ export async function DELETE(request: NextRequest) {
     if (!admin) {
       return unauthorized();
     }
-    if (!isSuperAdmin(admin.email) && !isEditor(admin.email)) {
-      return error('Only authorised editors can delete records.', 403);
-    }
 
     const body = await request.json().catch(() => null);
     if (!body || !body.id) {
       return error('Record ID required.');
     }
 
-    const db = getAdminFirestore();
-    const docRef = db.collection('sales_records').doc(body.id);
-    const doc = await docRef.get();
-
-    if (!doc.exists) {
+    const doc = await getSalesRecordByIdDb(body.id);
+    if (!doc) {
       return notFound('Record not found.');
     }
+    if (!isSuperAdmin(admin.email) && !isEditor(admin.email) && !canManageSalesRecord(admin.email, doc.salesAgent)) {
+      return error('You can only delete records under your own name.', 403);
+    }
 
-    if (doc.data()?.deletedAt) {
+    if (doc.deletedAt) {
       return success({ action: 'already_deleted' });
     }
 
-    await docRef.update({ deletedAt: Date.now(), updatedAt: Date.now() });
+    const now = Date.now();
+    await softDeleteSalesRecordDb(body.id, now, now);
 
     await writeAuditLog({
       action: 'delete',
@@ -251,8 +291,13 @@ export async function DELETE(request: NextRequest) {
       recordId: body.id,
       userId: admin.uid,
       userEmail: admin.email,
-      previousState: doc.data() as Record<string, unknown>,
+      previousState: { ...doc },
     });
+
+    // Best-effort Firestore mirror (rollback only) — never blocks.
+    await mirrorSalesRecordDeleted(body.id, now, now);
+
+    clearRouteCache();
 
     return success({ action: 'deleted' });
   } catch (err: unknown) {

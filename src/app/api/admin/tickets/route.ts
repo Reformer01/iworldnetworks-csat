@@ -1,13 +1,24 @@
-import { NextRequest, NextResponse } from 'next/server';
-import { getAdminFirestore } from '@/lib/firebase-admin';
+import { NextRequest } from 'next/server';
+import { randomUUID } from 'node:crypto';
 import { verifyAdminToken } from '@/lib/admin-auth';
 import { isRateLimited } from '@/lib/rate-limit';
-import { success, error, unauthorized, forbidden, serverError } from '@/lib/api-response';
+import { success, error, unauthorized, forbidden, serverError, notFound } from '@/lib/api-response';
 import { validateOrigin } from '@/lib/api-response';
 import { writeAuditLog } from '@/lib/audit-log';
 import { ticketSchema } from '@/lib/validations/ticket';
 import { logError } from '@/lib/logger';
-import type { Ticket, TicketStatus } from '@/lib/sales-types';
+import type { Ticket } from '@/lib/sales-types';
+import {
+  listTicketsDb,
+  createTicketDb,
+  updateTicketDb,
+  softDeleteTicketDb,
+  ticketFromRow,
+  mirrorTicketCreated,
+  mirrorTicketUpdated,
+  mirrorTicketDeleted,
+} from '@/lib/ticket-db';
+import { prisma } from '@/lib/prisma';
 
 function calculateSLABreached(createdAt: number, assignedAt?: number): boolean {
   if (!assignedAt) return true;
@@ -18,15 +29,12 @@ export const dynamic = 'force-dynamic';
 
 export async function GET(request: NextRequest) {
   try {
-    // Rate limiting
     if (isRateLimited(request, 100, 60 * 1000)) {
       return error('Too many requests.', 429);
     }
 
-    // Origin validation
     if (!validateOrigin(request)) return forbidden();
 
-    // Admin authentication
     const authHeader = request.headers.get('authorization');
     const admin = await verifyAdminToken(authHeader);
     if (!admin) return unauthorized();
@@ -38,23 +46,8 @@ export async function GET(request: NextRequest) {
     const page = parseInt(searchParams.get('page') || '1');
     const pageSize = Math.min(Math.max(1, parseInt(searchParams.get('pageSize') || '50')), 100);
 
-    const db = getAdminFirestore();
-    let query = db.collection('tickets').where('deletedAt', '==', null);
+    const tickets = await listTicketsDb({ status, assignedTo, createdBy }, 1000);
 
-    if (status) query = query.where('status', '==', status);
-    if (assignedTo) query = query.where('assignedTo', '==', assignedTo);
-    if (createdBy) query = query.where('createdBy', '==', createdBy);
-
-    const snapshot = await query.orderBy('createdAt', 'desc').limit(1000).get();
-    const tickets: Ticket[] = snapshot.docs.map(
-      (doc) =>
-        ({
-          id: doc.id,
-          ...doc.data(),
-        }) as Ticket,
-    );
-
-    // Apply pagination
     const total = tickets.length;
     const start = (page - 1) * pageSize;
     const pagedTickets = tickets.slice(start, start + pageSize);
@@ -69,11 +62,6 @@ export async function GET(request: NextRequest) {
   } catch (err: unknown) {
     const message = err instanceof Error ? err.message : 'Unknown error';
     logError('[tickets] GET error', { error: message });
-
-    if (message.includes('requires an index') || message.includes('FAILED_PRECONDITION')) {
-      return error('Query requires a Firestore composite index. Run: firebase deploy --only firestore:indexes', 412);
-    }
-
     return serverError();
   }
 }
@@ -96,96 +84,92 @@ export async function PATCH(request: NextRequest) {
     }
 
     const { id, action, ...updates } = body;
-    const db = getAdminFirestore();
-    const docRef = db.collection('tickets').doc(id);
-    const doc = await docRef.get();
-
-    if (!doc.exists) {
-      return error('Ticket not found.', 404);
+    const row = await prisma.ticket.findUnique({ where: { id } });
+    if (!row || row.deletedAt != null) {
+      return notFound('Ticket not found.');
     }
 
-    const data = doc.data() as Ticket;
+    const data = ticketFromRow(row);
+    const now = Date.now();
+    const patch: Partial<Ticket> = { updatedAt: now };
 
-    // Handle specific actions
     switch (action) {
       case 'assign':
         if (!updates.assignee) {
           return error('Assignee required for assign action.', 400);
         }
-        await docRef.update({
-          assignedTo: updates.assignee,
-          assignedAt: Date.now(),
-          status: 'assigned' as TicketStatus,
-          updatedAt: Date.now(),
-          slaBreached: calculateSLABreached(data.createdAt, Date.now()),
-        });
+        patch.assignedTo = updates.assignee;
+        patch.assignedAt = now;
+        patch.status = 'assigned';
+        patch.slaBreached = calculateSLABreached(data.createdAt, now);
+        break;
+
+      case 'start':
+        if (data.status !== 'assigned') return error('Only assigned tickets can be started.', 400);
+        patch.status = 'in_progress';
         break;
 
       case 'escalate':
         if (!updates.escalatedTo) {
           return error('Escalated to staff required for escalate action.', 400);
         }
-        await docRef.update({
-          escalatedTo: updates.escalatedTo,
-          escalatedAt: Date.now(),
-          updatedAt: Date.now(),
-        });
+        patch.escalatedTo = updates.escalatedTo;
+        patch.escalatedAt = now;
         break;
 
       case 'resolve':
-        await docRef.update({
-          status: 'resolved' as TicketStatus,
-          resolvedAt: Date.now(),
-          updatedAt: Date.now(),
-        });
+        patch.status = 'resolved';
+        patch.resolvedAt = now;
         break;
 
       case 'close':
-        await docRef.update({
-          status: 'closed' as TicketStatus,
-          closedAt: Date.now(),
-          updatedAt: Date.now(),
-        });
+        patch.status = 'closed';
+        patch.closedAt = now;
+        break;
+
+      case 'reopen':
+        if (data.status !== 'resolved' && data.status !== 'closed') return error('Only resolved/closed tickets can be reopened.', 400);
+        patch.status = 'open';
+        (patch as Record<string, unknown>).reopenedAt = now;
+        (patch as Record<string, unknown>).reopenedCount = ((data as unknown as { reopenedCount?: number }).reopenedCount ?? 0) + 1;
         break;
 
       case 'add_delay_reason':
-        const currentDelayReasons = data.delayReasons || [];
-        await docRef.update({
-          delayReasons: [...currentDelayReasons, updates.reason],
-          delayNotes: updates.notes || data.delayNotes || '',
-          updatedAt: Date.now(),
-        });
+        patch.delayReasons = [...(data.delayReasons || []), updates.reason];
+        patch.delayNotes = updates.notes || data.delayNotes || '';
         break;
 
       case 'add_follow_up':
-        const followUpId = crypto.randomUUID();
-        const newFollowUp = {
-          id: followUpId,
-          from: updates.from || admin.email,
-          to: updates.to || '',
-          message: updates.message || '',
-          channel: updates.channel || 'system',
-          timestamp: Date.now(),
-        };
-        await docRef.update({
-          followUps: [...(data.followUps || []), newFollowUp],
-          updatedAt: Date.now(),
-        });
+        patch.followUps = [
+          ...(data.followUps || []),
+          {
+            id: randomUUID(),
+            from: updates.from || admin.email,
+            to: updates.to || '',
+            message: updates.message || '',
+            channel: updates.channel || 'system',
+            timestamp: now,
+          },
+        ];
         break;
 
       default:
         return error(`Unknown action: ${action}`, 400);
     }
 
-    // Create audit log
+    const updated = await updateTicketDb(id, { ...data, ...patch });
+    if (updated) {
+      void mirrorTicketUpdated(id, patch);
+    }
+
     await writeAuditLog({
-      action: action as any,
+      action: action,
       collection: 'tickets',
       recordId: id,
       userId: admin.uid,
       userEmail: admin.email,
-      changes: updates as unknown as Record<string, unknown>,
-      previousState: data as unknown as Record<string, unknown>,
+      changes: updates,
+      previousState: { ...data },
     });
 
     return success({ action: action, success: true });
@@ -221,42 +205,34 @@ export async function POST(request: NextRequest) {
     }
 
     const data = validation.data;
-    const db = getAdminFirestore();
-
-    // Auto-increment ticket number
-    const lastTicketSnapshot = await db.collection('tickets').orderBy('ticketNumber', 'desc').limit(1).get();
-
-    const lastTicket = lastTicketSnapshot.docs[0]?.data() as Ticket;
-    const ticketNumber = (lastTicket?.ticketNumber || 0) + 1;
-
-    const ticketData = {
+    const now = Date.now();
+    const ticketData: Ticket = {
       ...data,
-      ticketNumber,
-      status: 'open' as TicketStatus,
-      createdAt: Date.now(),
+      ticketNumber: 0,
+      status: 'open',
+      createdAt: now,
       createdByAgent: admin.email,
-      updatedAt: Date.now(),
+      updatedAt: now,
       slaBreached: false,
       followUps: [],
-      deletedAt: undefined,
-    } as Ticket;
+    };
 
-    const docRef = await db.collection('tickets').add(ticketData);
+    const created = await createTicketDb(ticketData);
+    void mirrorTicketCreated(created);
 
-    // Create audit log
     await writeAuditLog({
       action: 'create',
       collection: 'tickets',
-      recordId: docRef.id,
+      recordId: created.id,
       userId: admin.uid,
       userEmail: admin.email,
-      changes: ticketData as unknown as Record<string, unknown>,
+      changes: { ...created },
     });
 
     return success(
       {
-        id: docRef.id,
-        ticketNumber,
+        id: created.id,
+        ticketNumber: created.ticketNumber,
         message: 'Ticket created successfully',
       },
       201,
@@ -286,21 +262,28 @@ export async function PUT(request: NextRequest) {
     }
 
     const { id, ...rest } = body;
-    const ALLOWED_FIELDS: (keyof Ticket)[] = ['status', 'assignedTo', 'description', 'delayReasons', 'delayNotes', 'followUps'];
-    const updateData: Partial<Ticket> = { updatedAt: Date.now() };
+    const ALLOWED_FIELDS = [
+      'status',
+      'assignedTo',
+      'description',
+      'delayReasons',
+      'delayNotes',
+      'followUps',
+      'priority',
+      'resolutionNotes',
+      'firstTimeFix',
+      'escalatedTo',
+    ] as const;
+    const updateData: Record<string, unknown> = { updatedAt: Date.now() };
     for (const key of ALLOWED_FIELDS) {
-      if (key in rest) (updateData as Record<string, unknown>)[key] = rest[key];
+      if (key in rest) updateData[key] = rest[key];
     }
 
-    const db = getAdminFirestore();
-    const docRef = db.collection('tickets').doc(id);
-    const previousDoc = await docRef.get();
-
-    if (!previousDoc.exists) {
-      return error('Ticket not found.', 404);
+    const row = await prisma.ticket.findUnique({ where: { id } });
+    if (!row || row.deletedAt != null) {
+      return notFound('Ticket not found.');
     }
-
-    const previousData = previousDoc.data() as Ticket;
+    const previousData = ticketFromRow(row);
 
     const updates: Partial<Ticket> = { ...updateData };
 
@@ -323,17 +306,19 @@ export async function PUT(request: NextRequest) {
       updates.slaBreached = calculateSLABreached(previousData.createdAt, updates.assignedAt);
     }
 
-    await docRef.update(updates);
+    const updated = await updateTicketDb(id, { ...previousData, ...updates });
+    if (updated) {
+      void mirrorTicketUpdated(id, updates);
+    }
 
-    // Create audit log
     await writeAuditLog({
       action: 'update',
       collection: 'tickets',
       recordId: id,
       userId: admin.uid,
       userEmail: admin.email,
-      changes: updates as unknown as Record<string, unknown>,
-      previousState: previousData as unknown as Record<string, unknown>,
+      changes: updates,
+      previousState: { ...previousData },
     });
 
     return success({});
@@ -361,33 +346,25 @@ export async function DELETE(request: NextRequest) {
       return error('Ticket ID required.', 400);
     }
 
-    const db = getAdminFirestore();
-    const docRef = db.collection('tickets').doc(body.id);
-    const doc = await docRef.get();
-
-    if (!doc.exists) {
-      return error('Ticket not found.', 404);
+    const row = await prisma.ticket.findUnique({ where: { id: body.id } });
+    if (!row) {
+      return notFound('Ticket not found.');
     }
-
-    const data = doc.data() as Ticket;
-    if (data.deletedAt) {
+    if (row.deletedAt != null) {
       return success({ action: 'already_deleted' });
     }
 
-    // Soft delete
-    await docRef.update({
-      deletedAt: Date.now(),
-      updatedAt: Date.now(),
-    });
+    const now = Date.now();
+    await softDeleteTicketDb(body.id, now, now);
+    void mirrorTicketDeleted(body.id, now, now);
 
-    // Create audit log
     await writeAuditLog({
       action: 'delete',
       collection: 'tickets',
       recordId: body.id,
       userId: admin.uid,
       userEmail: admin.email,
-      previousState: data as unknown as Record<string, unknown>,
+      previousState: { ...ticketFromRow(row) },
     });
 
     return success({ action: 'deleted' });
