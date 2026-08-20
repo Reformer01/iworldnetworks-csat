@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useCallback, useEffect, useRef } from 'react';
+import React, { useState, useEffect } from 'react';
 import { SalesLayout } from '@/components/layout/SalesLayout';
 import { useAuth, useUser } from '@/firebase';
 import { useSalesRecords, createSalesRecord, updateSalesRecord, deleteSalesRecord, type SalesRecordDoc } from '@/hooks/use-sales-data';
@@ -10,20 +10,41 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogTrigger, DialogFooter } from '@/components/ui/dialog';
-import { Loader2, Plus, Search, Trash2, Edit3, Database, ChevronLeft, ChevronRight, Download, FileDown } from 'lucide-react';
+import { Loader2, Plus, Search, Trash2, Edit3, ChevronLeft, ChevronRight, FileDown } from 'lucide-react';
 import { salesAgents, planCodes, locations, getPlanMrc, getAgentByEmail, getSegmentForPlan, getQuarterFromMonth } from '@/lib/sales-staff';
-import { btsStations, getBtsForLocation } from '@/lib/bts-data';
-import { isSuperAdmin } from '@/lib/admin-config';
-import type { SaleQuarter, PackageType, AccountStatus, CustomerType } from '@/lib/sales-types';
-import type jsPDFType from 'jspdf';
-import type autoTableType from 'jspdf-autotable';
+import { getBtsForLocation } from '@/lib/bts-data';
+import { isSuperAdmin, canManageSalesRecord, salesAgentForEmail } from '@/lib/admin-config';
+import type { SaleQuarter, PackageType, AccountStatus, CustomerType, MeansOfSale } from '@/lib/sales-types';
+import { MEANS_OF_SALES } from '@/lib/sales-types';
 
 const accountStatuses = ['Active', 'Inactive', 'Blocked', 'Refunded', 'Retrieved'];
 const packageTypes = ['Outright', 'Lease'];
 const regions = ['Ogun', 'Oyo', 'Osun', 'Ondo'];
-const meansOfSaleOptions = ['Direct', 'Referral', 'Walk-In', 'Field Visit', 'Online', 'Partner'];
 
-function emptyRecord() {
+interface SalesRecordFormState {
+  serialNumber: number;
+  customerName: string;
+  location: string;
+  nrc: number;
+  mrc: number;
+  totalPaid: number;
+  planCode: string;
+  saleDate: string;
+  quarter: SaleQuarter;
+  month: string;
+  packageType: PackageType;
+  salesAgent: string;
+  meansOfSale: string;
+  accountStatus: AccountStatus;
+  statusNotes: string;
+  importBatchId: string;
+  customerType: CustomerType;
+  revivedByAgent: string;
+  bts: string;
+  region: string;
+}
+
+function emptyRecord(): SalesRecordFormState {
   return {
     serialNumber: 0,
     customerName: '',
@@ -33,15 +54,15 @@ function emptyRecord() {
     totalPaid: 0,
     planCode: 'H-Lite',
     saleDate: '',
-    quarter: 'QUARTER 1' as SaleQuarter,
+    quarter: 'QUARTER 1',
     month: 'June',
-    packageType: 'Outright' as PackageType,
+    packageType: 'Outright',
     salesAgent: '',
     meansOfSale: '',
-    accountStatus: 'Active' as AccountStatus,
+    accountStatus: 'Active',
     statusNotes: '',
     importBatchId: '',
-    customerType: 'new' as CustomerType,
+    customerType: 'new',
     revivedByAgent: '',
     bts: '',
     region: 'Ogun',
@@ -82,7 +103,7 @@ export default function SalesRecords() {
   };
 
   const resetForm = () => {
-    setForm(emptyRecord());
+    setForm({ ...emptyRecord(), salesAgent: salesAgentForEmail(userEmail) || '' });
     setBitrate('');
     setServiceDesc('');
     setEditId(null);
@@ -102,6 +123,7 @@ export default function SalesRecords() {
       .then((r) => r.blob())
       .then((blob) => {
         const reader = new FileReader();
+        // SAFETY: readAsDataURL resolves reader.result to a base64 data URL string once onload fires.
         reader.onload = () => setLogoBase64(reader.result as string);
         reader.readAsDataURL(blob);
       })
@@ -313,6 +335,7 @@ export default function SalesRecords() {
         margin: { top: 27, bottom: 20 },
         pageBreak: 'auto',
         didDrawPage: (data) => {
+          // SAFETY: jspdf-autotable attaches getNumberOfPages to the doc instance after rendering.
           const pageCount = (doc as typeof doc & { getNumberOfPages?: () => number }).getNumberOfPages?.() ?? 1;
           const pageNum = data.pageNumber;
           doc.setFontSize(7);
@@ -358,15 +381,15 @@ export default function SalesRecords() {
       totalPaid: nrcVal + mrcVal,
       planCode: isCustomPlan ? 'CUSTOM' : isEnterprisePlan && !knownPlan ? 'ENT' : r.planCode || '',
       saleDate: r.saleDate || '',
-      quarter: (r.quarter || 'QUARTER 1') as SaleQuarter,
+      quarter: r.quarter || 'QUARTER 1',
       month: r.month || '',
-      packageType: (r.packageType || 'Outright') as PackageType,
+      packageType: r.packageType || 'Outright',
       salesAgent: r.salesAgent || '',
       meansOfSale: r.meansOfSale || '',
-      accountStatus: (r.accountStatus || 'Active') as AccountStatus,
+      accountStatus: r.accountStatus || 'Active',
       statusNotes: r.statusNotes || '',
       importBatchId: r.importBatchId || '',
-      customerType: (r.customerType || 'new') as CustomerType,
+      customerType: r.customerType || 'new',
       revivedByAgent: r.revivedByAgent || '',
       bts: r.bts || '',
     });
@@ -379,7 +402,7 @@ export default function SalesRecords() {
         <div>
           <h1 className="text-2xl font-display font-bold text-primary uppercase tracking-tight">Sales Records</h1>
           <p className="text-on-surface-variant font-mono text-[10px] uppercase tracking-widest font-bold mt-1">
-            {records.length} records
+            {records.length} records · page {page + 1} of {totalPages}
             {renderRoleBadge()}
           </p>
         </div>
@@ -596,7 +619,13 @@ export default function SalesRecords() {
               </div>
               <div>
                 <label className="font-mono text-[10px] uppercase font-bold text-on-surface-variant">Quarter</label>
-                <Select value={form.quarter} onValueChange={(v: string) => setForm({ ...form, quarter: v as SaleQuarter })}>
+                <Select
+                  value={form.quarter}
+                  onValueChange={(v: string) => {
+                    // SAFETY: Select options are exactly the four SaleQuarter values.
+                    setForm({ ...form, quarter: v as SaleQuarter });
+                  }}
+                >
                   <SelectTrigger className="rounded-xl">
                     <SelectValue />
                   </SelectTrigger>
@@ -611,7 +640,13 @@ export default function SalesRecords() {
               </div>
               <div>
                 <label className="font-mono text-[10px] uppercase font-bold text-on-surface-variant">Package Type</label>
-                <Select value={form.packageType} onValueChange={(v: string) => setForm({ ...form, packageType: v as PackageType })}>
+                <Select
+                  value={form.packageType}
+                  onValueChange={(v: string) => {
+                    // SAFETY: Select options are exactly the two PackageType values.
+                    setForm({ ...form, packageType: v as PackageType });
+                  }}
+                >
                   <SelectTrigger className="rounded-xl">
                     <SelectValue />
                   </SelectTrigger>
@@ -626,7 +661,11 @@ export default function SalesRecords() {
               </div>
               <div>
                 <label className="font-mono text-[10px] uppercase font-bold text-on-surface-variant">Sales Agent</label>
-                <Select value={form.salesAgent} onValueChange={(v) => setForm({ ...form, salesAgent: v })}>
+                <Select
+                  value={form.salesAgent}
+                  onValueChange={(v) => setForm({ ...form, salesAgent: v })}
+                  disabled={!isSuperAdmin(userEmail) && !!salesAgentForEmail(userEmail)}
+                >
                   <SelectTrigger className="rounded-xl">
                     <SelectValue placeholder="Select agent" />
                   </SelectTrigger>
@@ -646,7 +685,7 @@ export default function SalesRecords() {
                     <SelectValue placeholder="Select channel" />
                   </SelectTrigger>
                   <SelectContent>
-                    {meansOfSaleOptions.map((m) => (
+                    {MEANS_OF_SALES.map((m) => (
                       <SelectItem key={m} value={m}>
                         {m}
                       </SelectItem>
@@ -654,21 +693,29 @@ export default function SalesRecords() {
                   </SelectContent>
                 </Select>
               </div>
-              <div>
-                <label className="font-mono text-[10px] uppercase font-bold text-on-surface-variant">Account Status</label>
-                <Select value={form.accountStatus} onValueChange={(v: string) => setForm({ ...form, accountStatus: v as AccountStatus })}>
-                  <SelectTrigger className="rounded-xl">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {accountStatuses.map((s) => (
-                      <SelectItem key={s} value={s}>
-                        {s}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
+              {editId && (
+                <div>
+                  <label className="font-mono text-[10px] uppercase font-bold text-on-surface-variant">Account Status</label>
+                  <Select
+                    value={form.accountStatus}
+                    onValueChange={(v: string) => {
+                      // SAFETY: Select options are exactly the AccountStatus values.
+                      setForm({ ...form, accountStatus: v as AccountStatus });
+                    }}
+                  >
+                    <SelectTrigger className="rounded-xl">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {accountStatuses.map((s) => (
+                        <SelectItem key={s} value={s}>
+                          {s}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              )}
               <div className="col-span-2">
                 <label className="font-mono text-[10px] uppercase font-bold text-on-surface-variant">Status Notes</label>
                 <Input
@@ -804,7 +851,7 @@ export default function SalesRecords() {
                     </td>
                     <td className="py-3 px-4 text-right">
                       <div className="flex items-center justify-end gap-2">
-                        {user && (isSuperAdmin(user.email || '') || getAgentByEmail(user.email || '')?.name === 'Titilade Bakare') && (
+                        {user && canManageSalesRecord(userEmail, r.salesAgent) && (
                           <>
                             <button onClick={() => openEdit(r)} className="p-1.5 hover:bg-muted rounded-lg transition-colors">
                               <Edit3 className="w-3.5 h-3.5 text-on-surface-variant" />

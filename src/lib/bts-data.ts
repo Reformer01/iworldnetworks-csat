@@ -65,7 +65,7 @@ export const btsStations: BtsStation[] = [
  * Explicit aliases for site names that fuzzy matching cannot resolve.
  * Keys are the lowercase site names exactly as they appear in the source CSVs.
  */
-export const SITE_ALIASES: Record<string, string> = {
+export const SITE_ALIASES = {
   'obada ext': 'Obada Extension',
   'ota [office core]': 'Ota Office',
   'osogbo-core': 'Osogbo Office',
@@ -74,9 +74,9 @@ export const SITE_ALIASES: Record<string, string> = {
   'nta ogbe': 'NTA Abeokuta',
   'nta okegunya': 'NTA Abeokuta',
   'nta okegunya 2': 'NTA Abeokuta',
-};
+} satisfies Record<string, string>;
 
-const LOCATION_TO_BTS_REGION: Record<string, string[]> = {
+const LOCATION_TO_BTS_REGION = {
   ibadan: ['Ibadan'],
   oyo: ['Ibadan'],
   osogbo: ['Osogbo'],
@@ -90,13 +90,11 @@ const LOCATION_TO_BTS_REGION: Record<string, string[]> = {
   'ijebu ode': ['Ijebu'],
   'orile imo': ['Ijebu'],
   orile: ['Ijebu'],
-  mowe: ['Ibadan'],
-  ibo: ['Ibadan'],
-  lagos: ['Ibadan'],
-  oriye: ['Ibadan'],
-};
+  // NOTE: lagos/mowe/ibo/oriye are NOT Ibadan-region towns. Unmapped = no
+  // BTS suggestion from location, which is safer than a wrong Ibadan tower.
+} satisfies Record<string, string[]>;
 
-export const CITY_TO_REGION: Record<string, string> = {
+export const CITY_TO_REGION = {
   ibadan: 'Oyo',
   abeokuta: 'Ogun',
   sagamu: 'Ogun',
@@ -109,15 +107,14 @@ export const CITY_TO_REGION: Record<string, string> = {
   osogbo: 'Osun',
   oshogbo: 'Osun',
   akure: 'Ondo',
-  mowe: 'Oyo',
-  ibo: 'Oyo',
-  lagos: 'Oyo',
-  oriye: 'Oyo',
-};
+  // lagos is Lagos state, mowe is Ogun state; ibo/oriye are unknown towns.
+  lagos: 'Lagos',
+  mowe: 'Ogun',
+} satisfies Record<string, string>;
 
 export function getBtsForLocation(location: string): BtsStation[] {
   const key = location.toLowerCase().trim();
-  const btsRegions = LOCATION_TO_BTS_REGION[key];
+  const btsRegions = (LOCATION_TO_BTS_REGION as Record<string, string[]>)[key];
   if (btsRegions) {
     return btsStations.filter((b) => btsRegions.includes(b.region));
   }
@@ -136,6 +133,7 @@ export const BTS_REGIONS = ['Ibadan', 'Abeokuta', 'Ijebu', 'Osogbo', 'Sagamu', '
 export type BtsImportRegion = (typeof BTS_REGIONS)[number];
 
 export function isBtsRegion(value: string): value is BtsImportRegion {
+  // SAFETY: BTS_REGIONS is a const tuple of all valid BtsImportRegion values.
   return BTS_REGIONS.includes(value as BtsImportRegion);
 }
 
@@ -147,7 +145,7 @@ export function findBtsMatch(siteName: string, regionStations: BtsStation[]): { 
   const normalized = siteName.toLowerCase().trim();
 
   // 0. Explicit alias mapping first (handles names fuzzy matching cannot resolve)
-  const aliasTarget = SITE_ALIASES[normalized];
+  const aliasTarget = (SITE_ALIASES as Record<string, string>)[normalized];
   if (aliasTarget) {
     const aliasStation = regionStations.find((bts) => bts.name === aliasTarget);
     if (aliasStation) {
