@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useMemo } from 'react';
+import React, { useMemo, useState } from 'react';
 import { AdminLayout } from '@/components/layout/AdminLayout';
 import { Map, List, CircleCheck, Clock, Shield } from 'lucide-react';
 import Image from 'next/image';
@@ -8,29 +8,39 @@ import { PlaceHolderImages } from '@/lib/placeholder-images';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 import { useAuth, useUser } from '@/firebase';
-import { useAdminFeedbacks } from '@/hooks/use-admin-feedbacks';
+import { useAdminFeedbacks, updateFeedbackStatus } from '@/hooks/use-admin-feedbacks';
+import { fieldTechnicians } from '@/lib/staff';
 import type { FeedbackDoc } from '@/lib/feedback-types';
+import FeedbackQuote from '@/components/FeedbackQuote';
+import { useToast } from '@/hooks/use-toast';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogTrigger, DialogFooter } from '@/components/ui/dialog';
+import { Textarea } from '@/components/ui/textarea';
+import { CheckCircle2, MessageSquare } from 'lucide-react';
 
 export default function AdminInstallation() {
   const networkMap = PlaceHolderImages.find(img => img.id === 'network-map')!;
   const auth = useAuth();
   const { user } = useUser(auth);
+  const { toast } = useToast();
+  const [selectedFeedback, setSelectedFeedback] = useState<FeedbackDoc | null>(null);
+  const [resNotes, setResNotes] = useState('');
 
-  const techsRoster = [
-    { name: "Lukmon Obasa", region: "Akure" },
-    { name: "Christian Adejo", region: "Akure" },
-    { name: "Habeeb Hussein", region: "Ibadan" },
-    { name: "Joseph Dung N", region: "Ibadan" },
-    { name: "Alowo Temitope", region: "Ibadan" },
-    { name: "Timilehin Alabi", region: "Ibadan" },
-    { name: "Adekunle Ademiju", region: "Ibadan" },
-    { name: "Adebisi Ogusola", region: "Abeokuta" },
-    { name: "Kehinde Itehinola", region: "Abeokuta" },
-    { name: "Olopade Olusegun", region: "Abeokuta" },
-    { name: "Mubarak Raji", region: "Osogbo" }
-  ];
+  const techsRoster = fieldTechnicians.map(t => ({ name: t.name, region: t.region || '—' }));
 
-  const { feedbacks: allFeedbacks } = useAdminFeedbacks();
+  const handleUpdateStatus = async (feedbackId: string, status: string) => {
+    if (!user) return;
+    try {
+      await updateFeedbackStatus(feedbackId, status, resNotes, user);
+      toast({ title: 'Status Updated', description: `Feedback marked as ${status}.` });
+      mutate();
+      setSelectedFeedback(null);
+      setResNotes('');
+    } catch (e: unknown) {
+      toast({ variant: 'destructive', title: 'Update Failed', description: e instanceof Error ? e.message : 'Error' });
+    }
+  };
+
+  const { feedbacks: allFeedbacks, loading, mutate } = useAdminFeedbacks();
 
   const installFeedback = useMemo(() => {
     return allFeedbacks.filter((f: FeedbackDoc) => f.category === 'Installation');
@@ -93,7 +103,7 @@ export default function AdminInstallation() {
         <div className="col-span-12 md:col-span-4 md:col-start-9 flex flex-col justify-end">
           <div className="bg-white p-6 whisper-shadow rounded-xl border border-border">
             <span className="font-mono text-[12px] uppercase text-secondary">Quality Score</span>
-            <div className="text-display-lg text-[48px] font-black mt-2"><span className="font-mono">+{completionRate}%</span></div>
+            <div className="text-2xl text-3xl font-black mt-2"><span className="font-mono">+{completionRate}%</span></div>
           </div>
         </div>
       </div>
@@ -170,11 +180,129 @@ export default function AdminInstallation() {
           <div key={i} className={cn("p-8 rounded-xl border border-border whisper-shadow", item.primary ? "bg-secondary text-white border-secondary" : "bg-white")}>
             <item.icon className={cn("w-8 h-8 mb-4", item.primary ? "text-white" : "text-secondary")} />
             <h4 className="font-bold text-lg mb-2">{item.label}</h4>
-            <p className="text-[32px] font-black font-mono">{item.val}</p>
+            <p className="text-2xl font-black font-mono">{item.val}</p>
             <p className={cn("text-xs font-mono mt-2", item.primary ? "text-white/80" : "text-on-surface-variant")}>{item.info}</p>
           </div>
         ))}
       </div>
+
+      <section className="bg-white border border-border whisper-shadow rounded-xl p-8 mb-24">
+        <h4 className="font-display text-xl text-primary font-bold mb-8">Recent Feedback & Actions</h4>
+        <div className="space-y-4">
+          {installFeedback.slice(0, 10).map((f: FeedbackDoc) => (
+            <div key={f.id} className="p-4 border border-border rounded-xl bg-surface-container-lowest flex flex-col gap-4">
+              <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2">
+                <div className="flex flex-wrap items-center gap-2">
+                  <span
+                    className={cn(
+                      'px-2 py-0.5 rounded-full text-[8px] font-mono font-bold uppercase',
+                      f.status === 'resolved'
+                        ? 'bg-green-100 text-green-600'
+                        : f.status === 'open'
+                          ? 'bg-emerald-50 text-emerald-600 border border-emerald-200/50'
+                          : 'bg-blue-100 text-blue-600',
+                    )}
+                  >
+                    {f.status}
+                  </span>
+                  <span className="font-mono text-[9px] text-on-surface-variant uppercase font-bold">
+                    Tech: {f.staffName || 'Unknown'}
+                  </span>
+                  {f.servicePlan && (
+                    <span className="font-mono text-[9px] text-on-surface-variant/60 font-bold">Plan: {f.servicePlan}</span>
+                  )}
+                </div>
+                <span className="text-[9px] text-on-surface-variant/40 font-mono">
+                  Exp: {f.serviceDate} {f.submissionDate && `| Sub: ${f.submissionDate}`}
+                </span>
+              </div>
+              <div>
+                <p className="font-mono text-xs font-bold text-primary">
+                  {f.customerName} <span className="opacity-40 font-normal">({f.location})</span>
+                </p>
+                <FeedbackQuote feedback={f} className="text-xs text-on-surface-variant mt-1 font-body" />
+              </div>
+
+              <div className="flex items-center justify-between border-t border-border/50 pt-3 mt-1">
+                <div className="flex gap-4 text-[9px] font-mono text-on-surface-variant">
+                  <span>Quality: {String(f.ratings?.quality ?? '—')}/5</span>
+                  <span>Timeliness: {String(f.ratings?.timeliness ?? '—')}/5</span>
+                </div>
+
+                <Dialog>
+                  <DialogTrigger asChild>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="h-7 rounded-full px-4 font-mono text-[8px] uppercase font-bold"
+                      onClick={() => {
+                        setSelectedFeedback(f);
+                        setResNotes(f.resolutionNotes || '');
+                      }}
+                    >
+                      <MessageSquare className="w-2.5 h-2.5 mr-1" /> Take Action
+                    </Button>
+                  </DialogTrigger>
+                  <DialogContent className="max-w-md rounded-3xl">
+                    <DialogHeader>
+                      <DialogTitle className="font-display uppercase tracking-tight">Resolve Feedback</DialogTitle>
+                      <DialogDescription className="sr-only">Mark this feedback as resolved and add resolution notes.</DialogDescription>
+                    </DialogHeader>
+                    <div className="space-y-6 py-4">
+                      <div className="p-4 bg-muted rounded-xl text-sm">
+                        <FeedbackQuote feedback={f} />
+                      </div>
+                      <div className="space-y-2">
+                        <label className="font-mono text-[10px] uppercase font-bold text-on-surface-variant">Resolution Notes</label>
+                        <Textarea
+                          placeholder="What was done to resolve this?"
+                          className="min-h-[120px] rounded-2xl"
+                          value={resNotes}
+                          onChange={(e) => setResNotes(e.target.value)}
+                        />
+                      </div>
+                    </div>
+                    <DialogFooter className="flex gap-2">
+                      <Button
+                        variant="outline"
+                        className="rounded-full font-mono text-[10px] uppercase font-bold"
+                        onClick={() => handleUpdateStatus(f.id, 'escalated')}
+                      >
+                        Escalate
+                      </Button>
+                      <Button
+                        className="rounded-full bg-secondary text-white font-mono text-[10px] uppercase font-bold px-8"
+                        onClick={() => handleUpdateStatus(f.id, 'resolved')}
+                      >
+                        <CheckCircle2 className="w-3 h-3 mr-2" /> Mark Resolved
+                      </Button>
+                    </DialogFooter>
+                  </DialogContent>
+                </Dialog>
+              </div>
+
+              {f.resolutionNotes && (
+                <div className="p-3 bg-muted rounded-lg text-[10px] font-mono border-l-2 border-secondary shadow-sm">
+                  <span className="font-bold text-secondary uppercase block mb-1">Action:</span>
+                  {f.resolutionNotes}
+                </div>
+              )}
+            </div>
+          ))}
+          {loading && (
+            <div className="py-12 text-center">
+              <div className="w-8 h-8 border-4 border-secondary/20 border-t-secondary rounded-full animate-spin mx-auto" />
+            </div>
+          )}
+          {!loading && installFeedback.length === 0 && (
+            <div className="py-12 text-center border-2 border-dashed border-border rounded-xl">
+              <p className="font-mono text-xs text-on-surface-variant opacity-40 uppercase font-bold tracking-widest">
+                No Installation Records
+              </p>
+            </div>
+          )}
+        </div>
+      </section>
     </AdminLayout>
   );
 }

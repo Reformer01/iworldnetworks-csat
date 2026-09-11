@@ -1,22 +1,34 @@
 'use client';
 
-import React, { useMemo, useState, useCallback } from 'react';
+import React, { useMemo, useState, useCallback, useEffect } from 'react';
 import { DateRange } from 'react-day-picker';
-import { AdminLayout } from '@/components/layout/AdminLayout';
 import { TrendingUp, Users, Activity, CheckCircle, FileDown, Loader2, CheckCircle2, MessageSquare, History } from 'lucide-react';
 import { useAuth, useUser } from '@/firebase';
 import { useAdminFeedbacks, updateFeedbackStatus } from '@/hooks/use-admin-feedbacks';
 import type { FeedbackDoc } from '@/lib/feedback-types';
+import FeedbackQuote from '@/components/FeedbackQuote';
 import { DateRangePicker } from '@/components/ui/date-range-picker';
 import { XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend, AreaChart, Area } from 'recharts';
 import { cn } from '@/lib/utils';
+import { AdminLayout } from '@/components/layout/AdminLayout';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Button } from '@/components/ui/button';
 import { useToast } from '@/hooks/use-toast';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogTrigger, DialogFooter } from '@/components/ui/dialog';
 import { Textarea } from '@/components/ui/textarea';
+import type { jsPDF } from 'jspdf';
 
 const NETWORK_RATING_KEYS = ['stability', 'latency', 'peakPerformance'] as const;
+
+type TimeRange = '7d' | '30d' | '90d' | '1y';
+
+interface JsPdfWithAutoTable extends jsPDF {
+  lastAutoTable: { finalY: number };
+}
+
+function isTimeRange(value: string): value is TimeRange {
+  return value === '7d' || value === '30d' || value === '90d' || value === '1y';
+}
 
 function getNumericRatings(feedback: FeedbackDoc, keys?: readonly string[]) {
   const ratings = feedback?.ratings || {};
@@ -30,12 +42,35 @@ function toSatisfactionPercent(ratings: number[]) {
   return Math.round((total / (ratings.length * 5)) * 100);
 }
 
+/** Regional breakdown computed from actual feedback locations (no hardcoded
+ *  city list), sorted by submission count desc. Unspecified locations are
+ *  grouped under "Unspecified". */
+function regionBreakdown(feedbacks: FeedbackDoc[]): Array<{ name: string; count: number; percent: number }> {
+  const counts = new Map<string, number>();
+  for (const f of feedbacks) {
+    const loc = (f.location || '').trim() || 'Unspecified';
+    counts.set(loc, (counts.get(loc) || 0) + 1);
+  }
+  const total = feedbacks.length;
+  return [...counts.entries()]
+    .sort((a, b) => b[1] - a[1])
+    .map(([name, count]) => ({
+      name,
+      count,
+      percent: total > 0 ? Math.round((count / total) * 100) : 0,
+    }));
+}
+
 export default function AdminDashboard() {
-  const [timeRange, setTimeRange] = useState('30d');
+  const [timeRange, setTimeRange] = useState<TimeRange>('30d');
   const [dateRange, setDateRange] = useState<DateRange | undefined>(undefined);
   const [isGeneratingReport, setIsGeneratingReport] = useState(false);
-  const [selectedFeedback, setSelectedFeedback] = useState<FeedbackDoc | null>(null);
+  const [csvExporting, setCsvExporting] = useState<string | null>(null);
   const [resNotes, setResNotes] = useState('');
+  const [activityPage, setActivityPage] = useState(1);
+  const ACTIVITY_PAGE_SIZE = 10;
+  const [regionPage, setRegionPage] = useState(1);
+  const REGION_PAGE_SIZE = 6;
 
   const auth = useAuth();
   const { user } = useUser(auth);
@@ -60,17 +95,40 @@ export default function AdminDashboard() {
       });
     }
 
-    const rangeMsMap: Record<string, number> = {
+    const rangeMsMap = {
       '7d': 7 * 24 * 60 * 60 * 1000,
       '30d': 30 * 24 * 60 * 60 * 1000,
       '90d': 90 * 24 * 60 * 60 * 1000,
       '1y': 365 * 24 * 60 * 60 * 1000,
-    };
+    } satisfies Record<TimeRange, number>;
     const rangeMs = rangeMsMap[timeRange] ?? 30 * 24 * 60 * 60 * 1000;
 
     const now = Date.now();
     return allFeedbacks.filter((f: FeedbackDoc) => now - (f.timestamp ?? 0) <= rangeMs);
   }, [allFeedbacks, timeRange, dateRange]);
+
+  // List pagination — back to page 1 whenever the period changes.
+  useEffect(() => {
+    setActivityPage(1);
+    setRegionPage(1);
+  }, [timeRange, dateRange]);
+
+  const allRegions = useMemo(() => regionBreakdown(filteredFeedbacks), [filteredFeedbacks]);
+  const regionTotalPages = Math.max(1, Math.ceil(allRegions.length / REGION_PAGE_SIZE));
+  const safeRegionPage = Math.min(regionPage, regionTotalPages);
+  const regionItems = allRegions.slice(
+    (safeRegionPage - 1) * REGION_PAGE_SIZE,
+    safeRegionPage * REGION_PAGE_SIZE,
+  );
+
+  const activityTotalPages = Math.max(1, Math.ceil(filteredFeedbacks.length / ACTIVITY_PAGE_SIZE));
+  const safeActivityPage = Math.min(activityPage, activityTotalPages);
+  const activityItems = filteredFeedbacks.slice(
+    (safeActivityPage - 1) * ACTIVITY_PAGE_SIZE,
+    safeActivityPage * ACTIVITY_PAGE_SIZE,
+  );
+  const activityStart = filteredFeedbacks.length === 0 ? 0 : (safeActivityPage - 1) * ACTIVITY_PAGE_SIZE + 1;
+  const activityEnd = Math.min(safeActivityPage * ACTIVITY_PAGE_SIZE, filteredFeedbacks.length);
 
   const metrics = useMemo(() => {
     const total = filteredFeedbacks.length;
@@ -83,6 +141,7 @@ export default function AdminDashboard() {
         total: 0,
         resolvedRate: 0,
         networkResponses: 0,
+        fcrResponses: 0,
       };
     }
 
@@ -111,6 +170,11 @@ export default function AdminDashboard() {
     const fcrResponses = filteredFeedbacks.filter((f: FeedbackDoc) => f.ratings?.fcr === 'Yes' || f.ratings?.fcr === 'No').length;
     const fcrYes = filteredFeedbacks.filter((f: FeedbackDoc) => f.ratings?.fcr === 'Yes').length;
     const ces = fcrResponses > 0 ? Math.round((fcrYes / fcrResponses) * 100) : 0;
+    // Count docs that actually answered a network question — not every
+    // Reliability doc carries stability/latency/peakPerformance ratings.
+    const networkResponses = networkFeedbacks.filter((f: FeedbackDoc) =>
+      NETWORK_RATING_KEYS.some((k) => typeof f.ratings?.[k] === 'number'),
+    ).length;
 
     return {
       overallSatisfaction,
@@ -119,7 +183,8 @@ export default function AdminDashboard() {
       ces,
       total,
       resolvedRate,
-      networkResponses: networkFeedbacks.length,
+      networkResponses,
+      fcrResponses,
     };
   }, [filteredFeedbacks]);
 
@@ -127,7 +192,7 @@ export default function AdminDashboard() {
     if (filteredFeedbacks.length === 0) return [];
     const groups: Record<string, { overall: number; overallCount: number; network: number; networkCount: number }> = {};
 
-    filteredFeedbacks.slice(0, 30).forEach((f: FeedbackDoc) => {
+    filteredFeedbacks.forEach((f: FeedbackDoc) => {
       const date = new Date(f.timestamp ?? 0);
       const label = date.toLocaleDateString([], { month: 'short', day: 'numeric' });
       const ratings = getNumericRatings(f);
@@ -171,7 +236,7 @@ export default function AdminDashboard() {
       const total = deptFeedbacks.length;
 
       const ratingsArray = deptFeedbacks.flatMap(
-        (f: FeedbackDoc) => Object.values(f.ratings || {}).filter((v) => typeof v === 'number') as number[],
+        (f: FeedbackDoc) => Object.values(f.ratings || {}).filter((v): v is number => typeof v === 'number'),
       );
       const avg = ratingsArray.length > 0 ? (ratingsArray.reduce((a, b) => a + b, 0) / ratingsArray.length).toFixed(1) + '/5' : '—';
 
@@ -192,7 +257,6 @@ export default function AdminDashboard() {
       await updateFeedbackStatus(feedbackId, status, resNotes, user);
       toast({ title: 'Status Updated', description: `Feedback marked as ${status}.` });
       mutate();
-      setSelectedFeedback(null);
       setResNotes('');
     } catch (e: unknown) {
       toast({ variant: 'destructive', title: 'Update Failed', description: e instanceof Error ? e.message : 'Update failed' });
@@ -211,7 +275,10 @@ export default function AdminDashboard() {
 
       const doc = new jsPDF({ orientation: 'landscape', unit: 'mm', format: 'a4' });
       const reportDate = new Date().toLocaleDateString('en-GB', { day: '2-digit', month: 'long', year: 'numeric' });
-      const periodLabel: Record<string, string> = { '7d': 'Last 7 Days', '30d': 'Last 30 Days', '90d': 'Last Quarter', '1y': 'Annual' };
+      const periodLabel = { '7d': 'Last 7 Days', '30d': 'Last 30 Days', '90d': 'Last Quarter', '1y': 'Annual' } satisfies Record<
+        TimeRange,
+        string
+      >;
       const period =
         dateRange?.from || dateRange?.to
           ? `${dateRange.from ? dateRange.from.toLocaleDateString() : 'Start'} – ${dateRange.to ? dateRange.to.toLocaleDateString() : 'Now'}`
@@ -242,7 +309,9 @@ export default function AdminDashboard() {
           metrics.networkResponses > 0 ? (metrics.networkSatisfaction >= 70 ? 'Strong' : 'Needs Attention') : 'No Network Data',
         ],
         ['Net Promoter Score', `${metrics.nps}`, metrics.nps >= 30 ? 'Good' : 'Fair'],
-        ['First Contact Resolution', `${metrics.ces}%`, metrics.ces >= 60 ? 'Good' : 'Needs Work'],
+        metrics.fcrResponses > 0
+          ? ['First Contact Resolution', `${metrics.ces}%`, metrics.ces >= 60 ? 'Good' : 'Needs Work']
+          : ['First Contact Resolution', 'No data (not asked)', 'Collecting'],
         ['Resolution Rate', `${metrics.resolvedRate}%`, metrics.resolvedRate >= 80 ? 'Excellent' : 'Improving'],
         ['Total Responses', `${metrics.total}`, '-'],
       ];
@@ -256,7 +325,8 @@ export default function AdminDashboard() {
       });
 
       // ---- Department Breakdown ----
-      const docWithTable = doc as unknown as { lastAutoTable: { finalY: number } };
+      // SAFETY: autoTable attaches lastAutoTable.finalY to the jsPDF instance after running.
+      const docWithTable = doc as JsPdfWithAutoTable;
       const deptY = docWithTable.lastAutoTable.finalY + 14;
       doc.setFont('helvetica', 'bold');
       doc.setFontSize(13);
@@ -278,11 +348,9 @@ export default function AdminDashboard() {
       doc.setFontSize(13);
       doc.text('Regional Breakdown', 14, regY);
 
-      const regions = ['Ibadan', 'Abeokuta', 'Akure', 'Osogbo'];
-      const regBody = regions.map((loc) => {
-        const count = filteredFeedbacks.filter((f: FeedbackDoc) => f.location === loc).length;
-        const pct = metrics.total > 0 ? `${Math.round((count / metrics.total) * 100)}%` : '0%';
-        return [loc, count.toString(), pct];
+      const regBody = allRegions.map((reg) => {
+        const pct = metrics.total > 0 ? `${reg.percent}%` : '0%';
+        return [reg.name, reg.count.toString(), pct];
       });
       autoTable(doc, {
         startY: regY + 4,
@@ -334,8 +402,41 @@ export default function AdminDashboard() {
     }
   }, [filteredFeedbacks, metrics, departmentBreakdown, timeRange, dateRange, toast]);
 
+  /** Download a mirrored Splynx dataset as CSV (customers / invoices / plans). */
+  const handleCsvExport = useCallback(
+    async (kind: 'customers' | 'invoices' | 'plans') => {
+      if (!user) return;
+      setCsvExporting(kind);
+      try {
+        const token = await user.getIdToken();
+        const res = await fetch(`/api/admin/${kind}/export`, {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        if (!res.ok) throw new Error('Export failed');
+        const blob = await res.blob();
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `splynx-${kind}-${new Date().toISOString().slice(0, 10)}.csv`;
+        a.click();
+        URL.revokeObjectURL(url);
+        toast({ title: 'Export ready', description: 'CSV downloaded.' });
+      } catch (e) {
+        toast({
+          variant: 'destructive',
+          title: 'Export failed',
+          description: e instanceof Error ? e.message : 'Unknown error',
+        });
+      } finally {
+        setCsvExporting(null);
+      }
+    },
+    [user, toast],
+  );
+
   return (
     <AdminLayout>
+      <>
       <header className="flex flex-col md:flex-row justify-between items-start md:items-center gap-6 mb-12">
         <div>
           <h1 className="text-3xl font-display font-bold text-primary uppercase tracking-tight">Admin Dashboard</h1>
@@ -345,7 +446,7 @@ export default function AdminDashboard() {
             value={dateRange ? 'custom' : timeRange}
             onValueChange={(val) => {
               if (val !== 'custom') {
-                setTimeRange(val);
+                setTimeRange(isTimeRange(val) ? val : '30d');
                 setDateRange(undefined);
               }
             }}
@@ -365,7 +466,7 @@ export default function AdminDashboard() {
             to={dateRange?.to}
             onSelect={(range) => {
               setDateRange(range);
-              if (range?.from || range?.to) setTimeRange('');
+              if (range?.from || range?.to) setTimeRange('30d');
             }}
           />
           <Button
@@ -376,6 +477,24 @@ export default function AdminDashboard() {
             {isGeneratingReport ? <Loader2 className="w-3 h-3 animate-spin mr-2" /> : <FileDown className="w-3 h-3 mr-2" />}
             Download PDF Report
           </Button>
+          <div className="flex items-center gap-2">
+            {([
+              ['customers', 'Customers CSV'],
+              ['invoices', 'Invoices CSV'],
+              ['plans', 'Plans CSV'],
+            ] as const).map(([kind, label]) => (
+              <Button
+                key={kind}
+                onClick={() => handleCsvExport(kind)}
+                disabled={csvExporting !== null}
+                variant="outline"
+                className="rounded-full font-mono text-[10px] uppercase font-bold px-6"
+              >
+                {csvExporting === kind ? <Loader2 className="w-3 h-3 animate-spin mr-2" /> : <FileDown className="w-3 h-3 mr-2" />}
+                {label}
+              </Button>
+            ))}
+          </div>
         </div>
       </header>
 
@@ -395,7 +514,7 @@ export default function AdminDashboard() {
             unit: '%',
             icon: Activity,
             color: 'text-green-600',
-            detail: `${metrics.networkResponses} network ratings`,
+            detail: `${metrics.networkResponses} network responses`,
           },
           {
             label: 'Would Recommend',
@@ -406,12 +525,14 @@ export default function AdminDashboard() {
             detail: `Based on ${metrics.total} feedbacks`,
           },
           {
+            // The form never asks an FCR question, so 0 answers is "no data",
+            // not "nobody fixed first try" — show a dash instead of 0%.
             label: 'Resolved First Time',
-            value: metrics.ces,
-            unit: '%',
+            value: metrics.fcrResponses > 0 ? metrics.ces : '—',
+            unit: metrics.fcrResponses > 0 ? '%' : '',
             icon: CheckCircle2,
             color: 'text-orange-500',
-            detail: 'Fixed on first try',
+            detail: metrics.fcrResponses > 0 ? 'Fixed on first try' : 'Not asked on form yet',
           },
           {
             label: 'Resolved Issues',
@@ -492,14 +613,13 @@ export default function AdminDashboard() {
         <div className="col-span-12 lg:col-span-4 bg-white p-8 rounded-2xl whisper-shadow border border-border">
           <h3 className="font-display font-bold text-lg uppercase tracking-tight mb-8">Regional Pulse</h3>
           <div className="space-y-6">
-            {['Ibadan', 'Abeokuta', 'Akure', 'Osogbo'].map((loc) => {
-              const count = filteredFeedbacks.filter((f: FeedbackDoc) => f.location === loc).length;
-              const percent = metrics.total > 0 ? (count / metrics.total) * 100 : 0;
+            {regionItems.map((reg) => {
+              const percent = metrics.total > 0 ? (reg.count / metrics.total) * 100 : 0;
               return (
-                <div key={loc} className="space-y-2">
+                <div key={reg.name} className="space-y-2">
                   <div className="flex justify-between font-mono text-[10px] font-bold uppercase">
-                    <span>{loc}</span>
-                    <span className="text-secondary">{count} Feedbacks</span>
+                    <span>{reg.name}</span>
+                    <span className="text-secondary">{reg.count} Feedbacks</span>
                   </div>
                   <div className="w-full bg-muted h-1.5 rounded-full overflow-hidden">
                     <div className="bg-primary h-full" style={{ width: `${percent}%` }}></div>
@@ -508,6 +628,33 @@ export default function AdminDashboard() {
               );
             })}
           </div>
+          {regionTotalPages > 1 && (
+            <div className="flex items-center justify-between pt-6">
+              <Button
+                variant="outline"
+                size="sm"
+                className="rounded-full font-mono text-[10px] uppercase font-bold px-4"
+                disabled={safeRegionPage <= 1}
+                onClick={() => setRegionPage((p) => Math.max(1, p - 1))}
+                aria-label="Previous regions page"
+              >
+                Prev
+              </Button>
+              <span className="font-mono text-[10px] font-bold text-on-surface-variant/60" aria-live="polite">
+                {safeRegionPage} of {regionTotalPages}
+              </span>
+              <Button
+                variant="outline"
+                size="sm"
+                className="rounded-full font-mono text-[10px] uppercase font-bold px-4"
+                disabled={safeRegionPage >= regionTotalPages}
+                onClick={() => setRegionPage((p) => Math.min(regionTotalPages, p + 1))}
+                aria-label="Next regions page"
+              >
+                Next
+              </Button>
+            </div>
+          )}
         </div>
       </div>
 
@@ -555,7 +702,7 @@ export default function AdminDashboard() {
           <h3 className="font-display font-bold text-lg uppercase tracking-tight">Recent Activity</h3>
         </div>
         <div className="space-y-4">
-          {filteredFeedbacks.slice(0, 10).map((f: FeedbackDoc) => (
+          {activityItems.map((f: FeedbackDoc) => (
             <div
               key={f.id}
               className="group p-6 border border-border rounded-xl hover:border-secondary transition-all flex flex-col md:flex-row justify-between items-start md:items-center gap-6 bg-surface-container-lowest"
@@ -580,7 +727,7 @@ export default function AdminDashboard() {
                 <p className="font-bold text-primary mb-1">
                   {f.customerName} <span className="font-mono text-[10px] font-normal opacity-40 ml-2">({f.location})</span>
                 </p>
-                <p className="text-sm text-on-surface-variant line-clamp-2 italic">&ldquo;{f.comment}&rdquo;</p>
+                <FeedbackQuote feedback={f} className="text-sm text-on-surface-variant line-clamp-2" />
                 {f.resolutionNotes && (
                   <div className="mt-4 p-4 bg-muted rounded-xl text-xs font-mono border-l-4 border-secondary shadow-sm">
                     <div className="flex items-center gap-2 mb-2 text-secondary font-bold uppercase tracking-wider">
@@ -598,7 +745,6 @@ export default function AdminDashboard() {
                       variant="outline"
                       className="rounded-full px-6 font-mono text-[10px] uppercase font-bold"
                       onClick={() => {
-                        setSelectedFeedback(f);
                         setResNotes(f.resolutionNotes || '');
                       }}
                     >
@@ -611,7 +757,9 @@ export default function AdminDashboard() {
                       <DialogDescription className="sr-only">Review and resolve this customer feedback entry.</DialogDescription>
                     </DialogHeader>
                     <div className="space-y-6 py-4">
-                      <div className="p-4 bg-muted rounded-xl text-sm italic">&ldquo;{f.comment}&rdquo;</div>
+                      <div className="p-4 bg-muted rounded-xl text-sm">
+                        <FeedbackQuote feedback={f} />
+                      </div>
                       <div className="space-y-2">
                         <label className="font-mono text-[10px] uppercase font-bold text-on-surface-variant">Resolution Notes</label>
                         <Textarea
@@ -642,6 +790,66 @@ export default function AdminDashboard() {
               </div>
             </div>
           ))}
+          {activityTotalPages > 1 && !allFeedbacksLoading && (
+            <div className="flex flex-col sm:flex-row items-center justify-between gap-3 pt-4">
+              <p className="font-mono text-[10px] uppercase tracking-widest font-bold text-on-surface-variant/60">
+                Showing {activityStart}–{activityEnd} of {filteredFeedbacks.length}
+              </p>
+              <div className="flex items-center gap-1.5">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="rounded-full font-mono text-[10px] uppercase font-bold px-4"
+                  disabled={safeActivityPage <= 1}
+                  onClick={() => setActivityPage((p) => Math.max(1, p - 1))}
+                  aria-label="Previous activity page"
+                >
+                  Prev
+                </Button>
+                {(() => {
+                  const pages: Array<number | '…'> = [];
+                  for (let p = 1; p <= activityTotalPages; p++) {
+                    if (p === 1 || p === activityTotalPages || Math.abs(p - safeActivityPage) <= 1) {
+                      const prev = pages[pages.length - 1];
+                      if (typeof prev === 'number' && p - prev > 1) pages.push('…');
+                      pages.push(p);
+                    }
+                  }
+                  return pages;
+                })()
+                  .map((p, i) =>
+                    p === '…' ? (
+                      <span key={`gap-${i}`} className="font-mono text-[10px] text-on-surface-variant/40 px-1">…</span>
+                    ) : (
+                      <Button
+                        key={p}
+                        variant={p === safeActivityPage ? 'default' : 'outline'}
+                        size="sm"
+                        className={cn(
+                          'rounded-full font-mono text-[10px] font-bold w-8 h-8 p-0',
+                          p === safeActivityPage && 'bg-secondary text-white',
+                        )}
+                        onClick={() => setActivityPage(p)}
+                        aria-label={`Go to activity page ${p}`}
+                        aria-current={p === safeActivityPage ? 'page' : undefined}
+                      >
+                        {p}
+                      </Button>
+                    ),
+                  )}
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="rounded-full font-mono text-[10px] uppercase font-bold px-4"
+                  disabled={safeActivityPage >= activityTotalPages}
+                  onClick={() => setActivityPage((p) => Math.min(activityTotalPages, p + 1))}
+                  aria-label="Next activity page"
+                >
+                  Next
+                </Button>
+              </div>
+            </div>
+          )}
           {allFeedbacksLoading && (
             <div className="py-20 text-center">
               <div className="w-8 h-8 border-4 border-secondary/20 border-t-secondary rounded-full animate-spin mx-auto" />
@@ -656,6 +864,7 @@ export default function AdminDashboard() {
           )}
         </div>
       </div>
+      </>
     </AdminLayout>
   );
 }

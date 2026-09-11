@@ -7,6 +7,7 @@ import { useCustomers, exportCustomersCsv, exportOverdueCustomersCsv, triggerSpl
 import { useToast } from '@/hooks/use-toast';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
+import { MobileToolbar } from '@/components/admin/MobileToolbar';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
@@ -50,14 +51,14 @@ function KpiCard({
   sub?: string;
 }) {
   return (
-    <SectionCard className="flex items-center gap-4 p-5">
-      <div className={cn('w-11 h-11 rounded-full flex items-center justify-center shrink-0', color)}>
+    <SectionCard className="flex items-center gap-3 md:gap-4 p-4 md:p-5 min-w-0">
+      <div className={cn('w-10 h-10 md:w-11 md:h-11 rounded-full flex items-center justify-center shrink-0', color)}>
         <Icon className="w-5 h-5 text-white" />
       </div>
-      <div className="min-w-0">
-        <p className="font-mono text-[9px] uppercase tracking-widest font-bold text-on-surface-variant">{label}</p>
-        <p className="font-display text-xl font-bold text-primary truncate">{value}</p>
-        {sub && <p className="font-mono text-[9px] text-on-surface-variant/60 font-bold uppercase tracking-widest truncate">{sub}</p>}
+      <div className="min-w-0 flex-1">
+        <p className="font-mono text-[9px] uppercase tracking-widest font-bold text-on-surface-variant truncate">{label}</p>
+        <p className="font-display text-lg xl:text-xl font-bold text-primary break-words" title={value}>{value}</p>
+        {sub && <p className="font-mono text-[9px] text-on-surface-variant/60 font-bold uppercase tracking-widest truncate" title={sub}>{sub}</p>}
       </div>
     </SectionCard>
   );
@@ -87,6 +88,20 @@ function OnlineBadge({ online }: { online: boolean | null | undefined }) {
   );
 }
 
+function MatchBadge({ state }: { state: string | null | undefined }) {
+  if (!state) return <span className="text-[10px] font-mono text-on-surface-variant/40">—</span>;
+  const styles: Record<string, string> = {
+    matched: 'bg-emerald-100 text-emerald-700',
+    manual: 'bg-violet-100 text-violet-700',
+    pending: 'bg-amber-100 text-amber-700',
+  };
+  return (
+    <span className={cn('px-2 py-0.5 rounded-full text-[10px] font-bold font-mono whitespace-nowrap', styles[state] || styles.pending)}>
+      {state}
+    </span>
+  );
+}
+
 function fmtMs(ms: number | null | undefined): string {
   if (!ms) return '—';
   return new Date(ms).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' });
@@ -105,6 +120,7 @@ export default function CustomersPage() {
   const [search, setSearch] = useState('');
   const [debouncedSearch, setDebouncedSearch] = useState('');
   const [filterLifecycle, setFilterLifecycle] = useState('__all');
+  const [filterStatus, setFilterStatus] = useState('active');
   const [filterOverdue, setFilterOverdue] = useState('__all');
   const [page, setPage] = useState(1);
   const [syncing, setSyncing] = useState(false);
@@ -124,6 +140,7 @@ export default function CustomersPage() {
   const { records, summary, meta, total, totalPages, loading, mutate } = useCustomers({
     search: debouncedSearch || undefined,
     lifecycle: filterLifecycle !== '__all' ? filterLifecycle : undefined,
+    status: filterStatus !== '__all' ? filterStatus : undefined,
     overdue: filterOverdue !== '__all' ? filterOverdue : undefined,
     page,
     pageSize: PAGE_SIZE,
@@ -194,43 +211,52 @@ export default function CustomersPage() {
               Live Splynx customer mirror &mdash; lifecycle, reminders &amp; churn
             </p>
           </div>
-          <div className="flex flex-wrap items-center gap-2 shrink-0">
-            <Search className="w-4 h-4 text-on-surface-variant" />
-            <Input
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              placeholder="Search name, email, login..."
-              className="w-64 rounded-xl font-mono text-xs"
-            />
-            <Button
-              variant="outline"
-              onClick={handleExport}
-              disabled={!canEdit}
-              className="rounded-xl font-mono text-[10px] uppercase font-bold px-4 py-2 hover:bg-surface-container-low transition-all"
-            >
-              <Download className="w-3.5 h-3.5 mr-2" />
-              Export
-            </Button>
-            <Button
-              variant="outline"
-              onClick={handleExportOverdue}
-              disabled={!canEdit}
-              className="rounded-xl font-mono text-[10px] uppercase font-bold px-4 py-2 hover:bg-surface-container-low transition-all"
-            >
-              <Clock3 className="w-3.5 h-3.5 mr-2" />
-              Overdue CSV
-            </Button>
-            {canEdit && (
-              <Button
-                onClick={handleSync}
-                disabled={syncing}
-                className="rounded-xl bg-secondary text-white font-mono text-[10px] uppercase font-bold px-4 py-2 hover:opacity-90 transition-all"
-              >
-                {syncing ? <Loader2 className="w-3.5 h-3.5 mr-2 animate-spin" /> : <RefreshCw className="w-3.5 h-3.5 mr-2" />}
-                {syncing ? 'Syncing...' : 'Sync Now'}
-              </Button>
-            )}
-          </div>
+          <MobileToolbar
+            primary={
+              <div className="relative">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-on-surface-variant" />
+                <Input
+                  value={search}
+                  onChange={(e) => setSearch(e.target.value)}
+                  placeholder="Search name, email, login..."
+                  className="w-full sm:w-48 xl:w-64 pl-9 rounded-xl font-mono text-xs min-w-0"
+                />
+              </div>
+            }
+            secondary={
+              <>
+                <Button
+                  variant="outline"
+                  onClick={handleExport}
+                  disabled={!canEdit}
+                  className="rounded-xl font-mono text-[10px] uppercase font-bold px-4 py-2 hover:bg-surface-container-low transition-all"
+                >
+                  <Download className="w-3.5 h-3.5 mr-2" />
+                  Export
+                </Button>
+                <Button
+                  variant="outline"
+                  onClick={handleExportOverdue}
+                  disabled={!canEdit}
+                  className="rounded-xl font-mono text-[10px] uppercase font-bold px-4 py-2 hover:bg-surface-container-low transition-all"
+                >
+                  <Clock3 className="w-3.5 h-3.5 mr-2" />
+                  Overdue CSV
+                </Button>
+                {canEdit && (
+                  <Button
+                    onClick={handleSync}
+                    disabled={syncing}
+                    className="rounded-xl bg-secondary text-white font-mono text-[10px] uppercase font-bold px-4 py-2 hover:opacity-90 transition-all"
+                  >
+                    {syncing ? <Loader2 className="w-3.5 h-3.5 mr-2 animate-spin" /> : <RefreshCw className="w-3.5 h-3.5 mr-2" />}
+                    {syncing ? 'Syncing...' : 'Sync Now'}
+                  </Button>
+                )}
+              </>
+            }
+            label="Actions"
+          />
         </header>
 
         {meta && (
@@ -257,12 +283,12 @@ export default function CustomersPage() {
             </span>
             {meta.lastError && <span className="text-red-600 normal-case">{meta.lastError}</span>}
             {meta.invoicesApiDenied && (
-              <span className="text-amber-700 normal-case">⚠ Invoice sync blocked: Splynx API key lacks Finance permission</span>
+              <span className="inline-flex items-center gap-1 text-amber-700 normal-case"><AlertTriangle className="w-3.5 h-3.5" /> Invoice sync blocked: Splynx API key lacks Finance permission</span>
             )}
           </div>
         )}
 
-        <div className="grid grid-cols-2 lg:grid-cols-6 gap-3 md:gap-4 mb-6">
+        <div className="grid grid-cols-2 md:grid-cols-3 gap-3 md:gap-4 mb-6">
           <KpiCard label="Total" value={(summary?.total ?? 0).toLocaleString()} icon={Users} color="bg-secondary" />
           <KpiCard label="Active" value={(summary?.active ?? 0).toLocaleString()} icon={Wifi} color="bg-emerald-500" />
           <KpiCard label="Inactive" value={(summary?.inactive ?? 0).toLocaleString()} icon={AlertTriangle} color="bg-orange-500" />
@@ -289,6 +315,17 @@ export default function CustomersPage() {
                   {l}
                 </SelectItem>
               ))}
+            </SelectContent>
+          </Select>
+          <Select value={filterStatus} onValueChange={(v) => { setFilterStatus(v); setPage(1); }}>
+            <SelectTrigger className="w-[140px] rounded-xl font-mono text-[10px] uppercase font-bold">
+              <SelectValue placeholder="Account Status" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="active">Active Only</SelectItem>
+              <SelectItem value="__all">All Statuses</SelectItem>
+              <SelectItem value="disabled">Disabled</SelectItem>
+              <SelectItem value="blocked">Blocked</SelectItem>
             </SelectContent>
           </Select>
           <Select value={filterOverdue} onValueChange={setFilterOverdue}>
@@ -320,11 +357,12 @@ export default function CustomersPage() {
             </div>
           ) : (
             <div className="overflow-x-auto">
-              <table className="w-full text-left border-collapse">
+              <table className="w-full min-w-[1200px] text-left border-collapse">
                 <thead>
                   <tr className="border-b border-border/80 font-mono text-[10px] text-on-surface-variant font-bold uppercase tracking-widest">
                     <th className="py-3 px-4">ID</th>
                     <th className="py-3 px-4">Customer</th>
+                    <th className="py-3 px-4">Tower</th>
                     <th className="py-3 px-4">Lifecycle</th>
                     <th className="py-3 px-4">Status</th>
                     <th className="py-3 px-4">Connection</th>
@@ -345,6 +383,12 @@ export default function CustomersPage() {
                         <p className="font-mono text-[10px] text-on-surface-variant/60 truncate max-w-[220px]">
                           {r.email || r.login || ''}
                         </p>
+                      </td>
+                      <td className="py-2.5 px-4">
+                        <div className="flex flex-col gap-1">
+                          <span className="font-mono text-[11px] font-bold whitespace-nowrap">{r.btsName || '—'}</span>
+                          <MatchBadge state={r.matchState} />
+                        </div>
                       </td>
                       <td className="py-2.5 px-4">
                         <LifecycleBadge lifecycle={r.lifecycle} />

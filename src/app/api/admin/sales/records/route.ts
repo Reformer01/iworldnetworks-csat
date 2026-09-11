@@ -34,6 +34,13 @@ async function resolveRecordBts(customerName: string, location: string): Promise
   return getBtsForLocation(location)?.[0]?.name || '';
 }
 
+// saleDate is the truth, month/quarter derive from it so edits move the record
+function monthNameFromSaleDate(saleDate: string): string | undefined {
+  const d = new Date(saleDate);
+  if (Number.isNaN(d.getTime())) return undefined;
+  return d.toLocaleString('en-US', { month: 'long', timeZone: 'UTC' });
+}
+
 export async function GET(request: NextRequest) {
   try {
     if (isRateLimited(request, 120, 60 * 1000)) {
@@ -132,7 +139,9 @@ export async function POST(request: NextRequest) {
 
     const region = getRegionForLocation(data.location);
     const segment = getSegmentForPlan(data.planCode);
-    const quarter = data.quarter || getQuarterFromMonth(data.month);
+    const derivedMonth = data.saleDate ? monthNameFromSaleDate(data.saleDate) : undefined;
+    const month = derivedMonth || data.month;
+    const quarter = getQuarterFromMonth(month);
     const bts = data.bts || (await resolveRecordBts(data.customerName, data.location));
     const now = Date.now();
 
@@ -141,6 +150,7 @@ export async function POST(request: NextRequest) {
       salesAgent: effectiveAgent,
       region,
       segment,
+      month,
       quarter,
       bts,
       customerType: data.customerType ?? 'new',
@@ -211,8 +221,10 @@ export async function PUT(request: NextRequest) {
       changes.salesAgent = prev.salesAgent;
     }
 
+    const derivedMonth = changes.saleDate ? monthNameFromSaleDate(changes.saleDate) : undefined;
     const updated = await updateSalesRecordDb(id, {
       ...changes,
+      ...(derivedMonth ? { month: derivedMonth, quarter: getQuarterFromMonth(derivedMonth) } : {}),
       region: changes.location ? getRegionForLocation(changes.location) : undefined,
       segment: changes.planCode ? getSegmentForPlan(changes.planCode) : undefined,
       // Submitted bts wins; otherwise re-resolve (unified-first) only when the

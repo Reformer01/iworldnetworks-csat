@@ -1,10 +1,11 @@
 import { NextRequest } from 'next/server';
-import { getAdminFirestore } from '@/lib/firebase-admin';
 import { verifyAdminToken } from '@/lib/admin-auth';
+import { isSuperAdmin, salesAgentForEmail } from '@/lib/admin-config';
 import { isRateLimited } from '@/lib/rate-limit';
 import { salesAgents, regionalTargets, SalesRegion, SalesSegment, SEGMENTS_THAT_ROLL_UP_TO_SME } from '@/lib/sales-staff';
 import { success, unauthorized, tooMany, forbidden, serverError, validateOrigin } from '@/lib/api-response';
 import { logError } from '@/lib/logger';
+import { listSalesRecordsDb } from '@/lib/sales-db';
 
 type RecordDoc = {
   id: string;
@@ -33,6 +34,7 @@ function getMonthKey(month: string): string {
 }
 
 const MONTH_ORDER = [
+  'June',
   'July',
   'August',
   'September',
@@ -44,7 +46,6 @@ const MONTH_ORDER = [
   'March',
   'April',
   'May',
-  'June',
 ];
 
 function aggregateMonthlyData(records: RecordDoc[]): MonthlyRevenueData[] {
@@ -96,20 +97,21 @@ export async function GET(request: NextRequest) {
     const region = searchParams.get('region') as SalesRegion | null;
     const agent = searchParams.get('agent');
 
-    const db = getAdminFirestore();
-    const snapshot = await db.collection('sales_records').orderBy('serialNumber', 'desc').limit(2000).get();
-    const records: RecordDoc[] = snapshot.docs
-      .filter((doc) => !doc.data().deletedAt)
-      .map((doc) => ({ id: doc.id, ...doc.data() }) as RecordDoc);
+    // MariaDB read — all non-deleted records; region/agent/segment breakdowns
+    // filter in JS below (same semantics as the previous Firestore fetch).
+    const records = await listSalesRecordsDb();
+
+    // Agents only ever see their own numbers.
+    const callerAgent = !isSuperAdmin(admin.email) ? salesAgentForEmail(admin.email) : undefined;
 
     // Filter by region if specified
     let filteredRecords = records;
     if (region) {
       filteredRecords = records.filter((r) => r.region === region);
     }
-    // Filter by agent if specified
-    if (agent) {
-      filteredRecords = filteredRecords.filter((r) => r.salesAgent === agent);
+    // Filter by agent if specified (or forced to the caller's own name)
+    if (agent || callerAgent) {
+      filteredRecords = filteredRecords.filter((r) => r.salesAgent === (callerAgent || agent));
     }
 
     // Overall monthly data
@@ -126,7 +128,10 @@ export async function GET(request: NextRequest) {
     });
 
     // By agent
-    const agentsToProcess = agent ? salesAgents.filter((a) => a.name === agent) : salesAgents.filter((a) => !region || a.region === region);
+    const effectiveAgent = callerAgent || agent;
+    const agentsToProcess = effectiveAgent
+      ? salesAgents.filter((a) => a.name === effectiveAgent)
+      : salesAgents.filter((a) => !region || a.region === region);
     const agentMonthly = agentsToProcess.map((a) => {
       const agentRecords = filteredRecords.filter((r) => r.salesAgent === a.name);
       return {

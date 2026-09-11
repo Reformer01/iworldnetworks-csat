@@ -4,7 +4,7 @@ import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
 import { useAuth, useUser } from '@/firebase';
-import { useEmails, type EmailJobRecord, retryEmailJob, approveEmailJob, rejectEmailJob, bulkEmailAction } from '@/hooks/use-emails';
+import { useEmails, type EmailJobRecord, retryEmailJob, approveEmailJob, rejectEmailJob, bulkEmailAction, fetchPendingEmailIds } from '@/hooks/use-emails';
 import { useToast } from '@/hooks/use-toast';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
@@ -128,6 +128,53 @@ export function EmailsTab() {
     }
   };
 
+  const handleApproveAll = async () => {
+    if (!user || bulking) return;
+    setBulking(true);
+    try {
+      const ids = await fetchPendingEmailIds(user);
+      if (ids.length === 0) {
+        toast({ title: 'Nothing to approve', description: 'All emails are already processed.' });
+        return;
+      }
+      const affected = await bulkEmailAction(user, 'approve', ids);
+      toast({
+        title: 'All pending emails approved',
+        description: `${affected} email${affected === 1 ? '' : 's'} approved and queued for sending.`,
+      });
+      mutate();
+    } catch (e) {
+      toast({ variant: 'destructive', title: 'Approve all failed', description: e instanceof Error ? e.message : 'Unknown error' });
+    } finally {
+      setBulking(false);
+    }
+  };
+
+  const handleClearPending = async () => {
+    if (!user || bulking) return;
+    const ok = window.confirm(
+      `Clear all PENDING mail queue?\n\nThis will mark ${stats?.pending ?? 0} pending emails as CANCELLED and drain Redis queue.\nPending_approval (awaiting your approval) will be kept.\n\nContinue?`
+    );
+    if (!ok) return;
+    setBulking(true);
+    try {
+      const token = await user.getIdToken();
+      const res = await fetch('/api/admin/emails/clear', {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ statuses: ['pending'] }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data.error || 'Clear failed');
+      toast({ title: 'Queue cleared', description: `${data.data?.cleared ?? 0} pending emails cancelled.` });
+      mutate();
+    } catch (e) {
+      toast({ variant: 'destructive', title: 'Clear failed', description: e instanceof Error ? e.message : 'Unknown error' });
+    } finally {
+      setBulking(false);
+    }
+  };
+
   return (
     <>
       <header className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6">
@@ -137,13 +184,13 @@ export function EmailsTab() {
             Mailing suite &mdash; sent, pending, failed &amp; retries
           </p>
         </div>
-        <div className="flex flex-wrap items-center gap-2 shrink-0">
-          <Search className="w-4 h-4 text-on-surface-variant" />
+        <div className="flex flex-wrap items-center gap-2 shrink-0 min-w-0">
+          <Search className="w-4 h-4 text-on-surface-variant shrink-0" />
           <Input
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             placeholder="Search name or email..."
-            className="w-64 rounded-xl font-mono text-xs"
+            className="w-full sm:w-48 xl:w-64 rounded-xl font-mono text-xs min-w-0"
           />
           {canEdit && (
             <Button
@@ -158,6 +205,47 @@ export function EmailsTab() {
       </header>
 
       <EmailStatsCards stats={stats} />
+
+      {/* Approval actions — only when needed */}
+      {canApprove && stats?.pendingApproval !== undefined && stats.pendingApproval > 0 && (
+        <div className="mt-4 flex items-center gap-3 px-4 py-3 rounded-xl bg-orange-50 border border-orange-200">
+          <span className="w-2 h-2 rounded-full bg-orange-500 animate-pulse" />
+          <span className="font-mono text-[11px] font-bold text-orange-800">
+            {stats.pendingApproval} awaiting approval
+          </span>
+          <Button
+            size="sm"
+            className="ml-auto h-8 rounded-full bg-orange-600 hover:bg-orange-700 text-white font-mono text-[10px] uppercase font-bold"
+            disabled={bulking}
+            onClick={handleApproveAll}
+          >
+            {bulking ? <Loader2 className="w-3.5 h-3.5 mr-1.5 animate-spin" /> : <Check className="w-3.5 h-3.5 mr-1.5" />}
+            Approve all
+          </Button>
+          <Button
+            size="sm"
+            variant="outline"
+            className="h-8 rounded-full font-mono text-[10px] uppercase font-bold"
+            onClick={() => setFilterStatus('pending_approval')}
+          >
+            View
+          </Button>
+        </div>
+      )}
+      {canApprove && stats?.pending !== undefined && stats.pending > 0 && (
+        <div className="mt-3 flex items-center gap-2 px-3 py-2 rounded-lg bg-zinc-50 border border-zinc-200">
+          <span className="font-mono text-[10px] text-zinc-600">{stats.pending} pending will auto-send</span>
+          <Button
+            size="sm"
+            variant="ghost"
+            className="ml-auto h-7 rounded-full font-mono text-[10px] uppercase font-bold text-zinc-600 hover:text-red-600"
+            disabled={bulking}
+            onClick={handleClearPending}
+          >
+            <X className="w-3 h-3 mr-1" /> Clear
+          </Button>
+        </div>
+      )}
 
       {campaignId && (
         <div className="flex items-center gap-2 px-4 py-2.5 mb-4 rounded-xl border border-secondary/30 bg-secondary/5">
@@ -204,6 +292,16 @@ export function EmailsTab() {
         <span className="ml-auto font-mono text-[10px] uppercase tracking-widest opacity-60 font-bold">
           {total.toLocaleString()} email{total === 1 ? '' : 's'}
         </span>
+        {canApprove && stats && stats.pendingApproval > 0 && (
+          <Button
+            disabled={bulking}
+            className="rounded-xl bg-emerald-600 text-white font-mono text-[10px] uppercase font-bold px-4 py-2 hover:opacity-90 transition-all"
+            onClick={handleApproveAll}
+          >
+            {bulking ? <Loader2 className="w-3.5 h-3.5 mr-2 animate-spin" /> : <Check className="w-3.5 h-3.5 mr-2" />}
+            Approve All ({stats.pendingApproval})
+          </Button>
+        )}
       </div>
 
       <div className={cn('bg-white p-0 overflow-hidden rounded-2xl whisper-shadow border border-border')}>

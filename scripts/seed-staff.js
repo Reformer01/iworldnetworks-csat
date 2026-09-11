@@ -131,7 +131,7 @@ async function seedStaff() {
     {
       id: 'support-victoria-fokorede',
       name: 'Victoria Fokorede',
-      role: 'Support Agent',
+      role: 'Front-end Support',
       department: 'Support',
       categories: ['Support'],
       email: 'victoria.fokorede@iworldnetworks.net',
@@ -147,7 +147,7 @@ async function seedStaff() {
     {
       id: 'support-aishat-hamzat',
       name: 'Aishat Hamzat',
-      role: 'Support Agent',
+      role: 'Front-end Support',
       department: 'Support',
       categories: ['Support'],
       email: 'aishat.hamzat@iworldnetworks.net',
@@ -163,7 +163,7 @@ async function seedStaff() {
     {
       id: 'support-adekomoya-joseph',
       name: 'Adekomoya Joseph',
-      role: 'Support Agent',
+      role: 'Front-end Support',
       department: 'Support',
       categories: ['Support'],
       email: 'adekomoya.joseph@iworldnetworks.net',
@@ -179,7 +179,7 @@ async function seedStaff() {
     {
       id: 'support-olusegun-oluwanishola',
       name: 'Olusegun Oluwanishola',
-      role: 'Support Agent',
+      role: 'Front-end Support',
       department: 'Support',
       categories: ['Support'],
       email: 'olusegun.oluwanishola@iworldnetworks.net',
@@ -195,7 +195,7 @@ async function seedStaff() {
     {
       id: 'support-babatunde-christianah',
       name: 'Babatunde Christianah',
-      role: 'Support Agent',
+      role: 'Front-end Support',
       department: 'Support',
       categories: ['Support'],
       email: 'babatunde.christianah@iworldnetworks.net',

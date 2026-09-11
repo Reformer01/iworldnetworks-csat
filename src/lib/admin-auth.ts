@@ -1,6 +1,6 @@
 import { getAuth } from 'firebase-admin/auth';
 import { getAdminApp } from '@/lib/firebase-admin';
-import { isAllowedDomain } from '@/lib/admin-config';
+import { isAllowedDomain, isSuperAdmin } from '@/lib/admin-config';
 
 /**
  * Verifies the Firebase ID token from an Authorization header.
@@ -20,6 +20,18 @@ export async function verifyAdminToken(authHeader: string | null): Promise<{ uid
   } catch {
     return null;
   }
+}
+
+/**
+ * Verifies the Firebase ID token AND enforces the super_admin role.
+ * Restricts destructive operations to the two super admins (see admin-config).
+ * Returns the decoded token if valid, otherwise null.
+ */
+export async function verifySuperAdminToken(authHeader: string | null): Promise<{ uid: string; email: string } | null> {
+  const admin = await verifyAdminToken(authHeader);
+  if (!admin) return null;
+  if (!isSuperAdmin(admin.email)) return null;
+  return admin;
 }
 
 /** @deprecated Use verifyAdminToken instead. Identical logic. */

@@ -3,6 +3,7 @@ import { getAdminFirestore } from '@/lib/firebase-admin';
 import { createFeedbackToken, getFeedbackBaseUrl } from '@/lib/feedback-token';
 import { isRateLimitedFirestore } from '@/lib/rate-limit-firestore';
 import { logError } from '@/lib/logger';
+import { isValidCategory } from '@/lib/splynx-categories';
 import { z } from 'zod';
 
 const tokenSchema = z.object({
@@ -12,6 +13,8 @@ const tokenSchema = z.object({
   location: z.string().optional().default(''),
   serviceDate: z.string().optional().default(''),
   sourceEvent: z.string().optional().default(''),
+  category: z.string().optional().default(''),
+  staffName: z.string().optional().default(''),
 });
 
 export async function POST(request: NextRequest) {
@@ -34,13 +37,24 @@ export async function POST(request: NextRequest) {
     }
 
     const data = validation.data;
+    if (data.category && !isValidCategory(data.category)) {
+      return NextResponse.json(
+        { success: false, error: 'Validation failed.', details: { category: ['Invalid subject.'] } },
+        { status: 400 },
+      );
+    }
+
     const db = getAdminFirestore();
     const { token } = await createFeedbackToken(db, data);
+
+    const url = data.category
+      ? `${getFeedbackBaseUrl(request)}/feedback?token=${token}&subject=${encodeURIComponent(data.category)}`
+      : `${getFeedbackBaseUrl(request)}/feedback?token=${token}`;
 
     return NextResponse.json({
       success: true,
       token,
-      url: `${getFeedbackBaseUrl(request)}/feedback?token=${token}`,
+      url,
     });
   } catch (err) {
     logError('[feedback-token-generate] POST error', { error: err instanceof Error ? err.message : String(err) });

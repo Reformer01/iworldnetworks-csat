@@ -6,6 +6,19 @@ export const ACCOUNT_STATUSES = ['Active', 'Inactive', 'Blocked', 'Refunded', 'R
 export type AccountStatus = (typeof ACCOUNT_STATUSES)[number];
 export const PACKAGE_TYPES = ['Outright', 'Lease'] as const;
 export type PackageType = (typeof PACKAGE_TYPES)[number];
+export const MEANS_OF_SALES = [
+  'Door Knocking',
+  'Referral',
+  'Dealer-Citicybertech',
+  'Website',
+  'Third Party',
+  'Direct',
+  'Walk-In',
+  'Field Visit',
+  'Online',
+  'Partner',
+] as const;
+export type MeansOfSale = (typeof MEANS_OF_SALES)[number];
 export const SALE_QUARTERS = ['QUARTER 1', 'QUARTER 2', 'QUARTER 3', 'QUARTER 4'] as const;
 export type SaleQuarter = (typeof SALE_QUARTERS)[number];
 export type CustomerType = 'new' | 'revived';
@@ -56,6 +69,17 @@ export interface RegionalTarget {
   monthlyTarget: number;
 }
 
+export interface SalesTarget {
+  id?: string;
+  month: string; // YYYY-MM
+  region?: SalesRegion;
+  agentName?: string;
+  targetRevenue: number;
+  targetCustomers: number;
+  createdAt?: number;
+  updatedAt?: number;
+}
+
 export interface SalesMetrics {
   mrr: number;
   nrii: number;
@@ -64,11 +88,18 @@ export interface SalesMetrics {
   inactiveSubscribers: number;
   blockedSubscribers: number;
   newCustomers: number;
-  churnedCustomers: number;
-  churnRate: number;
+  totalMrcClosed: number;
   nrcRevenue: number;
   totalRevenue: number;
   avgNrc: number;
+}
+
+export interface ChannelMetrics {
+  meansOfSale: string;
+  count: number;
+  active: number;
+  mrc: number;
+  nrc: number;
 }
 
 export interface RegionMetrics extends SalesMetrics {

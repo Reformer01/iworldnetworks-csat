@@ -20,6 +20,10 @@ export function supportRevenueFromRow(row: {
   location: string | null;
   region: string | null;
   projectType: string | null;
+  saleKind: string | null;
+  assignedSalesRep: string | null;
+  bandwidthFrom: string | null;
+  bandwidthTo: string | null;
   items: unknown;
   totalAmount: number | null;
   description: string | null;
@@ -36,6 +40,10 @@ export function supportRevenueFromRow(row: {
     location: row.location ?? '',
     region: (row.region as SupportRevenueDoc['region']) ?? 'Ogun',
     projectType: row.projectType ?? '',
+    saleKind: row.saleKind ?? undefined,
+    assignedSalesRep: row.assignedSalesRep ?? undefined,
+    bandwidthFrom: row.bandwidthFrom ?? undefined,
+    bandwidthTo: row.bandwidthTo ?? undefined,
     items: Array.isArray(row.items) ? (row.items as SupportRevenueDoc['items']) : [],
     totalAmount: row.totalAmount ?? 0,
     description: row.description ?? undefined,
@@ -53,6 +61,10 @@ export function supportRevenueRowData(doc: SupportRevenueDoc): {
   location: string | null;
   region: string | null;
   projectType: string | null;
+  saleKind: string | null;
+  assignedSalesRep: string | null;
+  bandwidthFrom: string | null;
+  bandwidthTo: string | null;
   items: Prisma.InputJsonValue | Prisma.NullableJsonNullValueInput;
   totalAmount: number | null;
   description: string | null;
@@ -69,6 +81,10 @@ export function supportRevenueRowData(doc: SupportRevenueDoc): {
     location: doc.location ?? null,
     region: doc.region ?? null,
     projectType: doc.projectType ?? null,
+    saleKind: doc.saleKind ?? null,
+    assignedSalesRep: doc.assignedSalesRep ?? null,
+    bandwidthFrom: doc.bandwidthFrom ?? null,
+    bandwidthTo: doc.bandwidthTo ?? null,
     items: doc.items && doc.items.length > 0 ? (doc.items as unknown as Prisma.InputJsonValue) : Prisma.DbNull,
     totalAmount: doc.totalAmount ?? null,
     description: doc.description ?? null,

@@ -5,11 +5,13 @@ import { isRateLimited } from '@/lib/rate-limit';
 import { success, error, unauthorized, forbidden, serverError, notFound } from '@/lib/api-response';
 import { validateOrigin } from '@/lib/api-response';
 import { writeAuditLog } from '@/lib/audit-log';
+import { displayAssigneeName } from '@/lib/staff';
 import { ticketSchema } from '@/lib/validations/ticket';
 import { logError } from '@/lib/logger';
 import type { Ticket } from '@/lib/sales-types';
 import {
   listTicketsDb,
+  countTicketsDb,
   createTicketDb,
   updateTicketDb,
   softDeleteTicketDb,
@@ -43,17 +45,25 @@ export async function GET(request: NextRequest) {
     const status = searchParams.get('status');
     const assignedTo = searchParams.get('assignedTo');
     const createdBy = searchParams.get('createdBy');
+    const search = searchParams.get('search');
     const page = parseInt(searchParams.get('page') || '1');
     const pageSize = Math.min(Math.max(1, parseInt(searchParams.get('pageSize') || '50')), 100);
 
-    const tickets = await listTicketsDb({ status, assignedTo, createdBy }, 1000);
-
-    const total = tickets.length;
-    const start = (page - 1) * pageSize;
-    const pagedTickets = tickets.slice(start, start + pageSize);
+    // '__unassigned__' sentinel selects tickets with no assignee.
+    const filters = {
+      status,
+      assignedTo: assignedTo && assignedTo !== '__unassigned__' ? assignedTo : null,
+      unassignedOnly: assignedTo === '__unassigned__',
+      createdBy,
+      search,
+    };
+    const [tickets, total] = await Promise.all([
+      listTicketsDb(filters, pageSize, (page - 1) * pageSize),
+      countTicketsDb(filters),
+    ]);
 
     return success({
-      tickets: pagedTickets,
+      tickets: tickets.map((t) => ({ ...t, assignedToName: displayAssigneeName(t.assignedTo) })),
       total,
       page,
       pageSize,

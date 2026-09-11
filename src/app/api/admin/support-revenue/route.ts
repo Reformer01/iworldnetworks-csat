@@ -66,7 +66,7 @@ export async function POST(request: NextRequest) {
       return error('Invalid JSON body.');
     }
 
-    const { location, projectType, items, description, customerName } = body;
+    const { location, projectType, items, description, customerName, saleKind, agentName, assignedSalesRep, bandwidthFrom, bandwidthTo, date, notes } = body;
     const totalAmount =
       items?.reduce((sum: number, item: { quantity: number; unitPrice: number }) => sum + item.quantity * item.unitPrice, 0) || 0;
 
@@ -74,8 +74,15 @@ export async function POST(request: NextRequest) {
     const doc: SupportRevenueDoc = {
       location,
       projectType,
+      saleKind,
+      agentName,
+      assignedSalesRep,
+      bandwidthFrom,
+      bandwidthTo,
       items,
       description,
+      notes,
+      date,
       customerName,
       totalAmount,
       createdAt: now,
@@ -125,7 +132,7 @@ export async function PUT(request: NextRequest) {
     }
 
     const { id, items, ...rest } = body;
-    const ALLOWED_FIELDS: (keyof SupportRevenueDoc)[] = ['location', 'projectType', 'description', 'customerName', 'totalAmount'];
+    const ALLOWED_FIELDS: (keyof SupportRevenueDoc)[] = ['location', 'projectType', 'saleKind', 'agentName', 'assignedSalesRep', 'bandwidthFrom', 'bandwidthTo', 'description', 'notes', 'date', 'customerName', 'totalAmount'];
     const updateData: Partial<SupportRevenueDoc> = { updatedAt: Date.now() };
     for (const key of ALLOWED_FIELDS) {
       if (key in rest) updateData[key] = rest[key];

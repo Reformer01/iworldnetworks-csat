@@ -52,9 +52,16 @@ export async function countAudience(audience: Audience): Promise<number> {
 // Sends a campaign: resolves the audience, creates one EmailJob row + one
 // BullMQ job per recipient. Returns the recipient count.
 export async function sendCampaign(campaignId: string): Promise<number> {
+  // Atomic claim: only ONE caller may flip draft -> sending. Prevents a
+  // double-click / concurrent request from emailing the whole audience twice.
+  const claimed = await prisma.campaign.updateMany({
+    where: { id: campaignId, status: 'draft' },
+    data: { status: 'sending', sentAt: BigInt(Date.now()) },
+  });
+  if (claimed.count === 0) throw new Error('Campaign cannot be sent (status is not draft)');
+
   const campaign = await prisma.campaign.findUnique({ where: { id: campaignId } });
   if (!campaign) throw new Error('Campaign not found');
-  if (campaign.status !== 'draft') throw new Error(`Campaign cannot be sent (status: ${campaign.status})`);
 
   const audience = campaign.audienceJson as unknown as Audience;
   const recipients = await prisma.customer.findMany({
@@ -155,10 +162,16 @@ export function serializeCampaign(c: {
   audienceJson: Prisma.JsonValue;
   audienceCount: number;
   status: string;
+  scheduledAt: bigint | null;
   sentAt: bigint | null;
   createdBy: string;
+  submittedBy: string | null;
+  submittedAt: bigint | null;
   approvedAt: bigint | null;
   approvedBy: string | null;
+  rejectedAt: bigint | null;
+  rejectedBy: string | null;
+  rejectionReason: string | null;
   error: string | null;
   createdAt: Date;
   updatedAt: Date;
@@ -173,10 +186,16 @@ export function serializeCampaign(c: {
     audienceJson: c.audienceJson,
     audienceCount: c.audienceCount,
     status: c.status,
+    scheduledAt: toNum(c.scheduledAt),
     sentAt: toNum(c.sentAt),
     createdBy: c.createdBy,
+    submittedBy: c.submittedBy,
+    submittedAt: toNum(c.submittedAt),
     approvedAt: toNum(c.approvedAt),
     approvedBy: c.approvedBy,
+    rejectedAt: toNum(c.rejectedAt),
+    rejectedBy: c.rejectedBy,
+    rejectionReason: c.rejectionReason,
     error: c.error,
     createdAt: c.createdAt.getTime(),
     updatedAt: c.updatedAt.getTime(),

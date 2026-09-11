@@ -12,8 +12,10 @@ export async function POST(request: NextRequest) {
   response.cookies.set('__session', '', {
     httpOnly: true,
     secure: process.env.NODE_ENV === 'production',
-    sameSite: 'strict',
-    path: '/admin',
+    // Must match how the cookie is set (sameSite lax, path '/') or the
+    // browser will not match/clear it and logout silently fails.
+    sameSite: 'lax',
+    path: '/',
     maxAge: 0,
   });
   return response;

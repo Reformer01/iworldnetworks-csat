@@ -67,13 +67,22 @@ export interface ChurnSurveyJobData extends BaseEmailJobData {
 
 export interface WinBackJobData extends BaseEmailJobData {
   type: 'winback';
-  churnedAt: number;
+  churnedAt?: number;
+  /** Pre-minted feedback token + ready-to-send links from the producer.
+   *  When present the worker sends exactly what was approved (no re-mint). */
+  winBackToken?: string;
+  portalUrl?: string;
+  csatUrl?: string;
+  feedbackUrl?: string;
 }
 
 export interface FeedbackRequestJobData extends BaseEmailJobData {
   type: 'feedback_request';
   sourceEvent: string;
   eventHash: string;
+  /** Ready-to-send link from the producer. When present the worker sends it
+   *  as-is so the approved payload matches the delivered email. */
+  feedbackUrl?: string;
 }
 
 export interface ManualEmailJobData extends BaseEmailJobData {
@@ -108,6 +117,6 @@ export const EMAIL_JOB_PRIORITY = {
   campaign: 1,
 } as const;
 
-export function getPriorityForType(type: EmailJobType): number {
-  return EMAIL_JOB_PRIORITY[type] ?? 1;
+export function getPriorityForType(type: EmailJobType | string): number {
+  return (EMAIL_JOB_PRIORITY as Record<string, number>)[type] ?? 1;
 }

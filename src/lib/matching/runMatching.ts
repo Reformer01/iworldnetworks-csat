@@ -53,6 +53,8 @@ interface EndpointRow {
   name: string;
   btsName: string | null;
   btsId: string | null;
+  contactPhone: string | null;
+  contactEmail: string | null;
   status: string | null;
   deviceOutageCount: number | null;
 }
@@ -64,11 +66,14 @@ interface CustomerRow {
   phone: string | null;
   email: string | null;
   matchState: string | null;
+  matchMethod: string | null;
   matchedAt: bigint | null;
   uispEndpointId: string | null;
   uispDeviceStatus: string | null;
   uispOutageCount: number | null;
   matchScore: number | null;
+  btsId: string | null;
+  btsName: string | null;
 }
 
 const ENDPOINT_SELECT = {
@@ -76,6 +81,8 @@ const ENDPOINT_SELECT = {
   name: true,
   btsName: true,
   btsId: true,
+  contactPhone: true,
+  contactEmail: true,
   status: true,
   deviceOutageCount: true,
 } as const;
@@ -96,6 +103,22 @@ export async function runMatching(now?: number): Promise<MatchingStats> {
 
   const customers = (await prisma.customer.findMany({
     where: { deleted: false },
+    select: {
+      id: true,
+      customerName: true,
+      city: true,
+      phone: true,
+      email: true,
+      matchState: true,
+      matchMethod: true,
+      matchedAt: true,
+      uispEndpointId: true,
+      uispDeviceStatus: true,
+      uispOutageCount: true,
+      matchScore: true,
+      btsId: true,
+      btsName: true,
+    },
   })) as unknown as CustomerRow[];
 
   const endpointById = new Map(endpoints.map((e) => [e.id, e]));
@@ -120,6 +143,16 @@ export async function runMatching(now?: number): Promise<MatchingStats> {
     }
 
     if (customer.matchState === 'matched') {
+      // Device-resolved matches (deviceResolve.ts: address / device-mac /
+      // device-ip / device-name / manual-csv) are NOT re-scored here — this
+      // scorer only understands endpoint name/contact signals and would
+      // wrongly revert them every cycle. They leave via manual action or
+      // explicit revertData, same as manual.
+      const method = customer.matchMethod ?? '';
+      if (method !== 'auto' && method !== '') {
+        stats.manualKept++;
+        continue;
+      }
       // Revalidation: score only against the mapped endpoint. A better
       // endpoint elsewhere does NOT remap an auto match (avoid churn).
       const current = customer.uispEndpointId ? endpointById.get(customer.uispEndpointId) : null;
@@ -134,15 +167,20 @@ export async function runMatching(now?: number): Promise<MatchingStats> {
       } else if (
         customer.uispDeviceStatus !== current!.status ||
         customer.uispOutageCount !== current!.deviceOutageCount ||
-        (customer.matchScore ?? -1) !== score
+        (customer.matchScore ?? -1) !== score ||
+        customer.btsId !== current!.btsId ||
+        customer.btsName !== current!.btsName
       ) {
-        // keep: refresh live fields only when they drifted
+        // keep: refresh live fields + tower attribution when they drifted (tower
+        // renames in UISP must not fossilize stale btsName on matched rows)
         updates.push({
           id: customer.id,
           data: {
             uispDeviceStatus: current!.status,
             uispOutageCount: current!.deviceOutageCount,
             matchScore: score,
+            btsId: current!.btsId,
+            btsName: current!.btsName,
             matchUpdatedAt: BigInt(ts),
           },
         });
@@ -153,6 +191,43 @@ export async function runMatching(now?: number): Promise<MatchingStats> {
     // Pending: score against all endpoints, keep the best.
     let best: { endpoint: EndpointRow; score: number } | null = null;
     if (customer.customerName) {
+      // If customer has a BTS label from Splynx, prioritize endpoints with that BTS
+      if (customer.btsName) {
+        const labelBtsName = customer.btsName.trim().toLowerCase();
+        const labelEndpoints = endpoints.filter((e) => e.btsName?.toLowerCase() === labelBtsName);
+        if (labelEndpoints.length > 0) {
+          // Score only against endpoints with the matching BTS
+          for (const endpoint of labelEndpoints) {
+            const score = scoreAgainst(customer, endpoint);
+            if (!best || score > best.score) best = { endpoint, score };
+          }
+          // If we found a good match with the labeled BTS, use it
+          if (best && best.score >= 0.5) {
+            const decision = decideMatch(best.score, customer.matchState);
+            if (decision === 'match' && hasStrongSignal(customerAsMatch(customer), best.endpoint)) {
+              updates.push({
+                id: customer.id,
+                data: {
+                  matchState: 'matched',
+                  matchMethod: 'auto',
+                  btsId: best!.endpoint.btsId,
+                  btsName: best!.endpoint.btsName,
+                  uispEndpointId: best!.endpoint.id,
+                  uispEndpointName: best!.endpoint.name,
+                  uispDeviceStatus: best!.endpoint.status,
+                  uispOutageCount: best!.endpoint.deviceOutageCount,
+                  matchScore: best!.score,
+                  matchedAt: customer.matchedAt ?? BigInt(ts),
+                  matchUpdatedAt: BigInt(ts),
+                },
+              });
+              stats.matched++;
+              continue;
+            }
+          }
+        }
+      }
+      // Fallback: score against all endpoints
       for (const endpoint of endpoints) {
         const score = scoreAgainst(customer, endpoint);
         if (!best || score > best.score) best = { endpoint, score };
@@ -208,9 +283,14 @@ function scoreAgainst(
     phone: string | null;
     email: string | null;
   },
-  endpoint: { name: string; btsName: string | null },
+  endpoint: { name: string; btsName: string | null; contactPhone?: string | null; contactEmail?: string | null },
 ): number {
-  return matchScore(customerAsMatch(customer), endpoint);
+  return matchScore(customerAsMatch(customer), {
+    name: endpoint.name,
+    btsName: endpoint.btsName,
+    phone: endpoint.contactPhone,
+    email: endpoint.contactEmail,
+  });
 }
 
 function customerAsMatch(customer: { customerName: string | null; city: string | null; phone: string | null; email: string | null }) {

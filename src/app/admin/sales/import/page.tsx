@@ -7,23 +7,46 @@ import { importSalesRecords } from '@/hooks/use-sales-data';
 import { useToast } from '@/hooks/use-toast';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
-import { Loader2, Upload, FileSpreadsheet, CheckCircle2, AlertCircle } from 'lucide-react';
+import { Loader2, Upload, FileSpreadsheet, FileDown, CheckCircle2, AlertCircle, Check, AlertTriangle } from 'lucide-react';
 import {
   getRegionForLocation,
   getSegmentForPlan,
   getQuarterFromMonth,
   parseNairaAmount,
   getBtsForLocation,
-  getBtsByRegion,
 } from '@/lib/sales-staff';
+import type { SaleQuarter } from '@/lib/sales-staff';
 
 function parseCSV(text: string): Record<string, string>[] {
   const lines = text.split('\n').filter((l) => l.trim());
   if (lines.length < 2) return [];
-  const headers = lines[0].split(',').map((h) => h.trim().replace(/^"|"$/g, ''));
+  const splitLine = (line: string): string[] => {
+    const values: string[] = [];
+    let current = '';
+    let inQuotes = false;
+    for (let i = 0; i < line.length; i++) {
+      const ch = line[i];
+      if (ch === '"') {
+        if (inQuotes && line[i + 1] === '"') {
+          current += '"';
+          i++;
+        } else {
+          inQuotes = !inQuotes;
+        }
+      } else if (ch === ',' && !inQuotes) {
+        values.push(current);
+        current = '';
+      } else {
+        current += ch;
+      }
+    }
+    values.push(current);
+    return values.map((v) => v.trim());
+  };
+  const headers = splitLine(lines[0]);
   const records: Record<string, string>[] = [];
   for (let i = 1; i < lines.length; i++) {
-    const values = lines[i].split(',').map((v) => v.trim().replace(/^"|"$/g, ''));
+    const values = splitLine(lines[i]);
     if (values.length !== headers.length) continue;
     const record: Record<string, string> = {};
     headers.forEach((h, idx) => {
@@ -37,7 +60,12 @@ function parseCSV(text: string): Record<string, string>[] {
 const VALID_STATUSES = ['Active', 'Inactive', 'Blocked', 'Refunded', 'Retrieved'] as const;
 type AccountStatus = (typeof VALID_STATUSES)[number];
 
-function normalizeStatus(raw: string): { accountStatus: AccountStatus; statusNotes: string } {
+interface NormalizedStatus {
+  accountStatus: AccountStatus;
+  statusNotes: string;
+}
+
+function normalizeStatus(raw: string): NormalizedStatus {
   const s = raw.trim().toLowerCase();
   for (const vs of VALID_STATUSES) {
     if (s === vs.toLowerCase()) return { accountStatus: vs, statusNotes: '' };
@@ -49,6 +77,14 @@ function normalizeStatus(raw: string): { accountStatus: AccountStatus; statusNot
     }
   }
   return { accountStatus: 'Active', statusNotes: raw.trim() };
+}
+
+function isSaleQuarter(value: string): value is SaleQuarter {
+  return value === 'QUARTER 1' || value === 'QUARTER 2' || value === 'QUARTER 3' || value === 'QUARTER 4';
+}
+
+function isPackageType(value: string): value is 'Outright' | 'Lease' {
+  return value === 'Outright' || value === 'Lease';
 }
 
 function mapCSVToSchema(row: Record<string, string>, index: number) {
@@ -64,7 +100,7 @@ function mapCSVToSchema(row: Record<string, string>, index: number) {
   const rawQuarter = row.Quarter || row.quarter || row.QUARTER || '';
   const month = row.Month || row.month || row.MONTH || '';
   const packageType = row.Package_Type || row.packageType || row.PACKAGE_TYPE || '';
-  const serialNumber = parseInt(String(row.S_N || row.S_N || row.Serial_Number || index)) || index;
+  const serialNumber = parseInt(String(row.S_N || row.Serial_Number || index)) || index;
   const rawStatusNotes = row.Last_Subscription || row.statusNotes || row.Status_Notes || '';
   const btsFromCsv = row.BTS || row.Bts || row.Base_Station || row.Tower || row.Site || '';
 
@@ -72,11 +108,7 @@ function mapCSVToSchema(row: Record<string, string>, index: number) {
   const nrc = parseNairaAmount(nrcRaw);
   const region = getRegionForLocation(location);
   const segment = getSegmentForPlan(planCode);
-  const quarter = (['QUARTER 1', 'QUARTER 2', 'QUARTER 3', 'QUARTER 4'].includes(rawQuarter) ? rawQuarter : getQuarterFromMonth(month)) as
-    | 'QUARTER 1'
-    | 'QUARTER 2'
-    | 'QUARTER 3'
-    | 'QUARTER 4';
+  const quarter = isSaleQuarter(rawQuarter) ? rawQuarter : getQuarterFromMonth(month);
   const { accountStatus, statusNotes: parsedNotes } = normalizeStatus(status);
 
   // Auto-assign BTS based on location
@@ -99,7 +131,7 @@ function mapCSVToSchema(row: Record<string, string>, index: number) {
     saleDate,
     quarter,
     month,
-    packageType: ['Outright', 'Lease'].includes(packageType) ? (packageType as 'Outright' | 'Lease') : 'Outright',
+    packageType: isPackageType(packageType) ? packageType : 'Outright',
     statusNotes: parsedNotes || rawStatusNotes,
     bts: assignedBts,
     btsOptions,
@@ -136,11 +168,59 @@ export default function SalesImport() {
     }
   };
 
+  // Column names MUST match the aliases the parser accepts (mapCSVToSchema).
+  const TEMPLATE_HEADERS = [
+    'Name',
+    'Location',
+    'Plan',
+    'MRC',
+    'NRC',
+    'Date',
+    'Sales_Agent',
+    'Means_of_Sales',
+    'Account_Status',
+    'Quarter',
+    'Month',
+    'Package_Type',
+    'S_N',
+    'Last_Subscription',
+    'BTS',
+  ];
+
+  const handleDownloadTemplate = () => {
+    const sample = [
+      'John Doe',
+      'Ota',
+      'H-Lite',
+      '45000',
+      '5000',
+      '2026-08-01',
+      'Stella Akinola',
+      'Direct',
+      'Active',
+      'QUARTER 1',
+      'June',
+      'Outright',
+      '1',
+      '',
+      '',
+    ];
+    const csv = [TEMPLATE_HEADERS.join(','), sample.join(',')].join('\n');
+    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'sales-records-template.csv';
+    a.click();
+    URL.revokeObjectURL(url);
+    toast({ title: 'Template Downloaded', description: 'Fill it in and upload it here.' });
+  };
+
   const handleImport = async () => {
     if (!user || parsedRecords.length === 0) return;
     setImporting(true);
     try {
-      const payload = parsedRecords.map(({ region, segment, btsOptions, ...rest }) => ({ ...rest, importBatchId: '' }));
+      const payload = parsedRecords.map(({ region: _region, segment: _segment, btsOptions: _btsOptions, ...rest }) => ({ ...rest, importBatchId: '' }));
       const result = await importSalesRecords(payload, 'csv_upload', fileName, user);
       setImportResult(result);
       toast({ title: 'Import Complete', description: `${result.recordCount} records imported.` });
@@ -174,10 +254,17 @@ export default function SalesImport() {
                 <FileSpreadsheet className="w-10 h-10 text-on-surface-variant/40 mx-auto mb-4" />
                 <p className="font-mono text-[10px] uppercase font-bold text-on-surface-variant">Select a CSV file</p>
                 <p className="font-mono text-[8px] text-on-surface-variant/40 mt-2">
-                  Expected columns: Name, Location, Plan, MRC, NRC, Date, Sales Agent, Payment Method, Status
+                  Use the template: Name, Location, Plan, MRC, NRC, Date, Sales_Agent, Means_of_Sales, Account_Status, Quarter, Month, Package_Type, S_N, Last_Subscription, BTS
                 </p>
               </div>
               <input ref={fileRef} type="file" accept=".csv" className="hidden" onChange={handleFile} />
+              <Button
+                variant="outline"
+                className="w-full rounded-full font-mono text-[10px] uppercase font-bold"
+                onClick={handleDownloadTemplate}
+              >
+                <FileDown className="w-3 h-3 mr-2" /> Download CSV Template
+              </Button>
               {parsedRecords.length > 0 && (
                 <div className="flex items-center gap-3 p-4 bg-green-50 rounded-xl">
                   <CheckCircle2 className="w-5 h-5 text-green-600" />
@@ -261,9 +348,9 @@ export default function SalesImport() {
                             ))}
                             {r.bts && !r.btsOptions?.includes(r.bts) && <option value={r.bts}>{r.bts} (manual)</option>}
                           </select>
-                          {r.bts && <span className="ml-2 text-[9px] font-mono text-green-600">✓ Assigned</span>}
+                          {r.bts && <span className="ml-2 inline-flex items-center gap-1 text-[9px] font-mono text-green-600"><Check className="w-3 h-3" /> Assigned</span>}
                           {!r.bts && r.btsOptions?.length === 0 && (
-                            <span className="ml-2 text-[9px] font-mono text-red-600">⚠ No BTS found</span>
+                            <span className="ml-2 inline-flex items-center gap-1 text-[9px] font-mono text-red-600"><AlertTriangle className="w-3 h-3" /> No BTS found</span>
                           )}
                         </td>
                       </tr>

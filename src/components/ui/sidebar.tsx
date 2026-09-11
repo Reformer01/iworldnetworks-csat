@@ -57,9 +57,13 @@ const SidebarProvider = React.forwardRef<
   // We use openProp and setOpenProp for control from outside the component.
   const [_open, _setOpen] = React.useState(defaultOpen);
   const open = openProp ?? _open;
-  const setOpen = React.useCallback(
+  function isFunction(value: boolean | ((value: boolean) => boolean)): value is (value: boolean) => boolean {
+  return typeof value === 'function';
+}
+
+const setOpen = React.useCallback(
     (value: boolean | ((value: boolean) => boolean)) => {
-      const openState = typeof value === 'function' ? value(open) : value;
+      const openState = isFunction(value) ? value(open) : value;
       if (setOpenProp) {
         setOpenProp(openState);
       } else {
@@ -433,7 +437,11 @@ const SidebarMenuButton = React.forwardRef<
     return button;
   }
 
-  if (typeof tooltip === 'string') {
+  function isTooltipString(value: string | React.ComponentProps<typeof TooltipContent>): value is string {
+    return typeof value === 'string';
+  }
+
+  if (isTooltipString(tooltip)) {
     tooltip = {
       children: tooltip,
     };
@@ -503,7 +511,7 @@ const SidebarMenuSkeleton = React.forwardRef<
     showIcon?: boolean;
   }
 >(({ className, showIcon = false, ...props }, ref) => {
-  const [width] = React.useState(() => `${Math.floor(Math.random() * 40) + 50}%`);
+  const [width] = React.useState(() => '65%');
 
   return (
     <div ref={ref} data-sidebar="menu-skeleton" className={cn('rounded-md h-8 flex gap-2 px-2 items-center', className)} {...props}>

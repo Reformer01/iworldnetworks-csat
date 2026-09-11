@@ -167,3 +167,14 @@ export async function bulkEmailAction(user: User, action: 'approve' | 'reject', 
   if (!res.ok) throw new Error(data.error || `Failed to ${action} emails`);
   return data?.data?.affected ?? 0;
 }
+
+/** Fetch all pending_approval email IDs (for approve-all). */
+export async function fetchPendingEmailIds(user: User): Promise<string[]> {
+  const token = await user.getIdToken();
+  const res = await fetch('/api/admin/emails?status=pending_approval&pageSize=500', {
+    headers: { Authorization: `Bearer ${token}` },
+  });
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) throw new Error(data.error || 'Failed to fetch pending emails');
+  return (data?.data?.records ?? []).map((r: { id: string }) => r.id);
+}

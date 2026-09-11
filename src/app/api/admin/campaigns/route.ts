@@ -80,6 +80,11 @@ export async function POST(request: NextRequest) {
       return error('audience must be { type: "all" } or { type, values }');
     }
 
+    // Scheduling: if scheduledAt is a future timestamp, set status=scheduled
+    const scheduledAt = typeof body?.scheduledAt === 'number' && body.scheduledAt > Date.now()
+      ? body.scheduledAt
+      : null;
+
     const campaign = await prisma.campaign.create({
       data: {
         name,
@@ -89,10 +94,12 @@ export async function POST(request: NextRequest) {
         text,
         audienceJson: audience,
         createdBy: admin.email,
+        status: scheduledAt ? 'scheduled' : 'draft',
+        scheduledAt: scheduledAt ? BigInt(scheduledAt) : null,
       },
     });
 
-    return success({ ok: true, id: campaign.id });
+    return success({ ok: true, id: campaign.id, status: scheduledAt ? 'scheduled' : 'draft' });
   } catch (err: unknown) {
     const message = err instanceof Error ? err.message : 'Unknown error';
     logError('[admin-campaigns] POST error', { error: message });

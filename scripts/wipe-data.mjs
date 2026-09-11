@@ -19,12 +19,20 @@
  *   - splynx_bts_sync, splynx_bts_active_stats
  *   - seed_meta                             (seed markers)
  *
+ * SAFETY (added to prevent accidental production data loss):
+ *   1. A typed confirmation token is REQUIRED. The token must include the
+ *      exact target project id: --confirm=WIPE-<PROJECT_ID>
+ *   2. Running against a project whose id contains "prod" (or with
+ *      FIREBASE_ENV=production) requires an additional --allow-prod flag.
+ *   3. A manifest of doc counts per collection is written to backups/ BEFORE
+ *      anything is deleted (audit trail / first line of recovery).
+ *
  * Usage:
- *   node scripts/wipe-data.mjs               # wipe everything listed above
- *   node scripts/wipe-data.mjs --dry-run     # show counts only, delete nothing
+ *   node scripts/wipe-data.mjs --dry-run
+ *   node scripts/wipe-data.mjs --confirm=WIPE-<PROJECT_ID>
  */
 
-import { existsSync } from 'node:fs';
+import { existsSync, mkdirSync, writeFileSync } from 'node:fs';
 import { config as loadDotenv } from 'dotenv';
 
 for (const envFile of ['.env.local', '.env']) {
@@ -56,26 +64,31 @@ const COLLECTIONS_TO_WIPE = [
 
 const BATCH_SIZE = 450;
 
-async function wipeCollection(db, name, dryRun) {
-  const snapshot = await db.collection(name).get();
-  const count = snapshot.size;
-  console.log(`  ${name}: ${count} docs`);
-
-  if (dryRun || count === 0) return count;
-
-  const docs = snapshot.docs;
-  for (let i = 0; i < docs.length; i += BATCH_SIZE) {
-    const batch = db.batch();
-    for (const doc of docs.slice(i, i + BATCH_SIZE)) {
-      batch.delete(doc.ref);
-    }
-    await batch.commit();
+/** Writes a progressively-updated manifest so a crash mid-wipe still leaves an audit trail. */
+function writeManifest(projectId, counts) {
+  try {
+    mkdirSync('backups', { recursive: true });
+    const manifest = {
+      createdAt: new Date().toISOString(),
+      projectId,
+      tool: 'wipe-data.mjs',
+      note: 'Counts recorded at scan time (before deletion).',
+      counts,
+    };
+    const file = `backups/wipe-manifest-${projectId}-latest.json`;
+    writeFileSync(file, JSON.stringify(manifest, null, 2));
+    return file;
+  } catch (err) {
+    console.error('   ⚠️  Could not write wipe manifest:', err.message);
+    return null;
   }
-  return count;
 }
 
 async function main() {
   const dryRun = process.argv.includes('--dry-run');
+  const allowProd = process.argv.includes('--allow-prod');
+  const confirmArg = process.argv.find((a) => a.startsWith('--confirm='));
+  const confirmToken = confirmArg ? confirmArg.slice('--confirm='.length) : '';
 
   const { initializeApp, getApps, cert } = await import('firebase-admin/app');
   const { getFirestore } = await import('firebase-admin/firestore');
@@ -98,21 +111,62 @@ async function main() {
   }
 
   const db = getFirestore(adminApp);
+  const projectId = adminApp.options.projectId || 'unknown';
+
+  // ---- SAFETY GATE 1: typed confirmation token must match the target project ----
+  const expectedToken = `WIPE-${projectId}`;
+  if (!dryRun && confirmToken !== expectedToken) {
+    console.error('⛔ Refusing to wipe data.');
+    console.error(`   Target project: ${projectId}`);
+    console.error(`   Pass --confirm=${expectedToken} to confirm you really mean it.`);
+    process.exit(1);
+  }
+
+  // ---- SAFETY GATE 2: production projects require an explicit override ----
+  const envName = (process.env.FIREBASE_ENV || '').toLowerCase();
+  const looksLikeProd = projectId.includes('prod') || envName === 'production';
+  if (!dryRun && looksLikeProd && !allowProd) {
+    console.error('⛔ Refusing to wipe what looks like a PRODUCTION project.');
+    console.error(`   Project: ${projectId} | FIREBASE_ENV: ${envName || '(unset)'}`);
+    console.error('   If you truly intend this, re-run with --allow-prod.');
+    process.exit(1);
+  }
 
   console.log('🧹 Wipe Data — Clean Slate');
-  console.log(`   Firestore project: ${adminApp.options.projectId}`);
+  console.log(`   Firestore project: ${projectId}`);
   if (dryRun) console.log('   DRY RUN — nothing will be deleted');
+  if (!dryRun) console.log('   ⚠️  REAL WIPE — confirmation token accepted');
   console.log('');
 
+  // ---- SAFETY GATE 3: record counts before deleting, persist manifest ----
+  const counts = [];
   let total = 0;
+  let manifestFile = null;
   for (const name of COLLECTIONS_TO_WIPE) {
-    total += await wipeCollection(db, name, dryRun);
+    const snapshot = await db.collection(name).get();
+    const count = snapshot.size;
+    counts.push({ collection: name, count });
+    console.log(`  ${name}: ${count} docs`);
+    total += count;
+
+    if (!dryRun && count > 0) {
+      const docs = snapshot.docs;
+      for (let i = 0; i < docs.length; i += BATCH_SIZE) {
+        const batch = db.batch();
+        for (const doc of docs.slice(i, i + BATCH_SIZE)) {
+          batch.delete(doc.ref);
+        }
+        await batch.commit();
+      }
+      manifestFile = writeManifest(projectId, counts);
+    }
   }
 
   console.log('');
   if (dryRun) {
     console.log(`📋 Would delete ${total} docs (dry run — no changes made).`);
   } else {
+    if (manifestFile) console.log(`   Manifest written: ${manifestFile}`);
     console.log(`✅ Deleted ${total} docs.`);
     console.log('   Reference data kept: staff, complaint_types, sla_definitions,');
     console.log('   ticket_statuses, ticket_priorities, ticket_channels.');

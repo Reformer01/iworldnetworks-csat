@@ -10,6 +10,8 @@ import { Button } from '@/components/ui/button';
 import { useAuth, useUser } from '@/firebase';
 import { useAdminFeedbacks } from '@/hooks/use-admin-feedbacks';
 import type { FeedbackDoc } from '@/lib/feedback-types';
+import FeedbackQuote from '@/components/FeedbackQuote';
+import { feedbackSummaryText } from '@/lib/feedback-ratings';
 
 export default function AdminTestimonials() {
   const [filter, setFilter] = useState<'Home' | 'Business' | 'Spotlight'>('Home');
@@ -56,7 +58,7 @@ export default function AdminTestimonials() {
   return (
     <AdminLayout>
       <div className="mb-12">
-        <h1 className="text-primary mb-4 font-display text-3xl md:text-display-lg tracking-tight uppercase font-black">Success Stories</h1>
+        <h1 className="text-primary mb-4 font-display text-xl md:text-2xl tracking-tight uppercase font-black">Success Stories</h1>
         <p className="font-body-lg text-body-lg text-on-surface-variant max-w-2xl">
           Curate high-impact testimonials for marketing and identify potential customer advocates for regional spotlight interviews.
         </p>
@@ -113,9 +115,7 @@ export default function AdminTestimonials() {
                     </span>
                   </div>
                 </div>
-                <blockquote className="text-primary leading-tight mb-8 font-display text-2xl font-bold italic">
-                  &ldquo;{item.comment}&rdquo;
-                </blockquote>
+                <FeedbackQuote feedback={item} className="text-primary leading-tight mb-8 font-display text-2xl font-bold" />
                 <div className="flex flex-col sm:flex-row justify-between items-start sm:items-end border-t border-border/50 pt-6 gap-6">
                   <div>
                     <p className="font-mono text-xs font-bold text-primary">{item.customerName}</p>
@@ -125,7 +125,7 @@ export default function AdminTestimonials() {
                   </div>
                   <div className="flex gap-2 w-full sm:w-auto">
                     <Button
-                      onClick={() => handleCopy(item.id ?? '', item.comment ?? '')}
+                      onClick={() => handleCopy(item.id ?? '', feedbackSummaryText(item))}
                       size="sm"
                       className="flex-1 sm:flex-none bg-primary text-white rounded-full font-mono text-[10px] px-6 uppercase font-bold"
                     >

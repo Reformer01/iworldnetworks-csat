@@ -30,12 +30,19 @@ export async function POST(request: NextRequest) {
     logInfo('[admin-splynx-sync] manual sync triggered', { user: admin.email });
     const stats = await runHourlySyncDb(getPublicBaseUrl());
 
+    const notes = [
+      stats.invoicesApiDenied
+        ? 'Invoice sync skipped: the Splynx API key lacks Finance module permission. Grant it in Splynx (Config > API keys) to backfill invoices.'
+        : null,
+      stats.ticketsApiDenied
+        ? 'Ticket sync skipped: the Splynx API key lacks Helpdesk module permission. Grant it in Splynx (Config > API keys) to backfill tickets.'
+        : null,
+    ].filter((n): n is string => n !== null);
+
     return success({
       durationMs: Date.now() - started,
       stats,
-      note: stats.invoicesApiDenied
-        ? 'Invoice sync skipped: the Splynx API key lacks Finance module permission. Grant it in Splynx (Config > API keys) to backfill invoices.'
-        : undefined,
+      note: notes.length > 0 ? notes.join(' ') : undefined,
     });
   } catch (err: unknown) {
     const message = err instanceof Error ? err.message : 'Unknown error';

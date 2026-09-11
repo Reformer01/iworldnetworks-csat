@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState } from 'react';
-import { useRouter, useSearchParams } from 'next/navigation';
+import { useSearchParams } from 'next/navigation';
 import { Mail, Key, Send } from 'lucide-react';
 import { useAuth } from '@/firebase';
 import { signInWithEmailAndPassword, sendEmailVerification, User } from 'firebase/auth';
@@ -16,7 +16,6 @@ export default function AdminLoginPage() {
   const [isAuthenticating, setIsAuthenticating] = useState(false);
   const [unverifiedUser, setUnverifiedUser] = useState<User | null>(null);
   const [isSendingVerification, setIsSendingVerification] = useState(false);
-  const router = useRouter();
   const searchParams = useSearchParams();
   const redirectTo = searchParams.get('redirect') || '/admin/dashboard';
   const auth = useAuth();
@@ -68,7 +67,15 @@ export default function AdminLoginPage() {
 
       toast({ title: 'Authorized', description: 'Access granted.' });
       setIsAuthenticating(false);
-      router.push(redirectTo);
+
+      // Use a hard navigation instead of the App Router's client-side
+      // router.push. The session cookie is set in the response to the
+      // /api/auth/session POST above, but the client router may serve a
+      // cached RSC payload (e.g. the middleware's earlier redirect to
+      // login) on the very next navigation, bouncing the user back to the
+      // login page despite a successful sign-in. A full page load always
+      // carries the fresh cookie past middleware.
+      window.location.replace(redirectTo);
     } catch {
       toast({
         variant: 'destructive',
@@ -101,7 +108,7 @@ export default function AdminLoginPage() {
 
   return (
     <div className="bg-background min-h-screen flex items-center justify-center p-6 relative overflow-hidden">
-      <div className="absolute inset-0 opacity-[0.03] pointer-events-none select-none flex items-center justify-center">
+      <div aria-hidden="true" className="absolute inset-0 opacity-[0.03] pointer-events-none select-none flex items-center justify-center">
         <div className="text-[20vw] font-black font-mono">ADMIN</div>
       </div>
 

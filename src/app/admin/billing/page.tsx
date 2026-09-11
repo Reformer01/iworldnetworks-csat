@@ -8,62 +8,51 @@ import { PlaceHolderImages } from '@/lib/placeholder-images';
 import { cn } from '@/lib/utils';
 import { useAuth, useUser } from '@/firebase';
 import { useAdminFeedbacks } from '@/hooks/use-admin-feedbacks';
+import { isNegativeFeedback } from '@/lib/feedback-negativity';
+import { averageRating } from '@/lib/feedback-ratings';
+import FeedbackQuote from '@/components/FeedbackQuote';
 import type { FeedbackDoc } from '@/lib/feedback-types';
-import { 
-  BarChart, 
-  Bar, 
-  XAxis, 
-  YAxis, 
-  CartesianGrid, 
-  Tooltip, 
-  ResponsiveContainer
-} from 'recharts';
+import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 
 export default function AdminBilling() {
-  const serverImg = PlaceHolderImages.find(img => img.id === 'infra-status')!;
+  const serverImg = PlaceHolderImages.find((img) => img.id === 'infra-status')!;
   const auth = useAuth();
   const { user } = useUser(auth);
 
-  const { feedbacks } = useAdminFeedbacks();
+  const { feedbacks, loading } = useAdminFeedbacks();
+
+  const billingFeedbacks = useMemo(() => (feedbacks || []).filter((f: FeedbackDoc) => f.category === 'Billing'), [feedbacks]);
 
   const stats = useMemo(() => {
-    if (!feedbacks || feedbacks.length === 0) return { accuracy: '0.0', speed: '0.0', portalPct: '0', portalEase: '0.0' };
-    
+    if (!feedbacks || feedbacks.length === 0) return { accuracy: '0.0', speed: '0.0', portalEase: '0.0' };
+
     const billingItems = feedbacks.filter((f: FeedbackDoc) => f.category === 'Billing');
-    if (billingItems.length === 0) return { accuracy: '0.0', speed: '0.0', portalPct: '0', portalEase: '0.0' };
+    if (billingItems.length === 0) return { accuracy: '0.0', speed: '0.0', portalEase: '0.0' };
 
-    const totalAcc = billingItems.reduce((acc, f: any) => acc + Number(f.ratings?.accuracy || 0), 0);
-    const totalSpeed = billingItems.reduce((acc, f: any) => acc + Number(f.ratings?.reconnection || 0), 0);
-
-    // Portal payment usage: count how many said "Yes"
-    const billingWithPortalChoice = billingItems.filter((f: FeedbackDoc) => f.ratings?.usedPortal === 'Yes' || f.ratings?.usedPortal === 'No');
-    const yesCount = billingItems.filter((f: FeedbackDoc) => f.ratings?.usedPortal === 'Yes').length;
-    const portalPct = billingWithPortalChoice.length > 0 
-      ? Math.round((yesCount / billingWithPortalChoice.length) * 100) 
-      : 0;
-
-    // Portal ease of use rating average
-    const billingWithEase = billingItems.filter((f: FeedbackDoc) => Number(f.ratings?.portalEase || 0) > 0);
-    const totalEase = billingWithEase.reduce((acc, f: any) => acc + Number(f.ratings?.portalEase || 0), 0);
-    const avgEase = billingWithEase.length > 0 
-      ? (totalEase / billingWithEase.length).toFixed(1) 
-      : '0.0';
+    // Both rating conventions exist in the data: the legacy form writes
+    // accuracy/reconnection, the tokenized survey writes invoiceAccuracy/overall.
+    // averageRating excludes docs that lack the key instead of counting them as 0.
+    const accuracy = averageRating(billingItems, ['accuracy', 'invoiceAccuracy']);
+    const speed = averageRating(billingItems, ['reconnection', 'overall']);
+    const portalEase = averageRating(billingItems, ['portalEase']);
 
     return {
-      accuracy: (totalAcc / billingItems.length).toFixed(1),
-      speed: (totalSpeed / billingItems.length).toFixed(1),
-      portalPct: String(portalPct),
-      portalEase: avgEase
+      accuracy: accuracy.count > 0 ? accuracy.average.toFixed(1) : '0.0',
+      speed: speed.count > 0 ? speed.average.toFixed(1) : '0.0',
+      portalEase: portalEase.count > 0 ? portalEase.average.toFixed(1) : '0.0',
     };
   }, [feedbacks]);
 
+  // Only negative feedback (any rating below 4, or an explicit "no") is
+  // flagged as a discrepancy to be resolved. Positive responses are NOT
+  // counted as issues.
   const reconciliationData = useMemo(() => {
     if (!feedbacks || feedbacks.length === 0) return [];
-    const billingItems = feedbacks.filter((f: FeedbackDoc) => f.category === 'Billing');
-    
-    const groups: Record<string, { name: string, discrepancies: number, resolutions: number, timestamp: number }> = {};
-    
-    billingItems.forEach((f: FeedbackDoc) => {
+    const flaggedItems = feedbacks.filter((f: FeedbackDoc) => f.category === 'Billing' && isNegativeFeedback(f));
+
+    const groups: Record<string, { name: string; discrepancies: number; resolutions: number; timestamp: number }> = {};
+
+    flaggedItems.forEach((f: FeedbackDoc) => {
       const date = new Date(f.timestamp ?? 0);
       const label = date.toLocaleDateString([], { month: 'short', day: 'numeric' });
       if (!groups[label]) {
@@ -71,7 +60,7 @@ export default function AdminBilling() {
           name: label,
           discrepancies: 0,
           resolutions: 0,
-          timestamp: f.timestamp ?? 0
+          timestamp: f.timestamp ?? 0,
         };
       }
       groups[label].discrepancies += 1;
@@ -85,7 +74,7 @@ export default function AdminBilling() {
       .map(({ name, discrepancies, resolutions }) => ({
         name,
         discrepancies,
-        resolutions
+        resolutions,
       }));
   }, [feedbacks]);
 
@@ -96,7 +85,9 @@ export default function AdminBilling() {
       <header className="grid grid-cols-12 gap-gutter mb-16 items-end">
         <div className="col-span-12 md:col-span-7">
           <h1 className="text-3xl md:text-headline-lg text-primary mb-4 font-display">Billing Overview</h1>
-          <p className="font-body-lg text-body-lg text-on-surface-variant max-w-xl">Payment satisfaction, invoice accuracy, and online payments.</p>
+          <p className="font-body-lg text-body-lg text-on-surface-variant max-w-xl">
+            Payment satisfaction, invoice accuracy, and online payments.
+          </p>
         </div>
         <div className="col-span-12 md:col-span-4 md:col-start-9 text-right">
           <div className="inline-flex items-center gap-2 bg-white px-4 py-2 rounded-full border border-border whisper-shadow">
@@ -110,13 +101,13 @@ export default function AdminBilling() {
         {[
           { label: 'Billing Accuracy', val: stats.accuracy, unit: '/5', trend: 'Clear pricing', icon: CircleCheck },
           { label: 'Restoration Speed', val: stats.speed, unit: '/5', trend: 'Target: > 4.5', icon: Timer, staggered: true },
-          { label: 'Online Payment Usage', val: `${stats.portalPct}%`, unit: `(Ease: ${stats.portalEase}/5)`, trend: 'Online ease', icon: MonitorSmartphone },
+          { label: 'Portal Ease', val: stats.portalEase, unit: '/5', trend: 'Online ease', icon: MonitorSmartphone },
         ].map((item, i) => (
-          <div 
-            key={i} 
+          <div
+            key={i}
             className={cn(
-              "bg-white p-8 rounded-xl whisper-shadow border border-border hover:border-secondary transition-colors duration-500",
-              item.staggered && "md:mt-16"
+              'bg-white p-8 rounded-xl whisper-shadow border border-border hover:border-secondary transition-colors duration-500',
+              item.staggered && 'md:mt-16',
             )}
           >
             <div className="flex justify-between items-start mb-8">
@@ -126,7 +117,11 @@ export default function AdminBilling() {
             <h3 className="font-mono text-label-mono text-on-surface-variant mb-1 uppercase tracking-wider">{item.label}</h3>
             <div className="flex items-baseline gap-2">
               <span className="font-mono text-[56px] leading-none font-bold text-primary">{item.val}</span>
-              <span className={cn("font-display text-on-surface-variant font-light", item.unit.length > 2 ? "text-lg" : "text-headline-lg")}>{item.unit}</span>
+              <span
+                className={cn('font-display text-on-surface-variant font-light', item.unit.length > 2 ? 'text-lg' : 'text-headline-lg')}
+              >
+                {item.unit}
+              </span>
             </div>
           </div>
         ))}
@@ -176,22 +171,68 @@ export default function AdminBilling() {
               <span>Online</span>
             </div>
           </div>
-          
+
           <div className="relative rounded-xl overflow-hidden group cursor-pointer h-48">
-            <Image 
-              src={serverImg.imageUrl} 
-              alt="Server Room" 
-              fill 
+            <Image
+              src={serverImg.imageUrl}
+              alt="Server Room"
+              fill
               sizes="(max-width: 768px) 100vw, (max-width: 1200px) 33vw, 25vw"
               className="object-cover transition-transform duration-700 group-hover:scale-110"
               data-ai-hint="data center"
             />
             <div className="absolute inset-0 bg-gradient-to-t from-primary to-transparent opacity-60"></div>
-            <div className="absolute bottom-6 left-6">
-              <span className="font-mono text-white text-[10px] border border-white/30 px-2 py-1 rounded backdrop-blur-md mb-2 inline-block">Region</span>
-              <p className="text-white font-headline text-[18px]">Lagos</p>
-            </div>
           </div>
+        </div>
+      </div>
+
+      {/* Recent Billing Feedback — comments AND per-question ratings */}
+      <div className="bg-white rounded-2xl whisper-shadow border border-border p-8 mb-24">
+        <div className="flex items-center gap-3 mb-8">
+          <CircleCheck className="w-5 h-5 text-secondary" />
+          <h3 className="font-display font-bold text-lg uppercase tracking-tight">Recent Billing Feedback</h3>
+          <span className="font-mono text-[10px] text-on-surface-variant/60 ml-auto">
+            {billingFeedbacks.length} submission{billingFeedbacks.length === 1 ? '' : 's'}
+          </span>
+        </div>
+        <div className="space-y-4">
+          {billingFeedbacks.slice(0, 12).map((f: FeedbackDoc) => (
+            <div
+              key={f.id}
+              className="p-6 border border-border rounded-xl hover:border-secondary transition-all flex flex-col md:flex-row justify-between items-start md:items-center gap-6 bg-surface-container-lowest"
+            >
+              <div className="flex-1 min-w-0">
+                <div className="flex items-center gap-3 mb-2">
+                  <span
+                    className={cn(
+                      'px-3 py-1 rounded-full text-[10px] font-mono font-bold uppercase',
+                      f.status === 'resolved'
+                        ? 'bg-green-100 text-green-600'
+                        : f.status === 'open'
+                          ? 'bg-emerald-50 text-emerald-600 border border-emerald-200/50'
+                          : 'bg-green-50 text-green-600 border border-green-200/50',
+                    )}
+                  >
+                    {f.status}
+                  </span>
+                  <span className="text-[10px] text-on-surface-variant/40">{new Date(f.timestamp ?? 0).toLocaleDateString()}</span>
+                  <span className="font-mono text-[10px] text-on-surface-variant/40 truncate ml-auto">{f.servicePlan || f.location}</span>
+                </div>
+                <p className="font-bold text-primary mb-1">
+                  {f.customerName || 'Anonymous'}
+                  <span className="font-mono text-[10px] font-normal opacity-40 ml-2">({f.location || '—'})</span>
+                </p>
+                <FeedbackQuote feedback={f} className="text-sm text-on-surface-variant line-clamp-3" />
+              </div>
+            </div>
+          ))}
+          {!loading && billingFeedbacks.length === 0 && (
+            <div className="py-16 text-center border-2 border-dashed border-border rounded-xl">
+              <p className="font-mono text-sm text-on-surface-variant opacity-40 uppercase font-bold tracking-widest">
+                No billing feedback yet
+              </p>
+            </div>
+          )}
         </div>
       </div>
     </AdminLayout>

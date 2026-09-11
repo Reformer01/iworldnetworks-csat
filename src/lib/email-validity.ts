@@ -42,7 +42,4 @@ export async function hasDeliverableEmail(email: string): Promise<boolean> {
   return ok;
 }
 
-/** Clears the per-domain cache (mainly for tests). */
-export function clearEmailDomainCache(): void {
-  cache.clear();
-}
+

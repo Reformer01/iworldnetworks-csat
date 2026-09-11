@@ -3,11 +3,12 @@
 import React, { useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
 import { SalesLayout } from '@/components/layout/SalesLayout';
-import { TrendingUp, Users, Activity, Banknote, UserX, BarChart3, Database, AlertCircle } from 'lucide-react';
+import { useAuth, useUser } from '@/firebase';
+import { TrendingUp, Users, Activity, Banknote, BarChart3, Database, AlertCircle, Megaphone, FileDown } from 'lucide-react';
 import { useSalesMetrics } from '@/hooks/use-sales-data';
 import { XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend, BarChart, Bar, Cell, PieChart, Pie } from 'recharts';
 import { cn } from '@/lib/utils';
-import type { AgentMetrics, RegionMetrics } from '@/lib/sales-types';
+import type { AgentMetrics, RegionMetrics, ChannelMetrics } from '@/lib/sales-types';
 
 const COLORS = ['#448515', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#06b6d4'];
 
@@ -60,7 +61,7 @@ function AnimatedCard({
     <div
       ref={ref}
       className={cn(
-        'bg-white p-6 rounded-2xl whisper-shadow border border-border group hover:border-secondary transition-all duration-500 min-h-[184px]',
+        'bg-white p-4 md:p-6 rounded-2xl whisper-shadow border border-border group hover:border-secondary transition-all duration-500 min-h-[184px] min-w-0',
         index < visibleCount ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4',
       )}
       style={{ transitionDelay: `${index * 60}ms` }}
@@ -68,12 +69,12 @@ function AnimatedCard({
       <div className="mb-5">
         <Icon className={cn('w-6 h-6', color)} />
       </div>
-      <p className="font-mono text-[10px] uppercase text-on-surface-variant mb-1 font-bold tracking-wider">{label}</p>
-      <div className="flex items-baseline gap-1 flex-wrap">
-        <span className="text-2xl font-mono font-black text-primary">{value}</span>
-        {unit && <span className="text-xl font-display text-on-surface-variant font-bold">{unit}</span>}
+      <p className="font-mono text-[10px] uppercase text-on-surface-variant mb-1 font-bold tracking-wider truncate">{label}</p>
+      <div className="flex items-baseline gap-1 flex-wrap min-w-0">
+        <span className="text-xl xl:text-2xl font-mono font-black text-primary break-words min-w-0" title={value}>{value}</span>
+        {unit && <span className="text-base xl:text-xl font-display text-on-surface-variant font-bold">{unit}</span>}
       </div>
-      <p className="mt-4 font-mono text-[9px] text-on-surface-variant/60 uppercase font-bold tracking-wider">{detail}</p>
+      <p className="mt-4 font-mono text-[9px] text-on-surface-variant/60 uppercase font-bold tracking-wider break-words">{detail}</p>
     </div>
   );
 }
@@ -160,6 +161,87 @@ function AgentBarChart({ data }: { data: AgentMetrics[] }) {
           </Bar>
         </BarChart>
       </ResponsiveContainer>
+    </div>
+  );
+}
+
+function ChannelBarChart({ data }: { data: ChannelMetrics[] }) {
+  const chartRef = useRef<HTMLDivElement>(null);
+  const [ready, setReady] = useState(false);
+  useEffect(() => {
+    const t = setTimeout(() => setReady(true), 150);
+    return () => clearTimeout(t);
+  }, []);
+
+  const hasData = data.some((c) => c.count > 0);
+  if (!hasData) return <EmptyChart message="No channel data yet" icon={Megaphone} />;
+  return (
+    <div ref={chartRef} className="h-64 md:h-72 transition-opacity duration-500" style={{ opacity: ready ? 1 : 0 }}>
+      <ResponsiveContainer width="100%" height="100%">
+        <BarChart data={data.filter((c) => c.count > 0)} margin={{ top: 4, right: 4, bottom: 0, left: -8 }}>
+          <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#eee" />
+          <XAxis dataKey="meansOfSale" axisLine={false} tickLine={false} tick={{ fontSize: 8, fill: '#666' }} />
+          <YAxis
+            axisLine={false}
+            tickLine={false}
+            tick={{ fontSize: 10, fill: '#666' }}
+            tickFormatter={(v: number) => `₦${(v / 1000000).toFixed(1)}M`}
+          />
+          <Tooltip
+            contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 10px 15px -3px rgba(0,0,0,0.1)' }}
+            formatter={(v: number) => [formatNaira(v), 'MRR']}
+          />
+          <Legend
+            verticalAlign="top"
+            height={24}
+            iconType="circle"
+            wrapperStyle={{ fontSize: 10, fontWeight: 700, textTransform: 'uppercase' }}
+          />
+          <Bar dataKey="mrc" name="MRR (Active)" radius={[4, 4, 0, 0]} maxBarSize={30}>
+            {data
+              .filter((c) => c.count > 0)
+              .map((_, i) => (
+                <Cell key={i} fill={COLORS[(i + 2) % COLORS.length]} />
+              ))}
+          </Bar>
+        </BarChart>
+      </ResponsiveContainer>
+    </div>
+  );
+}
+
+function ChannelTable({ data }: { data: ChannelMetrics[] }) {
+  const hasData = data.some((c) => c.count > 0);
+  if (!hasData) return <EmptyChart message="No channel data yet. Add means of sale when adding records." icon={Database} />;
+  return (
+    <div className="overflow-x-auto -mx-6 md:-mx-8">
+      <div className="inline-block min-w-full align-middle px-6 md:px-8">
+        <table className="w-full text-left border-collapse">
+          <thead>
+            <tr className="border-b border-border/80 font-mono text-[10px] text-on-surface-variant font-bold uppercase tracking-widest">
+              <th className="pb-3 pr-4">Channel</th>
+              <th className="pb-3 px-4 text-right">Total</th>
+              <th className="pb-3 px-4 text-right">Active</th>
+              <th className="pb-3 px-4 text-right">MRR</th>
+              <th className="pb-3 pl-4 text-right">NRC</th>
+            </tr>
+          </thead>
+          <tbody className="divide-y divide-border/40 font-body text-sm">
+            {data
+              .filter((c) => c.count > 0)
+              .sort((a, b) => b.mrc - a.mrc)
+              .map((c, i) => (
+                <tr key={c.meansOfSale} className="hover:bg-surface-container-lowest transition-colors" style={{ animationDelay: `${i * 40}ms` }}>
+                  <td className="py-3 pr-4 font-bold text-primary whitespace-nowrap">{c.meansOfSale}</td>
+                  <td className="py-3 px-4 text-right font-mono">{c.count}</td>
+                  <td className="py-3 px-4 text-right font-mono">{c.active}</td>
+                  <td className="py-3 px-4 text-right font-mono font-bold">{formatNaira(c.mrc)}</td>
+                  <td className="py-3 pl-4 text-right font-mono">{formatNaira(c.nrc)}</td>
+                </tr>
+              ))}
+          </tbody>
+        </table>
+      </div>
     </div>
   );
 }
@@ -439,10 +521,73 @@ function AgentTable({ data }: { data: AgentMetrics[] }) {
   );
 }
 
+function downloadCsv(filename: string, headers: string[], rows: (string | number)[][]) {
+  const escape = (v: string | number) => {
+    const s = String(v);
+    return s.includes(',') || s.includes('"') || s.includes('\n') ? `"${s.replace(/"/g, '""')}"` : s;
+  };
+  const csv = [headers.map(escape).join(','), ...rows.map((r) => r.map(escape).join(','))].join('\n');
+  const blob = new Blob([csv], { type: 'text/csv;charset=utf-8' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = filename;
+  a.click();
+  URL.revokeObjectURL(url);
+}
+
 export default function SalesDashboard() {
   const { data, loading, error, mutate } = useSalesMetrics();
-
+  const auth = useAuth();
+  const { user } = useUser(auth);
+  const [exporting, setExporting] = useState(false);
   const visibleKpiCount = useStaggeredIndex(data ? 6 : 0, 100);
+
+  const handleExportMetrics = () => {
+    if (!data) return;
+    downloadCsv(
+      'sales-dashboard-metrics.csv',
+      ['Section', 'Metric', 'Value'],
+      [
+        ...(['MRR', 'Total MRC Closed', 'ARPU', 'Active Customers', 'Installation Fees (NRC)', 'Total Records'] as const).map((k) => {
+          const map: Record<string, number> = {
+            MRR: data.overall.mrr,
+            'Total MRC Closed': data.overall.totalMrcClosed,
+            ARPU: data.overall.arpu,
+            'Active Customers': data.overall.activeSubscribers,
+            'Installation Fees (NRC)': data.overall.nrcRevenue,
+            'Total Records': data.totalRecords,
+          };
+          return ['Overall', k, map[k]];
+        }),
+        ...data.agentMetrics.map((a) => ['Agent', a.name, a.mrc]),
+        ...data.regionMetrics.map((r) => ['Region', r.region, r.mrr]),
+        ...data.meansOfSaleBreakdown.map((c) => ['Channel', c.meansOfSale, c.mrc]),
+        ...data.btsMetrics.map((b) => ['BTS', b.bts, b.mrc]),
+      ],
+    );
+  };
+
+  const handleExportRecords = async () => {
+    if (!user) return;
+    setExporting(true);
+    try {
+      const token = await user.getIdToken();
+      const res = await fetch('/api/admin/sales/export', { headers: { Authorization: `Bearer ${token}` } });
+      if (!res.ok) throw new Error('Export failed');
+      const blob = await res.blob();
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = 'sales-records-export.csv';
+      a.click();
+      URL.revokeObjectURL(url);
+    } catch (e: unknown) {
+      console.error(e);
+    } finally {
+      setExporting(false);
+    }
+  };
 
   if (loading && !data) {
     return (
@@ -452,7 +597,7 @@ export default function SalesDashboard() {
             <div className="h-7 w-56 bg-surface-container-low rounded animate-pulse mb-2" />
             <div className="h-3 w-40 bg-surface-container-low rounded animate-pulse" />
           </header>
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 md:gap-5 mb-8 md:mb-10">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 md:gap-5 mb-8 md:mb-10">
             {Array.from({ length: 6 }).map((_, i) => (
               <KpiSkeleton key={i} />
             ))}
@@ -532,28 +677,21 @@ export default function SalesDashboard() {
     );
   }
 
-  const { overall, regionMetrics, agentMetrics, segmentBreakdown, btsMetrics, agentSegmentBreakdown, totalRecords } = data;
+  const { overall, regionMetrics, agentMetrics, segmentBreakdown, btsMetrics, agentSegmentBreakdown, meansOfSaleBreakdown, totalRecords } = data;
 
   const kpiCards = [
     { label: 'Monthly Revenue', value: formatNaira(overall.mrr), icon: Banknote, color: 'text-secondary', detail: 'From active customers' },
-    { label: 'Avg. per Customer', value: formatNaira(overall.arpu), icon: TrendingUp, color: 'text-green-600', detail: 'Monthly average' },
+    { label: 'Total MRC Closed', value: formatNaira(overall.totalMrcClosed), icon: TrendingUp, color: 'text-green-600', detail: 'All contracted recurring fees' },
     { label: 'Active Customers', value: String(overall.activeSubscribers), icon: Users, color: 'text-blue-600', detail: 'Paying accounts' },
-    {
-      label: 'Churn Rate',
-      value: String(overall.churnRate),
-      unit: '%',
-      icon: UserX,
-      color: 'text-red-500',
-      detail: 'Lost / active customers',
-    },
+    { label: 'Avg. per Customer', value: formatNaira(overall.arpu), icon: Activity, color: 'text-purple-600', detail: 'Monthly average' },
     {
       label: 'Installation Fees',
       value: formatNaira(overall.nrcRevenue),
       icon: BarChart3,
       color: 'text-orange-500',
-      detail: 'One-time charges',
+      detail: 'One-time NRC charges',
     },
-    { label: 'Total Records', value: String(totalRecords), icon: Activity, color: 'text-purple-600', detail: 'All entries in system' },
+    { label: 'Total Records', value: String(totalRecords), icon: Database, color: 'text-purple-600', detail: 'All entries in system' },
   ];
 
   return (
@@ -582,7 +720,7 @@ export default function SalesDashboard() {
           </div>
         </header>
 
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 md:gap-5 mb-8 md:mb-10">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 md:gap-5 mb-8 md:mb-10">
           {kpiCards.map((item, i) => (
             <AnimatedCard key={i} {...item} index={i} visibleCount={visibleKpiCount} />
           ))}

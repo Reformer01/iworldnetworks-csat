@@ -1,15 +1,19 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getAdminFirestore } from '@/lib/firebase-admin';
-import { mapSplynxEventToCategory } from '@/lib/splynx-categories';
+import { mirrorCreateFeedback } from '@/lib/lib/db/dual-write';
+import { resolveCategory } from '@/lib/splynx-categories';
+import { isNegativeFeedback } from '@/lib/feedback-negativity';
 import { isRateLimitedFirestore } from '@/lib/rate-limit-firestore';
 import { validateOrigin, error as apiError } from '@/lib/api-response';
 import { logError } from '@/lib/logger';
+import { toLocalDateString } from '@/lib/utils';
 import { z } from 'zod';
 
 const splynxFeedbackSchema = z.object({
   token: z.string().uuid(),
   rating: z.coerce.number().int().min(1).max(5),
   satisfied: z.enum(['yes', 'no', 'partially']).optional(),
+  fcr: z.enum(['Yes', 'No']).optional(),
   invoiceAccuracy: z.coerce.number().int().min(1).max(5).optional(),
   comment: z.string().max(1000).optional().default(''),
 });
@@ -37,7 +41,7 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const { token, rating, satisfied, invoiceAccuracy, comment } = validation.data;
+    const { token, rating, satisfied, fcr, invoiceAccuracy, comment } = validation.data;
     const db = getAdminFirestore();
     const tokenRef = db.collection('feedback_tokens').doc(token);
     const clientIp = request.headers.get('x-forwarded-for')?.split(',')[0]?.trim() || request.headers.get('x-real-ip')?.trim() || 'unknown';
@@ -46,6 +50,7 @@ export async function POST(request: NextRequest) {
     const now = new Date();
     const nowISO = now.toISOString();
     const feedbackRef = db.collection('feedbacks').doc();
+    let mirroredFeedback: Record<string, unknown> | null = null;
 
     const result = await db.runTransaction(async (transaction) => {
       const tokenDoc = await transaction.get(tokenRef);
@@ -61,7 +66,14 @@ export async function POST(request: NextRequest) {
         return { status: 410, body: { success: false, error: 'Token expired.' } };
       }
 
-      const category = mapSplynxEventToCategory(tokenData.sourceEvent || '');
+      const category = resolveCategory({ tokenCategory: tokenData.category, sourceEvent: tokenData.sourceEvent || '' });
+
+      // Contextualize the experience date: prefer the date captured on the
+      // share token (the actual service/payment day). If the token carried no
+      // date, fall back to today rather than leaving it blank — that blank is
+      // what surfaces as a generic "timestamp" on admin reports.
+      const effectiveServiceDate = tokenData.serviceDate || toLocalDateString(now);
+
       const feedbackData = {
         customerName: tokenData.customerName || '',
         customerEmail: tokenData.customerEmail || '',
@@ -71,32 +83,50 @@ export async function POST(request: NextRequest) {
         ratings: {
           overall: rating,
           invoiceAccuracy: invoiceAccuracy || null,
+          fcr: fcr ?? null,
         },
         satisfied: satisfied || null,
         comment,
-        staffName: '',
+        staffName: tokenData.staffName || '',
         referralSource: 'Splynx',
         spotlightInterview: '',
-        serviceDate: tokenData.serviceDate || '',
+        serviceDate: effectiveServiceDate,
         serviceDateEnd: '',
         serviceTime: '',
         submissionDate: nowISO,
-        dateFeedback: tokenData.serviceDate || '',
+        dateFeedback: effectiveServiceDate,
         dateSubmitted: nowISO,
         timestamp: now.getTime(),
         dateFormatted: nowISO,
-        status: 'open',
+        status: isNegativeFeedback({ ratings: { overall: rating, invoiceAccuracy: invoiceAccuracy ?? null }, satisfied: satisfied ?? null })
+          ? 'open'
+          : 'resolved',
         _source: 'splynx',
         aiAnalysis: null,
         clientIp,
         userAgent,
       };
+      mirroredFeedback = feedbackData;
 
       transaction.set(feedbackRef, feedbackData);
       transaction.update(tokenRef, { used: true, submittedAt: now.getTime() });
 
       return { status: 201, body: { success: true, id: feedbackRef.id } };
     });
+
+    if (result.status === 201 && mirroredFeedback) {
+      // Mirror the transaction's feedback write to MariaDB (best-effort).
+      await mirrorCreateFeedback({ id: feedbackRef.id, ...(mirroredFeedback as Record<string, unknown>) });
+      // Mark the token used in MariaDB too (best-effort; DB-first token store).
+      try {
+        const { markTokenUsed } = await import('@/lib/lib/db/feedback-tokens');
+        await markTokenUsed(token, now.getTime());
+      } catch (dbErr) {
+        logError('[submit-splynx-feedback] MariaDB token mark failed (best-effort)', {
+          error: dbErr instanceof Error ? dbErr.message : String(dbErr),
+        });
+      }
+    }
 
     return NextResponse.json(result.body, { status: result.status });
   } catch (err) {

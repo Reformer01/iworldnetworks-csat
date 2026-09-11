@@ -1,6 +1,7 @@
 import { NextRequest } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { verifyAdminToken, verifySuperAdminToken } from '@/lib/admin-auth';
+import { isSuperAdmin } from '@/lib/admin-config';
 import { isRateLimited } from '@/lib/rate-limit';
 import { success, error, unauthorized, forbidden, tooMany, notFound, serverError, validateOrigin } from '@/lib/api-response';
 import { logError } from '@/lib/logger';
@@ -47,7 +48,7 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
     const { id } = await params;
     const campaign = await prisma.campaign.findUnique({ where: { id } });
     if (!campaign) return notFound('Campaign not found');
-    if (campaign.status !== 'draft') return error('Only draft campaigns can be edited');
+    if (!['draft', 'scheduled', 'rejected'].includes(campaign.status)) return error('Only draft, scheduled, or rejected campaigns can be edited');
 
     const body = await request.json().catch(() => null);
     const data: Record<string, unknown> = {};
@@ -67,6 +68,15 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
       data.audienceJson = body.audience;
     }
 
+    // Allow updating scheduledAt
+    if (body?.scheduledAt === null) {
+      data.scheduledAt = null;
+      data.status = 'draft';
+    } else if (typeof body?.scheduledAt === 'number' && body.scheduledAt > Date.now()) {
+      data.scheduledAt = BigInt(body.scheduledAt);
+      data.status = 'scheduled';
+    }
+
     const updated = await prisma.campaign.update({ where: { id }, data });
     return success(serializeCampaign(updated));
   } catch (err: unknown) {
@@ -76,15 +86,13 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
   }
 }
 
-// POST actions are super-admin only. Sending a campaign IS the approval step:
-// one review gates the whole audience, then per-recipient EmailJob rows are
-// created and enqueued.
+// POST actions: submit_for_review is any admin, approve/reject/send/cancel/retry are super-admin only.
 export async function POST(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
     if (isRateLimited(request, 30, 60 * 1000)) return tooMany();
     if (!validateOrigin(request)) return forbidden();
 
-    const admin = await verifySuperAdminToken(request.headers.get('authorization'));
+    const admin = await verifyAdminToken(request.headers.get('authorization'));
     if (!admin) return unauthorized();
 
     const { id } = await params;
@@ -94,17 +102,61 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
     const campaign = await prisma.campaign.findUnique({ where: { id } });
     if (!campaign) return notFound('Campaign not found');
 
+    if (action === 'submit_for_review') {
+      // Editor submits campaign for super admin review
+      if (campaign.status !== 'draft' && campaign.status !== 'rejected')
+        return error(`Only draft or rejected campaigns can be submitted for review (current: ${campaign.status})`);
+      const updated = await prisma.campaign.update({
+        where: { id },
+        data: { status: 'pending_approval', submittedBy: admin.email, submittedAt: BigInt(Date.now()), error: null },
+      });
+      return success(serializeCampaign(updated));
+    }
+
+    if (action === 'approve') {
+      if (!isSuperAdmin(admin.email)) return forbidden('Super admin only.');
+      if (campaign.status !== 'pending_approval')
+        return error(`Only campaigns pending approval can be approved (current: ${campaign.status})`);
+      const updated = await prisma.campaign.update({
+        where: { id },
+        data: { status: 'approved', approvedAt: BigInt(Date.now()), approvedBy: admin.email, error: null },
+      });
+      return success(serializeCampaign(updated));
+    }
+
+    if (action === 'reject') {
+      if (!isSuperAdmin(admin.email)) return forbidden('Super admin only.');
+      if (campaign.status !== 'pending_approval')
+        return error(`Only campaigns pending approval can be rejected (current: ${campaign.status})`);
+      const reason = typeof body?.reason === 'string' ? body.reason.trim().slice(0, 500) : '';
+      const updated = await prisma.campaign.update({
+        where: { id },
+        data: { status: 'rejected', rejectedAt: BigInt(Date.now()), rejectedBy: admin.email, rejectionReason: reason || null },
+      });
+      return success(serializeCampaign(updated));
+    }
+
     if (action === 'send') {
-      if (campaign.status !== 'draft') return error(`Campaign cannot be sent (status: ${campaign.status})`);
-      const count = await sendCampaign(id);
+      if (!isSuperAdmin(admin.email)) return forbidden('Super admin only.');
+      // sendCampaign atomically claims draft -> sending (double-send guard).
+      // Also works for approved campaigns.
+      if (campaign.status !== 'draft' && campaign.status !== 'approved')
+        return error(`Only draft or approved campaigns can be sent (current: ${campaign.status})`);
+      let count: number;
+      try {
+        count = await sendCampaign(id);
+      } catch (err) {
+        return error(err instanceof Error ? err.message : 'Campaign cannot be sent', 409);
+      }
       await prisma.campaign.update({
         where: { id },
-        data: { status: 'sending', sentAt: BigInt(Date.now()), approvedAt: BigInt(Date.now()), approvedBy: admin.email, error: null },
+        data: { approvedAt: campaign.approvedAt ?? BigInt(Date.now()), approvedBy: campaign.approvedBy ?? admin.email, error: null },
       });
       return success({ ok: true, status: 'sending', recipients: count });
     }
 
     if (action === 'cancel') {
+      if (!isSuperAdmin(admin.email)) return forbidden('Super admin only.');
       if (campaign.status === 'sent' || campaign.status === 'cancelled')
         return error(`Campaign cannot be cancelled (status: ${campaign.status})`);
       const updated = await prisma.campaign.update({ where: { id }, data: { status: 'cancelled' } });
@@ -112,6 +164,7 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
     }
 
     if (action === 'retry') {
+      if (!isSuperAdmin(admin.email)) return forbidden('Super admin only.');
       if (campaign.status !== 'failed' && campaign.status !== 'partial')
         return error(`Campaign cannot be retried (status: ${campaign.status})`);
       const count = await retryCampaignFailed(id);

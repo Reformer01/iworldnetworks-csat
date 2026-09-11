@@ -62,7 +62,8 @@ export default function FeedbackPopup() {
   const token = searchParams.get('token');
   const isEmbed = searchParams.get('embed') === 'true';
   const subject = searchParams.get('subject');
-  const shareUrl = typeof window !== 'undefined' ? window.location.href : '';
+  const [shareUrl, setShareUrl] = useState('');
+  useEffect(() => { setShareUrl(window.location.href); }, []);
 
   const [pageState, setPageState] = useState<PageState>('loading');
   const [errorMessage, setErrorMessage] = useState('');
@@ -72,6 +73,7 @@ export default function FeedbackPopup() {
   const [rating, setRating] = useState(0);
   const [hoveredRating, setHoveredRating] = useState(0);
   const [satisfied, setSatisfied] = useState<'yes' | 'no' | 'partially' | undefined>(undefined);
+  const [fcr, setFcr] = useState<'Yes' | 'No' | undefined>(undefined);
   const [invoiceAccuracy, setInvoiceAccuracy] = useState(0);
   const [hoveredInvoiceAccuracy, setHoveredInvoiceAccuracy] = useState(0);
   const [comment, setComment] = useState('');
@@ -137,6 +139,7 @@ export default function FeedbackPopup() {
           token,
           rating,
           satisfied,
+          fcr,
           invoiceAccuracy: category === 'Billing' ? invoiceAccuracy : undefined,
           comment,
         }),
@@ -286,7 +289,7 @@ export default function FeedbackPopup() {
               </div>
               <div className="mt-1">
                 <span className="text-muted-foreground block">Plan</span>
-                <span className="font-semibold text-primary">{customer.servicePlan || 'Enterprise'}</span>
+                <span className="font-semibold text-primary">{customer.servicePlan || '—'}</span>
               </div>
               {customer.serviceDate && (
                 <div className="mt-1">
@@ -372,7 +375,41 @@ export default function FeedbackPopup() {
                 </div>
               </div>
 
-              {/* 3. Invoice Accuracy (Billing only) */}
+              {/* 3. First Contact Resolution (optional — powers the CES metric) */}
+              <div className="space-y-2">
+                <label className="text-sm font-semibold text-primary block uppercase tracking-wider font-mono">First Contact Resolution</label>
+                <p className="text-xs text-muted-foreground">Was your issue fixed on the first try?</p>
+                <div className="grid grid-cols-2 gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setFcr('Yes')}
+                    className={cn(
+                      'flex flex-col items-center gap-1.5 py-2 rounded-xl border text-xs font-bold transition-all',
+                      fcr === 'Yes'
+                        ? 'bg-green-500/10 border-green-500 text-green-600'
+                        : 'bg-background border-border text-muted-foreground hover:bg-muted/40',
+                    )}
+                  >
+                    <CheckCircle2 className="w-4 h-4" />
+                    Yes
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setFcr('No')}
+                    className={cn(
+                      'flex flex-col items-center gap-1.5 py-2 rounded-xl border text-xs font-bold transition-all',
+                      fcr === 'No'
+                        ? 'bg-red-500/10 border-red-500 text-red-600'
+                        : 'bg-background border-border text-muted-foreground hover:bg-muted/40',
+                    )}
+                  >
+                    <X className="w-4 h-4" />
+                    No
+                  </button>
+                </div>
+              </div>
+
+              {/* 4. Invoice Accuracy (Billing only) */}
               {category === 'Billing' && (
                 <div className="space-y-3 border-t border-border/50 pt-4">
                   <h3 className="text-sm font-semibold text-primary uppercase tracking-wider font-mono">Invoice Accuracy</h3>
@@ -398,7 +435,7 @@ export default function FeedbackPopup() {
                 </div>
               )}
 
-              {/* 4. Optional Comment */}
+              {/* 5. Optional Comment */}
               <div className="space-y-2 border-t border-border/50 pt-4">
                 <label className="text-sm font-semibold text-primary block uppercase tracking-wider font-mono">Comments (Optional)</label>
                 <textarea

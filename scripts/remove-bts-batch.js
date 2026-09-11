@@ -1,6 +1,9 @@
 /**
  * Remove a BTS CSV import batch from Firestore.
- * Run with: node scripts/remove-bts-batch.js <batchId> [batchId...]
+ *
+ * SAFETY: deletion requires a typed confirmation token matching the batch id:
+ *   node scripts/remove-bts-batch.js <batchId> --confirm=<batchId>
+ * Use --dry-run to preview counts before deleting.
  */
 
 require('dotenv').config({ path: require('path').join(__dirname, '..', '.env') });
@@ -60,14 +63,46 @@ async function deleteCollectionWhere(db, collection, batchId) {
 }
 
 async function main() {
-  const batchIds = process.argv.slice(2).filter((a) => !a.startsWith('--'));
+  const args = process.argv.slice(2);
+  const dryRun = args.includes('--dry-run');
+  const confirmArg = args.find((a) => a.startsWith('--confirm='));
+  const confirmToken = confirmArg ? confirmArg.slice('--confirm='.length) : '';
+  const batchIds = args.filter((a) => !a.startsWith('--'));
+
   if (batchIds.length === 0) {
-    console.error('Usage: node scripts/remove-bts-batch.js <batchId> [batchId...]');
+    console.error('Usage: node scripts/remove-bts-batch.js <batchId> [batchId...] --confirm=<batchId>');
+    console.error('       node scripts/remove-bts-batch.js <batchId> --dry-run');
+    process.exit(1);
+  }
+
+  // Safety gate: every batch being deleted must be explicitly confirmed.
+  const missingConfirm = batchIds.filter((id) => confirmToken !== id);
+  if (!dryRun && missingConfirm.length > 0) {
+    console.error(`⛔ Refusing to delete ${missingConfirm.join(', ')}.`);
+    console.error(`   Pass --confirm=<batchId> matching the batch id you are deleting.`);
     process.exit(1);
   }
 
   const app = initFirebase();
   const db = getFirestore(app);
+
+  if (dryRun) {
+    for (const batchId of batchIds) {
+      const customersSnap = await db
+        .collection('bts_customers')
+        .where('importBatchId', '==', batchId)
+        .limit(500)
+        .get();
+      const sitesSnap = await db
+        .collection('bts_customer_sites')
+        .where('importBatchId', '==', batchId)
+        .limit(500)
+        .get();
+      console.log(`[dry-run] ${batchId}: would remove ${customersSnap.size}+ customers, ${sitesSnap.size}+ site summaries`);
+    }
+    console.log('Done (dry run — nothing deleted).');
+    process.exit(0);
+  }
 
   for (const batchId of batchIds) {
     const customers = await deleteCollectionWhere(db, 'bts_customers', batchId);

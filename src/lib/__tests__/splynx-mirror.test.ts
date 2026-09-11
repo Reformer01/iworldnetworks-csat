@@ -19,6 +19,16 @@ vi.mock('@/lib/splynx-api', () => ({
   getAllCustomers: mocks.getAllCustomers,
   getUnpaidInvoices: mocks.getUnpaidInvoices,
   getDeletedInvoices: mocks.getDeletedInvoices,
+  extractBtsFromLabels: vi.fn((labels) => {
+    if (!labels || labels.length === 0) return null;
+    for (const lbl of labels) {
+      const label = lbl.label?.trim();
+      if (!label) continue;
+      const match = label.match(/^BTS\s*-\s*(.+)$/i);
+      if (match) return match[1].trim();
+    }
+    return null;
+  }),
 }));
 
 vi.mock('@/lib/email', () => ({
@@ -314,7 +324,7 @@ describe('runReminderJob', () => {
     vi.clearAllMocks();
   });
 
-  it('sends exactly one 15-day email per overdue invoice and flags it', async () => {
+  it('sends a 15d reminder for a single invoice and flags it', async () => {
     const { db, updateSpies } = makeFakeDb({
       invoices: [
         {
@@ -336,7 +346,11 @@ describe('runReminderJob', () => {
     expect(result.sent30).toBe(0);
     expect(mocks.sendInvoiceReminderEmail).toHaveBeenCalledTimes(1);
     expect(mocks.sendInvoiceReminderEmail).toHaveBeenCalledWith(
-      expect.objectContaining({ to: 'ada@example.com', invoiceNumber: 'INV-001', daysOverdue: 20 }),
+      expect.objectContaining({
+        to: 'ada@example.com',
+        invoices: expect.arrayContaining([expect.objectContaining({ invoiceNumber: 'INV-001', daysOverdue: 20 })]),
+        reminderType: '15d',
+      }),
     );
     expect(updateSpies).toHaveLength(1);
     expect(updateSpies[0]).toHaveBeenCalledWith(expect.objectContaining({ reminder15SentAt: NOW }));
@@ -385,8 +399,97 @@ describe('runReminderJob', () => {
     expect(result.sent15).toBe(0);
     expect(result.sent30).toBe(1);
     expect(mocks.sendInvoiceReminderEmail).toHaveBeenCalledTimes(1);
-    expect(mocks.sendInvoiceReminderEmail).toHaveBeenCalledWith(expect.objectContaining({ daysOverdue: 35 }));
+    expect(mocks.sendInvoiceReminderEmail).toHaveBeenCalledWith(
+      expect.objectContaining({
+        invoices: expect.arrayContaining([expect.objectContaining({ invoiceNumber: 'INV-003', daysOverdue: 35 })]),
+        reminderType: '30d',
+      }),
+    );
     expect(updateSpies[0]).toHaveBeenCalledWith(expect.objectContaining({ reminder30SentAt: NOW, reminder15SentAt: NOW }));
+  });
+
+  it('groups multiple invoices for same customer into ONE email', async () => {
+    const { db, updateSpies } = makeFakeDb({
+      invoices: [
+        {
+          invoiceId: 10,
+          customerId: 1,
+          number: 'INV-001',
+          total: 5000,
+          dueDate: NOW - 20 * DAY,
+          reminder15SentAt: null,
+          reminder30SentAt: null,
+        },
+        {
+          invoiceId: 11,
+          customerId: 1,
+          number: 'INV-002',
+          total: 3000,
+          dueDate: NOW - 25 * DAY,
+          reminder15SentAt: null,
+          reminder30SentAt: null,
+        },
+      ],
+      customers: [{ customerId: 1, email: 'ada@example.com', customerName: 'Ada', emailOptOut: false }],
+    });
+
+    const result = await runReminderJob(db as never, NOW);
+
+    expect(result.sent15).toBe(1); // ONE email for both invoices
+    expect(mocks.sendInvoiceReminderEmail).toHaveBeenCalledTimes(1);
+    expect(mocks.sendInvoiceReminderEmail).toHaveBeenCalledWith(
+      expect.objectContaining({
+        to: 'ada@example.com',
+        invoices: expect.arrayContaining([
+          expect.objectContaining({ invoiceNumber: 'INV-001' }),
+          expect.objectContaining({ invoiceNumber: 'INV-002' }),
+        ]),
+        reminderType: '15d',
+      }),
+    );
+    expect(updateSpies).toHaveLength(2); // both invoices updated
+  });
+
+  it('sends 30d reminder when any invoice is 30+ days overdue (supersedes 15d)', async () => {
+    const { db, updateSpies } = makeFakeDb({
+      invoices: [
+        {
+          invoiceId: 10,
+          customerId: 1,
+          number: 'INV-001',
+          total: 5000,
+          dueDate: NOW - 20 * DAY,
+          reminder15SentAt: null,
+          reminder30SentAt: null,
+        },
+        {
+          invoiceId: 11,
+          customerId: 1,
+          number: 'INV-002',
+          total: 3000,
+          dueDate: NOW - 35 * DAY,
+          reminder15SentAt: null,
+          reminder30SentAt: null,
+        },
+      ],
+      customers: [{ customerId: 1, email: 'ada@example.com', customerName: 'Ada', emailOptOut: false }],
+    });
+
+    const result = await runReminderJob(db as never, NOW);
+
+    expect(result.sent30).toBe(1); // 30d takes priority
+    expect(result.sent15).toBe(0);
+    expect(mocks.sendInvoiceReminderEmail).toHaveBeenCalledTimes(1);
+    expect(mocks.sendInvoiceReminderEmail).toHaveBeenCalledWith(
+      expect.objectContaining({
+        reminderType: '30d',
+        invoices: expect.arrayContaining([
+          expect.objectContaining({ invoiceNumber: 'INV-001' }),
+          expect.objectContaining({ invoiceNumber: 'INV-002' }),
+        ]),
+      }),
+    );
+    expect(updateSpies).toHaveLength(2);
   });
 
   it('skips customers who opted out of email', async () => {
@@ -546,7 +649,12 @@ describe('runReminderJob', () => {
     expect(atBoundary.sent15).toBe(0);
     expect(atBoundary.skippedStale).toBe(0);
     expect(mocks.sendInvoiceReminderEmail).toHaveBeenCalledTimes(1);
-    expect(mocks.sendInvoiceReminderEmail).toHaveBeenCalledWith(expect.objectContaining({ daysOverdue: 90 }));
+    expect(mocks.sendInvoiceReminderEmail).toHaveBeenCalledWith(
+      expect.objectContaining({
+        invoices: expect.arrayContaining([expect.objectContaining({ daysOverdue: 90 })]),
+        reminderType: '30d',
+      }),
+    );
     vi.clearAllMocks();
 
     const { db: db91 } = makeFakeDb({

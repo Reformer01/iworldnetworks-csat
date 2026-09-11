@@ -2,12 +2,14 @@ import { randomUUID } from 'crypto';
 import type { Prisma } from '@prisma/client';
 import { prisma } from '@/lib/prisma';
 import type { Firestore } from 'firebase-admin/firestore';
-import { getAllCustomers, getUnpaidInvoices, getDeletedInvoices } from './splynx-api';
-import type { SplynxInvoice } from './splynx-api';
+import { getAllCustomers, getUnpaidInvoices, getDeletedInvoices, getSupportTickets, parseSplynxApiDate } from './splynx-api';
+import type { SplynxInvoice, SplynxTicket } from './splynx-api';
+import { getRegionForLocation } from './sales-staff';
+import { resolveTicketAssignee } from './splynx-admins';
 import { sendInvoiceReminderEmail, sendChurnSurveyEmail, sendFeedbackEmail, sendWinBackEmail } from './email';
 import { hasDeliverableEmail } from './email-validity';
 import { createFeedbackToken, findRecentFeedbackToken, TOKEN_TTL_MS } from './feedback-token';
-import { createEmailJob } from '@/lib/repositories/email-job-repo';
+import { createEmailJob, markEmailJobSent, markEmailJobFailed } from '@/lib/repositories/email-job-repo';
 import { logInfo, logWarn, logError } from './logger';
 import { buildCustomerFields, buildCustomerOverdueInfo, daysOverdue, formatDueDate, normalizeInvoiceForOverdue } from './splynx-mirror';
 import {
@@ -30,11 +32,13 @@ import type {
   WinBackJobResult,
   FeedbackReminderJobResult,
   SyncStats,
+  TicketSyncResult,
 } from './splynx-mirror-types';
 import { acquireSyncLock, completeSyncRun, setSplynxMeta } from './lib/db/sync';
 import { mapCustomer, mapInvoice } from './lib/db/sync-mirror';
 import { clearRouteCache } from './route-cache';
 import type { PrismaClient } from '@prisma/client';
+import { isBundledServicePlan } from './bts-account-type';
 
 /** Firestore document data — known-key object with JSON-serializable values. */
 type FirestoreData = { [key: string]: string | number | boolean | null | undefined | string[] | number[] | boolean[] | FirestoreData };
@@ -213,6 +217,7 @@ async function mirrorFeedbackTokenSet(token: string, data: {
   sourceEvent: string;
   createdAt: number;
   expiresAt: number;
+  location?: string;
 }): Promise<void> {
   try {
     const fs = await getMirrorFirestore();
@@ -221,7 +226,7 @@ async function mirrorFeedbackTokenSet(token: string, data: {
       customerName: data.customerName,
       customerEmail: data.customerEmail,
       servicePlan: '',
-      location: '',
+      location: data.location || '',
       serviceDate: '',
       sourceEvent: data.sourceEvent,
       eventHash: '',
@@ -279,9 +284,21 @@ export function rowToCustomerDoc(row: {
   winBackToken: string | null;
   churnedAt: bigint | null;
   inactiveSince: bigint | null;
+  blockedSince: bigint | null;
   emailOptOut: boolean | null;
   emailInvalid: boolean | null;
   overdueInfo: unknown;
+  btsId?: string | null;
+  btsName?: string | null;
+  uispEndpointId?: string | null;
+  uispEndpointName?: string | null;
+  uispDeviceStatus?: string | null;
+  uispOutageCount?: number | null;
+  matchState?: string | null;
+  matchMethod?: string | null;
+  matchScore?: number | null;
+  matchedAt?: bigint | null;
+  matchUpdatedAt?: bigint | null;
 }): MirrorCustomerDoc {
   // SAFETY: DB lifecycle column only stores valid Lifecycle enum values ('active'|'blocked'|'inactive'|'churned'),
   // defaulting to 'active' for null/unknown.
@@ -318,9 +335,21 @@ export function rowToCustomerDoc(row: {
     winBackToken: row.winBackToken ?? null,
     churnedAt: toNum(row.churnedAt),
     inactiveSince: toNum(row.inactiveSince),
+    blockedSince: toNum(row.blockedSince),
     emailOptOut: !!row.emailOptOut,
     emailInvalid: !!row.emailInvalid,
     overdueInfo,
+    btsId: row.btsId,
+    btsName: row.btsName,
+    uispEndpointId: row.uispEndpointId,
+    uispEndpointName: row.uispEndpointName,
+    uispDeviceStatus: row.uispDeviceStatus,
+    uispOutageCount: row.uispOutageCount,
+    matchState: row.matchState,
+    matchMethod: row.matchMethod,
+    matchScore: row.matchScore,
+    matchedAt: toNum(row.matchedAt),
+    matchUpdatedAt: toNum(row.matchUpdatedAt),
   };
 }
 
@@ -384,10 +413,22 @@ export function buildCustomerDoc(
 
   let churnedAt = prev?.churnedAt ?? null;
   let inactiveSince = prev?.inactiveSince ?? null;
+  let blockedSince = prev?.blockedSince ?? null;
   if (lifecycle === 'churned' && prevLifecycle !== 'churned' && !churnedAt) churnedAt = now;
   else if (lifecycle !== 'churned' && prevLifecycle === 'churned') churnedAt = null;
   if (lifecycle === 'inactive' && prevLifecycle !== 'inactive' && !inactiveSince) inactiveSince = now;
   else if (lifecycle !== 'inactive' && prevLifecycle === 'inactive') inactiveSince = null;
+  if (lifecycle === 'blocked' && prevLifecycle !== 'blocked' && !blockedSince) blockedSince = now;
+  else if (lifecycle !== 'blocked' && prevLifecycle === 'blocked') blockedSince = null;
+
+  // The customer-list endpoint can return a generic/single plan after the
+  // service backfill has found several current tariffs. Preserve the enriched
+  // bundle until a service-level refresh can recalculate its composition.
+  const preserveBundle = !!prev && isBundledServicePlan(prev.servicePlan) && !isBundledServicePlan(fields.servicePlan);
+  const nextMrrTotal = preserveBundle
+    ? prev?.mrrTotal ?? 0
+    : (fields.mrrTotal ?? 0) > 0 ? fields.mrrTotal ?? 0 : prev?.mrrTotal ?? 0;
+  const nextServicePlan = preserveBundle ? prev?.servicePlan ?? '' : fields.servicePlan || prev?.servicePlan || '';
 
   const changed = !prev || CUSTOMER_COMPARE_KEYS.some((key) => {
     // SAFETY: CUSTOMER_COMPARE_KEYS are known keys of MirrorCustomerDoc; prev is a full doc when present.
@@ -395,6 +436,8 @@ export function buildCustomerDoc(
     // SAFETY: fields is Partial<MirrorCustomerDoc> with the same key set.
     const b = fields[key as keyof MirrorCustomerDoc];
     if (key === 'lifecycle') return a !== lifecycle;
+    if (key === 'mrrTotal') return a !== nextMrrTotal;
+    if (key === 'servicePlan') return a !== nextServicePlan;
     return a !== b;
   });
 
@@ -412,10 +455,13 @@ export function buildCustomerDoc(
     online: fields.online ?? prev?.online ?? false,
     lastOnlineAt: fields.lastOnlineAt ?? prev?.lastOnlineAt ?? null,
     lastUpdateAt: fields.lastUpdateAt ?? prev?.lastUpdateAt ?? null,
-    mrrTotal: fields.mrrTotal ?? prev?.mrrTotal ?? 0,
+    // The list endpoint reports `0.0000` for customers whose tariff is not
+    // resolved. Keep an already-enriched value until the tariff backfill or a
+    // later authoritative positive MRR arrives.
+    mrrTotal: nextMrrTotal,
     accountType: fields.accountType ?? prev?.accountType ?? 'regular',
     category: fields.category ?? prev?.category ?? '',
-    servicePlan: fields.servicePlan ?? prev?.servicePlan ?? '',
+    servicePlan: nextServicePlan,
     firstSyncedAt: prev?.firstSyncedAt ?? now,
     lastSyncAt: now,
     lastChangeAt: changed ? now : prev?.lastChangeAt ?? now,
@@ -428,9 +474,25 @@ export function buildCustomerDoc(
     winBackToken: prev?.winBackToken ?? null,
     churnedAt,
     inactiveSince,
+    blockedSince,
     emailOptOut: prev?.emailOptOut ?? false,
     emailInvalid: prev?.emailInvalid ?? false,
     overdueInfo: prev?.overdueInfo ?? null,
+    // Match-owned fields: carried through untouched so sync reconciles never wipe
+    // tower attribution. Match wins for btsName; a fresh Splynx label fills it only
+    // when no match exists yet (powers deviceResolve splynx-label). Deliberately NOT
+    // in CUSTOMER_COMPARE_KEYS — the matching job owns these, no write ping-pong.
+    btsId: prev?.btsId ?? null,
+    btsName: prev?.btsName ?? fields.btsName ?? null,
+    uispEndpointId: prev?.uispEndpointId ?? null,
+    uispEndpointName: prev?.uispEndpointName ?? null,
+    uispDeviceStatus: prev?.uispDeviceStatus ?? null,
+    uispOutageCount: prev?.uispOutageCount ?? null,
+    matchState: prev?.matchState ?? null,
+    matchMethod: prev?.matchMethod ?? null,
+    matchScore: prev?.matchScore ?? null,
+    matchedAt: prev?.matchedAt ?? null,
+    matchUpdatedAt: prev?.matchUpdatedAt ?? null,
   };
 }
 
@@ -610,18 +672,180 @@ export async function reconcileInvoicesDb(now = Date.now()): Promise<{ upserted:
 }
 
 // ---------------------------------------------------------------------------
+// Ticket reconcile (Splynx helpdesk → Ticket table)
+// ---------------------------------------------------------------------------
+
+const TICKET_PAGE_SIZE = 1000;
+const TICKET_MAX_PAGES = 20;
+/** Business rule (confirmed Sep 2026): a ticket breaches SLA when unresolved
+ *  1.5h after creation. */
+const TICKET_SLA_BREACH_MS = 90 * 60 * 1000;
+const TICKET_PRIORITY_MAP: Record<string, number> = { low: 1, medium: 2, high: 3, urgent: 4, critical: 5 };
+
+export interface TicketCustomerLink {
+  name: string;
+  email: string;
+  city: string;
+  btsId: string | null;
+  btsName: string | null;
+}
+
+/**
+ * Map a raw Splynx ticket to a Ticket row. Status names are installation-
+ * specific and unreachable via API, so state derives from observables only:
+ * trash=1 → soft-deleted, closed=1 → closed (+resolvedAt = updated_at),
+ * otherwise open. firstResponseAt/escalation have no list-endpoint signal and
+ * stay null for synced rows (staff fill them in the admin ticket workflow).
+ */
+export function mapSplynxTicket(
+  t: SplynxTicket,
+  now: number,
+  customer: TicketCustomerLink | null,
+): {
+  id: string;
+  ticketNumber: number;
+  customerName: string | null;
+  customerEmail: string | null;
+  location: string | null;
+  region: string | null;
+  bts: string | null;
+  complaintType: string | null;
+  description: string | null;
+  assignedTo: string | null;
+  status: string;
+  createdAt: bigint | null;
+  updatedAt: bigint | null;
+  resolvedAt: bigint | null;
+  deletedAt: bigint | null;
+  slaBreached: boolean;
+  priority: number | null;
+} {
+  const splynxId = Number(t.id) || 0;
+  const trashed = String(t.trash) === '1';
+  const closed = String(t.closed) === '1';
+  const createdAt = parseSplynxApiDate(t.created_at);
+  const updatedAt = parseSplynxApiDate(t.updated_at);
+  const resolvedAt = closed ? updatedAt : null;
+  // SLA clocks against resolution (or now while still open).
+  const slaBreached = createdAt != null && (resolvedAt ?? now) - createdAt > TICKET_SLA_BREACH_MS;
+  const subject = String(t.subject ?? '').trim();
+  const note = String(t.note ?? '').trim();
+  const priorityKey = String(t.priority ?? '').toLowerCase();
+  return {
+    id: `splynx-${splynxId}`,
+    ticketNumber: splynxId,
+    customerName: customer?.name || null,
+    customerEmail: customer?.email || null,
+    location: customer?.city || null,
+    region: customer?.city ? getRegionForLocation(customer.city) : null,
+    bts: customer?.btsName || null,
+    complaintType: null,
+    description: note ? `${subject}\n\n${note}` : subject || null,
+    // Resolved via the static admin directory (admin endpoint is 403):
+    // roster id when mapped (staff KPIs attribute), else Splynx full name.
+    assignedTo: resolveTicketAssignee(t.assign_to),
+    status: closed ? 'closed' : 'open',
+    createdAt: createdAt != null ? BigInt(createdAt) : null,
+    updatedAt: updatedAt != null ? BigInt(updatedAt) : BigInt(now),
+    resolvedAt: resolvedAt != null ? BigInt(resolvedAt) : null,
+    deletedAt: trashed ? (updatedAt != null ? BigInt(updatedAt) : BigInt(now)) : null,
+    slaBreached,
+    priority: TICKET_PRIORITY_MAP[priorityKey] ?? null,
+  };
+}
+
+const TICKET_COMPARE_KEYS = [
+  'customerName', 'customerEmail', 'location', 'region', 'bts', 'description',
+  'assignedTo', 'status', 'createdAt', 'updatedAt', 'resolvedAt', 'deletedAt',
+  'slaBreached', 'priority',
+] as const;
+
+export async function reconcileTicketsDb(now = Date.now()): Promise<TicketSyncResult> {
+  const result: TicketSyncResult = { upserted: 0, trashed: 0, fetched: 0, denied: false };
+  const all: SplynxTicket[] = [];
+  try {
+    for (let page = 0; page < TICKET_MAX_PAGES; page++) {
+      const batch = await getSupportTickets(TICKET_PAGE_SIZE, page * TICKET_PAGE_SIZE);
+      all.push(...batch);
+      if (batch.length < TICKET_PAGE_SIZE) break;
+    }
+  } catch (err) {
+    const message = err instanceof Error ? err.message : String(err);
+    if (message.includes('403')) {
+      logWarn('[tickets] Splynx tickets API denied (403) — skipping ticket sync');
+      return { ...result, denied: true };
+    }
+    throw err;
+  }
+  result.fetched = all.length;
+
+  // Enrich from the unified customer roster (Splynx customer_id → row).
+  const customerRows = await prisma.customer.findMany({
+    select: { customerId: true, customerName: true, email: true, city: true, btsId: true, btsName: true },
+  });
+  const customerMap = new Map<string, TicketCustomerLink>();
+  for (const r of customerRows) {
+    customerMap.set(String(r.customerId), {
+      name: r.customerName || '',
+      email: r.email || '',
+      city: r.city || '',
+      btsId: r.btsId ?? null,
+      btsName: r.btsName ?? null,
+    });
+  }
+
+  const existingRows = await prisma.ticket.findMany({
+    where: { id: { startsWith: 'splynx-' } },
+    select: {
+      id: true, customerName: true, customerEmail: true, location: true, region: true,
+      bts: true, description: true, assignedTo: true, status: true, createdAt: true,
+      updatedAt: true, resolvedAt: true, deletedAt: true, slaBreached: true, priority: true,
+    },
+  });
+  const existing = new Map(existingRows.map((r) => [r.id, r]));
+
+  for (const t of all) {
+    const splynxId = Number((t as SplynxTicket).id) || 0;
+    if (!splynxId) continue;
+    const cid = Number((t as SplynxTicket).customer_id) || 0;
+    const mapped = mapSplynxTicket(t as SplynxTicket, now, cid ? customerMap.get(String(cid)) ?? null : null);
+    const prev = existing.get(mapped.id);
+    if (prev) {
+      const same = TICKET_COMPARE_KEYS.every((key) => {
+        const a = prev[key as keyof typeof prev];
+        const b = mapped[key as keyof typeof mapped];
+        return String(a ?? '') === String(b ?? '');
+      });
+      if (same) continue;
+    }
+    const { id, ...data } = mapped;
+    await prisma.ticket.upsert({ where: { id }, update: data, create: { id, ...data } });
+    result.upserted++;
+    if (mapped.deletedAt !== null) result.trashed++;
+  }
+
+  logInfo('[tickets] reconcile finished', { ...result });
+  return result;
+}
+
+// ---------------------------------------------------------------------------
 // Email jobs (scan MariaDB)
 // ---------------------------------------------------------------------------
 
-/** Send 15/30-day payment reminders for overdue invoices (idempotent).
- *  Groups invoices by customer — ONE email per customer per run. */
+/** Send 15/30-day payment reminders — disconnected customers only (idempotent).
+ *  Same mechanism Splynx uses: Splynx disconnects (status → blocked) after the invoice
+ *  goes overdue and the term expires. Overdue customers who still have access
+ *  (active lifecycle, or seen online within 30d) are skipped — they are still
+ *  paying customers with outstanding balances, not disconnected ones.
+ *  One email per customer per threshold — 15d and 30d are never combined. */
 export async function runReminderJobDb(now = Date.now(), unpaidRows?: Array<{ invoiceId: string; customerId: string; number: string | null; title: string | null; total: number | null; dueDate: bigint | null; date: bigint | null; status: string | null; isPaid: boolean | null; paidAt: bigint | null; reminder15SentAt: bigint | null; reminder30SentAt: bigint | null; syncedAt: bigint | null }>): Promise<ReminderJobResult> {
-  const result: ReminderJobResult = { sent15: 0, sent30: 0, skippedOptOut: 0, skippedInvalid: 0, skippedChurned: 0, skippedStale: 0 };
+  const result: ReminderJobResult = { sent15: 0, sent30: 0, skippedOptOut: 0, skippedInvalid: 0, skippedChurned: 0, skippedStale: 0, skippedConnected: 0 };
   const unpaid = unpaidRows ?? (await prisma.invoice.findMany({ where: { isPaid: false } }));
   if (!unpaid.length) return result;
 
-  // Group invoices by customer that need reminders
-  const customerInvoices = new Map<number, Array<{ row: (typeof unpaid)[number]; overdue: number; needs15: boolean; needs30: boolean }>>();
+  // Group by customer, then pick one representative invoice per threshold
+  type UnpaidRow = (typeof unpaid)[number] & { _overdue: number };
+  const byCustomer = new Map<number, { needs15: UnpaidRow[]; needs30: UnpaidRow[] }>();
   for (const row of unpaid) {
     const dueDate = toNum(row.dueDate);
     if (!dueDate) continue;
@@ -630,130 +854,127 @@ export async function runReminderJobDb(now = Date.now(), unpaidRows?: Array<{ in
       result.skippedStale++;
       continue;
     }
-    const needs15 = overdue >= 15 && row.reminder15SentAt === null;
+    const needs15 = overdue >= 15 && overdue < 30 && row.reminder15SentAt === null;
     const needs30 = overdue >= 30 && row.reminder30SentAt === null;
-    if (needs15 || needs30) {
-      const cid = Number(row.customerId);
-      if (!Number.isFinite(cid)) continue;
-      const arr = customerInvoices.get(cid) || [];
-      arr.push({ row, overdue, needs15, needs30 });
-      customerInvoices.set(cid, arr);
-    }
+    if (!needs15 && !needs30) continue;
+    const cid = Number(row.customerId);
+    if (!Number.isFinite(cid)) continue;
+    const entry = byCustomer.get(cid) || { needs15: [], needs30: [] };
+    if (needs15) entry.needs15.push({ ...row, _overdue: overdue });
+    if (needs30) entry.needs30.push({ ...row, _overdue: overdue });
+    byCustomer.set(cid, entry);
   }
-  if (customerInvoices.size === 0) return result;
+  if (byCustomer.size === 0) return result;
 
-  const customerIds = [...customerInvoices.keys()];
+  const customerIds = [...byCustomer.keys()];
   const customerRows = await prisma.customer.findMany({ where: { customerId: { in: customerIds.map(String) } } });
-  const customerMap = new Map<string, { email: string; name: string; optOut: boolean; lifecycle: string }>();
-  for (const row of customerRows) {
-    customerMap.set(String(row.customerId), {
-      email: row.email || '',
-      name: row.customerName || '',
-      optOut: !!row.emailOptOut,
-      lifecycle: row.lifecycle || 'active',
-    });
-  }
+  const customerMap = new Map<string, (typeof customerRows)[number]>();
+  for (const r of customerRows) customerMap.set(String(r.customerId), r);
 
-  for (const [customerId, invoices] of customerInvoices.entries()) {
-    const customer = customerMap.get(String(customerId));
-    if (!customer || !customer.email) continue;
-    if (customer.lifecycle === 'churned') {
+  for (const [cid, buckets] of byCustomer) {
+    const customerRow = customerMap.get(String(cid));
+    if (!customerRow || !customerRow.email) continue;
+    const lifecycle = customerRow.lifecycle || 'active';
+    if (lifecycle === 'churned') {
       result.skippedChurned++;
       continue;
     }
-    if (customer.optOut) {
+    // Disconnected-only: Splynx must have cut them (blocked/inactive) AND they must have
+    // no current access (online == Splynx last_online within 30d). Overdue customers who
+    // still have access are still-paying customers with balances — never remind them.
+    if (lifecycle !== 'blocked' && lifecycle !== 'inactive') {
+      result.skippedConnected!++;
+      continue;
+    }
+    if (customerRow.online) {
+      result.skippedConnected!++;
+      continue;
+    }
+    if (customerRow.emailOptOut) {
       result.skippedOptOut++;
       continue;
     }
-    if (!(await hasDeliverableEmail(customer.email))) {
-      await prisma.customer.update({ where: { customerId: String(customerId) }, data: { emailInvalid: true } });
-      await mirrorCustomerUpdate(customerId, { emailInvalid: true });
+    if (!(await hasDeliverableEmail(customerRow.email))) {
+      await prisma.customer.update({ where: { customerId: String(cid) }, data: { emailInvalid: true } });
+      await mirrorCustomerUpdate(cid, { emailInvalid: true });
       result.skippedInvalid++;
       continue;
     }
 
-    // Determine reminder type: 30d takes priority, else 15d
-    // When 30d, include ALL invoices needing reminders (15d + 30d) since 30d supersedes 15d
-    const has30 = invoices.some((i) => i.needs30);
-    const reminderType = has30 ? '30d' : '15d';
-    const relevantInvoices = has30
-      ? invoices.filter((i) => i.needs15 || i.needs30) // include all needing reminders
-      : invoices.filter((i) => i.needs15);
+    // Send at most one 15d and one 30d per customer per run — never joined
+    const toSend: Array<{ type: '15d' | '30d'; row: (typeof unpaid)[number]; overdue: number }> = [];
+    if (buckets.needs30.length > 0) {
+      const mostOverdue = [...buckets.needs30].sort((a, b) => b._overdue - a._overdue)[0];
+      toSend.push({ type: '30d', row: mostOverdue, overdue: mostOverdue._overdue });
+    }
+    if (buckets.needs15.length > 0) {
+      const mostOverdue = [...buckets.needs15].sort((a, b) => b._overdue - a._overdue)[0];
+      toSend.push({ type: '15d', row: mostOverdue, overdue: mostOverdue._overdue });
+    }
 
-    // Build invoice list for email
-    const emailInvoices = relevantInvoices.map((i) => ({
-      invoiceNumber: String(i.row.number || Number(i.row.invoiceId) || ''),
-      amount: i.row.total || 0,
-      dueDate: formatDueDate(Number(i.row.dueDate)),
-      daysOverdue: i.overdue,
-    }));
-
-    try {
-      // Track email in audit log
-      await createEmailJob({
+    for (const { type, row, overdue } of toSend) {
+      const emailInvoices = [
+        {
+          invoiceNumber: String(row.number || Number(row.invoiceId) || ''),
+          amount: row.total || 0,
+          dueDate: formatDueDate(Number(row.dueDate)),
+          daysOverdue: overdue,
+        },
+      ];
+      // Create the audit row first so the send is always traceable, then mark the
+      // terminal state — a sent email must never sit in `pending` (Kunike/Ajumobi).
+      const emailJobId = await createEmailJob({
         type: 'invoice_reminder',
-        customerId: String(customerId),
-        customerEmail: customer.email,
-        customerName: customer.name,
-        payload: { invoices: emailInvoices, reminderType },
+        customerId: String(cid),
+        customerEmail: customerRow.email!,
+        customerName: customerRow.customerName || '',
+        payload: { invoices: emailInvoices, reminderType: type },
       });
-      await sendInvoiceReminderEmail({
-        to: customer.email,
-        customerName: customer.name,
-        invoices: emailInvoices,
-        reminderType,
-      });
-
-      // Update all relevant invoices atomically with check-and-set
-      const invoiceIds = relevantInvoices.map((i) => String(i.row.invoiceId));
-      if (has30) {
-        // 30d reminder: only update invoices that still have reminder30SentAt=null
-        const updated = await prisma.invoice.updateMany({
-          where: {
-            invoiceId: { in: invoiceIds },
-            reminder30SentAt: null,
-          },
-          data: {
-            reminder30SentAt: BigInt(now),
-            reminder15SentAt: BigInt(now),
-          },
+      try {
+        await sendInvoiceReminderEmail({
+          to: customerRow.email!,
+          customerName: customerRow.customerName || '',
+          invoices: emailInvoices,
+          reminderType: type,
         });
-        if (updated.count > 0) {
-          for (const id of invoiceIds) {
-            await mirrorInvoiceUpdate(id, { reminder30SentAt: now, reminder15SentAt: now });
+        await markEmailJobSent(emailJobId);
+        if (type === '30d') {
+          const updated = await prisma.invoice.updateMany({
+            where: { invoiceId: String(row.invoiceId), reminder30SentAt: null },
+            data: { reminder30SentAt: BigInt(now), reminder15SentAt: BigInt(now) },
+          });
+          if (updated.count > 0) {
+            await mirrorInvoiceUpdate(String(row.invoiceId), { reminder30SentAt: now, reminder15SentAt: now });
+            result.sent30++;
           }
-          result.sent30++;
         } else {
-          logWarn('[reminder] 30d reminder already sent by another process', { customerId, invoiceIds });
-        }
-      } else {
-        // 15d reminder only: only update invoices that still have reminder15SentAt=null
-        const updated = await prisma.invoice.updateMany({
-          where: {
-            invoiceId: { in: invoiceIds },
-            reminder15SentAt: null,
-          },
-          data: { reminder15SentAt: BigInt(now) },
-        });
-        if (updated.count > 0) {
-          for (const id of invoiceIds) {
-            await mirrorInvoiceUpdate(id, { reminder15SentAt: now });
+          const updated = await prisma.invoice.updateMany({
+            where: { invoiceId: String(row.invoiceId), reminder15SentAt: null },
+            data: { reminder15SentAt: BigInt(now) },
+          });
+          if (updated.count > 0) {
+            await mirrorInvoiceUpdate(String(row.invoiceId), { reminder15SentAt: now });
+            result.sent15++;
           }
-          result.sent15++;
-        } else {
-          logWarn('[reminder] 15d reminder already sent by another process', { customerId, invoiceIds });
         }
+      } catch (err) {
+        await markEmailJobFailed(emailJobId, err instanceof Error ? err.message : String(err), 0);
+        logWarn('[reminder] email failed', { customerId: cid, error: String(err) });
       }
-    } catch (err) {
-      logWarn('[reminder] email failed', { customerId, error: String(err) });
     }
   }
 
   return result;
 }
 
-/** Send one "we miss you" survey per churned customer (idempotent via atomic check-and-set). */
+/** Churn survey — disabled per product decision (win-back covers retention). */
 export async function runChurnSurveyJobDb(baseUrl: string, now = Date.now()): Promise<ChurnJobResult> {
+  void baseUrl;
+  void now;
+  return { sent: 0, skippedOptOut: 0, skippedNoEmail: 0, skippedInvalid: 0, skippedStale: 0, scanned: 0 };
+}
+
+export async function _legacyRunChurnSurveyJobDb(baseUrl: string, now = Date.now()): Promise<ChurnJobResult> {
   const result: ChurnJobResult = { sent: 0, skippedOptOut: 0, skippedNoEmail: 0, skippedInvalid: 0, skippedStale: 0, scanned: 0 };
   const churned = await prisma.customer.findMany({ where: { lifecycle: 'churned' } });
   result.scanned = churned.length;
@@ -851,18 +1072,29 @@ export async function runChurnSurveyJobDb(baseUrl: string, now = Date.now()): Pr
   return result;
 }
 
-/** Send one "We've Missed You" win-back email per churned customer (idempotent via atomic check-and-set). */
+/**
+ * Queue one "We've Missed You" win-back email per qualifying customer (idempotent).
+ * STRICT audience: lifecycle inactive/blocked for 90+ days AND currently offline
+ * (no access). Churned, active, and recently-blocked customers never qualify.
+ * Nothing sends directly — every job is created as pending_approval and only a
+ * super-admin approval enqueues it for delivery.
+ */
 export async function runWinBackJobDb(baseUrl: string, now = Date.now()): Promise<WinBackJobResult> {
+  const THREE_MONTHS_MS = 90 * DAY_MS;
   const result: WinBackJobResult = { sent: 0, skippedOptOut: 0, skippedNoEmail: 0, skippedInvalid: 0, skippedStale: 0, scanned: 0 };
-  const churned = await prisma.customer.findMany({ where: { lifecycle: 'churned' } });
-  result.scanned = churned.length;
+  const candidates = await prisma.customer.findMany({ where: { lifecycle: { in: ['inactive', 'blocked'] } } });
+  result.scanned = candidates.length;
 
-  for (const row of churned) {
+  for (const row of candidates) {
     if (row.deleted) continue;
-    // Same recency policy as the churn survey — welcome-back offers go only to
-    // customers who left recently, not to 2-year-old churn.
-    const churnedAt = toNum(row.churnedAt);
-    if (!churnedAt || now - churnedAt > WINBACK_WINDOW_MS) {
+    // Duration gate: inactive needs inactiveSince 90d+, blocked needs blockedSince 90d+.
+    const since = toNum(row.lifecycle === 'blocked' ? row.blockedSince : row.inactiveSince);
+    if (!since || now - since < THREE_MONTHS_MS) {
+      result.skippedStale++;
+      continue;
+    }
+    // Disconnected-only: anyone still online has access — never win them back.
+    if (row.online) {
       result.skippedStale++;
       continue;
     }
@@ -896,7 +1128,9 @@ export async function runWinBackJobDb(baseUrl: string, now = Date.now()): Promis
         sourceEvent: 'winback',
         eventHash: `winback-${row.customerId}`,
       });
-      // Track email in audit log
+      // Require super-admin approval before sending — create as pending_approval and do NOT auto-send.
+      // The payload carries the pre-minted token + final links so the worker sends
+      // exactly what was approved (no re-mint, no audit mismatch).
       await createEmailJob({
         type: 'winback',
         customerId: String(row.customerId),
@@ -906,14 +1140,9 @@ export async function runWinBackJobDb(baseUrl: string, now = Date.now()): Promis
           portalUrl: 'https://portal.iwn.ng',
           csatUrl: baseUrl,
           feedbackUrl: `${baseUrl}/feedback/popup?token=${token}&embed=true`,
+          winBackToken: token,
         },
-      });
-      await sendWinBackEmail({
-        to: row.email,
-        customerName: row.customerName || 'there',
-        portalUrl: 'https://portal.iwn.ng',
-        csatUrl: baseUrl,
-        feedbackUrl: `${baseUrl}/feedback/popup?token=${token}&embed=true`,
+        status: 'pending_approval',
       });
       // Atomic check-and-set: only update if winBackSentAt is still null
       const updated = await prisma.customer.updateMany({
@@ -937,41 +1166,43 @@ export async function runWinBackJobDb(baseUrl: string, now = Date.now()): Promis
   return result;
 }
 
-/** Send one feedback link per overdue customer (15+ days unpaid). Idempotent via token TTL. */
+/** Send one feedback link per customer whose invoice was just paid (once per month). */
 export async function runOverdueFeedbackReminderJobDb(
   baseUrl: string,
   now = Date.now(),
   unpaidRows?: Array<{ invoiceId: string; customerId: string; number: string | null; title: string | null; total: number | null; dueDate: bigint | null; date: bigint | null; status: string | null; isPaid: boolean | null; paidAt: bigint | null; reminder15SentAt: bigint | null; reminder30SentAt: bigint | null; syncedAt: bigint | null }>,
 ): Promise<FeedbackReminderJobResult> {
+  void unpaidRows;
   const result: FeedbackReminderJobResult = { sent: 0, skippedOptOut: 0, skippedNoEmail: 0, skippedInvalid: 0, skippedNoOverdue: 0, skippedChurned: 0 };
 
-  const unpaid = unpaidRows ?? (await prisma.invoice.findMany({ where: { isPaid: false } }));
-  if (!unpaid.length) return result;
+  const monthStart = new Date(now);
+  monthStart.setUTCDate(1);
+  monthStart.setUTCHours(0, 0, 0, 0);
+  const monthStartMs = monthStart.getTime();
 
-  // Collect overdue customer ids (15+ days, within the reminder window).
-  const overdueCustomerIds = new Set<number>();
-  for (const row of unpaid) {
-    const dueDate = toNum(row.dueDate);
-    if (dueDate) {
-      const overdue = daysOverdue(dueDate, now);
-      if (overdue >= 15 && overdue <= REMINDER_MAX_OVERDUE_DAYS) {
-        const cid = Number(row.customerId);
-        if (Number.isFinite(cid)) overdueCustomerIds.add(cid);
-      }
-    }
+  const paidThisMonth = await prisma.invoice.findMany({
+    where: { isPaid: true, paidAt: { gte: BigInt(monthStartMs) } },
+    select: { customerId: true, paidAt: true },
+  });
+  if (!paidThisMonth.length) return result;
+
+  const paidCustomerIds = new Set<number>();
+  for (const row of paidThisMonth) {
+    const cid = Number(row.customerId);
+    if (Number.isFinite(cid)) paidCustomerIds.add(cid);
   }
+  if (paidCustomerIds.size === 0) return result;
 
-  if (overdueCustomerIds.size === 0) return result;
-
-  const customerIds = [...overdueCustomerIds];
+  const customerIds = [...paidCustomerIds];
   const customerRows = await prisma.customer.findMany({ where: { customerId: { in: customerIds.map(String) } } });
-  const customerMap = new Map<string, { email: string; name: string; optOut: boolean; lifecycle: string }>();
+  const customerMap = new Map<string, { email: string; name: string; optOut: boolean; lifecycle: string; city: string }>();
   for (const row of customerRows) {
     customerMap.set(String(row.customerId), {
       email: row.email || '',
       name: row.customerName || '',
       optOut: !!row.emailOptOut,
       lifecycle: row.lifecycle || 'active',
+      city: row.city || '',
     });
   }
 
@@ -982,7 +1213,6 @@ export async function runOverdueFeedbackReminderJobDb(
       continue;
     }
     if (customer.lifecycle === 'churned') {
-      // Never ask customers we've already cut off for billing feedback.
       result.skippedChurned++;
       continue;
     }
@@ -997,10 +1227,10 @@ export async function runOverdueFeedbackReminderJobDb(
       continue;
     }
 
-    // Dedup: send at most once per overdue episode (the full reminder window).
-    // Without this, every 15-minute sync re-sends to every overdue customer.
-    const sourceEvent = `overdue:${customerId}`;
-    const recent = await findRecentFeedbackToken(customer.email, sourceEvent, REMINDER_MAX_OVERDUE_DAYS * 24 * 60 * 60 * 1000);
+    // Once per month per customer when they have a paid invoice
+    const monthKey = new Date(now).toISOString().slice(0, 7);
+    const sourceEvent = `paid-feedback:${customerId}:${monthKey}`;
+    const recent = await findRecentFeedbackToken(customer.email, sourceEvent, 30 * 24 * 60 * 60 * 1000);
     if (recent) {
       result.skippedNoOverdue++;
       continue;
@@ -1014,7 +1244,9 @@ export async function runOverdueFeedbackReminderJobDb(
         customerName: customer.name,
         customerEmail: customer.email,
         servicePlan: '',
-        location: '',
+        // Carry the Splynx city so responses land in Regional Pulse instead
+        // of "Unspecified".
+        location: customer.city,
         serviceDate: '',
         sourceEvent,
         eventHash: '',
@@ -1033,10 +1265,10 @@ export async function runOverdueFeedbackReminderJobDb(
       sourceEvent,
       createdAt: now,
       expiresAt,
+      location: customer.city,
     });
 
-    // Track email in audit log
-    await createEmailJob({
+    const feedbackJobId = await createEmailJob({
       type: 'feedback_request',
       customerId: String(customerId),
       customerEmail: customer.email,
@@ -1049,9 +1281,15 @@ export async function runOverdueFeedbackReminderJobDb(
         customerName: customer.name,
         feedbackUrl: `${baseUrl}/feedback?token=${token}&subject=Billing`,
       });
+      await markEmailJobSent(feedbackJobId);
       result.sent++;
     } catch (err) {
-      logWarn('[overdue-feedback] email failed', { customerId, error: String(err) });
+      await markEmailJobFailed(feedbackJobId, err instanceof Error ? err.message : String(err), 0);
+      // Release the monthly slot: the token was minted for an email that never
+      // went out, so delete it — otherwise the dedup check skips this customer
+      // for the rest of the month and the failure can never self-heal.
+      await prisma.feedbackToken.deleteMany({ where: { id: token } }).catch(() => undefined);
+      logWarn('[paid-feedback] email failed', { customerId, error: String(err) });
     }
   }
 
@@ -1079,6 +1317,8 @@ export async function runHourlySyncDb(baseUrl: string, now = Date.now()): Promis
     winBackSent: 0,
     feedbackReminders: 0,
     invoicesApiDenied: false,
+    ticketsSynced: 0,
+    ticketsApiDenied: false,
   };
 
   let journalId: string | undefined;
@@ -1102,6 +1342,18 @@ export async function runHourlySyncDb(baseUrl: string, now = Date.now()): Promis
     const invoices = await reconcileInvoicesDb(now);
     stats.invoicesUpserted = invoices.upserted;
     stats.invoicesApiDenied = invoices.denied;
+
+    // Ticket mirror (helpdesk → Ticket table). Best-effort within the hourly
+    // run: a ticket failure must never take down customers/invoices/mail.
+    try {
+      const tickets = await reconcileTicketsDb(now);
+      stats.ticketsSynced = tickets.upserted;
+      stats.ticketsApiDenied = tickets.denied;
+    } catch (ticketErr) {
+      logWarn('[splynx-sync] ticket reconcile failed (best-effort)', {
+        error: ticketErr instanceof Error ? ticketErr.message : String(ticketErr),
+      });
+    }
 
     // One shared unpaid-invoice scan for both reminder jobs.
     const unpaidRows = await prisma.invoice.findMany({ where: { isPaid: false } });

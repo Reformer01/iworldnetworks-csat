@@ -3,7 +3,7 @@
 import React, { useState, useEffect } from 'react';
 import Image from 'next/image';
 import { PublicNavbar } from '@/components/layout/PublicNavbar';
-import { PlaceHolderImages, type ImagePlaceholder } from '@/lib/placeholder-images';
+import type { ImagePlaceholder } from '@/lib/placeholder-images';
 import {
   LayoutDashboard,
   Headset,
@@ -16,6 +16,7 @@ import {
   CalendarDays,
   Clock,
   Hammer,
+  type LucideIcon,
 } from 'lucide-react';
 import { cn, toLocalDateString } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
@@ -23,7 +24,9 @@ import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Label } from '@/components/ui/label';
 import { useToast } from '@/hooks/use-toast';
 import { billingStaff, fieldTechnicians, supportStaff } from '@/lib/staff';
+import { locations as salesLocations } from '@/lib/sales-staff';
 import { DatePicker } from '@/components/ui/date-picker';
+import ShareFeedbackButtons from '@/components/ShareFormButtons';
 
 type Category = 'Reliability' | 'Support' | 'Testimonials' | 'Installation' | 'Billing' | 'FieldSupport';
 
@@ -31,7 +34,7 @@ export default function LandingPage() {
   const [activeCategory, setActiveCategory] = useState<Category>('Reliability');
   const [isSubmitted, setIsSubmitted] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [ratings, setRatings] = useState<Record<string, any>>({});
+  const [ratings, setRatings] = useState<Record<string, number | string>>({});
   const [errors, setErrors] = useState<Record<string, string[]>>({});
   const [formData, setFormData] = useState({
     customerName: '',
@@ -50,19 +53,31 @@ export default function LandingPage() {
   });
 
   const { toast } = useToast();
-  const validRegions = ['Abeokuta', 'Ibadan', 'Osogbo', 'Akure'];
+  // Region dropdown mirrors the sales-records location list (single source of
+  // truth in sales-staff.ts) so public feedback regions always match sales,
+  // plus the four states to cover towns outside the sales cities.
+  const validRegions = [...salesLocations.map((l) => l.name), 'OGUN', 'OYO', 'ONDO', 'OSUN'];
 
   const residentialPlans = ['H-Lite', 'H-Pro', 'H-Max', 'H-Custom'];
   const businessPlans = ['U-Lite', 'U-Pro', 'U-Max', 'U-Custom'];
 
-  const categories = [
-    { name: 'Reliability' as Category, icon: LayoutDashboard, label: 'Internet Quality' },
-    { name: 'Support' as Category, icon: Headset, label: 'Customer Support' },
-    { name: 'FieldSupport' as Category, icon: Hammer, label: 'Field Support' },
-    { name: 'Testimonials' as Category, icon: Star, label: 'Share Your Story' },
-    { name: 'Installation' as Category, icon: Wrench, label: 'Customer Onboarding' },
-    { name: 'Billing' as Category, icon: CreditCard, label: 'Payments & Billing' },
+  const categories: { name: Category; icon: LucideIcon; label: string }[] = [
+    { name: 'Reliability', icon: LayoutDashboard, label: 'Internet Quality' },
+    { name: 'Support', icon: Headset, label: 'Customer Support' },
+    { name: 'FieldSupport', icon: Hammer, label: 'Field Support' },
+    { name: 'Testimonials', icon: Star, label: 'Share Your Story' },
+    { name: 'Installation', icon: Wrench, label: 'Customer Onboarding' },
+    { name: 'Billing', icon: CreditCard, label: 'Payments & Billing' },
   ];
+
+  const [shareBaseUrl, setShareBaseUrl] = useState('https://csat.iwn.ng/');
+
+  // Build share URL for a specific category (pre-selects that category on the landing page)
+  const buildShareUrl = (category: Category) => {
+    const url = new URL(shareBaseUrl);
+    url.searchParams.set('category', category);
+    return url.toString();
+  };
 
   const images = {
     fiber: { imageUrl: '/hero-fiber.jpg', description: 'Fiber', id: 'fiber', imageHint: '' },
@@ -72,7 +87,7 @@ export default function LandingPage() {
     workspace: { imageUrl: '/hero-workspace.jpg', description: 'Workspace', id: 'workspace', imageHint: '' },
   };
 
-  const heroContent: Record<Category, { title: React.ReactNode; sub: string; img: ImagePlaceholder }> = {
+  const heroContent = {
     Reliability: {
       title: (
         <>
@@ -175,7 +190,7 @@ export default function LandingPage() {
       sub: 'How is our payment process? We want to make sure the billing cycle is easy and clear for everyone.',
       img: images.server,
     },
-  };
+  } satisfies Record<Category, { title: React.ReactNode; sub: string; img: ImagePlaceholder }>;
 
   useEffect(() => {
     setFormData((prev) => ({
@@ -185,6 +200,20 @@ export default function LandingPage() {
       serviceTime: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: false }),
       submissionDate: toLocalDateString(new Date()),
     }));
+    return () => {};
+  }, []);
+
+  // Pre-select category from a shared link (?category=X) and capture the live base URL
+  useEffect(() => {
+    setShareBaseUrl(window.location.href);
+    const params = new URLSearchParams(window.location.search);
+    const categoryParam = params.get('category');
+    const matched = categories.find((c) => c.name === categoryParam);
+    if (matched) {
+      setActiveCategory(matched.name);
+      setRatings({});
+      setFormData((prev) => ({ ...prev, staffName: '' }));
+    }
     return () => {};
   }, []);
 
@@ -332,6 +361,14 @@ export default function LandingPage() {
             </div>
 
             <div className="lg:col-span-9">
+              <div className="flex items-center justify-between mb-6">
+                <h2 className="font-display text-xl font-bold text-primary">{categories.find(c => c.name === activeCategory)?.label} Feedback</h2>
+                <ShareFeedbackButtons
+                  url={buildShareUrl(activeCategory)}
+                  label={categories.find(c => c.name === activeCategory)?.label}
+                  compact
+                />
+              </div>
               <form onSubmit={handleSubmit} className="space-y-12">
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
                   <div className="space-y-1">
@@ -494,11 +531,12 @@ export default function LandingPage() {
                     {errors.submissionDate && <p className="text-[10px] text-destructive font-semibold mt-1">{errors.submissionDate[0]}</p>}
                   </div>
                   <div className="space-y-1">
-                    <label className="font-mono text-[10px] uppercase text-on-surface-variant font-bold flex items-center gap-2">
+                    <label htmlFor="serviceTime" className="font-mono text-[10px] uppercase text-on-surface-variant font-bold flex items-center gap-2">
                       <Clock className="w-3 h-3 text-secondary" /> Approx Time of Experience
                     </label>
                     <input
                       required
+                      id="serviceTime"
                       type="time"
                       className={cn(
                         'w-full bg-transparent border-b py-2 outline-none focus:border-secondary transition-colors font-bold',
@@ -521,8 +559,9 @@ export default function LandingPage() {
 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
                   <div className="space-y-1">
-                    <label className="font-mono text-[10px] uppercase text-on-surface-variant font-bold">Region</label>
+                    <label htmlFor="feedbackRegion" className="font-mono text-[10px] uppercase text-on-surface-variant font-bold">Region</label>
                     <select
+                      id="feedbackRegion"
                       className={cn(
                         'w-full bg-transparent border-b py-2 outline-none cursor-pointer font-bold',
                         errors.location ? 'border-destructive text-destructive focus:border-destructive' : 'border-border',
@@ -547,8 +586,9 @@ export default function LandingPage() {
                     {errors.location && <p className="text-[10px] text-destructive font-semibold mt-1">{errors.location[0]}</p>}
                   </div>
                   <div className="space-y-1">
-                    <label className="font-mono text-[10px] uppercase text-on-surface-variant font-bold">Connectivity Plan</label>
+                    <label htmlFor="feedbackPlan" className="font-mono text-[10px] uppercase text-on-surface-variant font-bold">Connectivity Plan</label>
                     <select
+                      id="feedbackPlan"
                       className={cn(
                         'w-full bg-transparent border-b py-2 outline-none cursor-pointer font-bold',
                         errors.servicePlan ? 'border-destructive text-destructive focus:border-destructive' : 'border-border',
@@ -713,6 +753,18 @@ export default function LandingPage() {
                           ))}
                         </select>
                       </div>
+                      <div className="space-y-4 py-4">
+                        <label htmlFor="fsArrivalTime" className="font-mono text-[10px] uppercase text-on-surface-variant font-bold flex items-center gap-2">
+                          Technician Arrival Time
+                        </label>
+                        <input
+                          id="fsArrivalTime"
+                          type="time"
+                          className="w-full bg-transparent border-b py-2 outline-none focus:border-secondary transition-colors font-bold border-border"
+                          value={String(ratings.arrivalTime ?? '')}
+                          onChange={(e) => setRatings((prev) => ({ ...prev, arrivalTime: e.target.value }))}
+                        />
+                      </div>
                       {renderRatingGroup(
                         'resolutionSpeed',
                         'Resolution Speed',
@@ -810,6 +862,19 @@ export default function LandingPage() {
                           ))}
                         </select>
                       </div>
+                      <div className="space-y-4 py-4">
+                        <label htmlFor="instArrivalTime" className="font-mono text-[10px] uppercase text-on-surface-variant font-bold flex items-center gap-2">
+                          Technician Arrival Time
+                        </label>
+                        <input
+                          id="instArrivalTime"
+                          type="time"
+                          className="w-full bg-transparent border-b py-2 outline-none focus:border-secondary transition-colors font-bold border-border"
+                          value={String(ratings.arrivalTime ?? '')}
+                          onChange={(e) => setRatings((prev) => ({ ...prev, arrivalTime: e.target.value }))}
+                        />
+                      </div>
+                      {renderRatingGroup('conduct', 'Technician Conduct', 'Was the technician polite, professional, and courteous?')}
                       {renderRatingGroup('punctuality', 'Punctuality', 'Did the technician arrive on time for the appointment?')}
                       {renderRatingGroup('quality', 'Installation Quality', 'How neat and professional was the installation work?')}
                       {renderRatingGroup('explanation', 'Installation Guide', 'Did the technician show you how your equipment works?')}

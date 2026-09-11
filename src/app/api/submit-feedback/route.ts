@@ -1,9 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getAdminFirestore } from '@/lib/firebase-admin';
+import { mirrorCreateFeedback } from '@/lib/lib/db/dual-write';
 import { isRateLimitedFirestore } from '@/lib/rate-limit-firestore';
 import { validateOrigin, unauthorized } from '@/lib/api-response';
 import { logError } from '@/lib/logger';
 import { feedbackSchema } from '@/lib/validations/feedback';
+import { isNegativeFeedback } from '@/lib/feedback-negativity';
 import { analyzeCustomerFeedbackSentiment } from '@/ai/flows/analyze-customer-feedback-sentiment';
 
 const AI_ANALYSIS_TIMEOUT_MS = 3500;
@@ -80,7 +82,7 @@ export async function POST(request: NextRequest) {
       dateSubmitted: submittedAt || now.toISOString(),
       timestamp: submittedDate?.getTime() ?? now.getTime(),
       dateFormatted: submittedDate?.toISOString() ?? now.toISOString(),
-      status: 'open',
+      status: isNegativeFeedback(sanitizedData) ? 'open' : 'resolved',
       _source: 'web-form',
       clientIp,
       userAgent,
@@ -93,6 +95,10 @@ export async function POST(request: NextRequest) {
     }
 
     const docRef = await db.collection('feedbacks').add(feedbackData);
+
+    // Strangler-fig dual-write: best-effort mirror to MariaDB (gated by
+    // FEEDBACKS_DB_WRITE). Firestore remains the source of truth.
+    await mirrorCreateFeedback({ id: docRef.id, ...(feedbackData as Record<string, unknown>) });
 
     return NextResponse.json({ success: true, id: docRef.id }, { status: 201 });
   } catch (err: unknown) {

@@ -11,6 +11,10 @@ const mocks = vi.hoisted(() => ({
   logError: vi.fn(),
   logWarn: vi.fn(),
   logInfo: vi.fn(),
+  prismaCustomerFindUnique: vi.fn().mockResolvedValue({ email: 'test@example.com', customerName: 'Test Customer', emailOptOut: false }),
+  createEmailJob: vi.fn().mockResolvedValue('email-job-123'),
+  markEmailJobSent: vi.fn().mockResolvedValue(undefined),
+  markEmailJobFailed: vi.fn().mockResolvedValue(undefined),
 }));
 
 vi.mock('@/lib/firebase-admin', () => ({
@@ -32,6 +36,20 @@ vi.mock('@/lib/logger', () => ({
   logError: mocks.logError,
   logWarn: mocks.logWarn,
   logInfo: mocks.logInfo,
+}));
+
+vi.mock('@/lib/prisma', () => ({
+  prisma: {
+    customer: {
+      findUnique: mocks.prismaCustomerFindUnique,
+    },
+  },
+}));
+
+vi.mock('@/lib/repositories/email-job-repo', () => ({
+  createEmailJob: mocks.createEmailJob,
+  markEmailJobSent: mocks.markEmailJobSent,
+  markEmailJobFailed: mocks.markEmailJobFailed,
 }));
 
 import { POST } from '../route';
@@ -75,14 +93,18 @@ describe('POST /api/splynx-webhook', () => {
     vi.stubEnv('SPLYNX_API_SECRET', '');
     vi.stubEnv('SPLYNX_API_AUTH', '');
     vi.stubGlobal('fetch', vi.fn());
+    // Default mock for customer lookup
+    mocks.prismaCustomerFindUnique.mockResolvedValue({ email: 'test@example.com', customerName: 'Test Customer', emailOptOut: false });
   });
 
-  it('accepts a signed JSON webhook and creates a feedback token', async () => {
+  it('accepts a signed JSON webhook for payment event and creates a feedback token', async () => {
+    mocks.prismaCustomerFindUnique.mockResolvedValueOnce({ email: 'ada@example.com', customerName: 'Ada Customer', emailOptOut: false });
     const body = JSON.stringify({
       type: 'event',
-      call: 'customer/update',
+      call: 'finance\\common\\finance\\Payments',
       data: {
         customer_id: 42,
+        model: 'models\\common\\finance\\Payments',
         date: '2026-07-02',
         attributes: {
           name: 'Ada Customer',
@@ -110,7 +132,7 @@ describe('POST /api/splynx-webhook', () => {
         customerEmail: 'ada@example.com',
         servicePlan: 'Fiber 50',
         location: 'Lagos',
-        sourceEvent: 'customer/update',
+        sourceEvent: 'finance\\common\\finance\\Payments',
       }),
     );
     expect(mocks.sendFeedbackEmail).toHaveBeenCalledWith(
@@ -122,9 +144,11 @@ describe('POST /api/splynx-webhook', () => {
   });
 
   it('accepts a signed form-encoded webhook payload', async () => {
+    mocks.prismaCustomerFindUnique.mockResolvedValueOnce({ email: 'form@example.com', customerName: 'Form Customer', emailOptOut: false });
     const body = new URLSearchParams({
       type: 'event',
       call: 'tickets/ticket/update',
+      'data[model]': 'models\\common\\tickets\\Ticket',
       'data[customer_id]': '99',
       'data[date]': '2026-07-02',
       'data[attributes][customer_name]': 'Form Customer',
@@ -187,9 +211,10 @@ describe('POST /api/splynx-webhook', () => {
 
     const body = JSON.stringify({
       type: 'event',
-      call: 'customer/update',
+      call: 'finance\\common\\finance\\Payments',
       data: {
         customer_id: 123,
+        model: 'models\\common\\finance\\Payments',
         attributes: {},
       },
     });
@@ -234,9 +259,10 @@ describe('POST /api/splynx-webhook', () => {
 
     const body = JSON.stringify({
       type: 'event',
-      call: 'customer/update',
+      call: 'finance\\common\\finance\\Payments',
       data: {
         customer_id: 321,
+        model: 'models\\common\\finance\\Payments',
         attributes: {},
       },
     });
@@ -265,6 +291,7 @@ describe('POST /api/splynx-webhook', () => {
       call: 'payment/update',
       data: {
         customer_id: 9,
+        model: 'models\\common\\finance\\Payments',
         attributes: {
           email: 'test@example.com',
         },

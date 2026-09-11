@@ -5,6 +5,12 @@ describe('isSuperAdmin', () => {
   it('recognizes super admin emails', () => {
     expect(isSuperAdmin('reformer.ejembi@iworldnetworks.net')).toBe(true);
     expect(isSuperAdmin('jeffery.udoji@iworldnetworks.net')).toBe(true);
+    expect(isSuperAdmin('adeolu.oluwabiyi@iworldnetworks.net')).toBe(true);
+    expect(isSuperAdmin('mathew.alli@iworldnetworks.net')).toBe(true);
+    expect(isSuperAdmin('stella.akinola@iworldnetworks.net')).toBe(true);
+    expect(isSuperAdmin('jude.alawode@iworldnetworks.net')).toBe(true);
+    expect(isSuperAdmin('olumide.adelaja@iworldnetworks.net')).toBe(true);
+    expect(isSuperAdmin('alaka.segun@iworldnetworks.net')).toBe(true);
   });
 
   it('rejects non-super-admin emails', () => {
@@ -43,7 +49,16 @@ describe('constants', () => {
     expect(ALLOWED_EMAIL_DOMAIN).toBe('@iworldnetworks.net');
   });
 
-  it('SUPER_ADMIN_EMAILS contains exactly 2 entries', () => {
-    expect(SUPER_ADMIN_EMAILS).toHaveLength(2);
+  it('SUPER_ADMIN_EMAILS contains the current list of privileged admins', () => {
+    expect(SUPER_ADMIN_EMAILS).toEqual([
+      'reformer.ejembi@iworldnetworks.net',
+      'jeffery.udoji@iworldnetworks.net',
+      'adeolu.oluwabiyi@iworldnetworks.net',
+      'mathew.alli@iworldnetworks.net',
+      'stella.akinola@iworldnetworks.net',
+      'jude.alawode@iworldnetworks.net',
+      'olumide.adelaja@iworldnetworks.net',
+      'alaka.segun@iworldnetworks.net',
+    ]);
   });
 });

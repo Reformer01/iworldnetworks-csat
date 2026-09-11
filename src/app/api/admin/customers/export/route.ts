@@ -1,12 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
-import { getAdminFirestore } from '@/lib/firebase-admin';
 import { verifyAdminToken } from '@/lib/admin-auth';
 import { isRateLimited } from '@/lib/rate-limit';
 import { unauthorized, forbidden, tooMany, serverError, validateOrigin } from '@/lib/api-response';
 import { logError } from '@/lib/logger';
-import { CUSTOMERS_COLLECTION } from '@/lib/splynx-mirror-types';
-import { withCache } from '@/lib/route-cache';
 
 export const dynamic = 'force-dynamic';
 
@@ -47,57 +44,44 @@ export async function GET(request: NextRequest) {
     const { searchParams } = new URL(request.url);
     const overdueOnly = searchParams.get('overdue') === 'true';
 
-    // MariaDB-first (CUSTOMERS_DB=1); Firestore fallback path retained while
-    // the read flag is unset.
-    let rows: Array<Record<string, JsonValue>>;
-    if (process.env.CUSTOMERS_DB === '1') {
-      const dbRows = await prisma.customer.findMany({
-        where: { deleted: false },
-        orderBy: { customerId: 'desc' },
-        take: FETCH_LIMIT,
-      });
-      rows = dbRows.map((r) => ({
-        customerId: r.customerId,
-        customerName: r.customerName,
-        email: r.email,
-        phone: r.phone,
-        login: r.login,
-        city: r.city,
-        status: r.status,
-        lifecycle: r.lifecycle,
-        mrrTotal: r.mrrTotal,
-        accountType: r.accountType,
-        category: r.category,
-        servicePlan: r.servicePlan,
-        lastOnlineAt: r.lastOnlineAt != null ? Number(r.lastOnlineAt) : undefined,
-        lastUpdateAt: r.lastUpdateAt != null ? Number(r.lastUpdateAt) : undefined,
-        reminder15SentAt: r.reminder15SentAt != null ? Number(r.reminder15SentAt) : undefined,
-        reminder30SentAt: r.reminder30SentAt != null ? Number(r.reminder30SentAt) : undefined,
-        churnSurveySentAt: r.churnSurveySentAt != null ? Number(r.churnSurveySentAt) : undefined,
-        winBackSentAt: r.winBackSentAt != null ? Number(r.winBackSentAt) : undefined,
-        firstSyncedAt: r.firstSyncedAt != null ? Number(r.firstSyncedAt) : undefined,
-        lastSyncAt: r.lastSyncAt != null ? Number(r.lastSyncAt) : undefined,
-        overdueInfo: r.overdueInfo,
-      }));
-    } else {
-      // Reuses the same cached snapshot as the customers list route.
-      const db = getAdminFirestore();
-      rows = await withCache(
-        `customers-snapshot-${FETCH_LIMIT}`,
-        10 * 60 * 1000,
-        async () => {
-          const snapshot = await db.collection(CUSTOMERS_COLLECTION).orderBy('customerId', 'desc').limit(FETCH_LIMIT).get();
-          return snapshot.docs.filter((doc) => !doc.data().deleted).map((doc) => doc.data());
-        },
-        10 * 60 * 1000,
-      );
-    }
+    const dbRows = await prisma.customer.findMany({
+      where: { deleted: false },
+      orderBy: { customerId: 'desc' },
+      take: FETCH_LIMIT,
+    });
+    const rows: Array<Record<string, JsonValue>> = dbRows.map((r) => ({
+      customerId: r.customerId,
+      customerName: r.customerName,
+      email: r.email,
+      phone: r.phone,
+      login: r.login,
+      city: r.city,
+      status: r.status,
+      lifecycle: r.lifecycle,
+      online: r.online ?? false,
+      mrrTotal: r.mrrTotal,
+      accountType: r.accountType,
+      category: r.category,
+      servicePlan: r.servicePlan,
+      lastOnlineAt: r.lastOnlineAt != null ? Number(r.lastOnlineAt) : undefined,
+      lastUpdateAt: r.lastUpdateAt != null ? Number(r.lastUpdateAt) : undefined,
+      reminder15SentAt: r.reminder15SentAt != null ? Number(r.reminder15SentAt) : undefined,
+      reminder30SentAt: r.reminder30SentAt != null ? Number(r.reminder30SentAt) : undefined,
+      churnSurveySentAt: r.churnSurveySentAt != null ? Number(r.churnSurveySentAt) : undefined,
+      winBackSentAt: r.winBackSentAt != null ? Number(r.winBackSentAt) : undefined,
+      firstSyncedAt: r.firstSyncedAt != null ? Number(r.firstSyncedAt) : undefined,
+      lastSyncAt: r.lastSyncAt != null ? Number(r.lastSyncAt) : undefined,
+      overdueInfo: r.overdueInfo,
+    }));
 
-    // Overdue state comes from the denormalized field on the customer doc.
-    // SAFETY: overdueInfo is written by the mirror/sync job with this exact
-    // shape; a missing or null value simply falls through the overdue filter.
+    // Overdue export excludes customers who still have access (online) — they are
+    // still-paying customers with outstanding balances, not disconnected debt.
     const filteredRows = overdueOnly
-      ? rows.filter((r) => (r.overdueInfo as { hasOverdueInvoice?: boolean } | null | undefined)?.hasOverdueInvoice === true)
+      ? rows.filter(
+          (r) =>
+            (r.overdueInfo as { hasOverdueInvoice?: boolean } | null | undefined)?.hasOverdueInvoice === true &&
+            r.online !== true,
+        )
       : rows;
 
     const header = [
@@ -149,8 +133,6 @@ export async function GET(request: NextRequest) {
         fmtTimestamp(row.lastSyncAt),
       ];
       if (overdueOnly) {
-        // SAFETY: overdueInfo is written by the sync job with this exact
-        // shape; missing fields fall back to empty cells.
         const info = row.overdueInfo as
           | {
               invoiceNumber?: string | null;

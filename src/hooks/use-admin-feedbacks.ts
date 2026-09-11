@@ -128,7 +128,9 @@ export function useAdminFeedbacks() {
         return;
       }
 
-      const response = await fetch('/api/admin/feedbacks', {
+      // limit=1000 (API max): the default page of 50 silently truncates the
+      // date-range metrics on the admin dashboard.
+      const response = await fetch('/api/admin/feedbacks?limit=1000', {
         headers: { Authorization: `Bearer ${token}` },
       });
       const data = await response.json();

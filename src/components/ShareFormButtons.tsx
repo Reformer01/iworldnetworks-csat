@@ -20,8 +20,6 @@ function buildWhatsAppText(url: string, customerName: string, subject: string): 
   return `Hello ${who}, could you share your feedback on ${topic} with I-World Networks? It only takes a minute: ${url}`;
 }
 
-const hasNativeShare = typeof navigator !== 'undefined' && 'share' in navigator;
-
 export default function ShareFormButtons({
   url,
   customerName,
@@ -31,6 +29,8 @@ export default function ShareFormButtons({
   className,
 }: ShareFormButtonsProps) {
   const [copied, setCopied] = useState<'link' | 'whatsapp' | 'email' | null>(null);
+  const [hasNativeShare, setHasNativeShare] = useState(false);
+  React.useEffect(() => { setHasNativeShare(typeof navigator !== 'undefined' && 'share' in navigator); }, []);
   const disabled = !url;
 
   const handleCopy = async (text: string, type: 'link' | 'whatsapp' | 'email') => {

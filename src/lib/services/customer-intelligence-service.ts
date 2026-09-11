@@ -2,6 +2,7 @@ import { prisma } from '@/lib/prisma';
 import { btsStations } from '@/lib/bts-data';
 import { canonicalRegionForTowerName } from '@/lib/audit/computeTowerAudit';
 import { customerRegionKey } from '@/lib/matching/score';
+import { getEffectiveMrr, getActiveEffectiveMrr } from '@/lib/customer-mrr';
 
 export interface IntelligenceOverview {
   totals: {
@@ -28,6 +29,65 @@ export interface IntelligenceOverview {
   byAccountType: Array<{ type: string; count: number; mrr: number; percent: number }>;
   topTowers: Array<{ towerName: string; region: string; customers: number; mrr: number }>;
   syncMeta: { lastSyncAt: number | null; lastStatus: string; lastError: string; invoicesApiDenied: boolean };
+
+  // Health score distribution (merged from deprecated revenue-overview)
+  healthDistribution: {
+    healthy: number;
+    'at-risk': number;
+    churning: number;
+    critical: number;
+    lost: number;
+    avgScore: number;
+  };
+  // Top at-risk customers
+  atRiskCustomers: Array<{
+    customerId: string;
+    customerName: string | null;
+    score: number;
+    tier: string;
+    trend: string | null;
+    complaintRisk: number;
+    paymentRisk: number;
+    deviceRisk: number;
+    networkRisk: number;
+    engagementRisk: number;
+    lifecycleRisk: number;
+    city: string | null;
+    servicePlan: string | null;
+    mrrTotal: number | null;
+  }>;
+  // Upsell opportunities
+  upsellOpportunities: Array<{
+    id: string;
+    customerId: string;
+    customerName: string | null;
+    type: string;
+    currentPlan: string | null;
+    suggestedPlan: string | null;
+    revenuePotential: number;
+    score: number;
+    status: string;
+    assignedTo: string | null;
+  }>;
+  // Revenue anomalies
+  anomalies: Array<{
+    id: string;
+    type: string;
+    severity: string;
+    title: string;
+    description: string;
+    entityType: string | null;
+    entityId: string | null;
+    entityName: string | null;
+    metricName: string;
+    metricValue: number;
+    threshold: number;
+    status: string;
+    acknowledgedBy: string | null;
+    resolvedAt: Date | null;
+    createdAt: Date;
+  }>;
+  anomalySummary: Array<{ severity: string; status: string; count: number }>;
 }
 
 function pct(part: number, total: number): number {
@@ -41,13 +101,96 @@ function pct(part: number, total: number): number {
  * Every percentage is derived from the same `total` denominator.
  */
 export async function getIntelligenceOverview(): Promise<IntelligenceOverview> {
-  const [customers, towers, syncLock, splynxMeta, churnResponses] = await Promise.all([
+  const [customers, towers, syncLock, splynxMeta, churnResponses, healthScores, upsellOps, anomalies] = await Promise.all([
     prisma.customer.findMany({ where: { deleted: false } }),
     prisma.uispSite.findMany({ where: { type: 'site' } }),
     prisma.syncLock.findUnique({ where: { id: 'splynx-hourly-sync' } }),
     prisma.splynxMeta.findUnique({ where: { id: 'sync' } }),
     prisma.churnSurvey.count({ where: { used: true } }),
+    // Health score distribution (latest per customer)
+    prisma.$queryRaw<
+      Array<{ tier: string; count: bigint; avgScore: number }>
+    >`
+      SELECT tier, COUNT(*) as count, AVG(score) as avgScore
+      FROM (
+        SELECT customerId, score, tier,
+               ROW_NUMBER() OVER (PARTITION BY customerId ORDER BY calculatedAt DESC) as rn
+        FROM CustomerHealthScore
+      ) latest
+      WHERE rn = 1
+      GROUP BY tier
+    `,
+    // Upsell opportunities
+    prisma.upsellOpportunity.findMany({
+      where: { status: 'new' },
+      orderBy: { score: 'desc' },
+      take: 30,
+    }),
+    // Revenue anomalies
+    prisma.revenueAnomaly.findMany({
+      orderBy: { createdAt: 'desc' },
+      take: 20,
+    }),
   ]);
+
+  // Health score distribution (latest per customer)
+  const healthDistribution = {
+    healthy: 0,
+    'at-risk': 0,
+    churning: 0,
+    critical: 0,
+    lost: 0,
+    avgScore: 0,
+  };
+  let totalCustomers = 0;
+  let totalScore = 0;
+  for (const row of healthScores) {
+    const count = Number(row.count);
+    healthDistribution[row.tier as keyof typeof healthDistribution] = count;
+    totalCustomers += count;
+    totalScore += row.avgScore * count;
+  }
+  healthDistribution.avgScore = totalCustomers > 0 ? Math.round(totalScore / totalCustomers) : 0;
+
+  // Top at-risk customers (latest per customer, tier at-risk/churning/critical/lost)
+  const atRiskCustomers = await prisma.$queryRaw<
+    Array<{
+      customerId: string;
+      customerName: string | null;
+      score: number;
+      tier: string;
+      trend: string | null;
+      complaintRisk: number;
+      paymentRisk: number;
+      deviceRisk: number;
+      networkRisk: number;
+      engagementRisk: number;
+      lifecycleRisk: number;
+      city: string | null;
+      servicePlan: string | null;
+      mrrTotal: number | null;
+    }>
+  >`
+    SELECT chs.customerId, c.customerName, chs.score, chs.tier, chs.trend,
+           chs.complaintRisk, chs.paymentRisk, chs.deviceRisk, chs.networkRisk,
+           chs.engagementRisk, chs.lifecycleRisk, c.city, c.servicePlan, c.mrrTotal
+    FROM (
+      SELECT customerId, score, tier, trend, complaintRisk, paymentRisk,
+             deviceRisk, networkRisk, engagementRisk, lifecycleRisk,
+             ROW_NUMBER() OVER (PARTITION BY customerId ORDER BY calculatedAt DESC) as rn
+      FROM CustomerHealthScore
+    ) chs
+    JOIN Customer c ON c.id = chs.customerId
+    WHERE chs.rn = 1 AND chs.tier IN ('at-risk', 'churning', 'critical', 'lost')
+    ORDER BY chs.score ASC
+    LIMIT 50
+  `;
+
+  // Anomaly summary
+  const anomalySummary = await prisma.revenueAnomaly.groupBy({
+    by: ['severity', 'status'],
+    _count: { id: true },
+  });
 
   const total = customers.length;
   const active = customers.filter((c) => (c as unknown as { lifecycle: string }).lifecycle === 'active').length;
@@ -57,10 +200,10 @@ export async function getIntelligenceOverview(): Promise<IntelligenceOverview> {
   const online = customers.filter((c) => (c as unknown as { online: boolean }).online === true).length;
   const offline = total - online;
   const overdue = customers.filter((c) => (c.overdueInfo as { hasOverdueInvoice?: boolean } | null)?.hasOverdueInvoice === true).length;
-  const totalMrr = customers.reduce((s, c) => s + ((c as unknown as { mrrTotal: number | null }).mrrTotal ?? 0), 0);
+  const totalMrr = customers.reduce((s, c) => s + getEffectiveMrr(c as unknown as { mrrTotal: number | null; servicePlan: string | null }), 0);
   const activeMrr = customers
     .filter((c) => (c as unknown as { lifecycle: string }).lifecycle === 'active')
-    .reduce((s, c) => s + ((c as unknown as { mrrTotal: number | null }).mrrTotal ?? 0), 0);
+    .reduce((s, c) => s + getEffectiveMrr(c as unknown as { mrrTotal: number | null; servicePlan: string | null }), 0);
   const avgMrr = total > 0 ? Math.round(totalMrr / total) : 0;
 
   const lifecycle = [
@@ -95,7 +238,7 @@ export async function getIntelligenceOverview(): Promise<IntelligenceOverview> {
   const towerStatusMap = new Map<string, string | null>();
   for (const t of towers as unknown as Array<{ id: string; name: string; status: string | null }>) towerStatusMap.set(t.name, t.status);
 
-  for (const c of customers as unknown as Array<{ btsName: string | null; lifecycle: string; mrrTotal: number | null }>) {
+  for (const c of customers as unknown as Array<{ btsName: string | null; lifecycle: string; mrrTotal: number | null; servicePlan: string | null }>) {
     const btsName = c.btsName || 'Unassigned';
     const prev = byBtsMap.get(btsName) || {
       customers: 0,
@@ -106,7 +249,7 @@ export async function getIntelligenceOverview(): Promise<IntelligenceOverview> {
     };
     prev.customers++;
     if (c.lifecycle === 'active') prev.active++;
-    prev.mrr += c.mrrTotal ?? 0;
+    prev.mrr += getEffectiveMrr(c);
     byBtsMap.set(btsName, prev);
   }
   const byBts = [...byBtsMap.entries()]
@@ -153,7 +296,7 @@ export async function getIntelligenceOverview(): Promise<IntelligenceOverview> {
     const plan = c.servicePlan || 'Unknown';
     const prev = byPlanMap.get(plan) || { count: 0, mrr: 0 };
     prev.count++;
-    prev.mrr += c.mrrTotal ?? 0;
+    prev.mrr += getEffectiveMrr(c);
     byPlanMap.set(plan, prev);
   }
   const byPlan = [...byPlanMap.entries()]
@@ -163,11 +306,11 @@ export async function getIntelligenceOverview(): Promise<IntelligenceOverview> {
 
   // By accountType
   const byAccountTypeMap = new Map<string, { count: number; mrr: number }>();
-  for (const c of customers as unknown as Array<{ accountType: string | null; mrrTotal: number | null }>) {
+  for (const c of customers as unknown as Array<{ accountType: string | null; mrrTotal: number | null; servicePlan: string | null }>) {
     const t = c.accountType || 'OTHER';
     const prev = byAccountTypeMap.get(t) || { count: 0, mrr: 0 };
     prev.count++;
-    prev.mrr += c.mrrTotal ?? 0;
+    prev.mrr += getEffectiveMrr(c);
     byAccountTypeMap.set(t, prev);
   }
   const byAccountType = [...byAccountTypeMap.entries()]
@@ -209,5 +352,45 @@ export async function getIntelligenceOverview(): Promise<IntelligenceOverview> {
       lastError: syncLock?.lastError || '',
       invoicesApiDenied: splynxMeta?.invoicesApiDenied === true,
     },
+    // Health score distribution (merged from deprecated revenue-overview)
+    healthDistribution,
+    // Top at-risk customers
+    atRiskCustomers,
+    // Upsell opportunities
+    upsellOpportunities: upsellOps.map((u) => ({
+      id: u.id,
+      customerId: u.customerId,
+      customerName: u.customerName,
+      type: u.type,
+      currentPlan: u.currentPlan,
+      suggestedPlan: u.suggestedPlan,
+      revenuePotential: u.revenuePotential,
+      score: u.score,
+      status: u.status,
+      assignedTo: u.assignedTo,
+    })),
+    // Revenue anomalies
+    anomalies: anomalies.map((a) => ({
+      id: a.id,
+      type: a.type,
+      severity: a.severity,
+      title: a.title,
+      description: a.description,
+      entityType: a.entityType,
+      entityId: a.entityId,
+      entityName: a.entityName,
+      metricName: a.metricName,
+      metricValue: a.metricValue,
+      threshold: a.threshold,
+      status: a.status,
+      acknowledgedBy: a.acknowledgedBy,
+      resolvedAt: a.resolvedAt,
+      createdAt: a.createdAt,
+    })),
+    anomalySummary: anomalySummary.map((a) => ({
+      severity: a.severity,
+      status: a.status,
+      count: a._count.id,
+    })),
   };
 }

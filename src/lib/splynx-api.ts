@@ -1,4 +1,3 @@
-import { getAdminApp } from './firebase-admin';
 import { incrementNonce } from './splynx-nonce';
 
 function getSplynxEnv() {
@@ -46,12 +45,57 @@ export interface SplynxCustomer {
   bundle_name: string;
 }
 
+export interface SplynxCustomerLabel {
+  id: number;
+  label: string;
+  color: string;
+}
+
+export interface SplynxCustomerListRecord {
+  id: number;
+  login: string;
+  name: string;
+  email: string;
+  billing_email: string;
+  phone: string;
+  street_1: string;
+  city: string;
+  status: string;
+  last_online: string;
+  last_update: string;
+  mrr_total: string;
+  account_type: string;
+  category: string;
+  /** Tariff display name, e.g. "H-Pro". Populated by the list endpoint when the tariff is mapped. */
+  plan?: string;
+  /** Underlying tariff id from Splynx. */
+  tariff_id?: number;
+  /** Customer labels from Splynx — may contain BTS assignment like "BTS - AKURE OFFICE X". */
+  customer_labels?: SplynxCustomerLabel[];
+}
+
+export interface SplynxInvoice {
+  id: number;
+  customerId: number;
+  number: string;
+  title: string;
+  total: number;
+  dueDate: number | null;
+  date: number | null;
+  status: string;
+  isPaid: boolean;
+  paidAt: number | null;
+}
+
 export interface SplynxService {
   id: number;
   title: string;
   tariff_id: number;
   tariff_name: string;
   status: string;
+  start_date?: string;
+  description?: string;
+  unit_price?: number | string;
   status_id: number;
   router_id: number;
   router_name: string;
@@ -93,12 +137,13 @@ export interface SplynxRouter {
 
 export interface SplynxTariff {
   id: number;
-  name: string;
+  name?: string;
+  title?: string;
   price: number;
-  period: string;
-  download_speed: number;
-  upload_speed: number;
-  description: string;
+  period?: string;
+  download_speed?: number;
+  upload_speed?: number;
+  description?: string;
 }
 
 export interface PaginatedResponse<T> {
@@ -109,13 +154,103 @@ export interface PaginatedResponse<T> {
   total_pages: number;
 }
 
+interface RawSplynxInvoice {
+  id: string | number;
+  customer_id: string | number;
+  number: string;
+  title?: string;
+  total: string | number;
+  date_till?: string;
+  real_create_datetime?: string;
+  date_created?: string;
+  date_payment?: string;
+  status?: string;
+  is_paid?: boolean | number;
+  items?: Array<{ description?: string }>;
+}
+
+type RawInvoiceList = RawSplynxInvoice[];
+
+function isItemObject(value: { description?: string } | undefined): value is { description?: string } {
+  return typeof value === 'object' && value !== null;
+}
+
+function isStringValue(value: string | undefined | null): value is string {
+  return typeof value === 'string' && value.length > 0;
+}
+
+function isNumberValue(value: string | number): value is number {
+  return typeof value === 'number';
+}
+
+/**
+ * Parse a Splynx date string ("YYYY-MM-DD" or "YYYY-MM-DD HH:mm:ss") into an
+ * epoch millisecond timestamp (UTC). Zero dates ("0000-00-00") and garbage
+ * yield null. The explicit "Z" keeps parsing deterministic across timezones:
+ * date-only forms otherwise parse as UTC while datetime forms parse as local.
+ */
+export function parseSplynxApiDate(rawValue: string | undefined | null): number | null {
+  if (!isStringValue(rawValue)) return null;
+  const clean = rawValue.trim();
+  if (/^0{4}-0{2}-0{2}/.test(clean)) return null;
+  let iso = clean.replace(' ', 'T');
+  if (!iso.includes('T')) iso += 'T00:00:00';
+  iso += 'Z';
+  const ms = Date.parse(iso);
+  return Number.isNaN(ms) ? null : ms;
+}
+
+/**
+ * Map the RAW `/admin/finance/invoices` payload to the canonical SplynxInvoice
+ * shape. The API returns snake_case fields (`customer_id`, `date_till`,
+ * `date_payment`, …) and has NO `title`/`is_paid`/`paidAt` fields — without
+ * this mapping every camelCase field is `undefined` and the mirror writes
+ * invoice docs with only `id`/`number`/`total`/`status` (the rest silently
+ * dropped by `ignoreUndefinedProperties`), which broke overdue denormalization.
+ */
+export function normalizeSplynxInvoice(raw: RawSplynxInvoice): SplynxInvoice {
+  const status = String(raw.status ?? '').toLowerCase();
+  const paidAt = parseSplynxApiDate(raw.date_payment);
+  const isPaid =
+    raw.is_paid === true ||
+    raw.is_paid === 1 ||
+    status === 'paid' ||
+    status === 'partially paid' ||
+    status === 'closed' ||
+    status.startsWith('paid ') ||
+    status.startsWith('closed ') ||
+    paidAt !== null;
+  const items = Array.isArray(raw.items) ? raw.items : [];
+  // SAFETY: Splynx API returns items as array of objects with optional description.
+  const firstItem = isItemObject(items[0]) ? items[0] : null;
+  const total = isNumberValue(raw.total) ? raw.total : Number(raw.total ?? 0) || 0;
+
+  return {
+    id: Number(raw.id) || 0,
+    customerId: Number(raw.customer_id) || 0,
+    number: String(raw.number ?? ''),
+    title: String(raw.title ?? firstItem?.description ?? ''),
+    total,
+    dueDate: parseSplynxApiDate(raw.date_till),
+    date: parseSplynxApiDate(raw.real_create_datetime ?? raw.date_created),
+    status,
+    isPaid,
+    paidAt,
+  };
+}
+
+function normalizeInvoiceList(raw: RawInvoiceList): SplynxInvoice[] {
+  return raw.map(normalizeSplynxInvoice);
+}
+
 export async function buildAuthHeader(): Promise<string> {
   const env = getSplynxEnv();
   if (env.auth === 'signature') {
     const crypto = require('crypto');
     const nextNonce = await incrementNonce('default');
     const nonce = String(Math.max(Date.now(), Number(nextNonce)));
-    (globalThis as any).lastSplynxNonce = Number(nonce);
+    // SAFETY: globalThis is extended at runtime by the nonce module; lastSplynxNonce is a number.
+    (globalThis as unknown as { lastSplynxNonce: number }).lastSplynxNonce = Number(nonce);
     const signature = crypto.createHmac('sha256', env.secret).update(`${nonce}${env.key}`).digest('hex').toUpperCase();
     return `Splynx-EA (key=${env.key}&nonce=${nonce}&signature=${signature})`;
   }
@@ -169,6 +304,7 @@ async function splynxFetch<T>(endpoint: string, params?: URLSearchParams): Promi
 
       return response.json();
     } catch (error) {
+      // SAFETY: fetch errors are always Error instances in this context.
       lastError = error as Error;
 
       // Check if this is a rate limit error that we should retry on
@@ -203,6 +339,55 @@ export async function getActiveCustomers(page = 1, perPage = 1000): Promise<Pagi
   return splynxFetch<PaginatedResponse<SplynxCustomer>>('/admin/customers/customer', params);
 }
 
+export async function getAllCustomers(): Promise<SplynxCustomerListRecord[]> {
+  return splynxFetch<SplynxCustomerListRecord[]>('/admin/customers/customer');
+}
+
+export async function getUnpaidInvoices(): Promise<SplynxInvoice[]> {
+  const params = new URLSearchParams();
+  params.set('main_attributes[status][0]', '=');
+  params.set('main_attributes[status][1]', 'not_paid');
+  const raw = await splynxFetch<RawInvoiceList>('/admin/finance/invoices', params);
+  return normalizeInvoiceList(raw);
+}
+
+export async function getDeletedInvoices(): Promise<SplynxInvoice[]> {
+  const params = new URLSearchParams();
+  params.set('main_attributes[status][0]', '=');
+  params.set('main_attributes[status][1]', 'deleted');
+  const raw = await splynxFetch<RawInvoiceList>('/admin/finance/invoices', params);
+  return normalizeInvoiceList(raw);
+}
+
+/**
+ * Raw `/admin/support/tickets` record. Status names are installation-specific
+ * (Config → Helpdesk → Ticket statuses) and NOT exposed by any API endpoint
+ * the key can reach, so callers must derive state from `closed`/`trash`.
+ */
+export interface SplynxTicket {
+  id: number;
+  customer_id: number;
+  assign_to: number;
+  status_id: number;
+  subject: string;
+  priority: string;
+  closed: string;
+  created_at: string;
+  updated_at: string;
+  trash: string;
+  note: string;
+  group_id: number;
+  type_id: number;
+}
+
+export async function getSupportTickets(limit = 1000, offset = 0): Promise<SplynxTicket[]> {
+  const params = new URLSearchParams();
+  params.set('limit', String(limit));
+  params.set('offset', String(offset));
+  const raw = await splynxFetch<unknown>(`/admin/support/tickets`, params);
+  return Array.isArray(raw) ? (raw as SplynxTicket[]) : [];
+}
+
 export async function getAllActiveCustomers(): Promise<SplynxCustomer[]> {
   const allCustomers: SplynxCustomer[] = [];
   let page = 1;
@@ -222,6 +407,7 @@ export async function getCustomerById(id: number): Promise<SplynxCustomer | null
   try {
     return await splynxFetch<SplynxCustomer>(`/admin/customers/customer/${id}`);
   } catch (err) {
+    // SAFETY: splynxFetch throws only Error instances.
     if ((err as Error).message.includes('404')) return null;
     throw err;
   }
@@ -233,13 +419,39 @@ export async function getRouters(): Promise<SplynxRouter[]> {
 }
 
 export async function getTariffs(): Promise<SplynxTariff[]> {
-  const response = await splynxFetch<PaginatedResponse<SplynxTariff>>('/admin/tariffs/tariff');
-  return response.data;
+  // Splynx exposes internet tariffs at this endpoint. `/tariffs/tariff` is a
+  // different legacy route and returns 404 on the production installation.
+  const response = await splynxFetch<SplynxTariff[] | PaginatedResponse<SplynxTariff>>('/admin/tariffs/internet');
+  return Array.isArray(response) ? response : (response.data ?? []);
 }
 
-export async function getCustomerServices(customerId: number): Promise<SplynxService[]> {
-  const response = await splynxFetch<PaginatedResponse<SplynxService>>(`/admin/customers/customer/${customerId}/services`);
-  return response.data;
+export async function getCustomerServices(customerId: number | string): Promise<SplynxService[]> {
+  // NOTE: internet services live at /internet-services (NOT /services — that
+  // path 404s). Requires the API key to have Customers → Internet services read.
+  const response = await splynxFetch<PaginatedResponse<SplynxService> | SplynxService[]>(
+    `/admin/customers/customer/${customerId}/internet-services`,
+  );
+  // Shape varies by Splynx version: {data: [...]} envelope or bare array.
+  return Array.isArray(response) ? response : (response.data ?? []);
+}
+
+/**
+ * Extract BTS name from customer labels.
+ * Labels like "BTS - AKURE OFFICE X" contain the BTS assignment.
+ * Returns the canonical BTS name if found, null otherwise.
+ */
+export function extractBtsFromLabels(labels: SplynxCustomerLabel[] | undefined): string | null {
+  if (!labels || labels.length === 0) return null;
+  for (const lbl of labels) {
+    const label = lbl.label?.trim();
+    if (!label) continue;
+    // Match "BTS - <name>" pattern (case-insensitive)
+    const match = label.match(/^BTS\s*-\s*(.+)$/i);
+    if (match) {
+      return match[1].trim();
+    }
+  }
+  return null;
 }
 
 export function isSplynxConfigured(): boolean {

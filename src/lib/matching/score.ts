@@ -14,7 +14,7 @@
 // region vs customer city). Capped at 1.0.
 
 import { tokensOf } from './normalize';
-import { btsStations } from '@/lib/bts-data';
+import { btsStations, inferRegionFromBtsName } from '@/lib/bts-data';
 
 export const AUTO_MATCH_THRESHOLD = 0.85;
 export const CANDIDATE_THRESHOLD = 0.5;
@@ -22,42 +22,117 @@ export const CANDIDATE_THRESHOLD = 0.5;
 // Mirror of bts-data.ts LOCATION_TO_BTS_REGION (city → BTS region), which
 // is not exported. All its values are single-region in practice. Used to
 // cross-check that the customer's city and the endpoint's tower region agree.
-const CITY_TO_BTS_REGION: Record<string, string> = {
+// EXPANDED: Added major Nigerian cities to improve region bonus coverage.
+export const CITY_TO_BTS_REGION: Record<string, string> = {
+  // Ibadan region
   ibadan: 'Ibadan',
   oyo: 'Ibadan',
+  // Osogbo region (Osun state)
   osogbo: 'Osogbo',
   oshogbo: 'Osogbo',
+  ile: 'Osogbo',
+  'ile-ife': 'Osogbo',
+  ife: 'Osogbo',
+  'osogbo.': 'Osogbo',
+  'osun-state.': 'Osogbo',
+  'osogbo, osun-state.': 'Osogbo',
+  // Akure region (Ondo state)
   akure: 'Akure',
+  ondo: 'Akure',
+  owo: 'Akure',
+  // Abeokuta region
   abeokuta: 'Abeokuta',
+  'abẹ́òkúta': 'Abeokuta',
+  aremo: 'Abeokuta',
+  ilaro: 'Abeokuta',
+  'abeokuta, ogun-state.': 'Abeokuta',
+  'abeokuta, ogun-state': 'Abeokuta',
+  'obada-oko, abeokuta, ogun-state.': 'Abeokuta',
+  'owode egba': 'Abeokuta',
+  obada: 'Abeokuta',
+  // Sagamu region
   sagamu: 'Sagamu',
   shagamu: 'Sagamu',
+  iperu: 'Sagamu',
+  'sagamu, ogun-state.': 'Sagamu',
+  // Ota region
   ota: 'Ota',
+  otta: 'Ota',
+  'ota, ogun-state.': 'Ota',
+  // Ijebu region
   ijebu: 'Ijebu',
   'ijebu ode': 'Ijebu',
+  'ijebu-ode': 'Ijebu',
+  'ijebu-ode, ogun-state.': 'Ijebu',
   'orile imo': 'Ijebu',
   orile: 'Ijebu',
-  // NOTE: lagos/mowe/ibo/oriye are deliberately NOT mapped to Ibadan — they
-  // are not in the Ibadan BTS region. Leaving them unmapped means no region
-  // bonus, so a Lagos/Mowe customer can never be pushed over the auto-match
-  // line by a bogus +0.05 toward an Ibadan tower.
+  // Lagos region
+  lagos: 'Lagos',
+  ikeja: 'Lagos',
+  surulere: 'Lagos',
+  yaba: 'Lagos',
+  lekki: 'Lagos',
+  victoria: 'Lagos',
+  'victoria island': 'Lagos',
+  ikoyi: 'Lagos',
+  mowe: 'Lagos',
+  'lagos-state.': 'Lagos',
+  'ibadan, ogun-state.': 'Lagos',
+  // Ogun state
+  'ogun state': 'Ogun',
+  'ogun-state.': 'Ogun',
+  // Additional cities from customer data
+  'ibadan.': 'Ibadan',
+  'abeokua, ogun-state': 'Abeokuta',
+  'ilese ijebu,': 'Ijebu',
+  'oshogbo ogun-state.': 'Osogbo',
+  'oyo-state': 'Ibadan',
+  'obada road, abeokuta, ogun-state': 'Abeokuta',
+  'kemta idi-aba, abeokuta, ogun-st': 'Abeokuta',
+  'ibadan, oyo-state.': 'Ibadan',
+  'abere, osun-state.': 'Osogbo',
+  'bodija ibadan, oyo-state.': 'Ibadan',
+  'agege': 'Lagos',
+  'ede': 'Osogbo',
+  'laderin abeokuta': 'Abeokuta',
+  'olokuta abeokuta': 'Abeokuta',
+  // Other Nigerian states / metros
+  ilorin: 'Kwara',
+  kano: 'Kano',
+  kaduna: 'Kaduna',
+  port: 'Rivers',
+  'port harcourt': 'Rivers',
+  ph: 'Rivers',
+  abuja: 'FCT',
+  benin: 'Edo',
+  'benin city': 'Edo',
+  warri: 'Delta',
+  asaba: 'Delta',
+  awka: 'Anambra',
+  onitsha: 'Anambra',
+  enugu: 'Enugu',
+  owerri: 'Imo',
+  calabar: 'Cross River',
+  // International (for completeness)
+  houston: 'Unknown',
 };
-
-const STATION_TO_REGION = new Map<string, string>();
-for (const s of btsStations) STATION_TO_REGION.set(s.name.toLowerCase(), s.region);
 
 export function customerRegionKey(city: string | null | undefined): string | null {
   if (!city) return null;
   return CITY_TO_BTS_REGION[city.toLowerCase().trim()] ?? null;
 }
 
-/** Tower region for a station name (same lookup as bts-resolver.regionForStationName). */
+/** Tower region for a station name (same lookup as bts-resolver.regionForStationName).
+ *  Falls back to keyword inference from BTS name if not in static list. */
 export function endpointRegionKey(btsName: string | null | undefined): string | null {
   if (!btsName) return null;
-  return STATION_TO_REGION.get(btsName.toLowerCase().trim()) ?? null;
+  // Keep region inference on the canonical BTS map. A second keyword table
+  // here previously mapped Rockcity to Ibadan and overrode the migration.
+  return inferRegionFromBtsName(btsName);
 }
 
 /** Digit-only phone key; leading country code 234 or 0 normalized away. */
-function phoneKey(phone: string | null | undefined): string | null {
+export function phoneKey(phone: string | null | undefined): string | null {
   if (!phone) return null;
   const digits = phone.replace(/\D/g, '');
   if (digits.length < 7) return null;
@@ -160,17 +235,28 @@ export function matchScore(customer: MatchCustomer, endpoint: MatchEndpoint): nu
 /**
  * Strong-signal gate for AUTO-matching. A single shared surname token is not
  * enough to call two people the same person — the endpoint must carry ≥2 name
- * tokens, or the customer and endpoint must agree on phone or email. Without
- * this, "RIDWAN ADEKUNLE" (Ibadan) auto-matches a Lagos "ADEKUNLE" endpoint at
- * 0.80 + 0.05 region = 0.85. Weak matches stay pending for manual review.
+ * tokens, OR the customer and endpoint must agree on phone or email, OR there
+ * is a region agreement AND the endpoint has at least 1 token (prevents pure
+ * region-only matches). Without this, "RIDWAN ADEKUNLE" (Ibadan) auto-matches
+ * a Lagos "ADEKUNLE" endpoint at 0.80 + 0.05 region = 0.85. Weak matches stay
+ * pending for manual review.
  */
 export function hasStrongSignal(customer: MatchCustomer, endpoint: MatchEndpoint): boolean {
-  if (tokensOf(endpoint.name ?? '').length >= 2) return true;
+  const endpointTokens = tokensOf(endpoint.name ?? '');
+  // ≥2 tokens in endpoint name = strong signal
+  if (endpointTokens.length >= 2) return true;
+  // Exact phone match = strong signal
   const custPhone = phoneKey(customer.phone ?? null);
   const epPhone = phoneKey(endpoint.phone ?? null);
   if (custPhone && epPhone && custPhone === epPhone) return true;
+  // Exact email match = strong signal
   const custEmail = emailKey(customer.email ?? null);
   const epEmail = emailKey(endpoint.email ?? null);
   if (custEmail && epEmail && custEmail === epEmail) return true;
+  // Region agreement + at least 1 endpoint token = acceptable signal
+  // (prevents pure region-only false positives)
+  const endpointRegion = endpoint.region ?? endpointRegionKey(endpoint.btsName ?? null);
+  const custRegion = customerRegionKey(customer.city ?? null);
+  if (endpointRegion && custRegion === endpointRegion && endpointTokens.length >= 1) return true;
   return false;
 }

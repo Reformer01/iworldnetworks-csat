@@ -1,5 +1,4 @@
 import { SalesAgent, RegionalTarget, SalesRegion, SalesSegment, SaleQuarter } from './sales-types';
-import { getBtsForLocation, getBtsByRegion, getRegionsFromBts } from './bts-data';
 
 export type { SalesRegion, SalesSegment, SaleQuarter };
 
@@ -97,7 +96,6 @@ export const locations = [
   { name: 'Osogbo', region: 'Osun' as const },
   { name: 'Mowe', region: 'Oyo' as const },
   { name: 'Ibo', region: 'Oyo' as const },
-  { name: 'Lagos', region: 'Oyo' as const },
   { name: 'Shagamu', region: 'Ogun' as const },
   { name: 'Ota', region: 'Ogun' as const },
   { name: 'Ijebu Ode', region: 'Ogun' as const },
@@ -119,14 +117,17 @@ export const planCodes = [
   { code: '10Mbps', label: '10 Mbps', segment: 'ENTERPRISE' as const },
   { code: '20Mbps', label: '20 Mbps', segment: 'ENTERPRISE' as const },
   { code: '30Mbps', label: '30 Mbps', segment: 'ENTERPRISE' as const },
+  { code: '40Mbps', label: '40 Mbps', segment: 'ENTERPRISE' as const },
   { code: '50Mbps', label: '50 Mbps', segment: 'ENTERPRISE' as const },
+  { code: '80Mbps', label: '80 Mbps', segment: 'ENTERPRISE' as const },
   { code: '100Mbps', label: '100 Mbps', segment: 'ENTERPRISE' as const },
+  { code: '700Mbps', label: '700 Mbps', segment: 'ENTERPRISE' as const },
   { code: 'N-10K', label: 'N-10K', segment: 'NEIGHBOURHOOD' as const },
   { code: 'N-15K', label: 'N-15K', segment: 'NEIGHBOURHOOD' as const },
   { code: 'N-22-5K', label: 'N-22.5K', segment: 'NEIGHBOURHOOD' as const },
 ];
 
-export const planPricing: Record<string, { mrc: number }> = {
+export const planPricing = {
   'H-Lite': { mrc: 27500 },
   'H-Max': { mrc: 36500 },
   'H-Pro': { mrc: 43500 },
@@ -136,17 +137,17 @@ export const planPricing: Record<string, { mrc: number }> = {
   'N-10K': { mrc: 10000 },
   'N-15K': { mrc: 15000 },
   'N-22-5K': { mrc: 22500 },
-};
+} satisfies Record<string, { mrc: number }>;
 
 export const SEGMENTS_THAT_ROLL_UP_TO_SME: SalesSegment[] = ['NEIGHBOURHOOD'];
 
 export function getPlanMrc(planCode: string): number | null {
-  return planPricing[planCode]?.mrc ?? null;
+  return (planPricing as Record<string, { mrc: number }>)[planCode]?.mrc ?? null;
 }
 
 export function getRegionForLocation(location: string): SalesRegion {
   const loc = location.toLowerCase().trim();
-  const ibadanCities = ['ibadan', 'oriye', 'mowe', 'ibo', 'lagos'];
+  const ibadanCities = ['ibadan', 'oriye', 'mowe', 'ibo'];
   const ogunCities = ['abeokuta', 'shagamu', 'ota', 'ijebu ode', 'ijebu', 'orile imo', 'orile', 'sagamu'];
   const osunCities = ['oshogbo', 'osogbo'];
   const ondoCities = ['akure'];
@@ -179,19 +180,19 @@ export function parseNairaAmount(value: string): number {
 
 export function getQuarterFromMonth(month: string): SaleQuarter {
   const m = month.toLowerCase();
-  if (['july', 'august', 'september'].includes(m)) return 'QUARTER 1';
-  if (['october', 'november', 'december'].includes(m)) return 'QUARTER 2';
-  if (['january', 'february', 'march'].includes(m)) return 'QUARTER 3';
+  if (['june', 'july', 'august'].includes(m)) return 'QUARTER 1';
+  if (['september', 'october', 'november'].includes(m)) return 'QUARTER 2';
+  if (['december', 'january', 'february'].includes(m)) return 'QUARTER 3';
   return 'QUARTER 4';
 }
 
 export function getMonthsForQuarter(quarter: SaleQuarter): string[] {
-  const map: Record<SaleQuarter, string[]> = {
-    'QUARTER 1': ['July', 'August', 'September'],
-    'QUARTER 2': ['October', 'November', 'December'],
-    'QUARTER 3': ['January', 'February', 'March'],
-    'QUARTER 4': ['April', 'May', 'June'],
-  };
+  const map = {
+    'QUARTER 1': ['June', 'July', 'August'],
+    'QUARTER 2': ['September', 'October', 'November'],
+    'QUARTER 3': ['December', 'January', 'February'],
+    'QUARTER 4': ['March', 'April', 'May'],
+  } satisfies Record<SaleQuarter, string[]>;
   return map[quarter];
 }
 

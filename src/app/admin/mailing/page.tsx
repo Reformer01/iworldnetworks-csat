@@ -4,13 +4,15 @@ import React, { Suspense } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
 import { SalesLayout } from '@/components/layout/SalesLayout';
 import { cn } from '@/lib/utils';
-import { Megaphone, Mail, MessageSquareWarning } from 'lucide-react';
+import { Megaphone, Mail, MessageSquareWarning, BarChart3, FileText } from 'lucide-react';
 import { CampaignsTab } from '@/components/mailing/CampaignsTab';
 import { EmailsTab } from '@/components/mailing/EmailsTab';
 import { ChurnTab } from '@/components/mailing/ChurnTab';
+import { AnalyticsTab } from '@/components/mailing/AnalyticsTab';
 
 const TABS = [
   { id: 'campaigns', label: 'Campaigns', icon: Megaphone },
+  { id: 'analytics', label: 'Analytics', icon: BarChart3 },
   { id: 'emails', label: 'Email Queue', icon: Mail },
   { id: 'churn', label: 'Churn Surveys', icon: MessageSquareWarning },
 ];
@@ -59,8 +61,16 @@ function MailingHub() {
             {t.label}
           </button>
         ))}
+        <a
+          href="/admin/mailing/templates"
+          className="flex items-center gap-2 px-4 py-2.5 font-mono text-[10px] uppercase font-bold border-b-2 border-transparent text-on-surface-variant hover:text-primary transition-colors"
+        >
+          <FileText className="w-3.5 h-3.5" />
+          Templates
+        </a>
       </div>
       {active === 'campaigns' && <CampaignsTab />}
+      {active === 'analytics' && <AnalyticsTab />}
       {active === 'emails' && <EmailsTab />}
       {active === 'churn' && <ChurnTab />}
     </div>

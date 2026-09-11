@@ -3,13 +3,13 @@
 import React, { useState } from 'react';
 import Link from 'next/link';
 import { useAuth, useUser } from '@/firebase';
-import { useCampaigns, deleteCampaign } from '@/hooks/use-campaigns';
+import { useCampaigns, deleteCampaign, campaignAction } from '@/hooks/use-campaigns';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useToast } from '@/hooks/use-toast';
-import { Loader2, Search, Plus, ChevronLeft, ChevronRight, ShieldAlert, Trash2 } from 'lucide-react';
+import { Loader2, Search, Plus, ChevronLeft, ChevronRight, ShieldAlert, Trash2, Check, X } from 'lucide-react';
 import { isSuperAdmin, isEditor } from '@/lib/admin-config';
 
 const PAGE_SIZE = 50;
@@ -18,11 +18,15 @@ const CAMPAIGN_TYPES = ['campaign', 'downtime', 'notice', 'other'];
 
 const CAMPAIGN_STATUS_STYLES: Record<string, string> = {
   draft: 'bg-zinc-100 text-zinc-600',
+  pending_approval: 'bg-amber-100 text-amber-700',
+  approved: 'bg-blue-100 text-blue-700',
+  scheduled: 'bg-violet-100 text-violet-700',
   sending: 'bg-sky-100 text-sky-700',
   sent: 'bg-emerald-100 text-emerald-700',
   partial: 'bg-amber-100 text-amber-700',
   failed: 'bg-rose-100 text-rose-700',
   cancelled: 'bg-zinc-200 text-zinc-500',
+  rejected: 'bg-rose-100 text-rose-700',
 };
 
 export function CampaignsTab() {
@@ -34,6 +38,42 @@ export function CampaignsTab() {
   const [filterType, setFilterType] = useState('__all');
   const [page, setPage] = useState(1);
   const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [cancellingId, setCancellingId] = useState<string | null>(null);
+  const [approvingId, setApprovingId] = useState<string | null>(null);
+  const [rejectingId, setRejectingId] = useState<string | null>(null);
+  const [rejectReason, setRejectReason] = useState('');
+
+  const canApprove = isSuperAdmin(user?.email || '');
+
+  const handleApprove = async (id: string) => {
+    if (!user || approvingId) return;
+    setApprovingId(id);
+    try {
+      await campaignAction(user, id, 'approve');
+      toast({ title: 'Campaign approved', description: 'The campaign is now ready to send.' });
+      mutate();
+    } catch (e) {
+      toast({ variant: 'destructive', title: 'Approval failed', description: e instanceof Error ? e.message : 'Unknown error' });
+    } finally {
+      setApprovingId(null);
+    }
+  };
+
+  const handleReject = async (id: string) => {
+    if (!user || rejectingId) return;
+    setRejectingId(id);
+    try {
+      await campaignAction(user, id, 'reject', { reason: rejectReason });
+      toast({ title: 'Campaign rejected', description: 'The editor will be notified.' });
+      setRejectReason('');
+      setRejectingId(null);
+      mutate();
+    } catch (e) {
+      toast({ variant: 'destructive', title: 'Rejection failed', description: e instanceof Error ? e.message : 'Unknown error' });
+    } finally {
+      setRejectingId(null);
+    }
+  };
 
   const { records, total, totalPages, loading, mutate } = useCampaigns({
     status: filterStatus !== '__all' ? filterStatus : undefined,
@@ -45,6 +85,21 @@ export function CampaignsTab() {
 
   const canCreate = isSuperAdmin(user?.email || '') || isEditor(user?.email || '');
   const canDelete = isSuperAdmin(user?.email || '');
+
+  const handleCancel = async (id: string, name: string) => {
+    if (!user || cancellingId) return;
+    if (!window.confirm(`Cancel scheduled campaign "${name}"? It will go back to draft and will not send.`)) return;
+    setCancellingId(id);
+    try {
+      await campaignAction(user, id, 'cancel');
+      toast({ title: 'Campaign cancelled', description: 'Back to draft — it will not send.' });
+      mutate();
+    } catch (e) {
+      toast({ variant: 'destructive', title: 'Cancel failed', description: e instanceof Error ? e.message : 'Unknown error' });
+    } finally {
+      setCancellingId(null);
+    }
+  };
 
   const handleDelete = async (id: string, name: string) => {
     if (!user || deletingId) return;
@@ -188,11 +243,49 @@ export function CampaignsTab() {
                     <td className="px-4 py-3 font-mono text-[10px] font-bold text-on-surface-variant">
                       {c.audienceCount.toLocaleString()}
                     </td>
-                    <td className="px-4 py-3 font-mono text-[10px] text-on-surface-variant/70">
-                      {new Date(c.createdAt).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })}
+                    <td className="px-4 py-3">
+                      <span className="font-mono text-[10px] text-on-surface-variant/70">
+                        {new Date(c.createdAt).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })}
+                      </span>
+                      {c.status === 'scheduled' && c.scheduledAt && (
+                        <p className="font-mono text-[9px] text-violet-600 mt-0.5">
+                          Sends {new Date(c.scheduledAt).toLocaleString('en-NG', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })}
+                        </p>
+                      )}
                     </td>
                     <td className="px-4 py-3 text-right">
                       <div className="flex items-center justify-end gap-2">
+                        {canApprove && c.status === 'pending_approval' && (
+                          <div className="flex items-center gap-1">
+                            <button
+                              onClick={() => handleApprove(c.id)}
+                              disabled={approvingId === c.id}
+                              className="font-mono text-[9px] uppercase font-bold text-emerald-600 hover:text-emerald-700 disabled:opacity-40 flex items-center gap-1"
+                              title="Approve campaign"
+                            >
+                              {approvingId === c.id ? <Loader2 className="w-3 h-3 animate-spin" /> : <Check className="w-3 h-3" />}
+                              Approve
+                            </button>
+                            <button
+                              onClick={() => setRejectingId(rejectingId === c.id ? null : c.id)}
+                              className="font-mono text-[9px] uppercase font-bold text-rose-500 hover:text-rose-700 flex items-center gap-1"
+                              title="Reject campaign"
+                            >
+                              <X className="w-3 h-3" /> Reject
+                            </button>
+                          </div>
+                        )}
+                        {canApprove && c.status === 'scheduled' && (
+                          <button
+                            onClick={() => handleCancel(c.id, c.name)}
+                            disabled={cancellingId === c.id}
+                            className="font-mono text-[9px] uppercase font-bold text-amber-600 hover:text-amber-700 disabled:opacity-40 flex items-center gap-1"
+                            title="Cancel scheduled send"
+                          >
+                            {cancellingId === c.id ? <Loader2 className="w-3 h-3 animate-spin" /> : <X className="w-3 h-3" />}
+                            Cancel
+                          </button>
+                        )}
                         {canDelete && (
                           <button
                             onClick={() => handleDelete(c.id, c.name)}
@@ -208,7 +301,7 @@ export function CampaignsTab() {
                           href={`/admin/campaigns/${c.id}`}
                           className="font-mono text-[9px] uppercase font-bold text-secondary hover:opacity-80"
                         >
-                          Open →
+                          Open <ChevronRight className="w-3 h-3 inline" />
                         </Link>
                       </div>
                     </td>
@@ -247,6 +340,30 @@ export function CampaignsTab() {
           </div>
         )}
       </div>
+
+      {/* Rejection reason modal */}
+      {rejectingId && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4" onClick={() => setRejectingId(null)}>
+          <div className="bg-white rounded-2xl p-6 w-full max-w-md shadow-xl" onClick={(e) => e.stopPropagation()}>
+            <h3 className="font-display font-bold text-sm uppercase text-primary mb-3">Reject Campaign</h3>
+            <p className="font-mono text-[10px] text-on-surface-variant/60 mb-3">Provide a reason for rejection (optional):</p>
+            <textarea
+              value={rejectReason}
+              onChange={(e) => setRejectReason(e.target.value)}
+              className="w-full h-24 rounded-xl border border-border px-3 py-2 font-mono text-xs resize-none focus:outline-none focus:ring-2 focus:ring-secondary/30"
+              placeholder="e.g. Subject line needs revision, wrong audience..."
+            />
+            <div className="flex justify-end gap-2 mt-4">
+              <Button variant="outline" className="rounded-full font-mono text-[10px] uppercase font-bold" onClick={() => { setRejectingId(null); setRejectReason(''); }}>
+                Cancel
+              </Button>
+              <Button className="rounded-full bg-rose-500 text-white font-mono text-[10px] uppercase font-bold px-6" onClick={() => handleReject(rejectingId)}>
+                Reject
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
     </>
   );
 }

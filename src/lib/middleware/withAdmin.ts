@@ -16,7 +16,8 @@ import { logError } from '@/lib/logger';
  * Ponytail: one function, no DI container, reuses existing helpers.
  */
 type Admin = { uid: string; email: string };
-type Handler = (req: NextRequest, admin: Admin) => Promise<NextResponse>;
+// ctx is Next.js route context { params } — forwarded for [id] routes.
+type Handler = (req: NextRequest, admin: Admin, ctx?: unknown) => Promise<NextResponse>;
 
 interface WithAdminOpts {
   rate?: { limit: number; windowMs: number };

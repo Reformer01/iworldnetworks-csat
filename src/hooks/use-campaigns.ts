@@ -14,10 +14,16 @@ export interface CampaignRecord {
   audienceJson: Prisma.JsonValue;
   audienceCount: number;
   status: string;
+  scheduledAt: number | null;
   sentAt: number | null;
   createdBy: string;
+  submittedBy: string | null;
+  submittedAt: number | null;
   approvedAt: number | null;
   approvedBy: string | null;
+  rejectedAt: number | null;
+  rejectedBy: string | null;
+  rejectionReason: string | null;
   error: string | null;
   createdAt: number;
   updatedAt: number;
@@ -113,7 +119,7 @@ async function authedFetch(user: User, url: string, init?: RequestInit) {
 
 export async function createCampaign(
   user: User,
-  input: { name: string; type?: string; subject: string; html?: string; text: string; audience: unknown },
+  input: { name: string; type?: string; subject: string; html?: string; text: string; audience: unknown; scheduledAt?: number; action?: 'send' },
 ): Promise<{ id: string }> {
   return authedFetch(user, '/api/admin/campaigns', { method: 'POST', body: JSON.stringify(input) });
 }
@@ -133,9 +139,10 @@ export async function fetchCampaign(user: User, id: string): Promise<CampaignRec
 export async function campaignAction(
   user: User,
   id: string,
-  action: 'send' | 'cancel' | 'retry',
+  action: 'send' | 'cancel' | 'retry' | 'submit_for_review' | 'approve' | 'reject',
+  extra?: { reason?: string },
 ): Promise<{ status: string; recipients?: number; retried?: number }> {
-  return authedFetch(user, `/api/admin/campaigns/${id}`, { method: 'POST', body: JSON.stringify({ action }) });
+  return authedFetch(user, `/api/admin/campaigns/${id}`, { method: 'POST', body: JSON.stringify({ action, ...extra }) });
 }
 
 export async function deleteCampaign(user: User, id: string): Promise<{ ok: boolean }> {
@@ -143,7 +150,10 @@ export async function deleteCampaign(user: User, id: string): Promise<{ ok: bool
 }
 
 export async function fetchSegments(user: User): Promise<CampaignSegmentOptions> {
-  return authedFetch(user, '/api/admin/campaigns/segments');
+  const data = await authedFetch(user, '/api/admin/campaigns/segments');
+  // API returns { options: CampaignSegmentOptions }; unwrap for the form
+  if (data && typeof data === 'object' && 'options' in data) return (data as { options: CampaignSegmentOptions }).options;
+  return data as CampaignSegmentOptions;
 }
 
 export async function fetchAudienceCount(user: User, audience: unknown): Promise<number> {

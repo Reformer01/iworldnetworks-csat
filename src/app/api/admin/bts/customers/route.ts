@@ -1,44 +1,69 @@
 import { NextRequest } from 'next/server';
-import { getAdminFirestore } from '@/lib/firebase-admin';
+import { prisma } from '@/lib/prisma';
 import { verifyAdminToken } from '@/lib/admin-auth';
-import { isSuperAdmin, isEditor } from '@/lib/admin-config';
 import { isRateLimited } from '@/lib/rate-limit';
-import { success, error, unauthorized, forbidden, tooMany, notFound, serverError, validateOrigin } from '@/lib/api-response';
-import { writeAuditLog } from '@/lib/audit-log';
+import { success, unauthorized, forbidden, tooMany, serverError, validateOrigin } from '@/lib/api-response';
 import { logError } from '@/lib/logger';
-
-export interface BtsCustomerDoc {
-  id: string;
-  serialNumber?: number;
-  customerName?: string;
-  btsName?: string;
-  status?: string;
-  accountType?: string;
-  mrc?: number;
-  planCode?: string;
-  region?: string;
-  importBatchId?: string;
-  createdAt?: number;
-  updatedAt?: number;
-  deletedAt?: number;
-}
-
-export interface BtsCustomersSummary {
-  totalCustomers: number;
-  activeCustomers: number;
-  totalMrr: number;
-  enterpriseCustomers: number;
-  retailCustomers: number;
-  smeCustomers: number;
-  residentialCustomers: number;
-  partnersHosts: number;
-  neighbourhoodCustomers: number;
-  otherCustomers: number;
-}
+import { canonicalRegionForTowerName } from '@/lib/audit/computeTowerAudit';
+import { deriveBtsAccountType } from '@/lib/bts-account-type';
 
 export const dynamic = 'force-dynamic';
 
-const FETCH_LIMIT = 5000;
+export interface UnifiedCustomerRecord {
+  id: string;
+  customerId: string;
+  customerName: string | null;
+  email: string | null;
+  phone: string | null;
+  city: string | null;
+  lifecycle: string | null;
+  accountType: string | null;
+  servicePlan: string | null;
+  mrrTotal: number | null;
+  btsId: string | null;
+  btsName: string | null;
+  uispEndpointName: string | null;
+  uispDeviceStatus: string | null;
+  uispOutageCount: number | null;
+  matchState: string;
+  matchMethod: string | null;
+  matchScore: number | null;
+  matchedAt: number | null;
+}
+
+export interface UnifiedRosterSummary {
+  total: number;
+  matched: number;
+  pending: number;
+  manual: number;
+  totalMrr: number;
+  towers: number;
+}
+
+// NOTE: generated Prisma client predates the unified Customer fields
+// (btsId, matchState, ...); runtime rows carry them. See runMatching.ts.
+interface CustomerRow {
+  id: string;
+  customerId: string;
+  customerName: string | null;
+  email: string | null;
+  login: string | null;
+  phone: string | null;
+  city: string | null;
+  lifecycle: string | null;
+  accountType: string | null;
+  servicePlan: string | null;
+  mrrTotal: number | null;
+  btsId: string | null;
+  btsName: string | null;
+  uispEndpointName: string | null;
+  uispDeviceStatus: string | null;
+  uispOutageCount: number | null;
+  matchState: string | null;
+  matchMethod: string | null;
+  matchScore: number | null;
+  matchedAt: bigint | null;
+}
 
 export async function GET(request: NextRequest) {
   try {
@@ -55,132 +80,114 @@ export async function GET(request: NextRequest) {
     }
 
     const { searchParams } = new URL(request.url);
+    const btsName = searchParams.get('btsName');
     const region = searchParams.get('region');
-    const status = searchParams.get('status');
+    const lifecycle = searchParams.get('lifecycle');
     const accountType = searchParams.get('accountType');
-    const importBatchId = searchParams.get('importBatchId');
+    const overdue = searchParams.get('overdue');
     const search = searchParams.get('search')?.toLowerCase();
     const page = Math.max(1, parseInt(searchParams.get('page') || '1'));
     const pageSize = Math.min(Math.max(1, parseInt(searchParams.get('pageSize') || '50')), 500);
 
-    const db = getAdminFirestore();
-    const snapshot = await db.collection('bts_customers').orderBy('createdAt', 'desc').limit(FETCH_LIMIT).get();
-
-    let records: BtsCustomerDoc[] = snapshot.docs
-      .filter((doc) => !doc.data().deletedAt)
-      .map((doc) => ({ id: doc.id, ...doc.data() }) as BtsCustomerDoc);
-
-    if (region) records = records.filter((r) => r.region === region);
-    if (status) records = records.filter((r) => r.status === status);
-    if (accountType) records = records.filter((r) => r.accountType === accountType);
-    if (importBatchId) records = records.filter((r) => r.importBatchId === importBatchId);
+    const where: Record<string, unknown> = { deleted: false };
+    const servicePlan = searchParams.get('servicePlan');
+    if (btsName) where.btsName = btsName;
+    if (lifecycle) where.lifecycle = lifecycle;
+    if (servicePlan) where.servicePlan = servicePlan;
     if (search) {
-      records = records.filter(
-        (r) =>
-          r.customerName?.toLowerCase().includes(search) ||
-          r.btsName?.toLowerCase().includes(search) ||
-          r.planCode?.toLowerCase().includes(search) ||
-          r.region?.toLowerCase().includes(search),
-      );
+      where.OR = [
+          { customerName: { contains: search } },
+          { email: { contains: search } },
+          { login: { contains: search } },
+          { btsName: { contains: search } },
+      ];
     }
 
-    const summary: BtsCustomersSummary = records.reduce(
-      (acc, r) => {
-        acc.totalCustomers++;
-        if (r.status === 'Active') acc.activeCustomers++;
-        acc.totalMrr += r.mrc || 0;
-        if (r.accountType === 'ENTERPRISE') acc.enterpriseCustomers++;
-        else if (r.accountType === 'RETAIL') acc.retailCustomers++;
-        else if (r.accountType === 'SME') acc.smeCustomers++;
-        else if (r.accountType === 'RESIDENTIAL') acc.residentialCustomers++;
-        else if (r.accountType === 'PARTNERS_HOSTS') acc.partnersHosts++;
-        else if (r.accountType === 'NEIGHBOURHOOD') acc.neighbourhoodCustomers++;
-        else acc.otherCustomers++;
-        return acc;
-      },
-      {
-        totalCustomers: 0,
-        activeCustomers: 0,
-        totalMrr: 0,
-        enterpriseCustomers: 0,
-        retailCustomers: 0,
-        smeCustomers: 0,
-        residentialCustomers: 0,
-        partnersHosts: 0,
-        neighbourhoodCustomers: 0,
-        otherCustomers: 0,
-      },
-    );
+    // Region filter: canonical-city — customers whose btsName resolves to the
+    // requested canonical region via the static station list.
+    if (region) {
+      const distinct = (await prisma.customer.findMany({
+        where: { deleted: false, btsName: { not: null } } as never,
+        distinct: ['btsName'] as never,
+        select: { btsName: true } as never,
+      })) as unknown as Array<{ btsName: string | null }>;
+      const names = distinct
+        .map((r) => r.btsName)
+        .filter((n): n is string => !!n && canonicalRegionForTowerName(n) === region && (!btsName || n === btsName));
+      if (names.length === 0) {
+        return success({
+          records: [],
+          total: 0,
+          page,
+          pageSize,
+          totalPages: 1,
+          summary: { total: 0, matched: 0, pending: 0, manual: 0, totalMrr: 0, towers: 0 },
+        });
+      }
+      where.btsName = { in: names };
+    }
 
-    const total = records.length;
+    const fetchedRows = (await prisma.customer.findMany({ where: where as never })) as unknown as CustomerRow[];
+
+    // Account type is derived after the DB query because Splynx frequently
+    // stores the non-segmenting value `regular`; servicePlan is the fallback.
+    let rows = accountType
+      ? fetchedRows.filter((r) => deriveBtsAccountType(r.accountType, r.servicePlan) === accountType.toUpperCase())
+      : fetchedRows;
+
+    if (overdue === 'true' || overdue === 'false') {
+      const overdueInvoices = await prisma.invoice.findMany({
+        where: { isPaid: false, dueDate: { not: null, lte: BigInt(Date.now()) } },
+        select: { customerId: true },
+      });
+      const overdueIds = new Set(overdueInvoices.map((invoice) => invoice.customerId));
+      rows = rows.filter((r) => overdueIds.has(r.customerId) === (overdue === 'true'));
+    }
+
+    const total = rows.length;
     const totalPages = Math.max(1, Math.ceil(total / pageSize));
     const start = (page - 1) * pageSize;
-    const paged = records.slice(start, start + pageSize);
+    const paged = rows.slice(start, start + pageSize);
 
-    return success({
-      records: paged,
+    const summary: UnifiedRosterSummary = {
       total,
-      page,
-      pageSize,
-      totalPages,
-      summary,
-    });
+      matched: rows.filter((r) => r.matchState === 'matched').length,
+      pending: rows.filter((r) => r.matchState === 'pending').length,
+      manual: rows.filter((r) => r.matchState === 'manual').length,
+      totalMrr: rows.reduce((acc, r) => acc + (r.mrrTotal ?? 0), 0),
+      // Count real towers by ID, not free-text btsName strings (stale label text
+      // and endpoint names inflated this to 93 vs 63 real towers).
+      towers: new Set(
+        rows.map((r) => (r as unknown as { btsId?: string | null }).btsId).filter(Boolean),
+      ).size,
+    };
+
+    const records: UnifiedCustomerRecord[] = paged.map((r) => ({
+      id: r.id,
+      customerId: r.customerId,
+      customerName: r.customerName,
+      email: r.email,
+      phone: r.phone,
+      city: r.city,
+      lifecycle: r.lifecycle,
+      servicePlan: r.servicePlan,
+      accountType: deriveBtsAccountType(r.accountType, r.servicePlan),
+      mrrTotal: r.mrrTotal,
+      btsId: r.btsId,
+      btsName: r.btsName,
+      uispEndpointName: r.uispEndpointName,
+      uispDeviceStatus: r.uispDeviceStatus,
+      uispOutageCount: r.uispOutageCount,
+      matchState: r.matchState || 'pending',
+      matchMethod: r.matchMethod,
+      matchScore: r.matchScore,
+      matchedAt: r.matchedAt == null ? null : Number(r.matchedAt),
+    }));
+
+    return success({ records, total, page, pageSize, totalPages, summary });
   } catch (err: unknown) {
     const message = err instanceof Error ? err.message : 'Unknown error';
     logError('[bts-customers] GET error', { error: message });
-    return serverError();
-  }
-}
-
-export async function DELETE(request: NextRequest) {
-  try {
-    if (isRateLimited(request, 60, 60 * 1000)) {
-      return tooMany();
-    }
-
-    if (!validateOrigin(request)) return forbidden();
-
-    const authHeader = request.headers.get('authorization');
-    const admin = await verifyAdminToken(authHeader);
-    if (!admin) {
-      return unauthorized();
-    }
-    if (!isSuperAdmin(admin.email) && !isEditor(admin.email)) {
-      return error('Only authorised editors can delete records.', 403);
-    }
-
-    const body = await request.json().catch(() => null);
-    if (!body || !body.id) {
-      return error('Record ID required.');
-    }
-
-    const db = getAdminFirestore();
-    const docRef = db.collection('bts_customers').doc(body.id);
-    const doc = await docRef.get();
-
-    if (!doc.exists) {
-      return notFound('Record not found.');
-    }
-
-    if (doc.data()?.deletedAt) {
-      return success({ action: 'already_deleted' });
-    }
-
-    await docRef.update({ deletedAt: Date.now(), updatedAt: Date.now() });
-
-    await writeAuditLog({
-      action: 'delete',
-      collection: 'bts_customers',
-      recordId: body.id,
-      userId: admin.uid,
-      userEmail: admin.email,
-      previousState: doc.data() as Record<string, unknown>,
-    });
-
-    return success({ action: 'deleted' });
-  } catch (err: unknown) {
-    const message = err instanceof Error ? err.message : 'Unknown error';
-    logError('[bts-customers] DELETE error', { error: message });
     return serverError();
   }
 }

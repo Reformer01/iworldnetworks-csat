@@ -1,10 +1,11 @@
 // Types for the Splynx customer mirror — safe for client imports (no server deps).
 export type Lifecycle = 'active' | 'blocked' | 'inactive' | 'churned';
 
-/** Timestamp fields written on lifecycle transitions (churnedAt / inactiveSince). */
+/** Timestamp fields written on lifecycle transitions (churnedAt / inactiveSince / blockedSince). */
 export interface LifecycleTransitionUpdates {
   churnedAt?: number | null;
   inactiveSince?: number | null;
+  blockedSince?: number | null;
 }
 
 export interface CustomerOverdueInfo {
@@ -36,6 +37,24 @@ export interface MirrorCustomerDoc {
   category: string;
   /** Tariff/plan name mirrored from Splynx (empty when unknown). */
   servicePlan: string;
+  /** BTS name from Splynx customer labels (e.g. "AKURE OFFICE X" from "BTS - AKURE OFFICE X"). */
+  btsName?: string | null;
+  /**
+   * UISP tower attribution + match bookkeeping — owned exclusively by the matching
+   * job (runMatching/deviceResolve/manual). The Splynx sync carries these through
+   * untouched so hourly reconciles never wipe them (bts wipe bug: sync upserts
+   * used to null btsName on every customer change). Never in compare keys.
+   */
+  btsId?: string | null;
+  uispEndpointId?: string | null;
+  uispEndpointName?: string | null;
+  uispDeviceStatus?: string | null;
+  uispOutageCount?: number | null;
+  matchState?: string | null;
+  matchMethod?: string | null;
+  matchScore?: number | null;
+  matchedAt?: number | null;
+  matchUpdatedAt?: number | null;
   firstSyncedAt: number;
   lastSyncAt: number;
   lastChangeAt: number;
@@ -55,6 +74,9 @@ export interface MirrorCustomerDoc {
   /** When the customer was first observed as inactive (set on lifecycle transition).
    *  Used to auto-reclassify long-inactive (90d+) customers as churned. */
   inactiveSince?: number | null;
+  /** When the customer was first observed as blocked (set on lifecycle transition).
+   *  Gates the win-back job: only blocked 90d+ (and offline) customers qualify. */
+  blockedSince?: number | null;
   emailOptOut: boolean;
   emailInvalid?: boolean;
   /** Denormalized overdue summary (written by sync/webhooks) so admin list
@@ -121,6 +143,15 @@ export interface SyncStats {
   winBackSent: number;
   feedbackReminders: number;
   invoicesApiDenied: boolean;
+  ticketsSynced: number;
+  ticketsApiDenied: boolean;
+}
+
+export interface TicketSyncResult {
+  upserted: number;
+  trashed: number;
+  fetched: number;
+  denied: boolean;
 }
 
 export interface ReminderJobResult {
@@ -132,6 +163,8 @@ export interface ReminderJobResult {
   skippedChurned: number;
   /** Invoices older than the reminder window (90 days) — stop nagging. */
   skippedStale: number;
+  /** Overdue but still connected (active lifecycle or recent access) — excluded by disconnected-only policy. */
+  skippedConnected?: number;
 }
 
 export interface ChurnJobResult {

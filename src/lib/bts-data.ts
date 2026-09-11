@@ -74,6 +74,9 @@ export const SITE_ALIASES = {
   'nta ogbe': 'NTA Abeokuta',
   'nta okegunya': 'NTA Abeokuta',
   'nta okegunya 2': 'NTA Abeokuta',
+  // Lagos city mislabel → Ota per Aug 27 decision (no Lagos BTS exists)
+  lagos: 'Ota Office',
+  'lagos island': 'Ota Office',
 } satisfies Record<string, string>;
 
 const LOCATION_TO_BTS_REGION = {
@@ -110,7 +113,125 @@ export const CITY_TO_REGION = {
   // lagos is Lagos state, mowe is Ogun state; ibo/oriye are unknown towns.
   lagos: 'Lagos',
   mowe: 'Ogun',
+  ikeja: 'Lagos',
+  surulere: 'Lagos',
+  yaba: 'Lagos',
+  lekki: 'Lagos',
+  victoria: 'Lagos',
+  'victoria island': 'Lagos',
+  ikoyi: 'Lagos',
+  ondo: 'Ondo',
+  ilorin: 'Kwara',
+  kano: 'Kano',
+  kaduna: 'Kaduna',
+  port: 'Rivers',
+  'port harcourt': 'Rivers',
+  ph: 'Rivers',
+  abuja: 'FCT',
+  benin: 'Edo',
+  'benin city': 'Edo',
+  warri: 'Delta',
+  asaba: 'Delta',
+  awka: 'Anambra',
+  onitsha: 'Anambra',
+  enugu: 'Enugu',
+  owerri: 'Imo',
+  calabar: 'Cross River',
 } satisfies Record<string, string>;
+
+/** Region keywords for inferring region from BTS/site name when not in static list. */
+export const REGION_KEYWORDS: Array<{ keyword: string; region: string }> = [
+  { keyword: 'ibadan', region: 'Ibadan' },
+  { keyword: 'osogbo', region: 'Osogbo' },
+  { keyword: 'oshogbo', region: 'Osogbo' },
+  { keyword: 'akure', region: 'Akure' },
+  { keyword: 'abeokuta', region: 'Abeokuta' },
+  { keyword: 'sagamu', region: 'Sagamu' },
+  { keyword: 'shagamu', region: 'Sagamu' },
+  { keyword: 'ota', region: 'Ota' },
+  { keyword: 'ijebu', region: 'Ijebu' },
+  { keyword: 'lagos', region: 'Lagos' },
+  { keyword: 'ikeja', region: 'Lagos' },
+  { keyword: 'surulere', region: 'Lagos' },
+  { keyword: 'yaba', region: 'Lagos' },
+  { keyword: 'lekki', region: 'Lagos' },
+  { keyword: 'victoria', region: 'Lagos' },
+  { keyword: 'ikoyi', region: 'Lagos' },
+  { keyword: 'mowe', region: 'Ogun' },
+  { keyword: 'ondo', region: 'Akure' },
+  { keyword: 'ilorin', region: 'Kwara' },
+  { keyword: 'kano', region: 'Kano' },
+  { keyword: 'kaduna', region: 'Kaduna' },
+  { keyword: 'port', region: 'Rivers' },
+  { keyword: 'abuja', region: 'FCT' },
+  { keyword: 'benin', region: 'Edo' },
+  { keyword: 'warri', region: 'Delta' },
+  { keyword: 'asaba', region: 'Delta' },
+  { keyword: 'awka', region: 'Anambra' },
+  { keyword: 'onitsha', region: 'Anambra' },
+  { keyword: 'enugu', region: 'Enugu' },
+  { keyword: 'owerri', region: 'Imo' },
+  { keyword: 'calabar', region: 'Cross River' },
+  // Additional BTS name keywords from unknown sites
+  { keyword: 'ison', region: 'Ibadan' },
+  { keyword: 'ewang', region: 'Ibadan' },
+  { keyword: 'oley', region: 'Ibadan' },
+  { keyword: 'dominion', region: 'Ibadan' },
+  { keyword: 'rockcity', region: 'Abeokuta' },
+  { keyword: 'city of knowledge', region: 'Ibadan' },
+  { keyword: 'obada oko', region: 'Abeokuta' },
+  { keyword: 'ode-omu', region: 'Osogbo' },
+  { keyword: 'bolorunduro', region: 'Akure' },
+  { keyword: 'splash', region: 'Lagos' },
+  { keyword: 'oloke', region: 'Ibadan' },
+  { keyword: 'cfmc', region: 'Ibadan' },
+  { keyword: 'ikija', region: 'Ibadan' },
+  { keyword: 'laderin', region: 'Ibadan' },
+  { keyword: 'lifeforte', region: 'Ibadan' },
+  { keyword: 'elega', region: 'Abeokuta' },
+  { keyword: 'main access', region: 'Ibadan' },
+  { keyword: 'pentagon', region: 'Ibadan' },
+  { keyword: 'moniya', region: 'Ibadan' },
+  { keyword: 'ogbc', region: 'Abeokuta' },
+  { keyword: 'positive fm', region: 'Akure' },
+  { keyword: 'akarigbo', region: 'Sagamu' },
+  { keyword: 'oshoba', region: 'Ijebu' },
+  { keyword: 'miliki', region: 'Ijebu' },
+  { keyword: 'magboro', region: 'Lagos' },
+  { keyword: 'ologuneru', region: 'Ibadan' },
+  { keyword: 'iwn-lg', region: 'Lagos' },
+  { keyword: 'jericho', region: 'Ibadan' },
+  { keyword: 'ait', region: 'Ota' },
+  { keyword: 'alagbado', region: 'Ota' },
+  { keyword: 'splashnet', region: 'Lagos' },
+  { keyword: 'obada oko extension', region: 'Abeokuta' },
+  { keyword: 'rack center', region: 'Lagos' },
+  { keyword: 'space fm', region: 'Ibadan' },
+  { keyword: 'nta abk', region: 'Abeokuta' },
+  { keyword: 'ivd', region: 'Ibadan' },
+  { keyword: 'paramount', region: 'Ibadan' },
+  { keyword: 'potoki', region: 'Ibadan' },
+  { keyword: 'glow ijapo', region: 'Akure' },
+  { keyword: 'rockcity local', region: 'Abeokuta' },
+  { keyword: 'alagbaka', region: 'Akure' },
+  { keyword: 'honor', region: 'Ibadan' },
+  { keyword: 'cuab', region: 'Abeokuta' },
+  { keyword: 'impact', region: 'Ibadan' },
+  { keyword: 'main access', region: 'Ibadan' },
+  { keyword: 'omida', region: 'Abeokuta' },
+];
+
+/** Infer region from BTS/site name using keyword matching. */
+export function inferRegionFromBtsName(btsName: string | null | undefined): string | null {
+  if (!btsName) return null;
+  const normalized = btsName.toLowerCase().trim();
+  const station = btsStations.find((candidate) => candidate.name.toLowerCase() === normalized);
+  if (station) return station.region;
+  for (const { keyword, region } of REGION_KEYWORDS) {
+    if (normalized.includes(keyword)) return region;
+  }
+  return null;
+}
 
 export function getBtsForLocation(location: string): BtsStation[] {
   const key = location.toLowerCase().trim();
@@ -130,12 +251,6 @@ export function getRegionsFromBts(): string[] {
 }
 
 export const BTS_REGIONS = ['Ibadan', 'Abeokuta', 'Ijebu', 'Osogbo', 'Sagamu', 'Akure', 'Ota'] as const;
-export type BtsImportRegion = (typeof BTS_REGIONS)[number];
-
-export function isBtsRegion(value: string): value is BtsImportRegion {
-  // SAFETY: BTS_REGIONS is a const tuple of all valid BtsImportRegion values.
-  return BTS_REGIONS.includes(value as BtsImportRegion);
-}
 
 export function getStationsByRegion(region: string) {
   return btsStations.filter((s) => s.region === region);

@@ -148,21 +148,46 @@ export function ticketRowData(t: Ticket): TicketRowData {
 export interface TicketFilters {
   status?: string | null;
   assignedTo?: string | null;
+  /** Select only tickets with no assignee. */
+  unassignedOnly?: boolean;
   createdBy?: string | null;
+  /** Free text: matches customer name/email (contains) or exact ticket number. */
+  search?: string | null;
 }
 
-export async function listTicketsDb(filters: TicketFilters = {}, limit = 1000): Promise<Ticket[]> {
+function ticketWhere(filters: TicketFilters = {}) {
+  const q = filters.search?.trim();
+  const qNum = q && /^\d+$/.test(q) ? Number(q) : null;
+  return {
+    deletedAt: null,
+    ...(filters.status ? { status: filters.status } : null),
+    ...(filters.assignedTo ? { assignedTo: filters.assignedTo } : null),
+    ...(filters.unassignedOnly ? { assignedTo: null } : null),
+    ...(filters.createdBy ? { createdBy: filters.createdBy } : null),
+    ...(q
+      ? {
+          OR: [
+            { customerName: { contains: q } },
+            { customerEmail: { contains: q } },
+            ...(qNum !== null ? [{ ticketNumber: qNum }] : []),
+          ],
+        }
+      : null),
+  };
+}
+
+export async function listTicketsDb(filters: TicketFilters = {}, limit = 1000, offset = 0): Promise<Ticket[]> {
   const rows = await prisma.ticket.findMany({
-    where: {
-      deletedAt: null,
-      ...(filters.status ? { status: filters.status } : null),
-      ...(filters.assignedTo ? { assignedTo: filters.assignedTo } : null),
-      ...(filters.createdBy ? { createdBy: filters.createdBy } : null),
-    },
+    where: ticketWhere(filters),
     orderBy: { createdAt: 'desc' },
     take: limit,
+    skip: offset,
   });
   return rows.map((r) => ticketFromRow(r));
+}
+
+export async function countTicketsDb(filters: TicketFilters = {}): Promise<number> {
+  return prisma.ticket.count({ where: ticketWhere(filters) });
 }
 
 export async function createTicketDb(data: Ticket): Promise<Ticket> {

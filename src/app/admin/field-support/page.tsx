@@ -6,7 +6,9 @@ import { Clock, ShieldCheck, Brain, Zap, Hammer, CheckCircle2, MessageSquare } f
 import { cn } from '@/lib/utils';
 import { useAuth, useUser } from '@/firebase';
 import { useAdminFeedbacks, updateFeedbackStatus } from '@/hooks/use-admin-feedbacks';
+import { fieldTechnicians } from '@/lib/staff';
 import type { FeedbackDoc } from '@/lib/feedback-types';
+import FeedbackQuote from '@/components/FeedbackQuote';
 import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 import { useToast } from '@/hooks/use-toast';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogTrigger, DialogFooter } from '@/components/ui/dialog';
@@ -95,28 +97,12 @@ export default function AdminFieldSupport() {
   }, [fieldItems]);
 
   const techLeaderboard = useMemo(() => {
-    const techsRoster = [
-      { name: 'Lukmon Obasa', region: 'Akure' },
-      { name: 'Christian Adejo', region: 'Akure' },
-      { name: 'Habeeb Hussein', region: 'Ibadan' },
-      { name: 'Joseph Dung N', region: 'Ibadan' },
-      { name: 'Alowo Temitope', region: 'Ibadan' },
-      { name: 'Timilehin Alabi', region: 'Ibadan' },
-      { name: 'Adekunle Ademiju', region: 'Ibadan' },
-      { name: 'Adebisi Ogusola', region: 'Abeokuta' },
-      { name: 'Kehinde Itehinola', region: 'Abeokuta' },
-      { name: 'Olopade Olusegun', region: 'Abeokuta' },
-      { name: 'Mubarak Raji', region: 'Osogbo' },
-    ];
-
-    return techsRoster
-      .map((t: { name: string; region: string }) => {
-        const completions = fieldItems.filter((f: FeedbackDoc) => f.staffName === t.name).length;
-        return {
-          ...t,
-          completions,
-        };
-      })
+    return fieldTechnicians
+      .map((t) => ({
+        name: t.name,
+        region: t.region || '—',
+        completions: fieldItems.filter((f: FeedbackDoc) => f.staffName === t.name).length,
+      }))
       .sort((a, b) => b.completions - a.completions)
       .slice(0, 5);
   }, [fieldItems]);
@@ -142,7 +128,7 @@ export default function AdminFieldSupport() {
   return (
     <AdminLayout>
       <div className="mb-12">
-        <h1 className="font-display text-3xl md:text-display-lg text-primary tracking-tight mb-2 uppercase font-black">
+        <h1 className="font-display text-xl md:text-2xl text-primary tracking-tight mb-2 uppercase font-black">
           Field Support Overview
         </h1>
         <p className="text-on-surface-variant mt-2 max-w-2xl font-body-md">Track repair quality, speed, and success rates.</p>
@@ -152,7 +138,7 @@ export default function AdminFieldSupport() {
         <div className="bg-white p-8 border border-border whisper-shadow rounded-xl">
           <Clock className="w-8 h-8 text-secondary mb-4" />
           <p className="font-mono text-[10px] text-on-surface-variant uppercase tracking-widest">Avg Repair Time</p>
-          <h3 className="font-mono text-4xl font-black mt-2">{stats.avgTime}</h3>
+          <h3 className="font-mono text-2xl font-black mt-2">{stats.avgTime}</h3>
           <div className="flex items-center gap-2 mt-4 text-green-600 font-bold text-xs">
             <Zap className="w-4 h-4" /> Target: &lt; 24h
           </div>
@@ -161,14 +147,14 @@ export default function AdminFieldSupport() {
         <div className="bg-white p-8 border border-border whisper-shadow rounded-xl">
           <ShieldCheck className="w-8 h-8 text-secondary mb-4" />
           <p className="font-mono text-[10px] text-on-surface-variant uppercase tracking-widest">Repair Quality</p>
-          <h3 className="font-mono text-4xl font-black mt-2">{stats.repairQuality}/5</h3>
+          <h3 className="font-mono text-2xl font-black mt-2">{stats.repairQuality}/5</h3>
           <p className="text-on-surface-variant mt-2 text-[10px]">Repair quality</p>
         </div>
 
         <div className="bg-white p-8 border border-border whisper-shadow rounded-xl">
           <Brain className="w-8 h-8 text-secondary mb-4" />
           <p className="font-mono text-[10px] text-on-surface-variant uppercase tracking-widest">Success Rate</p>
-          <h3 className="font-mono text-4xl font-black mt-2">{stats.successRate}%</h3>
+          <h3 className="font-mono text-2xl font-black mt-2">{stats.successRate}%</h3>
           <div className="w-full bg-muted h-1 rounded-full mt-6">
             <div className="bg-secondary h-1 rounded-full transition-all duration-1000" style={{ width: `${stats.successRate}%` }}></div>
           </div>
@@ -177,7 +163,7 @@ export default function AdminFieldSupport() {
         <div className="bg-white p-8 border border-border whisper-shadow rounded-xl">
           <Zap className="w-8 h-8 text-secondary mb-4" />
           <p className="font-mono text-[10px] text-on-surface-variant uppercase tracking-widest">Staff Courtesy</p>
-          <h3 className="font-mono text-4xl font-black mt-2">{stats.conduct}/5</h3>
+          <h3 className="font-mono text-2xl font-black mt-2">{stats.conduct}/5</h3>
           <p className="text-on-surface-variant mt-2 text-[10px]">Professionalism</p>
         </div>
       </div>
@@ -288,7 +274,7 @@ export default function AdminFieldSupport() {
                   <p className="font-mono text-xs font-bold text-primary">
                     {f.customerName} <span className="opacity-40 font-normal">({f.location})</span>
                   </p>
-                  {f.comment && <p className="text-xs text-on-surface-variant italic mt-1 font-body">&ldquo;{f.comment}&rdquo;</p>}
+                  <FeedbackQuote feedback={f} className="text-xs text-on-surface-variant mt-1 font-body" />
                 </div>
 
                 <div className="flex items-center justify-between border-t border-border/50 pt-3 mt-1">
@@ -318,7 +304,9 @@ export default function AdminFieldSupport() {
                         <DialogDescription className="sr-only">Mark this feedback as resolved and add resolution notes.</DialogDescription>
                       </DialogHeader>
                       <div className="space-y-6 py-4">
-                        {f.comment && <div className="p-4 bg-muted rounded-xl text-sm italic">&ldquo;{f.comment}&rdquo;</div>}
+                        <div className="p-4 bg-muted rounded-xl text-sm">
+                          <FeedbackQuote feedback={f} />
+                        </div>
                         <div className="space-y-2">
                           <label className="font-mono text-[10px] uppercase font-bold text-on-surface-variant">Resolution Notes</label>
                           <Textarea

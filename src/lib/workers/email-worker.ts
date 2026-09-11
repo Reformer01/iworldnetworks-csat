@@ -18,6 +18,8 @@ import { getTransporter } from '@/lib/email';
 import { prisma } from '@/lib/prisma';
 import { logInfo, logWarn, logError } from '@/lib/logger';
 import { markEmailJobProcessing, markEmailJobSent, markEmailJobFailed } from '@/lib/repositories/email-job-repo';
+import { injectTracking } from '@/lib/email-tracking';
+import { mapSplynxEventToCategory } from '@/lib/splynx-categories';
 
 let emailWorker: Worker<EmailJobData> | null = null;
 
@@ -232,38 +234,50 @@ async function processChurnSurvey(data: ChurnSurveyJobData): Promise<void> {
 }
 
 async function processWinBack(data: WinBackJobData): Promise<void> {
-  const { churnedAt, customerEmail, customerName, customerId } = data;
+  const { customerEmail, customerName, customerId } = data;
 
   const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || 'https://csat.iwn.ng';
-  const token = crypto.randomUUID();
-  const expiresAt = Date.now() + 7 * 24 * 60 * 60 * 1000;
 
-  await prisma.feedbackToken.create({
-    data: {
-      id: token,
-      customerName: data.customerName,
-      customerEmail: data.customerEmail,
-      servicePlan: '',
-      location: '',
-      serviceDate: '',
-      sourceEvent: 'winback',
-      eventHash: `winback-${customerId}`,
-      category: 'Reliability',
-      staffName: '',
-      used: false,
-      createdAt: BigInt(Date.now()),
-      expiresAt: BigInt(expiresAt),
-      openedAt: null,
-      submittedAt: null,
-    },
-  });
+  // Approved jobs carry the pre-minted token + final links in the payload —
+  // send exactly what was approved. Only legacy jobs without a payload link
+  // fall back to minting a fresh token here.
+  let token = data.winBackToken;
+  let portalUrl = data.portalUrl;
+  let csatUrl = data.csatUrl;
+  let feedbackUrl = data.feedbackUrl;
+  if (!token || !feedbackUrl) {
+    token = crypto.randomUUID();
+    const expiresAt = Date.now() + 7 * 24 * 60 * 60 * 1000;
+    await prisma.feedbackToken.create({
+      data: {
+        id: token,
+        customerName: data.customerName,
+        customerEmail: data.customerEmail,
+        servicePlan: '',
+        location: '',
+        serviceDate: '',
+        sourceEvent: 'winback',
+        eventHash: `winback-${customerId}`,
+        category: 'Reliability',
+        staffName: '',
+        used: false,
+        createdAt: BigInt(Date.now()),
+        expiresAt: BigInt(expiresAt),
+        openedAt: null,
+        submittedAt: null,
+      },
+    });
+    portalUrl = 'https://portal.iwn.ng';
+    csatUrl = baseUrl;
+    feedbackUrl = `${baseUrl}/feedback/popup?token=${token}&embed=true`;
+  }
 
   await sendWinBackEmail({
     to: customerEmail,
     customerName: customerName || 'there',
-    portalUrl: 'https://portal.iwn.ng',
-    csatUrl: baseUrl,
-    feedbackUrl: `${baseUrl}/feedback/popup?token=${token}&embed=true`,
+    portalUrl: portalUrl!,
+    csatUrl: csatUrl!,
+    feedbackUrl: feedbackUrl!,
   });
 
   await prisma.customer.update({
@@ -273,36 +287,44 @@ async function processWinBack(data: WinBackJobData): Promise<void> {
 }
 
 async function processFeedbackRequest(data: FeedbackRequestJobData): Promise<void> {
-  const { sourceEvent, eventHash, customerEmail, customerName, customerId } = data;
+  const { sourceEvent, eventHash, customerEmail, customerName } = data;
 
-  const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || 'https://csat.iwn.ng';
-  const token = crypto.randomUUID();
-  const expiresAt = Date.now() + 7 * 24 * 60 * 60 * 1000;
-
-  await prisma.feedbackToken.create({
-    data: {
-      id: token,
-      customerName: data.customerName,
-      customerEmail: data.customerEmail,
-      servicePlan: '',
-      location: '',
-      serviceDate: '',
-      sourceEvent,
-      eventHash: eventHash || '',
-      category: 'Billing',
-      staffName: '',
-      used: false,
-      createdAt: BigInt(Date.now()),
-      expiresAt: BigInt(expiresAt),
-      openedAt: null,
-      submittedAt: null,
-    },
-  });
+  // Approved/retried jobs carry the producer's final link — send it as-is so
+  // the delivered email matches the approved payload (and the token keeps the
+  // category of the action that triggered it: Billing for payments, Support
+  // for tickets). Only link-less jobs mint a fresh token here.
+  let feedbackUrl = data.feedbackUrl;
+  if (!feedbackUrl) {
+    const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || 'https://csat.iwn.ng';
+    const token = crypto.randomUUID();
+    const expiresAt = Date.now() + 7 * 24 * 60 * 60 * 1000;
+    const category = mapSplynxEventToCategory(sourceEvent);
+    await prisma.feedbackToken.create({
+      data: {
+        id: token,
+        customerName: data.customerName,
+        customerEmail: data.customerEmail,
+        servicePlan: '',
+        location: '',
+        serviceDate: '',
+        sourceEvent,
+        eventHash: eventHash || '',
+        category,
+        staffName: '',
+        used: false,
+        createdAt: BigInt(Date.now()),
+        expiresAt: BigInt(expiresAt),
+        openedAt: null,
+        submittedAt: null,
+      },
+    });
+    feedbackUrl = `${baseUrl}/feedback?token=${token}&subject=${category}`;
+  }
 
   await sendFeedbackEmail({
     to: customerEmail,
     customerName,
-    feedbackUrl: `${baseUrl}/feedback?token=${token}&subject=Billing`,
+    feedbackUrl,
   });
 }
 
@@ -328,8 +350,13 @@ async function processManualEmail(data: ManualEmailJobData): Promise<void> {
 }
 
 async function processCampaignEmail(data: CampaignEmailJobData): Promise<void> {
-  const { subject, html, text, customerEmail } = data;
-  await sendRawEmail(customerEmail, subject, html, text);
+  const { subject, html, text, customerEmail, emailJobId, campaignId } = data;
+  
+  // Inject tracking pixel and click redirect URLs
+  const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || 'https://csat.iwn.ng';
+  const trackedHtml = injectTracking(html, emailJobId, campaignId, baseUrl);
+  
+  await sendRawEmail(customerEmail, subject, trackedHtml, text);
 }
 
 export async function startEmailWorker(): Promise<void> {

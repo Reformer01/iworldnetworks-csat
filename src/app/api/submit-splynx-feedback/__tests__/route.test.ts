@@ -87,7 +87,7 @@ describe('POST /api/submit-splynx-feedback', () => {
         category: 'Billing',
         customerName: 'Token Customer',
         customerEmail: 'token@example.com',
-        ratings: { overall: 5, invoiceAccuracy: null },
+        ratings: { overall: 5, invoiceAccuracy: null, fcr: null },
         comment: 'Great service.',
         _source: 'splynx',
       }),
@@ -118,11 +118,32 @@ describe('POST /api/submit-splynx-feedback', () => {
     expect(mockTransactionSet).toHaveBeenCalledWith(
       feedbackRef,
       expect.objectContaining({
-        ratings: { overall: 4, invoiceAccuracy: 5 },
+        ratings: { overall: 4, invoiceAccuracy: 5, fcr: null },
         satisfied: 'partially',
         comment: 'Invoice was clear.',
       }),
     );
+  });
+
+  it('maps the FCR answer into the feedback doc ratings', async () => {
+    const response = await POST(
+      buildRequest({ token, rating: 5, fcr: 'Yes', comment: 'Fixed first time.' }),
+    );
+
+    expect(response.status).toBe(201);
+    expect(mockTransactionSet).toHaveBeenCalledWith(
+      feedbackRef,
+      expect.objectContaining({
+        ratings: { overall: 5, invoiceAccuracy: null, fcr: 'Yes' },
+      }),
+    );
+  });
+
+  it('rejects an invalid FCR value', async () => {
+    const response = await POST(buildRequest({ token, rating: 5, fcr: 'Maybe' }));
+
+    expect(response.status).toBe(400);
+    expect(mockTransactionSet).not.toHaveBeenCalled();
   });
 
   it('does not create feedback when the token is already used', async () => {

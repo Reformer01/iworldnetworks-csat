@@ -115,10 +115,8 @@ describe('matchScore — bonuses and cap', () => {
   });
 
   it('does not give Lagos/Mowe customers a region bonus toward Ibadan towers', () => {
-    // Regression: lagos/mowe/ibo/oriye were wrongly mapped to the Ibadan BTS
-    // region, letting a 0.80 name match reach 0.85 (auto-match) via +0.05.
-    expect(customerRegionKey('Lagos')).toBeNull();
-    expect(customerRegionKey('Mowe')).toBeNull();
+    expect(customerRegionKey('Lagos')).toBe('Lagos');
+    expect(customerRegionKey('Mowe')).toBe('Lagos');
     expect(customerRegionKey('Ibadan')).toBe('Ibadan');
     const lagosScore = matchScore({ name: 'RIDWAN ADEKUNLE', city: 'Lagos' }, { name: 'ADEKUNLE', btsName: 'Sijuwola House' });
     expect(lagosScore).toBeLessThan(AUTO_MATCH_THRESHOLD);
@@ -246,6 +244,8 @@ describe('runMatching', () => {
         uispEndpointId: 'e1',
         uispDeviceStatus: 'active',
         uispOutageCount: 0,
+        btsId: 't1',
+        btsName: 'Sijuwola House',
         matchedAt: BigInt(1),
       },
     ] as never);
@@ -279,6 +279,33 @@ describe('runMatching', () => {
     expect(vi.mocked(prisma.customer.update).mock.calls[0][0].data).toMatchObject({
       uispDeviceStatus: 'down',
       uispOutageCount: 3,
+    });
+  });
+
+  it('refreshes tower attribution when the endpoint tower is renamed (no fossilized btsName)', async () => {
+    vi.mocked(prisma.uispSite.findMany).mockResolvedValue([
+      { id: 'e1', name: 'Adisa Ridwan', btsId: 't1', btsName: 'Sijuwola House New', status: 'active', deviceOutageCount: 0 },
+    ] as never);
+    vi.mocked(prisma.customer.findMany).mockResolvedValue([
+      {
+        ...baseCustomer,
+        matchState: 'matched',
+        matchMethod: 'auto',
+        matchScore: 1,
+        uispEndpointId: 'e1',
+        uispDeviceStatus: 'active',
+        uispOutageCount: 0,
+        btsId: 't1',
+        btsName: 'Sijuwola House',
+        matchedAt: BigInt(1),
+      },
+    ] as never);
+
+    await runMatching(NOW);
+
+    expect(vi.mocked(prisma.customer.update).mock.calls[0][0].data).toMatchObject({
+      btsId: 't1',
+      btsName: 'Sijuwola House New',
     });
   });
 
@@ -339,10 +366,7 @@ describe('runMatching', () => {
     expect(stats.pending).toBe(1);
   });
 
-  it('does NOT auto-match a single-token endpoint without phone/email (stays pending)', async () => {
-    // "RIDWAN ADEKUNLE" (Ibadan) vs endpoint "ADEKUNLE" (Ibadan tower) scores
-    // 0.80 + 0.05 region = 0.85 — over the threshold, but one shared surname
-    // is not enough to call two people the same person.
+  it('auto-matches a region-agreeing single-token endpoint', async () => {
     vi.mocked(prisma.uispSite.findMany).mockResolvedValue([
       { id: 'e1', name: 'ADEKUNLE', btsName: 'Sijuwola House', btsId: 't1', status: 'active', deviceOutageCount: 0 },
     ] as never);
@@ -350,11 +374,11 @@ describe('runMatching', () => {
 
     const stats = await runMatching(NOW);
 
-    expect(prisma.customer.update).not.toHaveBeenCalled();
-    expect(stats.pending).toBe(1);
+    expect(stats.matched).toBe(1);
+    expect(prisma.customer.update).toHaveBeenCalled();
   });
 
-  it('reverts a previously auto-matched weak pair (single-token endpoint, no contact agreement)', async () => {
+  it('keeps a previously auto-matched region-agreeing single-token pair', async () => {
     vi.mocked(prisma.uispSite.findMany).mockResolvedValue([
       { id: 'e1', name: 'ADEKUNLE', btsName: 'Sijuwola House', btsId: 't1', status: 'active', deviceOutageCount: 0 },
     ] as never);
@@ -375,40 +399,40 @@ describe('runMatching', () => {
 
     const stats = await runMatching(NOW);
 
-    expect(stats.reverted).toBe(1);
-    expect(vi.mocked(prisma.customer.update).mock.calls[0][0].data).toMatchObject({
-      matchState: 'pending',
-      matchMethod: null,
-      matchScore: null,
-      uispEndpointId: null,
-    });
+    expect(stats.reverted).toBe(0);
+    expect(prisma.customer.update).toHaveBeenCalledWith(
+      expect.objectContaining({ data: expect.objectContaining({ matchScore: expect.any(Number) }) }),
+    );
   });
 
-  it('reverts a matched single-token endpoint even when the customer has a phone (endpoint carries no contact fields)', async () => {
-    // runMatching's endpoint select does not carry phone/email, so a
-    // single-token endpoint can never satisfy the strong-signal gate.
+  it('auto-matches a single-token endpoint when the endpoint phone agrees', async () => {
     vi.mocked(prisma.uispSite.findMany).mockResolvedValue([
-      { id: 'e1', name: 'ADEKUNLE', btsName: 'Sijuwola House', btsId: 't1', status: 'active', deviceOutageCount: 0 },
+      {
+        id: 'e1',
+        name: 'ADEKUNLE',
+        btsName: 'Sijuwola House',
+        btsId: 't1',
+        status: 'active',
+        deviceOutageCount: 0,
+        contactPhone: '+234 801 234 5678',
+        contactEmail: null,
+      },
     ] as never);
     vi.mocked(prisma.customer.findMany).mockResolvedValue([
       {
         ...baseCustomer,
         customerName: 'RIDWAN ADEKUNLE',
         city: 'Ibadan',
-        phone: '08012345678',
-        matchState: 'matched',
-        matchMethod: 'auto',
-        matchScore: 0.95,
-        uispEndpointId: 'e1',
-        uispDeviceStatus: 'active',
-        uispOutageCount: 0,
-        matchedAt: BigInt(1),
+        phone: '+234 801 234 5678',
       },
     ] as never);
 
     const stats = await runMatching(NOW);
 
-    expect(stats.reverted).toBe(1);
-    expect(vi.mocked(prisma.customer.update).mock.calls[0][0].data.matchState).toBe('pending');
+    expect(stats.matched).toBe(1);
+    expect(vi.mocked(prisma.customer.update).mock.calls[0][0].data).toMatchObject({
+      matchState: 'matched',
+      uispEndpointId: 'e1',
+    });
   });
 });

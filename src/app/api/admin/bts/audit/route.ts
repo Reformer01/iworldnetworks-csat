@@ -1,14 +1,11 @@
 import { NextRequest } from 'next/server';
-import { getAdminFirestore } from '@/lib/firebase-admin';
 import { verifyAdminToken } from '@/lib/admin-auth';
 import { isRateLimited } from '@/lib/rate-limit';
-import { success, error, unauthorized, tooMany, serverError, validateOrigin } from '@/lib/api-response';
-import { logError, logInfo } from '@/lib/logger';
-import type { BtsAuditRecord, BtsStatus, BtsSiteType } from '@/lib/sales-types';
+import { success, unauthorized, tooMany, serverError } from '@/lib/api-response';
+import { logError } from '@/lib/logger';
+import { computeTowerAudit as towerAudit } from '@/lib/audit/computeTowerAudit';
 
 export const dynamic = 'force-dynamic';
-
-type BtsAuditDoc = BtsAuditRecord & { id: string };
 
 export async function GET(request: NextRequest) {
   try {
@@ -23,283 +20,27 @@ export async function GET(request: NextRequest) {
     }
 
     const { searchParams } = new URL(request.url);
-    const status = searchParams.get('status') as BtsStatus | null;
-    const region = searchParams.get('region');
-    const auditPeriod = searchParams.get('auditPeriod');
-    const page = Math.max(1, parseInt(searchParams.get('page') || '1'));
-    const pageSize = Math.min(Math.max(1, parseInt(searchParams.get('pageSize') || '50')), 200);
+    const includeEmpty = searchParams.get('includeEmpty') === 'true';
+    const towers = await towerAudit({ includeEmpty });
 
-    const db = getAdminFirestore();
-    let query: FirebaseFirestore.Query = db.collection('bts_audit_records').orderBy('btsName', 'asc');
+    // Device-telemetry freshness is a separate signal from the customer
+    // roster: UISP sync needs UISP_API_TOKEN, while the roster rides the
+    // Splynx sync. The page banners device staleness instead of flagging
+    // every tower for an upstream credential gap.
+    const devicesSyncAt = towers.reduce<number | null>(
+      (max, t) => (t.lastSyncAt != null && (max == null || t.lastSyncAt > max) ? t.lastSyncAt : max),
+      null,
+    );
+    const meta = {
+      devicesSyncAt,
+      devicesStale: devicesSyncAt != null && Date.now() - devicesSyncAt > 86400000,
+      uispConfigured: !!process.env.UISP_API_TOKEN,
+    };
 
-    if (status) query = query.where('status', '==', status);
-    if (region) query = query.where('region', '==', region);
-    if (auditPeriod) query = query.where('auditPeriod', '==', auditPeriod);
-
-    const snapshot = await query.limit(1000).get();
-    const records: BtsAuditDoc[] = snapshot.docs
-      .filter((doc) => !doc.data().deletedAt)
-      .map((doc) => ({ id: doc.id, ...doc.data() }) as BtsAuditDoc);
-
-    // Apply pagination in memory (since we filtered deletedAt)
-    const total = records.length;
-    const totalPages = Math.max(1, Math.ceil(total / pageSize));
-    const start = (page - 1) * pageSize;
-    const paged = records.slice(start, start + pageSize);
-
-    return success({ records: paged, total, page, pageSize, totalPages });
+    return success({ towers, total: towers.length, generatedAt: Date.now(), meta });
   } catch (err: unknown) {
     const message = err instanceof Error ? err.message : 'Unknown error';
     logError('[bts-audit] GET error', { error: message });
-
-    if (message.includes('requires an index') || message.includes('FAILED_PRECONDITION')) {
-      const indexUrl = message.match(/https:\/\/console\.firebase\.google\.com[^\s]*/)?.[0];
-      return error(
-        `Query requires a Firestore composite index. ${indexUrl ? 'Create it here: ' + indexUrl : 'Run: firebase deploy --only firestore:indexes'}`,
-        412,
-      );
-    }
-
     return serverError();
   }
-}
-
-export async function POST(request: NextRequest) {
-  try {
-    if (isRateLimited(request, 30, 60 * 1000)) {
-      return tooMany();
-    }
-
-    if (!validateOrigin(request)) return error('Invalid origin', 403);
-
-    const authHeader = request.headers.get('authorization');
-    const admin = await verifyAdminToken(authHeader);
-    if (!admin) {
-      return unauthorized();
-    }
-
-    const body = await request.json().catch(() => null);
-    if (!body) {
-      return error('Invalid JSON body', 400);
-    }
-
-    // Validate required fields
-    const required = ['btsName', 'region', 'siteType', 'status'];
-    for (const field of required) {
-      if (!body[field]) {
-        return error(`Missing required field: ${field}`, 400);
-      }
-    }
-
-    const db = getAdminFirestore();
-
-    // Check for duplicate BTS name in same audit period
-    const auditPeriod = body.auditPeriod || getCurrentAuditPeriod();
-    const existingSnap = await db
-      .collection('bts_audit_records')
-      .where('btsName', '==', body.btsName)
-      .where('auditPeriod', '==', auditPeriod)
-      .limit(2)
-      .get();
-
-    const existingRecord = existingSnap.docs.find((doc) => !doc.data().deletedAt);
-    if (existingRecord) {
-      return error('BTS audit record already exists for this period', 409);
-    }
-
-    const now = Date.now();
-    const record: BtsAuditRecord = {
-      btsName: body.btsName,
-      btsId: body.btsId || null,
-      region: body.region,
-      siteType: body.siteType,
-      status: body.status,
-      latitude: body.latitude || null,
-      longitude: body.longitude || null,
-      address: body.address || null,
-      host: body.host || null,
-      activeCustomers: body.activeCustomers || 0,
-      totalCustomers: body.totalCustomers || 0,
-      enterpriseCustomers: body.enterpriseCustomers || 0,
-      retailCustomers: body.retailCustomers || 0,
-      monthlyRecurringRevenue: body.monthlyRecurringRevenue || 0,
-      targetMrr: body.targetMrr || 5000000,
-      attainmentPercentage: body.attainmentPercentage || 0,
-      nrcRevenue: body.nrcRevenue || 0,
-      totalRevenue: body.totalRevenue || 0,
-      splynxRouterIds: body.splynxRouterIds || [],
-      splynxRouterNames: body.splynxRouterNames || [],
-      lastSplynxSync: body.lastSplynxSync || null,
-      lastOutageDate: body.lastOutageDate || null,
-      outageCountThisMonth: body.outageCountThisMonth || 0,
-      maintenanceNotes: body.maintenanceNotes || null,
-      auditedBy: admin.email,
-      auditedAt: now,
-      auditPeriod,
-      createdAt: now,
-      updatedAt: now,
-    };
-
-    const docRef = await db.collection('bts_audit_records').add(record);
-
-    // Also update the latest snapshot collection for quick dashboard access
-    await db
-      .collection('bts_latest_audit')
-      .doc(body.btsName)
-      .set({
-        ...record,
-        id: docRef.id,
-      });
-
-    logInfo('[bts-audit] Created audit record', { btsName: body.btsName, id: docRef.id, auditPeriod });
-
-    return success({ id: docRef.id, ...record }, 201);
-  } catch (err: unknown) {
-    const message = err instanceof Error ? err.message : 'Unknown error';
-    logError('[bts-audit] POST error', { error: message });
-    return serverError();
-  }
-}
-
-export async function PUT(request: NextRequest) {
-  try {
-    if (isRateLimited(request, 60, 60 * 1000)) {
-      return tooMany();
-    }
-
-    if (!validateOrigin(request)) return error('Invalid origin', 403);
-
-    const authHeader = request.headers.get('authorization');
-    const admin = await verifyAdminToken(authHeader);
-    if (!admin) {
-      return unauthorized();
-    }
-
-    const body = await request.json().catch(() => null);
-    if (!body || !body.id) {
-      return error('Record ID required', 400);
-    }
-
-    const { id, ...rest } = body;
-    const ALLOWED_FIELDS = [
-      'btsName',
-      'btsId',
-      'region',
-      'siteType',
-      'status',
-      'latitude',
-      'longitude',
-      'address',
-      'host',
-      'activeCustomers',
-      'totalCustomers',
-      'enterpriseCustomers',
-      'retailCustomers',
-      'monthlyRecurringRevenue',
-      'targetMrr',
-      'nrcRevenue',
-      'totalRevenue',
-      'splynxRouterIds',
-      'splynxRouterNames',
-      'lastOutageDate',
-      'outageCountThisMonth',
-      'maintenanceNotes',
-      'auditPeriod',
-    ];
-    const updateData: Record<string, unknown> = { auditedBy: admin.email, auditedAt: Date.now(), updatedAt: Date.now() };
-    for (const key of ALLOWED_FIELDS) {
-      if (key in rest) updateData[key] = rest[key];
-    }
-
-    const db = getAdminFirestore();
-    const docRef = db.collection('bts_audit_records').doc(id);
-    const doc = await docRef.get();
-
-    if (!doc.exists) {
-      return error('Record not found', 404);
-    }
-
-    // Recalculate attainment if MRR or target changed
-    if (rest.monthlyRecurringRevenue !== undefined || rest.targetMrr !== undefined) {
-      const current = doc.data() as BtsAuditRecord;
-      const mrr = rest.monthlyRecurringRevenue ?? current.monthlyRecurringRevenue;
-      const target = rest.targetMrr ?? current.targetMrr;
-      updateData.attainmentPercentage = target > 0 ? Math.round((mrr / target) * 10000) / 100 : 0;
-    }
-
-    await docRef.update(updateData);
-
-    // Update latest snapshot
-    const updated = { ...doc.data(), ...updateData } as BtsAuditRecord;
-    await db
-      .collection('bts_latest_audit')
-      .doc(updated.btsName)
-      .set({ ...updated, id });
-
-    logInfo('[bts-audit] Updated audit record', { id, btsName: updated.btsName });
-
-    return success({ id, ...updateData });
-  } catch (err: unknown) {
-    const message = err instanceof Error ? err.message : 'Unknown error';
-    logError('[bts-audit] PUT error', { error: message });
-    return serverError();
-  }
-}
-
-export async function DELETE(request: NextRequest) {
-  try {
-    if (isRateLimited(request, 30, 60 * 1000)) {
-      return tooMany();
-    }
-
-    if (!validateOrigin(request)) return error('Invalid origin', 403);
-
-    const authHeader = request.headers.get('authorization');
-    const admin = await verifyAdminToken(authHeader);
-    if (!admin) {
-      return unauthorized();
-    }
-
-    const body = await request.json().catch(() => null);
-    if (!body || !body.id) {
-      return error('Record ID required', 400);
-    }
-
-    const db = getAdminFirestore();
-    const docRef = db.collection('bts_audit_records').doc(body.id);
-    const doc = await docRef.get();
-
-    if (!doc.exists) {
-      return error('Record not found', 404);
-    }
-
-    await docRef.update({ deletedAt: Date.now(), updatedAt: Date.now() });
-
-    // Also mark deleted in latest snapshot
-    const docData = doc.data();
-    if (docData?.btsName) {
-      await db.collection('bts_latest_audit').doc(docData.btsName).update({ deletedAt: Date.now() });
-    }
-
-    logInfo('[bts-audit] Deleted audit record', { id: body.id });
-
-    return success({ action: 'deleted' });
-  } catch (err: unknown) {
-    const message = err instanceof Error ? err.message : 'Unknown error';
-    logError('[bts-audit] DELETE error', { error: message });
-    return serverError();
-  }
-}
-
-function getCurrentAuditPeriod(): string {
-  const now = new Date();
-  const year = now.getFullYear();
-  const week = getWeekNumber(now);
-  return `${year}-W${String(week).padStart(2, '0')}`;
-}
-
-function getWeekNumber(date: Date): number {
-  const firstDayOfYear = new Date(date.getFullYear(), 0, 1);
-  const pastDaysOfYear = (date.getTime() - firstDayOfYear.getTime()) / 86400000;
-  return Math.ceil((pastDaysOfYear + firstDayOfYear.getDay() + 1) / 7);
 }

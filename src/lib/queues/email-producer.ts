@@ -1,5 +1,4 @@
 import { getEmailQueue, getPriorityForType, EmailJobData } from './email-queue';
-import { prisma } from '@/lib/prisma';
 import { createEmailJob, markEmailJobFailed, setEmailJobBullJobId } from '@/lib/repositories/email-job-repo';
 import type { Prisma } from '@prisma/client';
 
@@ -33,88 +32,9 @@ async function addEmailJob<T extends Omit<EmailJobData, 'emailJobId'>>(
   }
 }
 
-export async function queueInvoiceReminder(customerId: string, invoiceIds: string[], reminderType: '15d' | '30d'): Promise<void> {
-  const customer = await prisma.customer.findUnique({
-    where: { customerId },
-    select: { customerId: true, email: true, customerName: true },
-  });
-  if (!customer?.email) return;
-
-  await addEmailJob(
-    'invoice_reminder',
-    {
-      type: 'invoice_reminder',
-      customerId: customer.customerId,
-      customerEmail: customer.email,
-      customerName: customer.customerName || '',
-      invoiceIds,
-      reminderType,
-    },
-    getPriorityForType('invoice_reminder'),
-  );
-}
-
-export async function queueChurnSurvey(customerId: string): Promise<void> {
-  const customer = await prisma.customer.findUnique({
-    where: { customerId },
-    select: { customerId: true, email: true, customerName: true, churnedAt: true },
-  });
-  if (!customer?.email || !customer.churnedAt) return;
-
-  await addEmailJob(
-    'churn_survey',
-    {
-      type: 'churn_survey',
-      customerId: customer.customerId,
-      customerEmail: customer.email,
-      customerName: customer.customerName || '',
-      churnedAt: Number(customer.churnedAt),
-    },
-    getPriorityForType('churn_survey'),
-  );
-}
-
-export async function queueWinBack(customerId: string): Promise<void> {
-  const customer = await prisma.customer.findUnique({
-    where: { customerId },
-    select: { customerId: true, email: true, customerName: true, churnedAt: true },
-  });
-  if (!customer?.email || !customer.churnedAt) return;
-
-  await addEmailJob(
-    'winback',
-    {
-      type: 'winback',
-      customerId: customer.customerId,
-      customerEmail: customer.email,
-      customerName: customer.customerName || '',
-      churnedAt: Number(customer.churnedAt),
-    },
-    getPriorityForType('winback'),
-  );
-}
-
-export async function queueFeedbackRequest(customerId: string, sourceEvent: string, eventHash: string): Promise<void> {
-  const customer = await prisma.customer.findUnique({
-    where: { customerId },
-    select: { customerId: true, email: true, customerName: true },
-  });
-  if (!customer?.email) return;
-
-  await addEmailJob(
-    'feedback_request',
-    {
-      type: 'feedback_request',
-      customerId: customer.customerId,
-      customerEmail: customer.email,
-      customerName: customer.customerName || '',
-      sourceEvent,
-      eventHash,
-    },
-    getPriorityForType('feedback_request'),
-  );
-}
-
+// NOTE (Sep 2026 audit): the per-type queue* helpers were removed — zero
+// callers since the MariaDB strangler cutover (sync jobs send or create
+// approval jobs directly). Only queueManualEmail remains live.
 export async function queueManualEmail(
   to: string,
   customerName: string,

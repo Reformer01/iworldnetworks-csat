@@ -11,10 +11,11 @@ export default {
   theme: {
     extend: {
       fontFamily: {
-        body: ['var(--font-outfit)', 'sans-serif'],
-        headline: ['var(--font-outfit)', 'sans-serif'],
+        body: ['var(--font-body-family)', 'var(--font-outfit)', 'sans-serif'],
+        headline: ['var(--font-display-family)', 'var(--font-outfit)', 'sans-serif'],
+        display: ['var(--font-display-family)', 'var(--font-outfit)', 'sans-serif'],
+        accent: ['Satoshi', 'var(--font-body-family)', 'sans-serif'],
         code: ['var(--font-jetbrains-mono)', 'monospace'],
-        display: ['var(--font-outfit)', 'sans-serif'],
         mono: ['var(--font-jetbrains-mono)', 'monospace'],
       },
       colors: {

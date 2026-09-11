@@ -1,6 +1,6 @@
 import { randomUUID } from 'crypto';
 import type { Firestore, DocumentData, DocumentReference, QuerySnapshot } from 'firebase-admin/firestore';
-import { getAllCustomers, getUnpaidInvoices, getDeletedInvoices, type SplynxCustomerListRecord, type SplynxInvoice } from './splynx-api';
+import { getAllCustomers, getUnpaidInvoices, getDeletedInvoices, type SplynxCustomerListRecord, type SplynxInvoice, extractBtsFromLabels } from './splynx-api';
 import { getAdminFirestore } from './firebase-admin';
 import { sendInvoiceReminderEmail, sendChurnSurveyEmail, sendFeedbackEmail, sendWinBackEmail } from './email';
 import { hasDeliverableEmail } from './email-validity';
@@ -30,7 +30,7 @@ import {
 import { clearRouteCache } from './route-cache';
 import { persistStaffKPIs } from './staff-kpis';
 import { getBudgetState, syncBudgetDecision, logBudgetStatus, recordReads, flushReads, CRITICAL_CAP, ABSOLUTE_CAP } from './read-budget';
-import { journalBegin, journalComplete, journalFail, sweepAndReportStaleJournals } from './journal';
+import { journalBegin, journalComplete, journalFail, sweepAndReportStaleJournals, type JournalResult } from './journal';
 import { mirrorUpsertCustomer, mirrorUpsertInvoice } from './lib/db/sync-mirror';
 import type { PrismaClient } from '@prisma/client';
 
@@ -128,12 +128,12 @@ export function classifyLifecycle(status: string): Lifecycle {
 }
 
 /**
- * Apply lifecycle transition tracking (churnedAt / inactiveSince) based on
- * the previous and next lifecycle. Returns an object with any timestamp
- * fields that need to be written.
+ * Apply lifecycle transition tracking (churnedAt / inactiveSince / blockedSince)
+ * based on the previous and next lifecycle. Returns an object with any
+ * timestamp fields that need to be written.
  */
 function applyLifecycleTransitions(
-  prev: { lifecycle?: Lifecycle; churnedAt?: number | null; inactiveSince?: number | null },
+  prev: { lifecycle?: Lifecycle; churnedAt?: number | null; inactiveSince?: number | null; blockedSince?: number | null },
   nextLifecycle: Lifecycle | undefined,
   now: number,
 ): LifecycleTransitionUpdates {
@@ -141,6 +141,7 @@ function applyLifecycleTransitions(
   const prevLifecycle = prev.lifecycle;
   const prevChurnedAt = prev.churnedAt;
   const prevInactiveSince = prev.inactiveSince;
+  const prevBlockedSince = prev.blockedSince;
 
   // churnedAt: set on first transition TO churned, clear when leaving churned
   if (nextLifecycle === 'churned' && prevLifecycle !== 'churned' && !prevChurnedAt) {
@@ -154,6 +155,13 @@ function applyLifecycleTransitions(
     updates.inactiveSince = now;
   } else if (nextLifecycle !== 'inactive' && prevLifecycle === 'inactive') {
     updates.inactiveSince = null;
+  }
+
+  // blockedSince: set on first transition TO blocked, clear when leaving blocked
+  if (nextLifecycle === 'blocked' && prevLifecycle !== 'blocked' && !prevBlockedSince) {
+    updates.blockedSince = now;
+  } else if (nextLifecycle !== 'blocked' && prevLifecycle === 'blocked') {
+    updates.blockedSince = null;
   }
 
   return updates;
@@ -241,26 +249,6 @@ export function normalizeInvoiceForOverdue(
   };
 }
 
-/**
- * Recompute + write the denormalized overdue summary for one customer.
- * Used by payment/invoice webhooks so the admin list stays fresh between
- * syncs without scanning the whole invoice collection.
- */
-export async function refreshCustomerOverdueInfo(db: Firestore, customerId: number | string, now = Date.now()): Promise<void> {
-  const cid = Number(customerId);
-  if (!Number.isFinite(cid) || cid === 0) return;
-
-  const invoicesSnap = await db.collection(INVOICES_COLLECTION).where('customerId', '==', cid).get();
-  // SAFETY: invoice mirror docs are written with normalized SplynxInvoice fields, so the
-  // Firestore document conforms to the SplynxInvoice contract for overdue computation.
-  const normalized: MirrorInvoiceDoc[] = invoicesSnap.docs
-    .map((doc) => normalizeInvoiceForOverdue(doc.data() as SplynxInvoice, undefined, now))
-    .filter((inv) => !inv.isPaid);
-
-  const info = buildCustomerOverdueInfo(normalized, now);
-  await customerDocRef(db, cid).set({ overdueInfo: info }, { merge: true });
-}
-
 // ---------------------------------------------------------------------------
 // Firestore access
 // ---------------------------------------------------------------------------
@@ -283,6 +271,8 @@ export function buildCustomerFields(record: SplynxCustomerListRecord, now = Date
   const status = (record.status || '').toLowerCase();
   const mrr = parseFloat(record.mrr_total);
   const lifecycle = classifyLifecycle(status);
+  // Extract BTS from Splynx customer labels (e.g. "BTS - AKURE OFFICE X" -> "AKURE OFFICE X")
+  const btsName = extractBtsFromLabels(record.customer_labels);
   return {
     customerId: record.id,
     customerName: record.name || record.login || `Customer #${record.id}`,
@@ -297,10 +287,13 @@ export function buildCustomerFields(record: SplynxCustomerListRecord, now = Date
     online: isOnline(lastOnlineAt, now),
     lastOnlineAt,
     lastUpdateAt,
+    // A zero list-endpoint MRR is unresolved when the tariff is not included;
+    // the DB sync preserves the previous enriched value in that case.
     mrrTotal: Number.isFinite(mrr) ? mrr : 0,
     accountType: record.account_type || 'regular',
     category: record.category || '',
     servicePlan: record.plan || '',
+    btsName,
     lastSyncAt: now,
   };
 }
@@ -332,6 +325,7 @@ export async function upsertCustomer(
       winBackToken: null,
       churnedAt: fields.lifecycle === 'churned' ? now : null,
       inactiveSince: fields.lifecycle === 'inactive' ? now : null,
+      blockedSince: fields.lifecycle === 'blocked' ? now : null,
       emailOptOut: false,
       emailInvalid: false,
     } as MirrorCustomerDoc;
@@ -383,7 +377,7 @@ export async function upsertCustomer(
   // Apply lifecycle transition tracking (churnedAt / inactiveSince) using the
   // FINAL lifecycle (accounts for the inactive→churned reclassification).
   const transitionUpdates = applyLifecycleTransitions(
-    { lifecycle: prevLifecycle, churnedAt: prev.churnedAt, inactiveSince: prev.inactiveSince },
+    { lifecycle: prevLifecycle, churnedAt: prev.churnedAt, inactiveSince: prev.inactiveSince, blockedSince: prev.blockedSince },
     nextLifecycle,
     now,
   );
@@ -462,6 +456,7 @@ export async function upsertCustomerFromWebhook(
       winBackToken: null,
       churnedAt: initialLifecycle === 'churned' ? now : null,
       inactiveSince: initialLifecycle === 'inactive' ? now : null,
+      blockedSince: initialLifecycle === 'blocked' ? now : null,
       emailOptOut: false,
       emailInvalid: false,
     } as MirrorCustomerDoc;
@@ -477,9 +472,9 @@ export async function upsertCustomerFromWebhook(
   );
   if (!changed) return false;
 
-  // Apply lifecycle transition tracking (churnedAt / inactiveSince)
+  // Apply lifecycle transition tracking (churnedAt / inactiveSince / blockedSince)
   const transitionUpdates = applyLifecycleTransitions(
-    { lifecycle: prev.lifecycle, churnedAt: prev.churnedAt, inactiveSince: prev.inactiveSince },
+    { lifecycle: prev.lifecycle, churnedAt: prev.churnedAt, inactiveSince: prev.inactiveSince, blockedSince: prev.blockedSince },
     updates.lifecycle,
     now,
   );
@@ -628,6 +623,12 @@ export async function upsertInvoiceFromWebhook(
 // ---------------------------------------------------------------------------
 // Reconcile (hourly)
 // ---------------------------------------------------------------------------
+// DEPRECATED (Sep 2026 audit): reconcileCustomers, acquireSyncLock,
+// completeSyncRun, runHourlySync, getDb and refreshCustomerOverdueInfo below
+// are DEAD — zero prod callers and zero test coverage since the MariaDB
+// strangler cutover (see reconcileCustomersDb / reconcileInvoicesDb /
+// lib/db/sync.ts). Kept (not deleted) as the documented Firestore rollback
+// path; do not add new callers.
 
 /** Full customer mirror sync. Returns write stats. */
 export async function reconcileCustomers(
@@ -909,8 +910,8 @@ export async function reconcileInvoices(
 // ---------------------------------------------------------------------------
 
 /**
- * One email per threshold (15d / 30d). Invoices first observed when already
- * 30+ days overdue get ONLY the 30-day email (both flags set).
+ * One email per customer per run. Groups all overdue invoices for a customer
+ * into a single reminder. 30d takes priority over 15d.
  */
 export async function runReminderJob(
   db: Firestore,
@@ -921,15 +922,13 @@ export async function runReminderJob(
   const unpaid = unpaidSnap ?? (await db.collection(INVOICES_COLLECTION).where('isPaid', '==', false).get());
   if (unpaid.empty) return result;
 
-  // Resolve customer emails for invoices that actually need a reminder.
-  const candidateInvoices: Array<{ doc: DocumentData; ref: DocumentReference; customerId: number; overdue: number }> = [];
+  // Group invoices by customer that need reminders
+  const customerInvoices = new Map<number, Array<{ doc: DocumentData; ref: DocumentReference; overdue: number; needs15: boolean; needs30: boolean }>>();
   for (const snap of unpaid.docs) {
     const data = snap.data();
     const dueDate = data.dueDate;
     if (!dueDate || !isNumberValue(dueDate)) continue;
     const overdue = daysOverdue(dueDate, now);
-    // Stop automated nagging on ancient invoices — 90+ days overdue is
-    // collections territory, not a "friendly reminder".
     if (overdue > REMINDER_MAX_OVERDUE_DAYS) {
       result.skippedStale++;
       continue;
@@ -937,13 +936,17 @@ export async function runReminderJob(
     const needs15 = overdue >= 15 && !data.reminder15SentAt;
     const needs30 = overdue >= 30 && !data.reminder30SentAt;
     if (needs15 || needs30) {
-      candidateInvoices.push({ doc: data, ref: snap.ref, customerId: data.customerId, overdue });
+      const cid = data.customerId;
+      if (!isNumberValue(cid) || !Number.isFinite(cid)) continue;
+      const arr = customerInvoices.get(cid) || [];
+      arr.push({ doc: data, ref: snap.ref, overdue, needs15, needs30 });
+      customerInvoices.set(cid, arr);
     }
   }
-  if (!candidateInvoices.length) return result;
+  if (customerInvoices.size === 0) return result;
 
   // Firestore 'in' queries cap at 10 values — chunk the customer ids.
-  const customerIds = [...new Set(candidateInvoices.map((c) => c.customerId))];
+  const customerIds = [...customerInvoices.keys()];
   const customerMap = new Map<string, { email: string; name: string; optOut: boolean; lifecycle: string; ref: DocumentReference }>();
   for (let i = 0; i < customerIds.length; i += 10) {
     const chunk = customerIds.slice(i, i + 10);
@@ -960,12 +963,10 @@ export async function runReminderJob(
     }
   }
 
-  for (const candidate of candidateInvoices) {
-    const customer = customerMap.get(String(candidate.customerId));
+for (const [customerId, invoices] of customerInvoices.entries()) {
+    const customer = customerMap.get(String(customerId));
     if (!customer || !customer.email) continue;
     if (customer.lifecycle === 'churned') {
-      // Their service is already cut off — a payment threat is insensitive
-      // AND inaccurate. Accounts receivable handles these offline.
       result.skippedChurned++;
       continue;
     }
@@ -974,50 +975,47 @@ export async function runReminderJob(
       continue;
     }
     if (!(await hasDeliverableEmail(customer.email))) {
-      // Bad/undeliverable address — flag the customer once so future runs skip
-      // the DNS check, and stop generating bounce noise.
       await customer.ref.update({ emailInvalid: true });
       result.skippedInvalid++;
       continue;
     }
 
-    const amount = candidate.doc.total || 0;
-    const dueDate = candidate.doc.dueDate;
-    const invoiceNumber = String(candidate.doc.number || Number(candidate.doc.invoiceId) || '');
+    // Determine reminder type: 30d takes priority, else 15d
+    // When 30d, include ALL invoices needing reminders (15d + 30d) since 30d supersedes 15d
+    const has30 = invoices.some((i) => i.needs30);
+    const reminderType = has30 ? '30d' : '15d';
+    const relevantInvoices = has30
+      ? invoices.filter((i) => i.needs15 || i.needs30) // include all needing reminders
+      : invoices.filter((i) => i.needs15);
 
-    if (candidate.overdue >= 30 && !candidate.doc.reminder30SentAt) {
-      try {
-        await sendInvoiceReminderEmail({
-          to: customer.email,
-          customerName: customer.name,
-          invoiceNumber,
-          amount,
-          dueDate: formatDueDate(dueDate),
-          daysOverdue: candidate.overdue,
-        });
-        await candidate.ref.update({
-          reminder30SentAt: now,
-          reminder15SentAt: candidate.doc.reminder15SentAt ?? now, // supersede 15d
-        });
-        result.sent30++;
-      } catch (err) {
-        logWarn('[reminder] 30d email failed', { invoice: invoiceNumber, error: String(err) });
+    // Build invoice list for email
+    const emailInvoices = relevantInvoices.map((i) => ({
+      invoiceNumber: String(i.doc.number || Number(i.doc.invoiceId) || ''),
+      amount: i.doc.total || 0,
+      dueDate: formatDueDate(i.doc.dueDate),
+      daysOverdue: i.overdue,
+    }));
+
+    try {
+      await sendInvoiceReminderEmail({
+        to: customer.email,
+        customerName: customer.name,
+        invoices: emailInvoices,
+        reminderType,
+      });
+
+      // Update all relevant invoices
+      for (const inv of relevantInvoices) {
+        if (has30) {
+          await inv.ref.update({ reminder30SentAt: now, reminder15SentAt: now });
+        } else {
+          await inv.ref.update({ reminder15SentAt: now });
+        }
       }
-    } else if (candidate.overdue >= 15 && !candidate.doc.reminder15SentAt) {
-      try {
-        await sendInvoiceReminderEmail({
-          to: customer.email,
-          customerName: customer.name,
-          invoiceNumber,
-          amount,
-          dueDate: formatDueDate(dueDate),
-          daysOverdue: candidate.overdue,
-        });
-        await candidate.ref.update({ reminder15SentAt: now });
-        result.sent15++;
-      } catch (err) {
-        logWarn('[reminder] 15d email failed', { invoice: invoiceNumber, error: String(err) });
-      }
+
+      if (has30) result.sent30++; else result.sent15++;
+    } catch (err) {
+      logWarn('[reminder] email failed', { customerId, error: String(err) });
     }
   }
 
@@ -1352,6 +1350,8 @@ export async function runHourlySync(db: Firestore, baseUrl: string, now = Date.n
     winBackSent: 0,
     feedbackReminders: 0,
     invoicesApiDenied: false,
+    ticketsSynced: 0,
+    ticketsApiDenied: false,
   };
 
   // ---- Read-budget gate: protect the free-tier quota before doing anything ----
@@ -1436,7 +1436,7 @@ export async function runHourlySync(db: Firestore, baseUrl: string, now = Date.n
     // Data changed — drop cached admin snapshots (respects min-refresh floors).
     clearRouteCache();
 
-    await journalComplete(journalId, { stats });
+    await journalComplete(journalId, { stats } as unknown as JournalResult);
 
     logInfo('[splynx-sync] completed', { stats, durationMs: Date.now() - started });
   } catch (err) {

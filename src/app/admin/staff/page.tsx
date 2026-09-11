@@ -7,6 +7,9 @@ import { Area, AreaChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YA
 import { useAdminFeedbacks } from '@/hooks/use-admin-feedbacks';
 import { cn } from '@/lib/utils';
 import { staffRoster, type FeedbackCategory, type StaffProfile } from '@/lib/staff';
+import FeedbackQuote from '@/components/FeedbackQuote';
+
+import type { JsonValue } from '@/lib/feedback-types';
 
 type FeedbackRecord = {
   id: string;
@@ -18,7 +21,7 @@ type FeedbackRecord = {
   status?: string;
   timestamp?: number;
   serviceDate?: string;
-  ratings?: Record<string, number | string | undefined>;
+  ratings?: Record<string, JsonValue>;
 };
 
 type RatingDimension = {
@@ -175,7 +178,7 @@ export default function StaffPerformancePage() {
               <UsersRound className="w-4 h-4 text-secondary" />
               <span className="font-mono text-[10px] uppercase tracking-widest text-on-surface-variant font-bold">Staff Intelligence</span>
             </div>
-            <h1 className="font-display text-3xl md:text-display-lg text-primary tracking-tight font-black uppercase">Staff Performance</h1>
+            <h1 className="font-display text-xl md:text-2xl text-primary tracking-tight font-black uppercase">Staff Performance</h1>
             <p className="text-on-surface-variant mt-3 max-w-2xl text-sm">
               Search agents, technicians, and billing staff, then review the feedback tied directly to each person.
             </p>
@@ -402,9 +405,7 @@ export default function StaffPerformancePage() {
                               {feedback.status || 'open'}
                             </span>
                           </div>
-                          {feedback.comment && (
-                            <p className="text-[13px] italic text-on-surface-variant leading-relaxed">&ldquo;{feedback.comment}&rdquo;</p>
-                          )}
+                          <FeedbackQuote feedback={feedback} className="text-[13px] text-on-surface-variant leading-relaxed" />
                           <div className="flex items-center justify-between mt-3 font-mono text-[9px] text-on-surface-variant/70 font-bold">
                             <span>{formatDate(feedback.timestamp, feedback.serviceDate)}</span>
                             <span>Rating: {score > 0 ? score.toFixed(1) : '0.0'}/5</span>

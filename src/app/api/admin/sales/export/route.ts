@@ -1,10 +1,11 @@
 import { NextRequest } from 'next/server';
-import { getAdminFirestore } from '@/lib/firebase-admin';
 import { verifyAdminToken } from '@/lib/admin-auth';
+import { isSuperAdmin, salesAgentForEmail } from '@/lib/admin-config';
 import { isRateLimited } from '@/lib/rate-limit';
 import { unauthorized, tooMany, forbidden, serverError, validateOrigin } from '@/lib/api-response';
 import type { SalesRecord } from '@/lib/sales-types';
 import { logError } from '@/lib/logger';
+import { listSalesRecordsDb } from '@/lib/sales-db';
 
 type RecordDoc = SalesRecord & { id: string };
 
@@ -24,11 +25,11 @@ export async function GET(request: NextRequest) {
       return unauthorized();
     }
 
-    const db = getAdminFirestore();
-    const snapshot = await db.collection('sales_records').orderBy('serialNumber', 'desc').limit(2000).get();
-    const records: RecordDoc[] = snapshot.docs
-      .filter((doc) => !doc.data().deletedAt)
-      .map((doc) => ({ id: doc.id, ...doc.data() }) as RecordDoc);
+    // Agents always export — but only their own records.
+    const agentName = isSuperAdmin(admin.email) ? undefined : salesAgentForEmail(admin.email);
+    const records: RecordDoc[] = agentName
+      ? (await listSalesRecordsDb()).filter((r) => r.salesAgent === agentName)
+      : await listSalesRecordsDb();
 
     const headers = [
       'Serial Number',

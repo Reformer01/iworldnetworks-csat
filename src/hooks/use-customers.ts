@@ -28,6 +28,9 @@ export interface CustomerRecord {
   churnSurveySentAt: number | null;
   churnSurveyToken: string | null;
   emailOptOut: boolean;
+  btsName?: string | null;
+  matchState?: string | null;
+  matchMethod?: string | null;
   churnResponse: { rating: number | null; reason: string | null; comment: string | null } | null;
   overdueInvoice: {
     hasOverdueInvoice: boolean;

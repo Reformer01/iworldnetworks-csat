@@ -440,7 +440,7 @@ export default function SalesRecords() {
                 {editId ? 'Edit an existing sales record.' : 'Add a new customer sales record.'}
               </DialogDescription>
             </DialogHeader>
-            <div className="grid grid-cols-2 gap-4 py-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 py-4">
               <div className="col-span-2">
                 <label className="font-mono text-[10px] uppercase font-bold text-on-surface-variant">Customer Name</label>
                 <Input

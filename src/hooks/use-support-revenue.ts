@@ -121,6 +121,7 @@ export function useSupportRevenue(options: UseSupportRevenueOptions = {}) {
   }, [user, options.projectType]);
 
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     fetchRecords();
     return () => {};
   }, [fetchRecords]);

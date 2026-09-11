@@ -12,8 +12,15 @@ export type ApiResponse<T> =
       code?: string;
     };
 
+// Admin APIs are authenticated, per-user views of live data. Never let the
+// browser or an edge proxy (LiteSpeed) serve a stale copy: a cached response
+// is how "deleted records still visible" and "new entries invisible" bugs
+// reach the team. The in-process route cache (route-cache.ts) still dedupes
+// database reads server-side; this only forbids HTTP-level caching.
+const NO_STORE_HEADERS = { 'Cache-Control': 'no-store, max-age=0' };
+
 export function success<T>(data: T, status = 200) {
-  return NextResponse.json({ success: true, data } satisfies ApiResponse<T>, { status });
+  return NextResponse.json({ success: true, data } satisfies ApiResponse<T>, { status, headers: NO_STORE_HEADERS });
 }
 
 export function error(message: string, status = 400, opts?: { errors?: Record<string, string[]>; code?: string }) {
@@ -24,7 +31,7 @@ export function error(message: string, status = 400, opts?: { errors?: Record<st
       ...(opts?.errors ? { errors: opts.errors } : {}),
       ...(opts?.code ? { code: opts.code } : {}),
     } satisfies ApiResponse<never>,
-    { status },
+    { status, headers: NO_STORE_HEADERS },
   );
 }
 

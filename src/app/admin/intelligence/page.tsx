@@ -1,7 +1,6 @@
 'use client';
 
 import React, { useMemo, useState } from 'react';
-import { SalesLayout } from '@/components/layout/SalesLayout';
 import { useIntelligence } from '@/hooks/use-intelligence';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
@@ -29,6 +28,12 @@ import {
   Eye,
 } from 'lucide-react';
 import { ResponsiveContainer, PieChart, Pie, Cell, Tooltip, BarChart, Bar, XAxis, YAxis, CartesianGrid } from 'recharts';
+import { ChartContainer, ChartTooltip, ChartTooltipContent } from '@/components/ui/chart';
+import { NumberTicker } from '@/components/ui/number-ticker';
+import { MagicCard } from '@/components/ui/magic-card';
+import { AnimatedCounter } from '@/components/ui/animated-counter';
+import { BarList } from '@/components/ui/bar-list';
+import { SalesLayout } from '@/components/layout/SalesLayout';
 
 function SectionCard({ children, className }: { children: React.ReactNode; className?: string }) {
   return <div className={cn('bg-white p-5 md:p-6 rounded-2xl whisper-shadow border border-border', className)}>{children}</div>;
@@ -50,33 +55,38 @@ function KpiCard({
   hint?: string;
 }) {
   return (
-    <SectionCard className="flex items-center gap-4 p-4">
-      <div className={cn('w-11 h-11 rounded-xl flex items-center justify-center shrink-0', color)}>
+    <SectionCard className="flex items-center gap-3 md:gap-4 p-4 min-w-0">
+      <div className={cn('w-10 h-10 md:w-11 md:h-11 rounded-xl flex items-center justify-center shrink-0', color)}>
         <Icon className="w-5 h-5 text-white" />
       </div>
       <div className="min-w-0 flex-1">
-        <p className="font-mono text-[9px] uppercase tracking-widest font-bold text-on-surface-variant">{label}</p>
-        <p className="font-display text-xl font-black text-primary truncate">{value}</p>
-        {sub && <p className="font-mono text-[10px] font-bold text-on-surface-variant/70 truncate">{sub}</p>}
-        {hint && <p className="font-mono text-[9px] text-on-surface-variant/50 truncate">{hint}</p>}
+        <p className="font-mono text-[9px] uppercase tracking-widest font-bold text-on-surface-variant truncate">{label}</p>
+        <p className="font-display text-lg xl:text-xl font-black text-primary break-words" title={value}>{value}</p>
+        {sub && <p className="font-mono text-[10px] font-bold text-on-surface-variant/70 truncate" title={sub}>{sub}</p>}
+        {hint && <p className="font-mono text-[9px] text-on-surface-variant/50 truncate" title={hint}>{hint}</p>}
       </div>
     </SectionCard>
   );
 }
 
 function DonutChart({ data, colors }: { data: Array<{ name: string; value: number }>; colors: string[] }) {
+  // Prebuilt-inspired: shadcn ChartContainer + Pie, themed via CSS vars, animated
   return (
-    <ResponsiveContainer width="100%" height={200}>
+    <ChartContainer config={{ value: { label: 'Count' } }} className="h-[200px] w-full">
       <PieChart>
-        <Pie data={data} dataKey="value" nameKey="name" cx="50%" cy="50%" innerRadius={56} outerRadius={82} paddingAngle={2}>
+        <Pie data={data} dataKey="value" nameKey="name" cx="50%" cy="50%" innerRadius={56} outerRadius={82} paddingAngle={2} isAnimationActive>
           {data.map((_, i) => (
             <Cell key={i} fill={colors[i % colors.length]} />
           ))}
         </Pie>
-        <Tooltip contentStyle={{ borderRadius: 12, fontSize: 11, border: 'none', boxShadow: '0 8px 24px rgba(0,0,0,0.12)' }} />
+        <ChartTooltip content={<ChartTooltipContent />} />
       </PieChart>
-    </ResponsiveContainer>
+    </ChartContainer>
   );
+}
+
+function AnimatedKpi({ label, value, sub, icon: Icon, color, samples }: { label: string; value: number; sub?: string; icon: React.ElementType; color: string; samples?: number[] }) {
+  return <AnimatedCounter label={label} value={value} sub={sub} icon={Icon} color={color} samples={samples} />;
 }
 
 function fmtNaira(n: number) {
@@ -143,6 +153,7 @@ export default function IntelligencePage() {
 
   return (
     <SalesLayout>
+      <>
       <div className="max-w-screen-2xl mx-auto">
         {/* Header */}
         <header className="flex flex-col lg:flex-row justify-between gap-4 mb-6">
@@ -182,91 +193,43 @@ export default function IntelligencePage() {
           </div>
         </header>
 
-        {/* KPI GRID — Row 1: accurate totals, no mismatched % */}
-        <div className="grid grid-cols-2 md:grid-cols-4 xl:grid-cols-8 gap-3 mb-4">
-          <KpiCard label="Total" value={fmt(data.totals.total)} icon={Users} color="bg-slate-900" sub="All customers (deleted=false)" />
-          <KpiCard
-            label="Active"
-            value={fmt(data.totals.active)}
-            sub={`${data.lifecycle[0].percent}% · ${fmtNaira(data.totals.activeMrr)} MRR`}
-            icon={CheckCircle2}
-            color="bg-emerald-600"
-          />
-          <KpiCard
-            label="In-Use"
-            value={fmt(data.totals.online)}
-            sub={`${data.totals.total ? Math.round((data.totals.online / data.totals.total) * 10) / 10 : 0}% online now`}
-            icon={Zap}
-            color="bg-sky-600"
-          />
-          <KpiCard
-            label="Inactive"
-            value={fmt(data.totals.inactive)}
-            sub={`${data.lifecycle[1].percent}%`}
-            icon={Activity}
-            color="bg-orange-500"
-          />
-          <KpiCard
-            label="Blocked"
-            value={fmt(data.totals.blocked)}
-            sub={`${data.lifecycle[2].percent}%`}
-            icon={ShieldAlert}
-            color="bg-amber-500"
-          />
-          <KpiCard
-            label="Churned"
-            value={fmt(data.totals.churned)}
-            sub={`${data.lifecycle[3].percent}%`}
-            icon={TrendingUp}
-            color="bg-zinc-500"
-          />
-          <KpiCard
-            label="Overdue"
-            value={fmt(data.totals.overdue)}
-            sub={`${data.totals.overdueRate}% — need attention`}
-            icon={CreditCard}
-            color="bg-rose-600"
-          />
-          <KpiCard
-            label="Avg MRR"
-            value={fmtNaira(data.totals.avgMrr)}
-            sub={`${fmtNaira(data.totals.totalMrr)} total`}
-            icon={DollarSign}
-            color="bg-violet-600"
-          />
+        {/* KPI GRID — Row 1: prebuilt animated counters (NumberTicker + live dot + mini-bar) */}
+        <div className="grid grid-cols-2 md:grid-cols-4 2xl:grid-cols-8 gap-3 mb-4">
+          <AnimatedKpi label="Total" value={data.totals.total} icon={Users} color="bg-slate-900" sub="deleted=false" samples={[40, 65, 55, 80, 60, 90, 70, 85, 75, 95, 60, 80]} />
+          <AnimatedKpi label="Active" value={data.totals.active} sub={`${data.lifecycle[0].percent}% · ${fmtNaira(data.totals.activeMrr)}`} icon={CheckCircle2} color="bg-emerald-600" />
+          <AnimatedKpi label="In-Use" value={data.totals.online} sub={`${data.totals.total ? Math.round((data.totals.online / data.totals.total) * 10) / 10 : 0}% online`} icon={Zap} color="bg-sky-600" />
+          <AnimatedKpi label="Inactive" value={data.totals.inactive} sub={`${data.lifecycle[1].percent}%`} icon={Activity} color="bg-orange-500" />
+          <AnimatedKpi label="Blocked" value={data.totals.blocked} sub={`${data.lifecycle[2].percent}%`} icon={ShieldAlert} color="bg-amber-500" />
+          <AnimatedKpi label="Churned" value={data.totals.churned} sub={`${data.lifecycle[3].percent}%`} icon={TrendingUp} color="bg-zinc-500" />
+          <AnimatedKpi label="Overdue" value={data.totals.overdue} sub={`${data.totals.overdueRate}% need attention`} icon={CreditCard} color="bg-rose-600" />
+          <AnimatedKpi label="Avg MRR" value={data.totals.avgMrr} icon={DollarSign} color="bg-violet-600" sub={`${fmtNaira(data.totals.totalMrr)} total`} />
         </div>
 
-        {/* KPI ROW 2: coverage, engagement */}
+        {/* KPI ROW 2: coverage, engagement — now with animated counters */}
         <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-6">
-          <KpiCard
-            label="Matched"
-            value={`${100 - data.matchState[2].percent}%`}
-            sub={`${data.matchState[0].count + data.matchState[1].count} of ${data.totals.total} have a tower`}
-            icon={RadioTower}
-            color="bg-emerald-600"
-            hint={`${data.matchState[2].count} pending · ${data.matchState[2].percent}%`}
-          />
-          <KpiCard
-            label="Pending"
-            value={fmt(data.matchState[2].count)}
-            sub={`${data.matchState[2].percent}% need review`}
-            icon={AlertTriangle}
-            color="bg-amber-500"
-          />
-          <KpiCard
-            label="Reminders"
-            value={`${data.engagement.reminders15 + data.engagement.reminders30}`}
-            sub={`15d:${data.engagement.reminders15} · 30d:${data.engagement.reminders30}`}
-            icon={Clock3}
-            color="bg-sky-600"
-          />
-          <KpiCard
-            label="Churn Replies"
-            value={`${data.engagement.churnResponses} / ${data.engagement.churnSent}`}
-            sub={`${data.engagement.responseRate}% response rate`}
-            icon={MessageSquare}
-            color="bg-violet-600"
-          />
+          <SectionCard className="p-4 flex items-center gap-3">
+            <div className="w-10 h-10 rounded-xl bg-emerald-600 flex items-center justify-center shrink-0">
+              <RadioTower className="w-5 h-5 text-white" />
+            </div>
+            <div>
+              <p className="font-mono text-[9px] uppercase tracking-widest font-bold opacity-60">Coverage</p>
+              <p className="font-display text-xl font-black">
+                <NumberTicker value={100 - data.matchState[2].percent} decimalPlaces={1} />%
+              </p>
+              <p className="font-mono text-[10px] opacity-60">
+                {data.matchState[0].count + data.matchState[1].count} of {fmt(data.totals.total)} · {data.matchState[2].count} pending
+              </p>
+            </div>
+          </SectionCard>
+          <AnimatedKpi label="Pending" value={data.matchState[2].count} sub={`${data.matchState[2].percent}% need review`} icon={AlertTriangle} color="bg-amber-500" />
+          <AnimatedKpi label="Reminders" value={data.engagement.reminders15 + data.engagement.reminders30} sub={`15d:${data.engagement.reminders15} · 30d:${data.engagement.reminders30}`} icon={Clock3} color="bg-sky-600" />
+          <div className="bg-white p-5 rounded-2xl whisper-shadow border flex flex-col gap-1">
+            <p className="font-mono text-[9px] uppercase tracking-widest font-bold opacity-60">Churn Replies</p>
+            <p className="font-display text-xl font-black">
+              <NumberTicker value={data.engagement.churnResponses} /> / <NumberTicker value={data.engagement.churnSent} />
+            </p>
+            <p className="font-mono text-[10px] opacity-60">{data.engagement.responseRate}% response rate</p>
+          </div>
         </div>
 
         {/* CHARTS ROW — 3 donuts, no stacked % nonsense, just counts */}
@@ -367,7 +330,7 @@ export default function IntelligencePage() {
               </ResponsiveContainer>
             </div>
             <div className="overflow-x-auto mt-3">
-              <table className="w-full text-left border-collapse">
+              <table className="w-full min-w-[560px] text-left border-collapse">
                 <thead className="font-mono text-[10px] uppercase tracking-widest font-bold opacity-60 border-b">
                   <tr>
                     <th className="py-2">Region</th>
@@ -480,8 +443,8 @@ export default function IntelligencePage() {
             </div>
           </div>
 
-          <div className="overflow-x-auto">
-            <table className="w-full text-left border-collapse">
+          <div className="overflow-x-auto -mx-1 px-1">
+            <table className="w-full min-w-[760px] text-left border-collapse">
               <thead className="font-mono text-[10px] uppercase tracking-widest font-bold opacity-60 border-y bg-muted/30">
                 <tr>
                   <th className="py-3 px-4">Tower</th>
@@ -591,6 +554,7 @@ export default function IntelligencePage() {
           to re-sync.
         </p>
       </div>
+      </>
     </SalesLayout>
   );
 }

@@ -2,13 +2,13 @@
 
 import React, { useState, useEffect } from 'react';
 import { useSearchParams } from 'next/navigation';
-import { Star, Loader2, CheckCircle2, AlertCircle, ThumbsUp, ThumbsDown, Smile } from 'lucide-react';
+import { Star, Loader2, CheckCircle2, AlertCircle, ThumbsUp, ThumbsDown, Smile, XCircle } from 'lucide-react';
 import { cn, formatLocalDate } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
-import { resolveCategory, getCategoryLabel } from '@/lib/splynx-categories';
+import { resolveCategory, getCategoryLabel, FEEDBACK_CATEGORIES } from '@/lib/splynx-categories';
 import ShareFeedbackButtons from '@/components/ShareFormButtons';
 
 type PageState = 'loading' | 'form' | 'submitting' | 'success' | 'error';
@@ -28,19 +28,28 @@ export default function FeedbackPage() {
   const searchParams = useSearchParams();
   const token = searchParams.get('token');
   const subject = searchParams.get('subject');
-  const shareUrl = typeof window !== 'undefined' ? window.location.href : '';
+  const [shareUrl, setShareUrl] = useState('');
+  useEffect(() => { setShareUrl(window.location.href); }, []);
 
   const [pageState, setPageState] = useState<PageState>('loading');
   const [errorMessage, setErrorMessage] = useState('');
   const [customer, setCustomer] = useState<CustomerData | null>(null);
-  const [category, setCategory] = useState<string>('Reliability');
+  const [activeCategory, setActiveCategory] = useState<string>('Reliability');
 
   const [rating, setRating] = useState(0);
   const [hoveredRating, setHoveredRating] = useState(0);
   const [satisfied, setSatisfied] = useState<'yes' | 'no' | 'partially' | undefined>(undefined);
+  const [fcr, setFcr] = useState<'Yes' | 'No' | undefined>(undefined);
   const [invoiceAccuracy, setInvoiceAccuracy] = useState(0);
   const [hoveredInvoiceAccuracy, setHoveredInvoiceAccuracy] = useState(0);
   const [comment, setComment] = useState('');
+
+  // Initialize active category from URL subject or token
+  useEffect(() => {
+    if (subject && FEEDBACK_CATEGORIES.includes(subject as typeof FEEDBACK_CATEGORIES[number])) {
+      setActiveCategory(subject);
+    }
+  }, [subject]);
 
   useEffect(() => {
     if (!token) {
@@ -73,7 +82,12 @@ export default function FeedbackPage() {
             sourceEvent: data.sourceEvent,
           });
 
-          setCategory(resolveCategory({ subject, tokenCategory: data.category, sourceEvent: data.sourceEvent || '' }));
+          // If no explicit subject in URL, resolve from token
+          if (!subject) {
+            const resolved = resolveCategory({ subject: null, tokenCategory: data.category, sourceEvent: data.sourceEvent || '' });
+            setActiveCategory(resolved);
+          }
+
           setPageState('form');
         }
       } catch {
@@ -92,7 +106,7 @@ export default function FeedbackPage() {
 
   async function handleSubmit() {
     if (rating === 0 || pageState === 'submitting') return;
-    if (category === 'Billing' && invoiceAccuracy === 0) return;
+    if (activeCategory === 'Billing' && invoiceAccuracy === 0) return;
 
     setPageState('submitting');
     try {
@@ -103,8 +117,10 @@ export default function FeedbackPage() {
           token,
           rating,
           satisfied,
-          invoiceAccuracy: category === 'Billing' ? invoiceAccuracy : undefined,
+          fcr,
+          invoiceAccuracy: activeCategory === 'Billing' ? invoiceAccuracy : undefined,
           comment,
+          subject: activeCategory,
         }),
       });
       const data = await res.json();
@@ -204,21 +220,13 @@ export default function FeedbackPage() {
           <p className="font-mono text-[10px] uppercase tracking-widest font-bold text-secondary mb-1">Customer Experience Survey</p>
           <CardTitle className="text-2xl font-display font-bold">I-World Networks</CardTitle>
           <CardDescription className="text-white/70 text-xs mt-1">
-            Department Rated: <span className="font-bold underline text-white">{getCategoryLabel(category)}</span>
+            Department Rated: <span className="font-bold underline text-white">{getCategoryLabel(activeCategory)}</span>
           </CardDescription>
           {customer?.serviceDate && (
             <p className="text-white/80 text-[10px] mt-2">
               Experience date: <span className="font-bold">{formatLocalDate(customer.serviceDate, 'en-US')}</span>
             </p>
           )}
-          <ShareFeedbackButtons
-            url={shareUrl}
-            customerName={customer?.customerName}
-            subject={getCategoryLabel(category)}
-            label="Share this survey"
-            compact
-            className="absolute top-3 right-3"
-          />
         </div>
 
         <CardContent className="space-y-8 p-6 md:p-8">
@@ -238,7 +246,7 @@ export default function FeedbackPage() {
               </div>
               <div className="mt-1">
                 <span className="text-muted-foreground block">Plan</span>
-                <span className="font-semibold text-primary">{customer.servicePlan || 'Enterprise'}</span>
+                <span className="font-semibold text-primary">{customer.servicePlan || '—'}</span>
               </div>
               <div className="mt-1">
                 <span className="text-muted-foreground block">Experience Date</span>
@@ -325,8 +333,44 @@ export default function FeedbackPage() {
                 </div>
               </div>
 
-              {/* 3. Invoice Accuracy (Billing only) */}
-              {category === 'Billing' && (
+              {/* 3. First Contact Resolution (optional — powers the CES metric) */}
+              <div className="space-y-3">
+                <label className="text-sm font-semibold text-primary block uppercase tracking-wider font-mono">First Contact Resolution</label>
+                <p className="text-xs text-muted-foreground">Was your issue fixed on the first try?</p>
+
+                <div className="grid grid-cols-2 gap-3 pt-1">
+                  <button
+                    type="button"
+                    onClick={() => setFcr('Yes')}
+                    className={cn(
+                      'flex flex-col items-center gap-2 py-3 rounded-2xl border text-xs font-bold transition-all hover:scale-[1.02]',
+                      fcr === 'Yes'
+                        ? 'bg-green-500/10 border-green-500 text-green-600 dark:text-green-400 shadow-sm'
+                        : 'bg-background border-border text-muted-foreground hover:bg-muted/40',
+                    )}
+                  >
+                    <CheckCircle2 className="w-5 h-5" />
+                    Yes
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => setFcr('No')}
+                    className={cn(
+                      'flex flex-col items-center gap-2 py-3 rounded-2xl border text-xs font-bold transition-all hover:scale-[1.02]',
+                      fcr === 'No'
+                        ? 'bg-red-500/10 border-red-500 text-red-600 dark:text-red-400 shadow-sm'
+                        : 'bg-background border-border text-muted-foreground hover:bg-muted/40',
+                    )}
+                  >
+                    <XCircle className="w-5 h-5" />
+                    No
+                  </button>
+                </div>
+              </div>
+
+              {/* 4. Invoice Accuracy (Billing only) */}
+              {activeCategory === 'Billing' && (
                 <div className="space-y-3 border-t border-border/50 pt-6">
                   <h3 className="text-sm font-semibold text-primary uppercase tracking-wider font-mono">Invoice Accuracy</h3>
                   <p className="text-xs text-muted-foreground">Was the invoice amount correct and clear?</p>
@@ -352,7 +396,7 @@ export default function FeedbackPage() {
                 </div>
               )}
 
-              {/* 4. Optional Comment */}
+              {/* 5. Optional Comment */}
               <div className="space-y-2 border-t border-border/50 pt-6">
                 <label className="text-sm font-semibold text-primary block uppercase tracking-wider font-mono">Additional Comments</label>
                 <Textarea
@@ -370,11 +414,11 @@ export default function FeedbackPage() {
         </CardContent>
 
         <CardFooter className="flex-col gap-3 p-6 md:p-8 bg-muted/10 border-t border-border/50">
-          <ShareFeedbackButtons url={shareUrl} customerName={customer?.customerName} subject={getCategoryLabel(category)} />
+          <ShareFeedbackButtons url={shareUrl} customerName={customer?.customerName} subject={getCategoryLabel(activeCategory)} />
           <Button
             className="w-full py-6 rounded-full font-mono text-xs uppercase tracking-widest font-bold shadow-lg transition-all"
             size="lg"
-            disabled={rating === 0 || (category === 'Billing' && invoiceAccuracy === 0) || pageState === 'submitting'}
+            disabled={rating === 0 || (activeCategory === 'Billing' && invoiceAccuracy === 0) || pageState === 'submitting'}
             onClick={handleSubmit}
           >
             {pageState === 'submitting' ? (

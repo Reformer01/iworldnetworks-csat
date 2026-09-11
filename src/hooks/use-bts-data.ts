@@ -1,30 +1,31 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useAuth, useUser } from '@/firebase';
 import { isAllowedDomain } from '@/lib/admin-config';
-import type { User } from 'firebase/auth';
-import type { BtsCustomerDoc, BtsCustomersSummary } from '@/app/api/admin/bts/customers/route';
+import type { UnifiedCustomerRecord, UnifiedRosterSummary } from '@/app/api/admin/bts/customers/route';
 
 interface BtsCustomersResponse {
-  records: BtsCustomerDoc[];
+  records: UnifiedCustomerRecord[];
   total: number;
   page: number;
   pageSize: number;
   totalPages: number;
-  summary: BtsCustomersSummary;
+  summary: UnifiedRosterSummary;
 }
 
 export function useBtsCustomers(params?: {
+  btsName?: string;
   region?: string;
-  status?: string;
+  lifecycle?: string;
   accountType?: string;
+  overdue?: 'true' | 'false';
   search?: string;
   page?: number;
   pageSize?: number;
 }) {
   const auth = useAuth();
   const { user, loading: authLoading } = useUser(auth);
-  const [records, setRecords] = useState<BtsCustomerDoc[]>([]);
-  const [summary, setSummary] = useState<BtsCustomersSummary | null>(null);
+  const [records, setRecords] = useState<UnifiedCustomerRecord[]>([]);
+  const [summary, setSummary] = useState<UnifiedRosterSummary | null>(null);
   const [total, setTotal] = useState(0);
   const [totalPages, setTotalPages] = useState(1);
   const [loading, setLoading] = useState(true);
@@ -43,9 +44,11 @@ export function useBtsCustomers(params?: {
         if (showLoading) setLoading(true);
         const token = await user.getIdToken();
         const sp = new URLSearchParams();
+        if (params?.btsName) sp.set('btsName', params.btsName);
         if (params?.region) sp.set('region', params.region);
-        if (params?.status) sp.set('status', params.status);
+        if (params?.lifecycle) sp.set('lifecycle', params.lifecycle);
         if (params?.accountType) sp.set('accountType', params.accountType);
+        if (params?.overdue) sp.set('overdue', params.overdue);
         if (params?.search) sp.set('search', params.search);
         if (params?.page) sp.set('page', String(params.page));
         if (params?.pageSize) sp.set('pageSize', String(params.pageSize));
@@ -67,7 +70,7 @@ export function useBtsCustomers(params?: {
         if (showLoading) setLoading(false);
       }
     },
-    [user, authLoading, params?.region, params?.status, params?.accountType, params?.search, params?.page, params?.pageSize],
+    [user, authLoading, params?.btsName, params?.region, params?.lifecycle, params?.accountType, params?.overdue, params?.search, params?.page, params?.pageSize],
   );
 
   useEffect(() => {
@@ -76,19 +79,4 @@ export function useBtsCustomers(params?: {
   }, [fetchCustomers]);
 
   return { records, summary, total, totalPages, loading, error, mutate: () => fetchCustomers(true) };
-}
-
-export async function deleteBtsCustomer(id: string, user: User) {
-  const token = await user.getIdToken();
-  const res = await fetch('/api/admin/bts/customers', {
-    method: 'DELETE',
-    headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-    body: JSON.stringify({ id }),
-  });
-  if (!res.ok) {
-    const d = await res.json().catch(() => ({}));
-    throw new Error(d.error || 'Failed to delete');
-  }
-  const result = await res.json();
-  return result.data as { action: string };
 }

@@ -24,6 +24,21 @@ next-env.d.ts
 !.env.example
 firebase-debug.log
 firestore-debug.log
+/dev-server.log
 .idx/
 skills-lock.json
 *.service-account.json
+.deploy-credentials.local
+.env.local
+
+# Playwright e2e (never commit reports, traces, or e2e creds)
+/test-results
+/playwright-report
+/playwright/.cache
+Blob-report
+.env.e2e
+
+# Internal tooling
+.opencode/
+.agents/
+.freebuff/

@@ -1,11 +1,13 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getAdminFirestore } from '@/lib/firebase-admin';
+import { getFeedbackById, updateFeedback } from '@/lib/lib/db/feedbacks';
 import { verifyAdminToken } from '@/lib/admin-auth';
 import { isRateLimited } from '@/lib/rate-limit';
-import { logError } from '@/lib/logger';
+import { logError, logWarn } from '@/lib/logger';
 import { feedbackSchema } from '@/lib/validations/feedback';
 import { z } from 'zod';
 import { validateOrigin, forbidden } from '@/lib/api-response';
+import { getAdminFirestore } from '@/lib/firebase-admin';
+import type { FeedbackDoc } from '@/lib/feedback-types';
 
 const editFeedbackSchema = feedbackSchema.partial().extend({
   feedbackId: z.string().min(1, 'feedbackId is required'),
@@ -54,26 +56,31 @@ export async function POST(request: NextRequest) {
 
     const { feedbackId, ...updateFields } = validation.data;
 
-    // 4. Firestore update
-    const db = getAdminFirestore();
-    const docRef = db.collection('feedbacks').doc(feedbackId);
-    const docSnap = await docRef.get();
-
-    if (!docSnap.exists) {
+    // 4. MariaDB update (source of truth)
+    const existing = await getFeedbackById(feedbackId);
+    if (!existing) {
       return NextResponse.json(
         { success: false, error: 'Feedback record not found.' },
         { status: 404 }
       );
     }
 
-    // Clean up fields to avoid undefined values
-    const cleanedFields: Record<string, any> = Object.fromEntries(
+    const cleanedFields: Record<string, unknown> = Object.fromEntries(
       Object.entries(updateFields).filter(([_, v]) => v !== undefined)
     );
 
     cleanedFields.updatedAt = Date.now();
 
-    await docRef.update(cleanedFields);
+    await updateFeedback(feedbackId, cleanedFields as Partial<FeedbackDoc>);
+
+    // 5. Best-effort Firestore mirror (rollback only)
+    try {
+      await getAdminFirestore().collection('feedbacks').doc(feedbackId).update(cleanedFields);
+    } catch (mirrorErr) {
+      logWarn('[edit-feedback] Firestore mirror failed (best-effort)', {
+        error: mirrorErr instanceof Error ? mirrorErr.message : String(mirrorErr),
+      });
+    }
 
     return NextResponse.json({ success: true, message: 'Feedback record updated successfully.' }, { status: 200 });
   } catch (err: unknown) {

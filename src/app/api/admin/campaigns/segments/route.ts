@@ -12,25 +12,47 @@ export const dynamic = 'force-dynamic';
 // Values come from the unified Customer table (Splynx commercial tags + UISP
 // BTS data).
 async function getSegmentOptions() {
+  // Group only emailable base audience so counts match what Count/Send actually use
+  const baseWhere = { deleted: false } as const;
   const [lifecycles, cities, statuses, servicePlans, bts] = await Promise.all([
-    prisma.customer.groupBy({ by: ['lifecycle'], where: { deleted: false }, _count: { _all: true } }),
-    prisma.customer.groupBy({ by: ['city'], where: { deleted: false }, _count: { _all: true } }),
-    prisma.customer.groupBy({ by: ['status'], where: { deleted: false }, _count: { _all: true } }),
-    prisma.customer.groupBy({ by: ['servicePlan'], where: { deleted: false }, _count: { _all: true } }),
-    prisma.customer.groupBy({ by: ['btsId'], where: { deleted: false }, _count: { _all: true } }),
+    prisma.customer.groupBy({ by: ['lifecycle'], where: baseWhere, _count: { _all: true } }),
+    prisma.customer.groupBy({ by: ['city'], where: baseWhere, _count: { _all: true } }),
+    prisma.customer.groupBy({ by: ['status'], where: baseWhere, _count: { _all: true } }),
+    prisma.customer.groupBy({ by: ['servicePlan'], where: baseWhere, _count: { _all: true } }),
+    prisma.customer.groupBy({ by: ['btsId'], where: baseWhere, _count: { _all: true } }),
   ]);
   const toOptions = (rows: Array<Record<string, unknown> & { _count: { _all: number } }>, key: string) =>
     rows
-      .filter((r) => !!r[key])
-      .map((r) => ({ value: String(r[key]), count: r._count._all }))
-      .sort((a, b) => b.count - a.count);
+      .filter((r) => {
+        const v = r[key];
+        if (!v || typeof v !== 'string') return false;
+        const s = v.trim();
+        return s.length > 0 && s !== 'N/A' && s !== '—';
+      })
+      .map((r) => ({ value: String(r[key]).trim(), count: r._count._all }))
+      .sort((a, b) => b.count - a.count)
+      .slice(0, 150);
+  const btsWithNames = await resolveBtsNames(toOptions(bts, 'btsId'));
   return {
     lifecycle: toOptions(lifecycles, 'lifecycle'),
     city: toOptions(cities, 'city'),
     status: toOptions(statuses, 'status'),
     servicePlan: toOptions(servicePlans, 'servicePlan'),
-    bts: toOptions(bts, 'btsId'),
+    bts: btsWithNames,
   };
+}
+
+// Resolve btsId → human name via UispSite when available; falls back to raw id
+async function resolveBtsNames(opts: Array<{ value: string; count: number }>) {
+  if (!opts.length) return opts;
+  try {
+    const ids = opts.map((o) => o.value);
+    const sites = await prisma.uispSite.findMany({ where: { id: { in: ids } }, select: { id: true, name: true } });
+    const nameById = new Map(sites.map((s) => [s.id, s.name]));
+    return opts.map((o) => ({ value: o.value, count: o.count, label: nameById.get(o.value) ?? o.value } as { value: string; count: number }));
+  } catch {
+    return opts;
+  }
 }
 
 export async function GET(request: NextRequest) {

@@ -2,7 +2,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 
 vi.mock('@/lib/prisma', () => ({
   prisma: {
-    campaign: { findUnique: vi.fn() },
+    campaign: { findUnique: vi.fn(), updateMany: vi.fn() },
     customer: { findMany: vi.fn(), count: vi.fn() },
     emailJob: { groupBy: vi.fn() },
   },
@@ -41,6 +41,7 @@ const mockedMarkFailed = vi.mocked(markEmailJobFailed);
 beforeEach(() => {
   vi.clearAllMocks();
   mockQueue.add.mockResolvedValue({ id: 'bull-1' });
+  mockedPrisma.campaign.updateMany.mockResolvedValue({ count: 1 });
 });
 
 describe('buildAudienceWhere', () => {
@@ -79,14 +80,14 @@ describe('resolveAudienceIds', () => {
 });
 
 describe('sendCampaign', () => {
-  it('throws when campaign does not exist', async () => {
-    mockedPrisma.campaign.findUnique.mockResolvedValue(null);
-    await expect(sendCampaign('nope')).rejects.toThrow('Campaign not found');
+  it('throws when campaign does not exist (or is not a draft)', async () => {
+    mockedPrisma.campaign.updateMany.mockResolvedValueOnce({ count: 0 });
+    await expect(sendCampaign('nope')).rejects.toThrow('Campaign cannot be sent');
   });
 
   it('throws when campaign is not a draft', async () => {
-    mockedPrisma.campaign.findUnique.mockResolvedValue({ id: 'c1', status: 'sent' } as never);
-    await expect(sendCampaign('c1')).rejects.toThrow('status: sent');
+    mockedPrisma.campaign.updateMany.mockResolvedValueOnce({ count: 0 });
+    await expect(sendCampaign('c1')).rejects.toThrow('Campaign cannot be sent');
   });
 
   it('creates one EmailJob + one queue job per recipient and returns the count', async () => {

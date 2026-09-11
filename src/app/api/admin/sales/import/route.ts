@@ -1,12 +1,14 @@
 import { NextRequest } from 'next/server';
-import { getAdminFirestore } from '@/lib/firebase-admin';
 import { verifyAdminToken } from '@/lib/admin-auth';
 import { isRateLimited } from '@/lib/rate-limit';
 import { salesImportSchema } from '@/lib/validations/sales';
 import { getRegionForLocation, getSegmentForPlan, getQuarterFromMonth, getBtsForLocation } from '@/lib/sales-staff';
+import { resolveCustomerBts } from '@/lib/bts-resolver';
 import { success, error, unauthorized, forbidden, tooMany, serverError, validateOrigin } from '@/lib/api-response';
 import { writeAuditLog } from '@/lib/audit-log';
 import { logError } from '@/lib/logger';
+import { createSalesRecordDb, createSalesImportDb } from '@/lib/sales-db';
+import { clearRouteCache } from '@/lib/route-cache';
 
 export async function POST(request: NextRequest) {
   try {
@@ -34,38 +36,41 @@ export async function POST(request: NextRequest) {
 
     const { records, source, fileName } = validation.data;
 
-    const db = getAdminFirestore();
     const batchId = `import_${Date.now()}`;
-    const enrichedRecords = records.map((r) => {
-      const suggestedBts = getBtsForLocation(r.location || '');
-      const assignedBts = r.bts || suggestedBts[0]?.name || '';
-      return {
-        ...r,
-        region: getRegionForLocation(r.location || ''),
-        segment: r.planCode ? getSegmentForPlan(r.planCode) : 'ENTERPRISE',
-        quarter: r.quarter || getQuarterFromMonth(r.month),
-        bts: assignedBts,
-        importBatchId: batchId,
-        createdAt: Date.now(),
-        updatedAt: Date.now(),
-      };
-    });
+    const now = Date.now();
+    const enrichedRecords = await Promise.all(
+      records.map(async (r) => {
+        // UISP-first BTS attribution (falls back to static station list).
+        const resolved = await resolveCustomerBts(r.customerName);
+        const suggestedBts = getBtsForLocation(r.location || '');
+        const assignedBts = r.bts || resolved?.btsName || suggestedBts[0]?.name || '';
+        return {
+          ...r,
+          region: getRegionForLocation(r.location || ''),
+          segment: r.planCode ? getSegmentForPlan(r.planCode) : 'ENTERPRISE',
+          quarter: r.quarter || getQuarterFromMonth(r.month),
+          bts: assignedBts,
+          importBatchId: batchId,
+          customerType: r.customerType ?? 'new',
+          createdAt: now,
+          updatedAt: now,
+        };
+      }),
+    );
 
-    const batch = db.batch();
+    // MariaDB-first batch insert. Firestore mirror is skipped for imports
+    // (hundreds/thousands of writes would blow the write quota; the hourly
+    // picture is preserved by the DB).
     for (const record of enrichedRecords) {
-      const docRef = db.collection('sales_records').doc();
-      batch.set(docRef, record);
+      await createSalesRecordDb(record);
     }
-    await batch.commit();
 
-    await db.collection('sales_imports').add({
+    await createSalesImportDb({
       batchId,
       source,
       fileName: fileName || '',
       recordCount: enrichedRecords.length,
-      importedAt: Date.now(),
       importedBy: admin.email,
-      status: 'completed',
     });
 
     await writeAuditLog({
@@ -75,6 +80,8 @@ export async function POST(request: NextRequest) {
       userEmail: admin.email,
       metadata: { batchId, recordCount: enrichedRecords.length, source, fileName },
     });
+
+    clearRouteCache();
 
     return success({ batchId, recordCount: enrichedRecords.length }, 201);
   } catch (err: unknown) {

@@ -5,6 +5,8 @@ import { incrementNonce } from '@/lib/splynx-nonce';
 import { logError, logWarn, logInfo } from '@/lib/logger';
 import { sendFeedbackEmail } from '@/lib/email';
 import { createFeedbackToken, findFeedbackTokenByEventHash, findRecentFeedbackToken, getFeedbackBaseUrl } from '@/lib/feedback-token';
+import { prisma } from '@/lib/prisma';
+import { createEmailJob, markEmailJobSent, markEmailJobFailed } from '@/lib/repositories/email-job-repo';
 
 let lastSplynxNonce = 0;
 
@@ -196,6 +198,44 @@ export async function POST(request: NextRequest) {
       sourceEvent: call || model,
     };
 
+    // MAIL POLICY (hard rule): feedback emails fire ONLY for payment-made or
+    // ticket events. Everything else — invoice create/update churn,
+    // nightly cron, customer edits — is acknowledged and dropped.
+    // Splynx models arrive fully qualified, e.g. 'models\common\finance\Payments'.
+    const modelLower = model.toLowerCase();
+    const isPaymentEvent = /finance\\\\payments$/.test(modelLower) || modelLower.endsWith('payments');
+    const isTicketEvent = modelLower.includes('ticket');
+    if (!isPaymentEvent && !isTicketEvent) {
+      logInfo('[splynx-webhook] Event not payment/ticket — no email', { customerId, model, call });
+      return NextResponse.json({ success: true, skipped: true, reason: 'event_not_email_eligible' });
+    }
+
+    // Opt-out + recipient lock: resolve the customer STRICTLY from our own
+    // database by customerId. The event's raw attributes.email is never
+    // trusted — mail goes only to the customer the event is about.
+    if (customerId) {
+      try {
+        const cust = await prisma.customer.findUnique({
+          where: { customerId },
+          select: { email: true, customerName: true, emailOptOut: true },
+        });
+        if (!cust) {
+          logInfo('[splynx-webhook] Customer not in master DB — skipping email', { customerId });
+          return NextResponse.json({ success: true, skipped: true, reason: 'unknown_customer' });
+        }
+        if (cust.emailOptOut) {
+          logInfo('[splynx-webhook] Customer opted out — skipping email', { customerId });
+          return NextResponse.json({ success: true, skipped: true, reason: 'customer_opted_out' });
+        }
+        if (cust.email) {
+          customerData.customerEmail = cust.email;
+          customerData.customerName = cust.customerName || customerData.customerName;
+        }
+      } catch {
+        /* lookup failure must not block the webhook */
+      }
+    }
+
     // Deduplicate by customer + event type (24h window)
     if (customerData.customerEmail && customerData.sourceEvent) {
       const recentToken = await findRecentFeedbackToken(customerData.customerEmail, customerData.sourceEvent);
@@ -269,13 +309,24 @@ export async function POST(request: NextRequest) {
     const popupUrl = `${baseUrl}/feedback/popup?token=${token}&embed=true`;
 
     if (customerData.customerEmail) {
+      // Full audit trail: EVERY email gets an EmailJob row — who, when, status.
+      const emailJobId = await createEmailJob({
+        type: 'feedback_request',
+        customerId: customerId || undefined,
+        customerEmail: customerData.customerEmail,
+        customerName: customerData.customerName,
+        payload: { feedbackUrl, sourceEvent: customerData.sourceEvent },
+      });
       sendFeedbackEmail({
         to: customerData.customerEmail,
         customerName: customerData.customerName,
         feedbackUrl,
-      }).catch((emailErr) => {
-        logWarn('[splynx-webhook] Email send failed', { email: customerData.customerEmail, error: String(emailErr) });
-      });
+      })
+        .then(() => markEmailJobSent(emailJobId))
+        .catch((emailErr) => {
+          logWarn('[splynx-webhook] Email send failed', { email: customerData.customerEmail, error: String(emailErr) });
+          void markEmailJobFailed(emailJobId, String(emailErr), 0);
+        });
     }
 
     logInfo('[splynx-webhook] Token generated', { customerId, customerEmail: customerData.customerEmail });

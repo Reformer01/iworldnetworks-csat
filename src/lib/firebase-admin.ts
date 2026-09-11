@@ -41,5 +41,20 @@ export function getAdminApp(): App {
 export function getAdminFirestore(): Firestore {
   if (adminDb) return adminDb;
   adminDb = getFirestore(getAdminApp());
+  // Strip undefined fields before writes. Several admin routes build docs
+  // from optional request fields; without this, Firestore rejects the
+  // document with "Cannot use undefined as a Firestore value".
+  //
+  // NOTE: getFirestore() returns the SAME cached Firestore instance per app,
+  // but Next.js bundles this module separately per route/instrumentation, so
+  // each bundle has its own `adminDb` cache. Calling settings() on an instance
+  // already initialized by another bundle throws "settings() can only be
+  // called once" — the option is idempotent, so the first caller wins and we
+  // must swallow that error here.
+  try {
+    adminDb.settings({ ignoreUndefinedProperties: true });
+  } catch {
+    // Already initialized by another bundle; setting is already applied.
+  }
   return adminDb;
 }

@@ -3,6 +3,7 @@
 import React, { useState, useMemo, useCallback } from 'react';
 import { DateRange } from 'react-day-picker';
 import { AdminLayout } from '@/components/layout/AdminLayout';
+import { MobileToolbar } from '@/components/admin/MobileToolbar';
 import {
   Database,
   Plus,
@@ -11,13 +12,7 @@ import {
   Search,
   SlidersHorizontal,
   Loader2,
-  CheckCircle,
-  XCircle,
   AlertTriangle,
-  User,
-  MapPin,
-  Calendar,
-  Layers,
   ChevronLeft,
   ChevronRight,
 } from 'lucide-react';
@@ -33,6 +28,42 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogD
 import { cn, toLocalDateString } from '@/lib/utils';
 import { DateRangePicker } from '@/components/ui/date-range-picker';
 import { DatePicker } from '@/components/ui/date-picker';
+
+type FeedbackCategory = 'Reliability' | 'Support' | 'FieldSupport' | 'Testimonials' | 'Installation' | 'Billing';
+type FeedbackStatus = 'open' | 'resolved' | 'escalated';
+
+interface RatingField {
+  key: string;
+  label: string;
+  type: 'rating' | 'select';
+  options?: string[];
+}
+
+interface CategoryFields {
+  Reliability: RatingField[];
+  Support: RatingField[];
+  FieldSupport: RatingField[];
+  Testimonials: RatingField[];
+  Installation: RatingField[];
+  Billing: RatingField[];
+}
+
+const CATEGORY_KEYS: readonly string[] = [
+  'Reliability',
+  'Support',
+  'FieldSupport',
+  'Testimonials',
+  'Installation',
+  'Billing',
+];
+
+function isCategory(value: string | undefined): value is FeedbackCategory {
+  return value !== undefined && CATEGORY_KEYS.includes(value);
+}
+
+function isFeedbackStatus(value: string | undefined): value is FeedbackStatus {
+  return value === 'open' || value === 'resolved' || value === 'escalated';
+}
 
 export default function AdminCrud() {
   const auth = useAuth();
@@ -56,7 +87,7 @@ export default function AdminCrud() {
   const [isEditOpen, setIsEditOpen] = useState(false);
   const [isDeleteOpen, setIsDeleteOpen] = useState(false);
 
-  const [selectedRecord, setSelectedRecord] = useState<any>(null);
+  const [selectedRecord, setSelectedRecord] = useState<FeedbackDoc | null>(null);
   const [isActionLoading, setIsActionLoading] = useState(false);
 
   // Form State
@@ -66,7 +97,7 @@ export default function AdminCrud() {
     'Reliability' | 'Support' | 'FieldSupport' | 'Testimonials' | 'Installation' | 'Billing'
   >('Reliability');
   const [formLocation, setFormLocation] = useState('Ibadan');
-  const [formPlan, setFormPlan] = useState('Enterprise');
+  const [formPlan, setFormPlan] = useState('');
   const [formComment, setFormComment] = useState('');
   const [formStaffName, setFormStaffName] = useState('');
   const [formDateFeedback, setFormDateFeedback] = useState('');
@@ -81,7 +112,7 @@ export default function AdminCrud() {
   const locations = ['Ibadan', 'Abeokuta', 'Akure', 'Osogbo'];
 
   // Categories mapping
-  const categoryFields: Record<string, { key: string; label: string; type: 'rating' | 'select'; options?: string[] }[]> = {
+  const categoryFields: CategoryFields = {
     Reliability: [
       { key: 'stability', label: 'Stability Rating (1-5)', type: 'rating' },
       { key: 'latency', label: 'Latency Rating (1-5)', type: 'rating' },
@@ -121,14 +152,12 @@ export default function AdminCrud() {
     if (record) {
       setFormName(record.customerName || '');
       setFormEmail(record.customerEmail || '');
-      setFormCategory(
-        (record.category || 'Reliability') as 'Reliability' | 'Support' | 'FieldSupport' | 'Testimonials' | 'Installation' | 'Billing',
-      );
+      setFormCategory(isCategory(record.category) ? record.category : 'Reliability');
       setFormLocation(record.location || 'Ibadan');
-      setFormPlan(record.servicePlan || 'Enterprise');
+      setFormPlan(record.servicePlan || '');
       setFormComment(record.comment || '');
       setFormStaffName(record.staffName || '');
-      setFormStatus((record.status || 'open') as 'open' | 'resolved' | 'escalated');
+      setFormStatus(isFeedbackStatus(record.status) ? record.status : 'open');
       setFormNotes(record.resolutionNotes || '');
 
       const formattedDate = record.dateFeedback
@@ -140,8 +169,8 @@ export default function AdminCrud() {
 
       // Pre-fill ratings
       const initialRatings: Record<string, string> = {};
-      const fields = categoryFields[record.category ?? ''] || [];
-      fields.forEach((f: { key: string; label: string; type: 'rating' | 'select'; options?: string[] }) => {
+      const fields = isCategory(record.category) ? categoryFields[record.category] : [];
+      fields.forEach((f: RatingField) => {
         initialRatings[f.key] = String(record.ratings?.[f.key] || '');
       });
       setRatingsState(initialRatings);
@@ -150,7 +179,7 @@ export default function AdminCrud() {
       setFormEmail('');
       setFormCategory('Reliability');
       setFormLocation('Ibadan');
-      setFormPlan('Enterprise');
+      setFormPlan('');
       setFormComment('');
       setFormStaffName('');
       setFormDateFeedback(new Date().toISOString().substring(0, 10));
@@ -202,7 +231,7 @@ export default function AdminCrud() {
     if (!user) return;
     setIsActionLoading(true);
     try {
-      const parsedRatings: Record<string, any> = {};
+      const parsedRatings: Record<string, string | number> = {};
       Object.entries(ratingsState).forEach(([key, val]) => {
         if (val) {
           parsedRatings[key] = isNaN(Number(val)) ? val : Number(val);
@@ -246,7 +275,7 @@ export default function AdminCrud() {
     setIsActionLoading(true);
     setFormErrors({});
     try {
-      const parsedRatings: Record<string, any> = {};
+      const parsedRatings: Record<string, string | number> = {};
       Object.entries(ratingsState).forEach(([key, val]) => {
         if (val) {
           parsedRatings[key] = isNaN(Number(val)) ? val : Number(val);
@@ -326,88 +355,91 @@ export default function AdminCrud() {
         </header>
 
         {/* Filter Section */}
-        <section className="bg-white p-6 rounded-2xl border border-border whisper-shadow mb-8 flex flex-col md:flex-row gap-4 items-center justify-between">
-          <div className="relative w-full md:max-w-xs">
-            <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 opacity-40 text-primary" />
-            <Input
-              placeholder="Search by customer name, comment..."
-              value={search}
-              onChange={(e) => {
-                setSearch(e.target.value);
-                setCurrentPage(1);
-              }}
-              className="pl-10 rounded-full font-body text-xs border-border"
-            />
-          </div>
-          <div className="flex flex-wrap gap-4 w-full md:w-auto items-center">
-            <SlidersHorizontal className="w-4 h-4 opacity-40 hidden lg:block" />
-            <Select
-              value={filterCategory}
-              onValueChange={(val) => {
-                setFilterCategory(val);
-                setCurrentPage(1);
-              }}
-            >
-              <SelectTrigger className="w-[150px] rounded-full font-mono text-[10px] uppercase font-bold bg-white">
-                <SelectValue placeholder="Department" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="ALL">All Departments</SelectItem>
-                {categories.map((cat) => (
-                  <SelectItem key={cat} value={cat}>
-                    {cat}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-
-            <Select
-              value={filterLocation}
-              onValueChange={(val) => {
-                setFilterLocation(val);
-                setCurrentPage(1);
-              }}
-            >
-              <SelectTrigger className="w-[150px] rounded-full font-mono text-[10px] uppercase font-bold bg-white">
-                <SelectValue placeholder="Region" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="ALL">All Regions</SelectItem>
-                {locations.map((loc) => (
-                  <SelectItem key={loc} value={loc}>
-                    {loc}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-
-            <Select
-              value={filterStatus}
-              onValueChange={(val) => {
-                setFilterStatus(val);
-                setCurrentPage(1);
-              }}
-            >
-              <SelectTrigger className="w-[150px] rounded-full font-mono text-[10px] uppercase font-bold bg-white">
-                <SelectValue placeholder="Status" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="ALL">All Statuses</SelectItem>
-                <SelectItem value="open">Open</SelectItem>
-                <SelectItem value="resolved">Resolved</SelectItem>
-                <SelectItem value="escalated">Escalated</SelectItem>
-              </SelectContent>
-            </Select>
-
-            <DateRangePicker
-              from={dateRange?.from}
-              to={dateRange?.to}
-              onSelect={(range) => {
-                setDateRange(range);
-                setCurrentPage(1);
-              }}
-            />
-          </div>
+        <section className="bg-white p-4 md:p-6 rounded-2xl border border-border whisper-shadow mb-8">
+          <MobileToolbar
+            primary={
+              <div className="relative w-full md:max-w-xs">
+                <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 opacity-40 text-primary" />
+                <Input
+                  placeholder="Search by customer name, comment..."
+                  value={search}
+                  onChange={(e) => {
+                    setSearch(e.target.value);
+                    setCurrentPage(1);
+                  }}
+                  className="pl-10 rounded-full font-body text-xs border-border"
+                />
+              </div>
+            }
+            secondary={
+              <>
+                <Select
+                  value={filterCategory}
+                  onValueChange={(val) => {
+                    setFilterCategory(val);
+                    setCurrentPage(1);
+                  }}
+                >
+                  <SelectTrigger className="w-[140px] md:w-[150px] rounded-full font-mono text-[10px] uppercase font-bold bg-white">
+                    <SelectValue placeholder="Department" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="ALL">All Departments</SelectItem>
+                    {categories.map((cat) => (
+                      <SelectItem key={cat} value={cat}>
+                        {cat}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <Select
+                  value={filterLocation}
+                  onValueChange={(val) => {
+                    setFilterLocation(val);
+                    setCurrentPage(1);
+                  }}
+                >
+                  <SelectTrigger className="w-[140px] md:w-[150px] rounded-full font-mono text-[10px] uppercase font-bold bg-white">
+                    <SelectValue placeholder="Region" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="ALL">All Regions</SelectItem>
+                    {locations.map((loc) => (
+                      <SelectItem key={loc} value={loc}>
+                        {loc}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <Select
+                  value={filterStatus}
+                  onValueChange={(val) => {
+                    setFilterStatus(val);
+                    setCurrentPage(1);
+                  }}
+                >
+                  <SelectTrigger className="w-[140px] md:w-[150px] rounded-full font-mono text-[10px] uppercase font-bold bg-white">
+                    <SelectValue placeholder="Status" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="ALL">All Statuses</SelectItem>
+                    <SelectItem value="open">Open</SelectItem>
+                    <SelectItem value="resolved">Resolved</SelectItem>
+                    <SelectItem value="escalated">Escalated</SelectItem>
+                  </SelectContent>
+                </Select>
+                <DateRangePicker
+                  from={dateRange?.from}
+                  to={dateRange?.to}
+                  onSelect={(range) => {
+                    setDateRange(range);
+                    setCurrentPage(1);
+                  }}
+                />
+              </>
+            }
+            label="Filters"
+          />
         </section>
 
         {/* Data List Section */}
@@ -605,7 +637,8 @@ export default function AdminCrud() {
                   <Select
                     value={formCategory}
                     onValueChange={(val: string) => {
-                      setFormCategory(val as 'Reliability' | 'Support' | 'FieldSupport' | 'Testimonials' | 'Installation' | 'Billing');
+                      // SAFETY: Select options are exactly the six FeedbackCategory values.
+                      setFormCategory(val as FeedbackCategory);
                       setRatingsState({});
                     }}
                   >
@@ -653,7 +686,7 @@ export default function AdminCrud() {
                   <Input
                     required
                     className={cn(formErrors.servicePlan && 'border-destructive text-destructive focus:border-destructive')}
-                    placeholder="Enterprise"
+                    placeholder="e.g. H-Pro"
                     value={formPlan}
                     onChange={(e) => {
                       setFormPlan(e.target.value);
@@ -847,7 +880,8 @@ export default function AdminCrud() {
                   <Select
                     value={formCategory}
                     onValueChange={(val: string) => {
-                      setFormCategory(val as 'Reliability' | 'Support' | 'FieldSupport' | 'Testimonials' | 'Installation' | 'Billing');
+                      // SAFETY: Select options are exactly the six FeedbackCategory values.
+                      setFormCategory(val as FeedbackCategory);
                       setRatingsState({});
                     }}
                   >
@@ -895,7 +929,7 @@ export default function AdminCrud() {
                   <Input
                     required
                     className={cn(formErrors.servicePlan && 'border-destructive text-destructive focus:border-destructive')}
-                    placeholder="Enterprise"
+                    placeholder="e.g. H-Pro"
                     value={formPlan}
                     onChange={(e) => {
                       setFormPlan(e.target.value);
@@ -955,7 +989,13 @@ export default function AdminCrud() {
               <div className="grid grid-cols-2 gap-4 border-t border-border pt-4">
                 <div className="space-y-2">
                   <label className="font-mono text-[10px] uppercase font-bold text-on-surface-variant">Status</label>
-                  <Select value={formStatus} onValueChange={(val: string) => setFormStatus(val as 'open' | 'resolved' | 'escalated')}>
+                  <Select
+                    value={formStatus}
+                    onValueChange={(val: string) => {
+                      // SAFETY: Select options are exactly open/resolved/escalated.
+                      setFormStatus(val as FeedbackStatus);
+                    }}
+                  >
                     <SelectTrigger className="rounded-md font-mono text-[10px] uppercase font-bold bg-white">
                       <SelectValue />
                     </SelectTrigger>

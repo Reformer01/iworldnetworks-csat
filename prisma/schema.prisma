@@ -79,7 +79,7 @@ model Customer {
   mrrTotal            Float?
   accountType         String?
   category            String?
-  servicePlan         String?
+  servicePlan         String?  @db.Text
   firstSyncedAt       BigInt?
   lastSyncAt          BigInt?
   lastChangeAt        BigInt?
@@ -92,6 +92,7 @@ model Customer {
   winBackToken        String?
   churnedAt           BigInt?
   inactiveSince       BigInt?
+  blockedSince        BigInt?
   emailOptOut         Boolean  @default(false)
   emailInvalid        Boolean  @default(false)
   overdueInfo         Json?
@@ -107,6 +108,8 @@ model Customer {
   matchScore          Float?
   matchedAt           BigInt?
   matchUpdatedAt      BigInt?
+  // Referral program
+  referralCode        String?  @unique
   createdAt           DateTime @default(now())
   updatedAt           DateTime @updatedAt
 
@@ -118,6 +121,7 @@ model Customer {
   @@index([lastSyncAt])
   @@index([btsId])
   @@index([matchState])
+  @@index([referralCode])
 }
 
 model Invoice {
@@ -143,23 +147,6 @@ model Invoice {
   @@index([isPaid])
   @@index([dueDate])
   @@index([syncedAt])
-}
-
-model BtsAuditRecord {
-  id          String   @id @default(cuid())
-  auditPeriod String
-  btsName     String
-  region      String?
-  status      String?
-  customerCount Int?
-  monthlyRevenue Float?
-  targetPaymentRate Float?
-  enterpriseCount Int?
-  createdAt   DateTime @default(now())
-
-  @@unique([auditPeriod, btsName])
-  @@index([auditPeriod, status, btsName])
-  @@index([auditPeriod, region, btsName])
 }
 
 model SalesRecord {
@@ -240,14 +227,6 @@ model SalesImport {
   status      String  @default("completed")
 }
 
-model ReadBudget {
-  id        String   @id @default("singleton")
-  date      DateTime @db.Date
-  used      Int      @default(0)
-  limit     Int      @default(50000)
-  updatedAt DateTime @updatedAt
-}
-
 model AdminUser {
   id        String   @id @default(cuid())
   email     String   @unique
@@ -291,26 +270,6 @@ model ChurnSurvey {
   @@index([expiresAt])
 }
 
-model WinBackToken {
-  id        String   @id @default(cuid())
-  customerId String
-  token     String   @unique
-  sentAt    BigInt
-  createdAt DateTime @default(now())
-
-  @@index([customerId])
-}
-
-model FeedbackReminderToken {
-  id        String   @id @default(cuid())
-  customerId String
-  token     String   @unique
-  sentAt    BigInt
-  createdAt DateTime @default(now())
-
-  @@index([customerId])
-}
-
 model Journal {
   id        String   @id @default(cuid())
   type      String
@@ -348,6 +307,7 @@ model UispSite {
   // node has no type=site ancestor (root customer location).
   btsId         String?
   btsName       String?
+  region        String?
   address       String?  @db.VarChar(500)
   latitude      Float?
   longitude     Float?
@@ -414,101 +374,6 @@ model UispMeta {
 
 // BTS admin module (was Firestore: bts_customers). Read path is gated by
 // BTS_DB=1; writes are MariaDB-first with best-effort Firestore mirrors.
-model BtsCustomer {
-  id            String   @id
-  serialNumber  Int?
-  customerName  String?
-  btsName       String?
-  status        String?
-  accountType   String?
-  mrc           Int?
-  planCode      String?
-  region        String?
-  importBatchId String?
-  editedBy      String?
-  createdAt     BigInt?
-  updatedAt     BigInt?
-  deletedAt     BigInt?
-  lastSyncAt    BigInt
-  createdAtDb   DateTime @default(now())
-  updatedAtDb   DateTime @updatedAt
-
-  @@index([importBatchId])
-  @@index([region])
-  @@index([btsName])
-}
-
-// Per-import-batch BTS site summaries (was Firestore: bts_customer_sites).
-model BtsCustomerSite {
-  id            String   @id
-  btsName       String?
-  matchedBtsName String?
-  matchStatus   String?
-  region        String?
-  totalCustomers Int?
-  activeCustomers Int?
-  enterpriseCustomers Int?
-  retailCustomers Int?
-  smeCustomers  Int?
-  residentialCustomers Int?
-  partnersHosts Int?
-  neighbourhoodCustomers Int?
-  totalMrr      Int?
-  importBatchId String?
-  createdAt     BigInt?
-  lastSyncAt    BigInt
-  createdAtDb   DateTime @default(now())
-  updatedAtDb   DateTime @updatedAt
-
-  @@index([importBatchId])
-  @@index([region])
-}
-
-// BTS audit records (was Firestore: bts_audit_records; bts_latest_audit is a
-// derived snapshot no longer read on the DB path). Distinct from the legacy
-// sales-audit analytics BtsAuditRecord (bts-sync.ts) which keeps its table.
-model BtsAdminAuditRecord {
-  id           String   @id
-  btsName      String
-  btsId        Int?
-  region       String
-  siteType     String
-  status       String
-  latitude     Float?
-  longitude    Float?
-  address      String?
-  host         String?
-  activeCustomers Int?
-  totalCustomers Int?
-  enterpriseCustomers Int?
-  retailCustomers Int?
-  monthlyRecurringRevenue Int?
-  targetMrr    Int?
-  attainmentPercentage Float?
-  nrcRevenue   Int?
-  totalRevenue Int?
-  splynxRouterIds Json?
-  splynxRouterNames Json?
-  lastSplynxSync BigInt?
-  lastOutageDate BigInt?
-  outageCountThisMonth Int?
-  maintenanceNotes String?
-  auditedBy    String?
-  auditedAt    BigInt?
-  auditPeriod  String?
-  createdAt    BigInt?
-  updatedAt    BigInt?
-  deletedAt    BigInt?
-  lastSyncAt   BigInt
-  createdAtDb  DateTime @default(now())
-  updatedAtDb  DateTime @updatedAt
-
-  @@index([btsName])
-  @@index([region])
-  @@index([auditPeriod])
-  @@index([status])
-}
-
 // Support tickets (was Firestore: tickets). DB-first; Firestore mirrors
 // best-effort during cutover.
 model Ticket {
@@ -528,6 +393,7 @@ model Ticket {
   status        String?
   createdAt     BigInt?
   assignedAt    BigInt?
+  firstResponseAt BigInt?
   escalatedAt   BigInt?
   resolvedAt    BigInt?
   closedAt      BigInt?
@@ -561,6 +427,10 @@ model SupportRevenue {
   location    String?
   region      String?
   projectType String?
+  saleKind    String?  // Upsell / Cross-sell / New
+  assignedSalesRep String?  // Sales rep a referral/revival deal was assigned to
+  bandwidthFrom    String?  // Bandwidth upgrade: previous plan
+  bandwidthTo      String?  // Bandwidth upgrade: new plan
   items       Json?
   totalAmount Float?
   description String?  @db.Text
@@ -616,37 +486,6 @@ model StaffKpiRecord {
 
   @@index([staffId])
   @@index([periodStart])
-}
-
-// Latest Splynx BTS sync result (was Firestore: splynx_bts_sync/latest).
-model SplynxBtsSyncMeta {
-  id                 String   @id @default("latest")
-  totalActiveCustomers Int?
-  mappedCustomers    Int?
-  unmappedCustomers  Int?
-  routerMapping      Json?
-  errors             Json?
-  syncedAt           BigInt?
-  syncedBy           String?
-  lastSyncAt         BigInt?
-  createdAtDb        DateTime @default(now())
-  updatedAtDb        DateTime @updatedAt
-}
-
-// Per-BTS active customer stats (was Firestore: splynx_bts_active_stats).
-model SplynxBtsActiveStat {
-  btsName        String   @id
-  region         String?
-  activeCustomers Int?
-  totalCustomers Int?
-  customersByTariff Json?
-  lastSynced     BigInt?
-  syncedAt       BigInt?
-  lastSyncAt     BigInt?
-  createdAtDb    DateTime @default(now())
-  updatedAtDb    DateTime @updatedAt
-
-  @@index([activeCustomers])
 }
 
 // Admin audit trail (was Firestore: sales_audit_log).
@@ -751,15 +590,255 @@ model Campaign {
   text          String   @db.Text
   audienceJson  Json // { type: 'all' } | { type: 'lifecycle'|'city'|'status'|'servicePlan'|'bts', values: string[] }
   audienceCount Int      @default(0)
-  status        String   @default("draft") // draft/sending/sent/partial/failed/cancelled
+  status        String   @default("draft") // draft/pending_approval/approved/scheduled/sending/sent/partial/failed/cancelled/rejected
+  scheduledAt   BigInt?
   sentAt        BigInt?
   createdBy     String
+  submittedBy   String?  // who submitted for review
+  submittedAt   BigInt?  // when submitted for review
   approvedAt    BigInt?
   approvedBy    String?
+  rejectedAt    BigInt?
+  rejectedBy    String?
+  rejectionReason String? @db.Text
   error         String?  @db.Text
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
 
   @@index([status])
   @@index([createdAt])
+}
+
+// Support-team customer reachout & engagement log (replaces the daily
+// reachout spreadsheets). One row per logged call/engagement.
+// Email tracking events — open pixel and click redirect logs.
+model EmailOpenEvent {
+  id              String   @id @default(cuid())
+  emailJobId      String
+  campaignId      String?
+  customerEmail   String   @db.VarChar(255)
+  userAgent       String?  @db.Text
+  ip              String?  @db.VarChar(45)
+  openedAt        DateTime @default(now())
+
+  @@index([emailJobId])
+  @@index([campaignId])
+  @@index([customerEmail])
+  @@index([openedAt])
+}
+
+model EmailClickEvent {
+  id              String   @id @default(cuid())
+  emailJobId      String
+  campaignId      String?
+  customerEmail   String   @db.VarChar(255)
+  url             String   @db.Text
+  originalUrl     String   @db.Text
+  userAgent       String?  @db.Text
+  ip              String?  @db.VarChar(45)
+  clickedAt       DateTime @default(now())
+
+  @@index([emailJobId])
+  @@index([campaignId])
+  @@index([customerEmail])
+  @@index([clickedAt])
+}
+
+// Periodic tower audit snapshots for incident history and trend analysis.
+// One row per tower per capture interval (hourly by default).
+model TowerAuditSnapshot {
+  id              String   @id @default(cuid())
+  towerId         String
+  towerName       String
+  region          String
+  capturedAt      DateTime @default(now())
+  status          String?
+  suspended       Boolean?
+  deviceCount     Int?
+  deviceOutageCount Int?
+  customerCount   Int?
+  activeCustomers Int?
+  mrrTotal        Float?
+  activeMrr       Float?
+  healthScore     Int?
+  accountTypes    Json?
+  servicePlans    Json?
+
+  @@index([towerId, capturedAt])
+  @@index([capturedAt])
+  @@index([towerName])
+}
+
+model EngagementLog {
+  id             String    @id @default(cuid())
+  customerId     String?   // unified Customer.id when the name matched
+  customerName   String
+  btsName        String?
+  accountStatus  String?   // Active / Inactive (sheet status)
+  accountType    String?   // Residential / Retail / SME / Enterprise...
+  plan           String?
+  region         String?
+  phone          String?
+  callStatus     String?   // Contacted / No Answer / Not reachable / ...
+  lastContactAt  DateTime?
+  nextFollowUpAt DateTime?
+  purpose        String?   // Relationship Building / Follow-Up / ...
+  feedback       String?   @db.Text
+  complaint      String?
+  upsellNote     String?   @db.Text
+  retentionRisk  String?   // Low / Medium / High
+  resolution     String?
+  staffName      String    // owning support agent
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+
+  @@index([staffName])
+  @@index([customerId])
+  @@index([lastContactAt])
+}
+
+// ─── Revenue Intelligence Engine (Phase 1) ───────────────────────────────
+
+model CustomerHealthScore {
+  id              String   @id @default(cuid())
+  customerId      String
+  score           Int      // 0-100
+  tier            String   // healthy/at-risk/churning/critical/lost
+  complaintRisk   Int      @default(0) // 0-100
+  paymentRisk     Int      @default(0) // 0-100
+  deviceRisk      Int      @default(0) // 0-100
+  networkRisk     Int      @default(0) // 0-100
+  engagementRisk  Int      @default(0) // 0-100
+  lifecycleRisk   Int      @default(0) // 0-100
+  trend           String?  // improving/stable/declining
+  calculatedAt    DateTime @default(now())
+  createdAt       DateTime @default(now())
+
+  @@index([customerId])
+  @@index([score])
+  @@index([tier])
+  @@index([calculatedAt])
+}
+
+model UpsellOpportunity {
+  id               String   @id @default(cuid())
+  customerId       String
+  customerName     String?
+  type             String   // bandwidth/loyalty/enterprise/bundle
+  currentPlan      String?
+  suggestedPlan    String?
+  revenuePotential Float    // monthly uplift in Naira
+  score            Int      // 0-100 fit score
+  status           String   @default("new") // new/contacted/converted/declined/expired
+  assignedTo       String?
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  @@index([customerId])
+  @@index([status])
+  @@index([score])
+}
+
+model RevenueAnomaly {
+  id             String   @id @default(cuid())
+  type           String   // tower_mrr_drop/regional_churn/agent_performance/collection_drop/complaint_surge
+  severity       String   // info/warning/critical
+  title          String
+  description    String   @db.Text
+  entityType     String?  // tower/customer/agent/region
+  entityId       String?
+  entityName     String?
+  metricName     String
+  metricValue    Float
+  threshold      Float
+  status         String   @default("new") // new/acknowledged/resolved/ignored
+  acknowledgedBy String?
+  resolvedAt     DateTime?
+  createdAt      DateTime @default(now())
+
+  @@index([type])
+  @@index([status])
+  @@index([severity])
+  @@index([createdAt])
+}
+
+// ─── Referral Program (Phase 2) ────────────────────────────────────────
+
+model ReferralProgram {
+  id              String   @id @default(cuid())
+  referrerId      String   // Customer.id of referrer
+  referralCode    String   @unique
+  refereeId       String?  // Customer.id of referee (filled on signup)
+  refereeName     String?  // name of referred customer
+  refereePhone    String?  // phone of referred customer
+  status          String   @default("active") // active/completed/expired
+  rewardAmount    Float    @default(5000)
+  rewardType      String   @default("credit") // credit/discount/free_month
+  rewardFulfilled Boolean  @default(false)
+  source          String?  // how the referral was shared (whatsapp/sms/in-person)
+  createdAt       DateTime @default(now())
+  completedAt     DateTime?
+
+  @@index([referrerId])
+  @@index([referralCode])
+  @@index([status])
+  @@index([createdAt])
+}
+
+// ─── Monthly Reporting Pack (03_Customer_Experience workbook) ───────────
+// Persists each month's computed workbook so "Previous Month" / "YTD"
+// columns survive across exports, and admin-entered Target / Comment /
+// Action / Owner edits are not lost between sessions.
+model MonthlySnapshot {
+  id         String   @id @default(cuid())
+  month      String   @unique // "2026-08"
+  workbook03 Json     // KPI rows + complaint breakdown for 03_Customer_Experience
+  workbook01 Json?
+  workbook02 Json?
+  workbook04 Json?
+  savedBy    String?
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+}
+
+// Paystack transaction cache — one row per Paystack reference. Success-only.
+// Synced on demand for monthly revenue reconciliation (splynx sales + paystack collections).
+model PaystackTransaction {
+  id            String   @id @default(cuid())
+  paystackId    Int      @unique
+  reference     String   @unique
+  amount        Int      // kobo (divide by 100 for Naira)
+  currency      String   @default("NGN")
+  status        String   // success / failed / abandoned
+  channel       String?  // card / bank / ussd / mobile_money
+  customerEmail String?
+  customerName  String?
+  gatewayResponse String? @db.Text
+  paidAt        DateTime?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+  raw           Json?
+
+  @@index([status])
+  @@index([paidAt])
+  @@index([customerEmail])
+  @@index([reference])
+}
+
+// Editable Customer Risk Register rows. One per customer — latest state wins.
+// Derived fields (risk level, reason) are recomputed on read; the editable
+// fields (action taken, outcome, next review, owner) persist here.
+model RiskRegisterEntry {
+  id           String   @id @default(cuid())
+  customerId   String   @unique
+  customerName String?
+  mrr          Float?
+  riskLevel    String?  // High / Medium / Low (derived, stored for reference)
+  reason       String?  @db.Text
+  actionTaken  String?  @db.Text
+  outcome      String?  @db.Text
+  nextReview   String?  // ISO date string, free-form for flexibility
+  owner        String?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
 }

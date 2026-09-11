@@ -115,28 +115,28 @@ describe('parseNairaAmount', () => {
 });
 
 describe('getQuarterFromMonth', () => {
-  it('returns QUARTER 1 for July-September', () => {
+  it('returns QUARTER 1 for June-August', () => {
+    expect(getQuarterFromMonth('June')).toBe('QUARTER 1');
     expect(getQuarterFromMonth('July')).toBe('QUARTER 1');
     expect(getQuarterFromMonth('August')).toBe('QUARTER 1');
-    expect(getQuarterFromMonth('September')).toBe('QUARTER 1');
   });
 
-  it('returns QUARTER 2 for October-December', () => {
+  it('returns QUARTER 2 for September-November', () => {
+    expect(getQuarterFromMonth('September')).toBe('QUARTER 2');
     expect(getQuarterFromMonth('October')).toBe('QUARTER 2');
     expect(getQuarterFromMonth('November')).toBe('QUARTER 2');
-    expect(getQuarterFromMonth('December')).toBe('QUARTER 2');
   });
 
-  it('returns QUARTER 3 for January-March', () => {
+  it('returns QUARTER 3 for December-February', () => {
+    expect(getQuarterFromMonth('December')).toBe('QUARTER 3');
     expect(getQuarterFromMonth('January')).toBe('QUARTER 3');
     expect(getQuarterFromMonth('February')).toBe('QUARTER 3');
-    expect(getQuarterFromMonth('March')).toBe('QUARTER 3');
   });
 
-  it('returns QUARTER 4 for April-June', () => {
+  it('returns QUARTER 4 for March-May', () => {
+    expect(getQuarterFromMonth('March')).toBe('QUARTER 4');
     expect(getQuarterFromMonth('April')).toBe('QUARTER 4');
     expect(getQuarterFromMonth('May')).toBe('QUARTER 4');
-    expect(getQuarterFromMonth('June')).toBe('QUARTER 4');
   });
 
   it('returns QUARTER 4 for unknown months', () => {
@@ -147,10 +147,10 @@ describe('getQuarterFromMonth', () => {
 
 describe('getMonthsForQuarter', () => {
   it('returns correct months for each quarter', () => {
-    expect(getMonthsForQuarter('QUARTER 1')).toEqual(['July', 'August', 'September']);
-    expect(getMonthsForQuarter('QUARTER 2')).toEqual(['October', 'November', 'December']);
-    expect(getMonthsForQuarter('QUARTER 3')).toEqual(['January', 'February', 'March']);
-    expect(getMonthsForQuarter('QUARTER 4')).toEqual(['April', 'May', 'June']);
+    expect(getMonthsForQuarter('QUARTER 1')).toEqual(['June', 'July', 'August']);
+    expect(getMonthsForQuarter('QUARTER 2')).toEqual(['September', 'October', 'November']);
+    expect(getMonthsForQuarter('QUARTER 3')).toEqual(['December', 'January', 'February']);
+    expect(getMonthsForQuarter('QUARTER 4')).toEqual(['March', 'April', 'May']);
   });
 });
 

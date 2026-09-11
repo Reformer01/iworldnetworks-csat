@@ -1,0 +1,17 @@
+import { PrismaClient } from '@prisma/client';
+import { PrismaMariaDb } from '@prisma/adapter-mariadb';
+import fs from 'node:fs';
+const raw = fs.readFileSync('.env', 'utf8');
+const dbUrl = raw.match(/DATABASE_URL=("?)(.*?)\1$/m)?.[2];
+const adapter = new PrismaMariaDb(dbUrl);
+const p = new PrismaClient({ adapter });
+const count = await p.salesRecordEntry.count();
+const recent = await p.salesRecordEntry.findMany({ orderBy: { createdAt: 'desc' }, take: 3, select: { id: true, customerName: true, month: true, salesAgent: true } });
+const importCount = await p.salesImport.count();
+const uispSites = await p.uispSite.count();
+const uispMeta = await p.uispMeta.findMany();
+const withBts = await p.$queryRaw`SELECT COUNT(*) as c FROM UispSite WHERE btsName IS NOT NULL AND btsName != ''`;
+const btsCounts = await p.$queryRaw`SELECT region, COUNT(*) c FROM SalesRecordEntry GROUP BY region`;
+const salesByAgent = await p.$queryRaw`SELECT salesAgent, COUNT(*) c FROM SalesRecordEntry GROUP BY salesAgent`;
+console.log(JSON.stringify({ count, recent, importCount, uispSites, uispMeta, withBts, btsCounts, salesByAgent }, (k, v) => (typeof v === 'bigint' ? v.toString() : v), 2));
+await p.$disconnect();

@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { useAuth, useUser } from '@/firebase';
 import type { User } from 'firebase/auth';
 import type { SalesRecord, SalesMetrics, RegionMetrics, AgentMetrics } from '@/lib/sales-types';
@@ -14,6 +14,7 @@ export interface MetricsResponse {
   segmentBreakdown: { segment: string; count: number; active: number; mrc: number; arpu: number }[];
   btsMetrics: { bts: string; region: string; count: number; active: number; mrc: number }[];
   agentSegmentBreakdown: { agent: string; segment: string; count: number; active: number; mrc: number }[];
+  meansOfSaleBreakdown: { meansOfSale: string; count: number; active: number; mrc: number; nrc: number }[];
   totalRecords: number;
 }
 
@@ -52,6 +53,7 @@ export function useSalesMetrics(region?: string) {
   const [data, setData] = useState<MetricsResponse | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const hasLoaded = useRef(false);
 
   const fetchMetrics = useCallback(async () => {
     if (authLoading) return;
@@ -61,16 +63,21 @@ export function useSalesMetrics(region?: string) {
     }
 
     try {
-      setLoading(true);
+      // Only flash the skeleton on the very first load; background polls are
+      // cheap (route cache) and shouldn't reset the UI.
+      if (!hasLoaded.current) setLoading(true);
       const token = await user.getIdToken();
       const params = region ? `?region=${region}` : '';
       const res = await fetch(`/api/admin/sales/metrics${params}`, {
         headers: { Authorization: `Bearer ${token}` },
+        cache: 'no-store',
       });
       if (!res.ok) throw new Error(`Failed: ${res.statusText}`);
       const result = await res.json();
+      // SAFETY: API returns MetricsResponse shape (validated by server response schema).
       setData(result.data as MetricsResponse);
       setError(null);
+      hasLoaded.current = true;
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : 'Error fetching metrics');
     } finally {
@@ -113,9 +120,11 @@ export function useSalesMonthlyRevenue(params?: { region?: string; segment?: str
       const qs = sp.toString();
       const res = await fetch(`/api/admin/sales/monthly-revenue${qs ? `?${qs}` : ''}`, {
         headers: { Authorization: `Bearer ${token}` },
+        cache: 'no-store',
       });
       if (!res.ok) throw new Error(`Failed: ${res.statusText}`);
       const result = await res.json();
+      // SAFETY: API returns MonthlyRevenueResponse shape (validated by server response schema).
       setData(result.data as MonthlyRevenueResponse);
       setError(null);
     } catch (err: unknown) {
@@ -171,9 +180,11 @@ export function useSalesRecords(params?: {
         const qs = sp.toString();
         const res = await fetch(`/api/admin/sales/records${qs ? `?${qs}` : ''}`, {
           headers: { Authorization: `Bearer ${token}` },
+          cache: 'no-store',
         });
         if (!res.ok) throw new Error(`Failed: ${res.statusText}`);
         const result = await res.json();
+        // SAFETY: API returns RecordsResponse shape (validated by server response schema).
         const responseData = result.data as RecordsResponse | undefined;
         setRecords(responseData?.records || []);
         setTotal(responseData?.total || 0);
@@ -208,6 +219,7 @@ export async function createSalesRecord(data: SalesRecordFormData, user: User) {
     throw new Error(d.error || 'Failed to create');
   }
   const result = await res.json();
+  // SAFETY: API returns { id: string } on successful create.
   return result.data as { id: string };
 }
 
@@ -223,6 +235,7 @@ export async function updateSalesRecord(id: string, data: Partial<SalesRecordFor
     throw new Error(d.error || 'Failed to update');
   }
   const result = await res.json();
+  // SAFETY: API returns empty object on successful update.
   return result.data as Record<string, never>;
 }
 
@@ -238,6 +251,7 @@ export async function deleteSalesRecord(id: string, user: User) {
     throw new Error(d.error || 'Failed to delete');
   }
   const result = await res.json();
+  // SAFETY: API returns { action: string } on successful delete.
   return result.data as { action: string };
 }
 
@@ -253,5 +267,6 @@ export async function importSalesRecords(records: SalesRecordFormData[], source:
     throw new Error(d.error || 'Failed to import');
   }
   const result = await res.json();
+  // SAFETY: API returns { batchId: string; recordCount: number } on successful import.
   return result.data as { batchId: string; recordCount: number };
 }

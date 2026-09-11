@@ -13,6 +13,8 @@ export interface FeedbackToken {
   submittedAt: number | null;
 }
 
+export type JsonValue = string | number | boolean | null | JsonValue[] | { [key: string]: JsonValue };
+
 export interface FeedbackDoc {
   id: string;
   customerName?: string;
@@ -22,7 +24,7 @@ export interface FeedbackDoc {
   servicePlan?: string;
   comment?: string;
   staffName?: string;
-  ratings?: Record<string, unknown>;
+  ratings?: Record<string, JsonValue>;
   referralSource?: string;
   spotlightInterview?: string;
   serviceDate?: string;
@@ -37,5 +39,6 @@ export interface FeedbackDoc {
   aiAnalysis?: { sentiment: string; keyThemes: string[]; urgency: string } | null;
   satisfied?: string | null;
   _source?: string;
+  source?: string;
   updatedAt?: number;
 }
