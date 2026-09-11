@@ -62,8 +62,7 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: 'Not configured' }, { status: 503 });
   }
 
-  const token =
-    request.headers.get('x-auth-token') ?? request.headers.get('authorization')?.replace(/^Bearer\s+/i, '');
+  const token = request.headers.get('x-auth-token') ?? request.headers.get('authorization')?.replace(/^Bearer\s+/i, '');
   if (!token || token !== secret) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
@@ -147,9 +146,7 @@ export async function POST(request: NextRequest) {
     logError('[uisp-webhook] processing failed', { eventId, error: message });
     // Leave processedAt null so a replay of the same event id retries. Still
     // respond 200 so UISP does not retry-loop on our bugs.
-    await webhookEvents
-      .update({ where: { id: eventId }, data: { processedAt: null, error: message } })
-      .catch(() => undefined);
+    await webhookEvents.update({ where: { id: eventId }, data: { processedAt: null, error: message } }).catch(() => undefined);
     return NextResponse.json({ status: 'error', error: message });
   }
 }

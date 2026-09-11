@@ -12,7 +12,9 @@ export const BTS_ACCOUNT_TYPES = [
 export type BtsAccountType = (typeof BTS_ACCOUNT_TYPES)[number];
 
 function normalize(value: unknown) {
-  return String(value ?? '').trim().toUpperCase();
+  return String(value ?? '')
+    .trim()
+    .toUpperCase();
 }
 
 export function isBundledServicePlan(servicePlan: unknown): boolean {
@@ -45,7 +47,8 @@ export function deriveBtsAccountType(accountType: unknown, servicePlan: unknown)
   if (compactPlan.includes('PARTNER') || compactPlan.includes('HOST')) return 'PARTNERS_HOSTS';
   if (compactPlan.includes('HOME') || compactPlan.includes('RESIDENTIAL') || /H(?:LITE|PRO|MAX)/.test(compactPlan)) return 'RESIDENTIAL';
   if (compactPlan.includes('SMALLBUSINESS') || compactPlan.includes('SME') || /U(?:LITE|PRO|MAX)/.test(compactPlan)) return 'SME';
-  if (compactPlan.includes('NEIGHBOURHOOD') || compactPlan.includes('NEIGHBORHOOD') || /N(?:10K|15K|225K)/.test(compactPlan)) return 'NEIGHBOURHOOD';
+  if (compactPlan.includes('NEIGHBOURHOOD') || compactPlan.includes('NEIGHBORHOOD') || /N(?:10K|15K|225K)/.test(compactPlan))
+    return 'NEIGHBOURHOOD';
   if (/^\d+(?:\.\d+)?MBPS/i.test(plan) || plan.includes('ENTERPRISE')) return 'ENTERPRISE';
 
   // Splynx also has custom tariffs whose title is a customer/site name

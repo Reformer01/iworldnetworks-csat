@@ -13,7 +13,15 @@ vi.mock('@/lib/prisma', () => ({
   prisma: { ticket: mocks },
 }));
 
-import { ticketFromRow, ticketRowData, createTicketDb, updateTicketDb, softDeleteTicketDb, listTicketsDb, countTicketsDb } from '../ticket-db';
+import {
+  ticketFromRow,
+  ticketRowData,
+  createTicketDb,
+  updateTicketDb,
+  softDeleteTicketDb,
+  listTicketsDb,
+  countTicketsDb,
+} from '../ticket-db';
 
 const ROW = {
   id: 't1',
@@ -295,11 +303,7 @@ describe('listTicketsDb', () => {
     expect(mocks.findMany).toHaveBeenCalledWith({
       where: {
         deletedAt: null,
-        OR: [
-          { customerName: { contains: '11699' } },
-          { customerEmail: { contains: '11699' } },
-          { ticketNumber: 11699 },
-        ],
+        OR: [{ customerName: { contains: '11699' } }, { customerEmail: { contains: '11699' } }, { ticketNumber: 11699 }],
       },
       orderBy: { createdAt: 'desc' },
       take: 50,

@@ -38,16 +38,7 @@ interface MobileCardRowProps {
  * </div>
  * ```
  */
-export function MobileCardRow({
-  title,
-  status,
-  metric,
-  details,
-  action,
-  onClick,
-  selected,
-  className,
-}: MobileCardRowProps) {
+export function MobileCardRow({ title, status, metric, details, action, onClick, selected, className }: MobileCardRowProps) {
   return (
     <div
       className={cn(
@@ -59,7 +50,13 @@ export function MobileCardRow({
       onClick={onClick}
       role={onClick ? 'button' : undefined}
       tabIndex={onClick ? 0 : undefined}
-      onKeyDown={onClick ? (e) => { if (e.key === 'Enter' || e.key === ' ') onClick(); } : undefined}
+      onKeyDown={
+        onClick
+          ? (e) => {
+              if (e.key === 'Enter' || e.key === ' ') onClick();
+            }
+          : undefined
+      }
     >
       {/* Top row: title + status + metric */}
       <div className="flex items-start justify-between gap-3 mb-2">
@@ -68,12 +65,7 @@ export function MobileCardRow({
         </div>
         <div className="flex items-center gap-2 shrink-0">
           {status && (
-            <span
-              className={cn(
-                'px-2 py-0.5 rounded-full text-[10px] font-bold font-mono whitespace-nowrap',
-                status.color,
-              )}
-            >
+            <span className={cn('px-2 py-0.5 rounded-full text-[10px] font-bold font-mono whitespace-nowrap', status.color)}>
               {status.label}
             </span>
           )}
@@ -92,9 +84,7 @@ export function MobileCardRow({
         <div className="grid grid-cols-2 gap-x-4 gap-y-1 mt-2">
           {details.map((d) => (
             <div key={d.label} className="min-w-0">
-              <span className="font-mono text-[9px] uppercase text-on-surface-variant/60 font-bold">
-                {d.label}
-              </span>
+              <span className="font-mono text-[9px] uppercase text-on-surface-variant/60 font-bold">{d.label}</span>
               <p className="font-mono text-[11px] font-bold text-on-surface truncate">{d.value}</p>
             </div>
           ))}

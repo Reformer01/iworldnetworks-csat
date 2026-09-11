@@ -124,38 +124,41 @@ export function AddLogDialog({ open, onClose, onSaved, staffName, staffGroups = 
 
   // Search customers with debounce
   const searchTimeout = useRef<ReturnType<typeof setTimeout>>(undefined);
-  const handleSearch = useCallback((value: string) => {
-    setQuery(value);
-    setForm((f) => ({ ...f, customerName: value }));
+  const handleSearch = useCallback(
+    (value: string) => {
+      setQuery(value);
+      setForm((f) => ({ ...f, customerName: value }));
 
-    if (searchTimeout.current) clearTimeout(searchTimeout.current);
+      if (searchTimeout.current) clearTimeout(searchTimeout.current);
 
-    if (value.length < 2) {
-      setResults([]);
-      setShowResults(false);
-      return;
-    }
-
-    searchTimeout.current = setTimeout(async () => {
-      if (!user) return;
-      setSearching(true);
-      try {
-        const token = await user.getIdToken();
-        const res = await fetch(`/api/admin/customers/search?q=${encodeURIComponent(value)}&limit=10`, {
-          headers: { Authorization: `Bearer ${token}` },
-        });
-        if (res.ok) {
-          const data = await res.json();
-          setResults(data.data?.customers || []);
-          setShowResults(true);
-        }
-      } catch {
-        // Search is best-effort
-      } finally {
-        setSearching(false);
+      if (value.length < 2) {
+        setResults([]);
+        setShowResults(false);
+        return;
       }
-    }, 300);
-  }, [user]);
+
+      searchTimeout.current = setTimeout(async () => {
+        if (!user) return;
+        setSearching(true);
+        try {
+          const token = await user.getIdToken();
+          const res = await fetch(`/api/admin/customers/search?q=${encodeURIComponent(value)}&limit=10`, {
+            headers: { Authorization: `Bearer ${token}` },
+          });
+          if (res.ok) {
+            const data = await res.json();
+            setResults(data.data?.customers || []);
+            setShowResults(true);
+          }
+        } catch {
+          // Search is best-effort
+        } finally {
+          setSearching(false);
+        }
+      }, 300);
+    },
+    [user],
+  );
 
   const selectCustomer = (customer: CustomerSearchResult) => {
     setSelectedCustomer(customer);
@@ -239,9 +242,7 @@ export function AddLogDialog({ open, onClose, onSaved, staffName, staffGroups = 
             className="pl-9 rounded-xl font-mono text-xs"
             onFocus={() => results.length > 0 && setShowResults(true)}
           />
-          {searching && (
-            <Loader2 className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 animate-spin text-on-surface-variant/40" />
-          )}
+          {searching && <Loader2 className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 animate-spin text-on-surface-variant/40" />}
 
           {/* Autocomplete dropdown */}
           {showResults && results.length > 0 && (
@@ -256,9 +257,7 @@ export function AddLogDialog({ open, onClose, onSaved, staffName, staffGroups = 
                   <div className="flex items-center gap-3">
                     <User className="w-4 h-4 text-on-surface-variant/40 shrink-0" />
                     <div className="min-w-0 flex-1">
-                      <p className="font-mono text-xs font-bold text-primary truncate">
-                        {customer.customerName || 'Unnamed'}
-                      </p>
+                      <p className="font-mono text-xs font-bold text-primary truncate">{customer.customerName || 'Unnamed'}</p>
                       <div className="flex items-center gap-2 mt-0.5">
                         {customer.phone && (
                           <span className="font-mono text-[9px] text-on-surface-variant/50 flex items-center gap-1">
@@ -278,16 +277,16 @@ export function AddLogDialog({ open, onClose, onSaved, staffName, staffGroups = 
                       </div>
                     </div>
                     <div className="text-right shrink-0">
-                      <span className={cn(
-                        'px-1.5 py-0.5 rounded text-[8px] font-mono font-bold uppercase',
-                        customer.status === 'Active' ? 'bg-emerald-100 text-emerald-600' : 'bg-zinc-100 text-zinc-500'
-                      )}>
+                      <span
+                        className={cn(
+                          'px-1.5 py-0.5 rounded text-[8px] font-mono font-bold uppercase',
+                          customer.status === 'Active' ? 'bg-emerald-100 text-emerald-600' : 'bg-zinc-100 text-zinc-500',
+                        )}
+                      >
                         {customer.status || 'Unknown'}
                       </span>
                       {customer.mrrTotal != null && customer.mrrTotal > 0 && (
-                        <p className="font-mono text-[9px] text-on-surface-variant/40 mt-0.5">
-                          ₦{customer.mrrTotal.toLocaleString()}/mo
-                        </p>
+                        <p className="font-mono text-[9px] text-on-surface-variant/40 mt-0.5">₦{customer.mrrTotal.toLocaleString()}/mo</p>
                       )}
                     </div>
                   </div>
@@ -298,9 +297,7 @@ export function AddLogDialog({ open, onClose, onSaved, staffName, staffGroups = 
 
           {showResults && results.length === 0 && query.length >= 2 && !searching && (
             <div className="absolute top-full left-0 right-0 mt-1 bg-white rounded-xl border border-border shadow-lg z-50 px-4 py-3">
-              <p className="font-mono text-[10px] text-on-surface-variant/50">
-                No customers found. You can still create a manual entry.
-              </p>
+              <p className="font-mono text-[10px] text-on-surface-variant/50">No customers found. You can still create a manual entry.</p>
             </div>
           )}
         </div>
@@ -309,9 +306,7 @@ export function AddLogDialog({ open, onClose, onSaved, staffName, staffGroups = 
         {selectedCustomer && (
           <div className="flex items-center gap-2 px-3 py-2 bg-surface-container-low rounded-xl">
             <User className="w-3.5 h-3.5 text-secondary" />
-            <span className="font-mono text-[10px] text-secondary font-bold">
-              {selectedCustomer.customerName}
-            </span>
+            <span className="font-mono text-[10px] text-secondary font-bold">{selectedCustomer.customerName}</span>
             <span className="font-mono text-[9px] text-on-surface-variant/40">
               {selectedCustomer.btsName} · {selectedCustomer.servicePlan} · {selectedCustomer.accountType}
             </span>
@@ -340,7 +335,9 @@ export function AddLogDialog({ open, onClose, onSaved, staffName, staffGroups = 
                   onChange={(e) => set('callStatus', e.target.value)}
                 >
                   <option value="">Select status...</option>
-                  {CALL_STATUSES.map((s) => <option key={s}>{s}</option>)}
+                  {CALL_STATUSES.map((s) => (
+                    <option key={s}>{s}</option>
+                  ))}
                 </select>
               </div>
               <div className="space-y-1">
@@ -359,7 +356,11 @@ export function AddLogDialog({ open, onClose, onSaved, staffName, staffGroups = 
                   value={form.retentionRisk}
                   onChange={(e) => set('retentionRisk', e.target.value)}
                 >
-                  {RISKS.map((r) => <option key={r || 'none'} value={r}>{r || '—'}</option>)}
+                  {RISKS.map((r) => (
+                    <option key={r || 'none'} value={r}>
+                      {r || '—'}
+                    </option>
+                  ))}
                 </select>
               </div>
             </>
@@ -394,36 +395,62 @@ export function AddLogDialog({ open, onClose, onSaved, staffName, staffGroups = 
                 >
                   <option value="">— Me ({staffName}) —</option>
                   {staffGroups.map((g) => (
-                    <option key={g.staffName} value={g.staffName}>{g.staffName}</option>
+                    <option key={g.staffName} value={g.staffName}>
+                      {g.staffName}
+                    </option>
                   ))}
                 </select>
               </div>
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                 <div className="space-y-1">
                   <label className="font-mono text-[9px] uppercase font-bold text-on-surface-variant">Call Status</label>
-                  <select className="w-full h-10 rounded-xl border border-input bg-background px-3 font-mono text-xs" value={form.callStatus} onChange={(e) => set('callStatus', e.target.value)}>
+                  <select
+                    className="w-full h-10 rounded-xl border border-input bg-background px-3 font-mono text-xs"
+                    value={form.callStatus}
+                    onChange={(e) => set('callStatus', e.target.value)}
+                  >
                     <option value="">—</option>
-                    {CALL_STATUSES.map((s) => <option key={s}>{s}</option>)}
+                    {CALL_STATUSES.map((s) => (
+                      <option key={s}>{s}</option>
+                    ))}
                   </select>
                 </div>
                 <div className="space-y-1">
                   <label className="font-mono text-[9px] uppercase font-bold text-on-surface-variant">Purpose</label>
-                  <select className="w-full h-10 rounded-xl border border-input bg-background px-3 font-mono text-xs" value={form.purpose} onChange={(e) => set('purpose', e.target.value)}>
+                  <select
+                    className="w-full h-10 rounded-xl border border-input bg-background px-3 font-mono text-xs"
+                    value={form.purpose}
+                    onChange={(e) => set('purpose', e.target.value)}
+                  >
                     <option value="">—</option>
-                    {PURPOSES.map((p) => <option key={p}>{p}</option>)}
+                    {PURPOSES.map((p) => (
+                      <option key={p}>{p}</option>
+                    ))}
                   </select>
                 </div>
                 <div className="space-y-1">
                   <label className="font-mono text-[9px] uppercase font-bold text-on-surface-variant">Risk</label>
-                  <select className="w-full h-10 rounded-xl border border-input bg-background px-3 font-mono text-xs" value={form.retentionRisk} onChange={(e) => set('retentionRisk', e.target.value)}>
-                    {RISKS.map((r) => <option key={r || 'none'} value={r}>{r || '—'}</option>)}
+                  <select
+                    className="w-full h-10 rounded-xl border border-input bg-background px-3 font-mono text-xs"
+                    value={form.retentionRisk}
+                    onChange={(e) => set('retentionRisk', e.target.value)}
+                  >
+                    {RISKS.map((r) => (
+                      <option key={r || 'none'} value={r}>
+                        {r || '—'}
+                      </option>
+                    ))}
                   </select>
                 </div>
               </div>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div className="space-y-1">
                   <label className="font-mono text-[9px] uppercase font-bold text-on-surface-variant">Account Status</label>
-                  <select className="w-full h-10 rounded-xl border border-input bg-background px-3 font-mono text-xs" value={form.accountStatus} onChange={(e) => set('accountStatus', e.target.value)}>
+                  <select
+                    className="w-full h-10 rounded-xl border border-input bg-background px-3 font-mono text-xs"
+                    value={form.accountStatus}
+                    onChange={(e) => set('accountStatus', e.target.value)}
+                  >
                     <option>Active</option>
                     <option>Inactive</option>
                   </select>
@@ -436,30 +463,56 @@ export function AddLogDialog({ open, onClose, onSaved, staffName, staffGroups = 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div className="space-y-1">
                   <label className="font-mono text-[9px] uppercase font-bold text-on-surface-variant">Last Contact</label>
-                  <Input type="date" className="rounded-xl font-mono text-xs" value={form.lastContactAt} onChange={(e) => set('lastContactAt', e.target.value)} />
+                  <Input
+                    type="date"
+                    className="rounded-xl font-mono text-xs"
+                    value={form.lastContactAt}
+                    onChange={(e) => set('lastContactAt', e.target.value)}
+                  />
                 </div>
                 <div className="space-y-1">
                   <label className="font-mono text-[9px] uppercase font-bold text-on-surface-variant">Follow-Up</label>
-                  <Input type="date" className="rounded-xl font-mono text-xs" value={form.nextFollowUpAt} onChange={(e) => set('nextFollowUpAt', e.target.value)} />
+                  <Input
+                    type="date"
+                    className="rounded-xl font-mono text-xs"
+                    value={form.nextFollowUpAt}
+                    onChange={(e) => set('nextFollowUpAt', e.target.value)}
+                  />
                 </div>
               </div>
               <div className="space-y-1">
                 <label className="font-mono text-[9px] uppercase font-bold text-on-surface-variant">Feedback</label>
-                <Textarea className="min-h-[60px] rounded-xl font-mono text-xs" value={form.feedback} onChange={(e) => set('feedback', e.target.value)} />
+                <Textarea
+                  className="min-h-[60px] rounded-xl font-mono text-xs"
+                  value={form.feedback}
+                  onChange={(e) => set('feedback', e.target.value)}
+                />
               </div>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div className="space-y-1">
                   <label className="font-mono text-[9px] uppercase font-bold text-on-surface-variant">Complaint</label>
-                  <Input className="rounded-xl font-mono text-xs" value={form.complaint} onChange={(e) => set('complaint', e.target.value)} />
+                  <Input
+                    className="rounded-xl font-mono text-xs"
+                    value={form.complaint}
+                    onChange={(e) => set('complaint', e.target.value)}
+                  />
                 </div>
                 <div className="space-y-1">
                   <label className="font-mono text-[9px] uppercase font-bold text-on-surface-variant">Resolution</label>
-                  <Input className="rounded-xl font-mono text-xs" value={form.resolution} onChange={(e) => set('resolution', e.target.value)} />
+                  <Input
+                    className="rounded-xl font-mono text-xs"
+                    value={form.resolution}
+                    onChange={(e) => set('resolution', e.target.value)}
+                  />
                 </div>
               </div>
               <div className="space-y-1">
                 <label className="font-mono text-[9px] uppercase font-bold text-on-surface-variant">Upsell Note</label>
-                <Textarea className="min-h-[40px] rounded-xl font-mono text-xs" value={form.upsellNote} onChange={(e) => set('upsellNote', e.target.value)} />
+                <Textarea
+                  className="min-h-[40px] rounded-xl font-mono text-xs"
+                  value={form.upsellNote}
+                  onChange={(e) => set('upsellNote', e.target.value)}
+                />
               </div>
             </>
           )}

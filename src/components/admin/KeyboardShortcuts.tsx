@@ -19,9 +19,7 @@ export function KeyboardShortcuts() {
       // Ctrl+K — focus search (if a search input exists on the page)
       if ((e.ctrlKey || e.metaKey) && e.key === 'k') {
         e.preventDefault();
-        const searchInput = document.querySelector<HTMLInputElement>(
-          'input[placeholder*="Search" i], input[placeholder*="search" i]',
-        );
+        const searchInput = document.querySelector<HTMLInputElement>('input[placeholder*="Search" i], input[placeholder*="search" i]');
         if (searchInput) {
           searchInput.focus();
           searchInput.select();

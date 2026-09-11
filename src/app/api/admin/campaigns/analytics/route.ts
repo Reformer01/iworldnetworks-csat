@@ -133,7 +133,15 @@ export async function GET(request: NextRequest) {
       .sort((a, b) => b.count - a.count);
 
     return success({
-      overall: { totalSent, totalOpens, totalClicks, openRate, clickRate, uniqueOpens: uniqueOpens.length, uniqueClicks: uniqueClicks.length },
+      overall: {
+        totalSent,
+        totalOpens,
+        totalClicks,
+        openRate,
+        clickRate,
+        uniqueOpens: uniqueOpens.length,
+        uniqueClicks: uniqueClicks.length,
+      },
       byCampaign,
       topLinks,
       timeline,

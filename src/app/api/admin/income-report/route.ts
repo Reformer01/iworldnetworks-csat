@@ -121,7 +121,14 @@ export async function GET(request: NextRequest) {
       const iarr: RawInvoice[] = Array.isArray(ichunk) ? ichunk : (ichunk.data ?? []);
       invoices = iarr.filter((inv) => {
         const ms = parseSplynxApiDate(inv.date_payment);
-        return ms != null && ms >= start && ms <= end && String(inv.status ?? '').toLowerCase().includes('paid');
+        return (
+          ms != null &&
+          ms >= start &&
+          ms <= end &&
+          String(inv.status ?? '')
+            .toLowerCase()
+            .includes('paid')
+        );
       });
     } catch {
       // invoices 403 for some keys — payments are primary
@@ -132,7 +139,9 @@ export async function GET(request: NextRequest) {
     const invoiceOnly = invoices.filter((inv) => !paymentInvoiceIds.has(String(inv.id)));
 
     // 2) Resolve customers for all payments+invoices in one batch (MariaDB mirror is authoritative for plan/category)
-    const cids = [...new Set([...payments.map((p) => String(p.customer_id)), ...invoiceOnly.map((i) => String(i.customer_id))])].filter(Boolean);
+    const cids = [...new Set([...payments.map((p) => String(p.customer_id)), ...invoiceOnly.map((i) => String(i.customer_id))])].filter(
+      Boolean,
+    );
     const customers = cids.length
       ? await prisma.customer.findMany({
           where: { customerId: { in: cids } },

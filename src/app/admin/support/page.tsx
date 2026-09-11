@@ -68,15 +68,31 @@ export default function AdminSupport() {
   const [ticketStatus, setTicketStatus] = useState<'all' | 'open' | 'closed'>('all');
   const [ticketAssignee, setTicketAssignee] = useState<string>('');
   const [ticketPage, setTicketPage] = useState(1);
-  const [workload, setWorkload] = useState<Array<{ assignee: string | null; name: string; open: number; total: number; pctOpen: number }>>([]);
+  const [workload, setWorkload] = useState<Array<{ assignee: string | null; name: string; open: number; total: number; pctOpen: number }>>(
+    [],
+  );
   const [workloadTotalOpen, setWorkloadTotalOpen] = useState(0);
   const ticketsRef = useRef<HTMLDivElement>(null);
-  const [tickets, setTickets] = useState<Array<{
-    id?: string; ticketNumber: number; customerName: string; customerEmail?: string;
-    description: string; status: string; priority?: number | null; assignedTo?: string;
-    assignedToName?: string; createdAt: number; resolvedAt?: number; slaBreached: boolean;
-    location: string; bts?: string; complaintType: string; resolutionNotes?: string;
-  }>>([]);
+  const [tickets, setTickets] = useState<
+    Array<{
+      id?: string;
+      ticketNumber: number;
+      customerName: string;
+      customerEmail?: string;
+      description: string;
+      status: string;
+      priority?: number | null;
+      assignedTo?: string;
+      assignedToName?: string;
+      createdAt: number;
+      resolvedAt?: number;
+      slaBreached: boolean;
+      location: string;
+      bts?: string;
+      complaintType: string;
+      resolutionNotes?: string;
+    }>
+  >([]);
   const [ticketsTotal, setTicketsTotal] = useState(0);
   const [ticketsPages, setTicketsPages] = useState(1);
   const [ticketsLoading, setTicketsLoading] = useState(false);
@@ -114,16 +130,33 @@ export default function AdminSupport() {
   // Feedback stats
   const stats = useMemo(() => {
     const support = (feedbacks || []).filter((f: FeedbackDoc) => f.category === 'Support');
-    if (support.length === 0) return { professionalism: '0', clarity: '0', responsiveness: '0', knowledge: '0', friendliness: '0', fcrRate: 0, sentiment: { pos: 0, neu: 0, frust: 0 }, avgResponse: '—' };
+    if (support.length === 0)
+      return {
+        professionalism: '0',
+        clarity: '0',
+        responsiveness: '0',
+        knowledge: '0',
+        friendliness: '0',
+        fcrRate: 0,
+        sentiment: { pos: 0, neu: 0, frust: 0 },
+        avgResponse: '—',
+      };
     const avg = (key: string) => (support.reduce((a, f) => a + Number(f.ratings?.[key] || 0), 0) / support.length).toFixed(1);
     const fcrCount = support.filter((f) => f.ratings?.fcr === 'Yes').length;
     const pos = support.filter((f) => Number(f.ratings?.professionalism || 0) >= 4).length;
     const frust = support.filter((f) => Number(f.ratings?.professionalism || 0) <= 2).length;
     return {
-      professionalism: avg('professionalism'), clarity: avg('clarity'), responsiveness: avg('responsiveness'),
-      knowledge: avg('knowledge'), friendliness: avg('friendliness'),
+      professionalism: avg('professionalism'),
+      clarity: avg('clarity'),
+      responsiveness: avg('responsiveness'),
+      knowledge: avg('knowledge'),
+      friendliness: avg('friendliness'),
       fcrRate: Math.round((fcrCount / support.length) * 100),
-      sentiment: { pos: Math.round((pos / support.length) * 100), neu: Math.round(((support.length - pos - frust) / support.length) * 100), frust: Math.round((frust / support.length) * 100) },
+      sentiment: {
+        pos: Math.round((pos / support.length) * 100),
+        neu: Math.round(((support.length - pos - frust) / support.length) * 100),
+        frust: Math.round((frust / support.length) * 100),
+      },
       avgResponse: `${Math.round(45 - ((Number(avg('responsiveness')) - 1) / 4) * 37)}m`,
     };
   }, [feedbacks]);
@@ -137,16 +170,21 @@ export default function AdminSupport() {
       if (!groups[label]) groups[label] = { name: label, tickets: 0, ts: f.timestamp ?? 0 };
       groups[label].tickets += 1;
     });
-    return Object.values(groups).sort((a, b) => a.ts - b.ts).map(({ name, tickets }) => ({ date: name, tickets }));
+    return Object.values(groups)
+      .sort((a, b) => a.ts - b.ts)
+      .map(({ name, tickets }) => ({ date: name, tickets }));
   }, [feedbacks]);
 
-  const dimensionData = useMemo(() => [
-    { name: 'Helpfulness', score: Number(stats.professionalism) },
-    { name: 'Clarity', score: Number(stats.clarity) },
-    { name: 'Response Speed', score: Number(stats.responsiveness) },
-    { name: 'Agent Knowledge', score: Number(stats.knowledge) },
-    { name: 'Friendliness', score: Number(stats.friendliness) },
-  ], [stats]);
+  const dimensionData = useMemo(
+    () => [
+      { name: 'Helpfulness', score: Number(stats.professionalism) },
+      { name: 'Clarity', score: Number(stats.clarity) },
+      { name: 'Response Speed', score: Number(stats.responsiveness) },
+      { name: 'Agent Knowledge', score: Number(stats.knowledge) },
+      { name: 'Friendliness', score: Number(stats.friendliness) },
+    ],
+    [stats],
+  );
 
   const filteredStaff = useMemo(() => {
     if (activeTab === 'backend') return staffKPIs.filter((k) => k.role === 'Back-end Support');
@@ -224,7 +262,8 @@ export default function AdminSupport() {
   }, [user, ticketPage, ticketSearch, ticketStatus, ticketAssignee]);
 
   const avgSLA = staffKPIs.length > 0 ? Math.round(staffKPIs.reduce((s, k) => s + k.slaComplianceRate, 0) / staffKPIs.length) : 0;
-  const avgFCR = staffKPIs.length > 0 ? (staffKPIs.reduce((s, k) => s + k.firstContactResolutionRate, 0) / staffKPIs.length).toFixed(1) : '—';
+  const avgFCR =
+    staffKPIs.length > 0 ? (staffKPIs.reduce((s, k) => s + k.firstContactResolutionRate, 0) / staffKPIs.length).toFixed(1) : '—';
 
   const isLoading = loadingKPIs || feedbacksLoading;
 
@@ -246,7 +285,7 @@ export default function AdminSupport() {
                 onClick={() => setPeriod(p)}
                 className={cn(
                   'px-3 py-1.5 rounded-full font-mono text-[10px] uppercase font-bold transition-colors',
-                  period === p ? 'bg-secondary text-white' : 'bg-surface-container-low text-on-surface-variant hover:bg-surface-container'
+                  period === p ? 'bg-secondary text-white' : 'bg-surface-container-low text-on-surface-variant hover:bg-surface-container',
                 )}
               >
                 {p}
@@ -264,9 +303,7 @@ export default function AdminSupport() {
 
         {/* Error */}
         {kpiError && (
-          <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-xl mb-6 font-mono text-xs">
-            {kpiError}
-          </div>
+          <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-xl mb-6 font-mono text-xs">{kpiError}</div>
         )}
 
         {!isLoading && (
@@ -280,12 +317,18 @@ export default function AdminSupport() {
                 <MetricCell icon={ShieldCheck} label="Resolved" value={String(teamAverages?.totalTicketsResolved ?? 0)} />
                 <MetricCell icon={Target} label="SLA Compliance" value={`${avgSLA}%`} />
                 <MetricCell icon={Star} label="CSAT Score" value={`${teamAverages?.avgCustomerSatisfaction ?? '—'}/5`} />
-                <MetricCell icon={Clock} label="Avg Resolution" value={teamAverages?.avgResolutionTimeHours ? formatHours(teamAverages.avgResolutionTimeHours) : '—'} />
+                <MetricCell
+                  icon={Clock}
+                  label="Avg Resolution"
+                  value={teamAverages?.avgResolutionTimeHours ? formatHours(teamAverages.avgResolutionTimeHours) : '—'}
+                />
               </div>
               {/* Progress bar for First-Time Fix */}
               <div className="mt-4 pt-4 border-t border-border/50">
                 <div className="flex items-center justify-between mb-1.5">
-                  <span className="font-mono text-[9px] uppercase tracking-widest font-bold text-on-surface-variant/50">First-Time Fix Rate</span>
+                  <span className="font-mono text-[9px] uppercase tracking-widest font-bold text-on-surface-variant/50">
+                    First-Time Fix Rate
+                  </span>
                   <span className="font-mono text-[11px] font-bold text-primary">{avgFCR}%</span>
                 </div>
                 <div className="h-1.5 bg-zinc-100 rounded-full overflow-hidden">
@@ -324,7 +367,14 @@ export default function AdminSupport() {
                     <BarChart data={dimensionData} layout="vertical" margin={{ left: 20, right: 20 }}>
                       <CartesianGrid strokeDasharray="3 3" horizontal={false} stroke="#eee" />
                       <XAxis type="number" domain={[0, 5]} axisLine={false} tickLine={false} tick={{ fontSize: 10 }} />
-                      <YAxis dataKey="name" type="category" axisLine={false} tickLine={false} tick={{ fontSize: 10, fontWeight: 'bold' }} width={110} />
+                      <YAxis
+                        dataKey="name"
+                        type="category"
+                        axisLine={false}
+                        tickLine={false}
+                        tick={{ fontSize: 10, fontWeight: 'bold' }}
+                        width={110}
+                      />
                       <Tooltip contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 10px 15px -3px rgba(0,0,0,0.1)' }} />
                       <Bar dataKey="score" fill="#448515" radius={[0, 4, 4, 0]} barSize={20} />
                     </BarChart>
@@ -342,11 +392,16 @@ export default function AdminSupport() {
                   ].map((item) => (
                     <div key={item.label}>
                       <div className="flex justify-between mb-1">
-                        <span className="font-mono text-[10px] uppercase tracking-wider font-bold text-on-surface-variant/70">{item.label}</span>
+                        <span className="font-mono text-[10px] uppercase tracking-wider font-bold text-on-surface-variant/70">
+                          {item.label}
+                        </span>
                         <span className="font-mono text-[11px] font-bold text-primary">{item.val}%</span>
                       </div>
                       <div className="w-full bg-zinc-100 h-2 rounded-full overflow-hidden">
-                        <div className={cn('h-full rounded-full transition-all duration-700', item.color)} style={{ width: `${item.val}%` }} />
+                        <div
+                          className={cn('h-full rounded-full transition-all duration-700', item.color)}
+                          style={{ width: `${item.val}%` }}
+                        />
                       </div>
                     </div>
                   ))}
@@ -359,17 +414,23 @@ export default function AdminSupport() {
               <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-4">
                 <h2 className="font-display font-bold text-sm uppercase text-primary">Staff Performance</h2>
                 <div className="flex gap-1">
-                  {([
+                  {[
                     { id: 'all' as Tab, label: 'All', count: staffKPIs.length },
                     { id: 'backend' as Tab, label: 'Backend', count: staffKPIs.filter((k) => k.role === 'Back-end Support').length },
-                    { id: 'frontend' as Tab, label: 'Frontend', count: staffKPIs.filter((k) => k.role === 'Support Agent' || k.role === 'Front-end Support').length },
-                  ]).map((tab) => (
+                    {
+                      id: 'frontend' as Tab,
+                      label: 'Frontend',
+                      count: staffKPIs.filter((k) => k.role === 'Support Agent' || k.role === 'Front-end Support').length,
+                    },
+                  ].map((tab) => (
                     <button
                       key={tab.id}
                       onClick={() => setActiveTab(tab.id)}
                       className={cn(
                         'px-3 py-1 rounded-full font-mono text-[10px] uppercase font-bold transition-colors',
-                        activeTab === tab.id ? 'bg-secondary text-white' : 'bg-surface-container-low text-on-surface-variant hover:bg-surface-container'
+                        activeTab === tab.id
+                          ? 'bg-secondary text-white'
+                          : 'bg-surface-container-low text-on-surface-variant hover:bg-surface-container',
                       )}
                     >
                       {tab.label} ({tab.count})
@@ -385,14 +446,54 @@ export default function AdminSupport() {
                   <table className="w-full text-left" aria-label="Staff performance table">
                     <thead>
                       <tr className="border-b border-border">
-                        <th scope="col" className="px-3 py-2 font-mono text-[9px] uppercase tracking-widest font-bold text-on-surface-variant/60">Staff</th>
-                        <th scope="col" className="px-3 py-2 font-mono text-[9px] uppercase tracking-widest font-bold text-on-surface-variant/60 text-right">Assigned</th>
-                        <th scope="col" className="px-3 py-2 font-mono text-[9px] uppercase tracking-widest font-bold text-on-surface-variant/60 text-right">Resolved</th>
-                        <th scope="col" className="px-3 py-2 font-mono text-[9px] uppercase tracking-widest font-bold text-on-surface-variant/60 text-right">Resolution</th>
-                        <th scope="col" className="px-3 py-2 font-mono text-[9px] uppercase tracking-widest font-bold text-on-surface-variant/60 text-right">SLA %</th>
-                        <th scope="col" className="px-3 py-2 font-mono text-[9px] uppercase tracking-widest font-bold text-on-surface-variant/60 text-right">FCR %</th>
-                        <th scope="col" className="px-3 py-2 font-mono text-[9px] uppercase tracking-widest font-bold text-on-surface-variant/60 text-right">CSAT</th>
-                        <th scope="col" className="px-3 py-2 font-mono text-[9px] uppercase tracking-widest font-bold text-on-surface-variant/60 text-right">Open</th>
+                        <th
+                          scope="col"
+                          className="px-3 py-2 font-mono text-[9px] uppercase tracking-widest font-bold text-on-surface-variant/60"
+                        >
+                          Staff
+                        </th>
+                        <th
+                          scope="col"
+                          className="px-3 py-2 font-mono text-[9px] uppercase tracking-widest font-bold text-on-surface-variant/60 text-right"
+                        >
+                          Assigned
+                        </th>
+                        <th
+                          scope="col"
+                          className="px-3 py-2 font-mono text-[9px] uppercase tracking-widest font-bold text-on-surface-variant/60 text-right"
+                        >
+                          Resolved
+                        </th>
+                        <th
+                          scope="col"
+                          className="px-3 py-2 font-mono text-[9px] uppercase tracking-widest font-bold text-on-surface-variant/60 text-right"
+                        >
+                          Resolution
+                        </th>
+                        <th
+                          scope="col"
+                          className="px-3 py-2 font-mono text-[9px] uppercase tracking-widest font-bold text-on-surface-variant/60 text-right"
+                        >
+                          SLA %
+                        </th>
+                        <th
+                          scope="col"
+                          className="px-3 py-2 font-mono text-[9px] uppercase tracking-widest font-bold text-on-surface-variant/60 text-right"
+                        >
+                          FCR %
+                        </th>
+                        <th
+                          scope="col"
+                          className="px-3 py-2 font-mono text-[9px] uppercase tracking-widest font-bold text-on-surface-variant/60 text-right"
+                        >
+                          CSAT
+                        </th>
+                        <th
+                          scope="col"
+                          className="px-3 py-2 font-mono text-[9px] uppercase tracking-widest font-bold text-on-surface-variant/60 text-right"
+                        >
+                          Open
+                        </th>
                       </tr>
                     </thead>
                     <tbody>
@@ -410,14 +511,20 @@ export default function AdminSupport() {
                           </td>
                           <td className="px-3 py-2.5 text-right font-mono text-xs text-on-surface-variant">{kpi.ticketsAssigned}</td>
                           <td className="px-3 py-2.5 text-right font-mono text-xs font-bold text-primary">{kpi.ticketsResolved}</td>
-                          <td className="px-3 py-2.5 text-right font-mono text-xs text-on-surface-variant">{formatHours(kpi.avgResolutionTimeHours)}</td>
+                          <td className="px-3 py-2.5 text-right font-mono text-xs text-on-surface-variant">
+                            {formatHours(kpi.avgResolutionTimeHours)}
+                          </td>
                           <td className="px-3 py-2.5 text-right">
                             <span className={cn('text-[9px] font-mono font-bold', getStatusColor(kpi.slaComplianceRate))}>
                               {kpi.slaComplianceRate.toFixed(1)}%
                             </span>
                           </td>
-                          <td className="px-3 py-2.5 text-right font-mono text-xs text-on-surface-variant">{kpi.firstContactResolutionRate.toFixed(1)}%</td>
-                          <td className="px-3 py-2.5 text-right font-mono text-xs text-on-surface-variant">{kpi.avgCustomerSatisfaction.toFixed(1)}/5</td>
+                          <td className="px-3 py-2.5 text-right font-mono text-xs text-on-surface-variant">
+                            {kpi.firstContactResolutionRate.toFixed(1)}%
+                          </td>
+                          <td className="px-3 py-2.5 text-right font-mono text-xs text-on-surface-variant">
+                            {kpi.avgCustomerSatisfaction.toFixed(1)}/5
+                          </td>
                           <td className="px-3 py-2.5 text-right font-mono text-xs text-on-surface-variant">{kpi.currentOpenTickets}</td>
                         </tr>
                       ))}
@@ -440,10 +547,30 @@ export default function AdminSupport() {
                   <table className="w-full min-w-[520px] text-left" aria-label="Workload by assignee">
                     <thead>
                       <tr className="border-b border-border">
-                        <th scope="col" className="px-3 py-2 font-mono text-[9px] uppercase tracking-widest font-bold text-on-surface-variant/60">Assignee</th>
-                        <th scope="col" className="px-3 py-2 font-mono text-[9px] uppercase tracking-widest font-bold text-on-surface-variant/60 text-right">Open</th>
-                        <th scope="col" className="px-3 py-2 font-mono text-[9px] uppercase tracking-widest font-bold text-on-surface-variant/60 text-right">% of open</th>
-                        <th scope="col" className="px-3 py-2 font-mono text-[9px] uppercase tracking-widest font-bold text-on-surface-variant/60 text-right">Total</th>
+                        <th
+                          scope="col"
+                          className="px-3 py-2 font-mono text-[9px] uppercase tracking-widest font-bold text-on-surface-variant/60"
+                        >
+                          Assignee
+                        </th>
+                        <th
+                          scope="col"
+                          className="px-3 py-2 font-mono text-[9px] uppercase tracking-widest font-bold text-on-surface-variant/60 text-right"
+                        >
+                          Open
+                        </th>
+                        <th
+                          scope="col"
+                          className="px-3 py-2 font-mono text-[9px] uppercase tracking-widest font-bold text-on-surface-variant/60 text-right"
+                        >
+                          % of open
+                        </th>
+                        <th
+                          scope="col"
+                          className="px-3 py-2 font-mono text-[9px] uppercase tracking-widest font-bold text-on-surface-variant/60 text-right"
+                        >
+                          Total
+                        </th>
                       </tr>
                     </thead>
                     <tbody>
@@ -457,7 +584,9 @@ export default function AdminSupport() {
                           <td className="px-3 py-2.5 font-mono text-xs font-bold text-primary">{w.name}</td>
                           <td className="px-3 py-2.5 text-right font-mono text-xs font-bold">{w.open}</td>
                           <td className="px-3 py-2.5 text-right font-mono text-xs text-on-surface-variant">{w.pctOpen}%</td>
-                          <td className="px-3 py-2.5 text-right font-mono text-xs text-on-surface-variant/60">{w.total.toLocaleString()}</td>
+                          <td className="px-3 py-2.5 text-right font-mono text-xs text-on-surface-variant/60">
+                            {w.total.toLocaleString()}
+                          </td>
                         </tr>
                       ))}
                     </tbody>
@@ -502,7 +631,10 @@ export default function AdminSupport() {
                       className="px-3 py-2 rounded-full border border-border font-mono text-[10px] uppercase font-bold text-secondary hover:bg-surface-container-low transition-colors whitespace-nowrap"
                       title="Clear assignee filter"
                     >
-                      ✕ {ticketAssignee === '__unassigned__' ? 'Unassigned' : (workload.find((w) => w.assignee === ticketAssignee)?.name ?? ticketAssignee)}
+                      ✕{' '}
+                      {ticketAssignee === '__unassigned__'
+                        ? 'Unassigned'
+                        : (workload.find((w) => w.assignee === ticketAssignee)?.name ?? ticketAssignee)}
                     </button>
                   )}
                   <div className="flex gap-1">
@@ -512,7 +644,9 @@ export default function AdminSupport() {
                         onClick={() => setTicketStatus(s)}
                         className={cn(
                           'px-3 py-2 rounded-full font-mono text-[10px] uppercase font-bold transition-colors',
-                          ticketStatus === s ? 'bg-secondary text-white' : 'bg-surface-container-low text-on-surface-variant hover:bg-surface-container'
+                          ticketStatus === s
+                            ? 'bg-secondary text-white'
+                            : 'bg-surface-container-low text-on-surface-variant hover:bg-surface-container',
                         )}
                       >
                         {s}
@@ -526,13 +660,48 @@ export default function AdminSupport() {
                 <table className="w-full min-w-[860px] text-left" aria-label="Tickets table">
                   <thead>
                     <tr className="border-b border-border">
-                      <th scope="col" className="px-3 py-2 font-mono text-[9px] uppercase tracking-widest font-bold text-on-surface-variant/60">#</th>
-                      <th scope="col" className="px-3 py-2 font-mono text-[9px] uppercase tracking-widest font-bold text-on-surface-variant/60">Customer</th>
-                      <th scope="col" className="px-3 py-2 font-mono text-[9px] uppercase tracking-widest font-bold text-on-surface-variant/60">Subject</th>
-                      <th scope="col" className="px-3 py-2 font-mono text-[9px] uppercase tracking-widest font-bold text-on-surface-variant/60">Status</th>
-                      <th scope="col" className="px-3 py-2 font-mono text-[9px] uppercase tracking-widest font-bold text-on-surface-variant/60 text-right">Priority</th>
-                      <th scope="col" className="px-3 py-2 font-mono text-[9px] uppercase tracking-widest font-bold text-on-surface-variant/60">Assigned</th>
-                      <th scope="col" className="px-3 py-2 font-mono text-[9px] uppercase tracking-widest font-bold text-on-surface-variant/60 text-right">Age</th>
+                      <th
+                        scope="col"
+                        className="px-3 py-2 font-mono text-[9px] uppercase tracking-widest font-bold text-on-surface-variant/60"
+                      >
+                        #
+                      </th>
+                      <th
+                        scope="col"
+                        className="px-3 py-2 font-mono text-[9px] uppercase tracking-widest font-bold text-on-surface-variant/60"
+                      >
+                        Customer
+                      </th>
+                      <th
+                        scope="col"
+                        className="px-3 py-2 font-mono text-[9px] uppercase tracking-widest font-bold text-on-surface-variant/60"
+                      >
+                        Subject
+                      </th>
+                      <th
+                        scope="col"
+                        className="px-3 py-2 font-mono text-[9px] uppercase tracking-widest font-bold text-on-surface-variant/60"
+                      >
+                        Status
+                      </th>
+                      <th
+                        scope="col"
+                        className="px-3 py-2 font-mono text-[9px] uppercase tracking-widest font-bold text-on-surface-variant/60 text-right"
+                      >
+                        Priority
+                      </th>
+                      <th
+                        scope="col"
+                        className="px-3 py-2 font-mono text-[9px] uppercase tracking-widest font-bold text-on-surface-variant/60"
+                      >
+                        Assigned
+                      </th>
+                      <th
+                        scope="col"
+                        className="px-3 py-2 font-mono text-[9px] uppercase tracking-widest font-bold text-on-surface-variant/60 text-right"
+                      >
+                        Age
+                      </th>
                     </tr>
                   </thead>
                   <tbody>
@@ -547,30 +716,48 @@ export default function AdminSupport() {
                           <p className="font-bold text-primary text-sm whitespace-nowrap">{t.customerName || '—'}</p>
                           <p className="font-mono text-[10px] text-on-surface-variant/60 truncate max-w-[200px]">{t.customerEmail || ''}</p>
                         </td>
-                        <td className="px-3 py-2.5 text-sm text-on-surface-variant max-w-[280px] truncate" title={t.description}>{t.description || '—'}</td>
+                        <td className="px-3 py-2.5 text-sm text-on-surface-variant max-w-[280px] truncate" title={t.description}>
+                          {t.description || '—'}
+                        </td>
                         <td className="px-3 py-2.5">
-                          <span className={cn(
-                            'text-[10px] font-bold font-mono whitespace-nowrap',
-                            t.status === 'closed' ? 'text-green-700' : 'text-amber-700'
-                          )}>
+                          <span
+                            className={cn(
+                              'text-[10px] font-bold font-mono whitespace-nowrap',
+                              t.status === 'closed' ? 'text-green-700' : 'text-amber-700',
+                            )}
+                          >
                             {t.status}
                           </span>
                           {t.slaBreached && (
-                            <span className="ml-1 text-[10px] font-bold font-mono whitespace-nowrap text-red-600" title="Unresolved past the 1.5h SLA">
+                            <span
+                              className="ml-1 text-[10px] font-bold font-mono whitespace-nowrap text-red-600"
+                              title="Unresolved past the 1.5h SLA"
+                            >
                               SLA
                             </span>
                           )}
                         </td>
-                        <td className="px-3 py-2.5 text-right font-mono text-xs font-bold whitespace-nowrap">{priorityLabel(t.priority)}</td>
-                        <td className="px-3 py-2.5 font-mono text-[11px] text-on-surface-variant whitespace-nowrap" title={t.assignedTo || ''}>{t.assignedToName || t.assignedTo || 'Unassigned'}</td>
-                        <td className="px-3 py-2.5 text-right font-mono text-[11px] text-on-surface-variant whitespace-nowrap">{relTime(t.createdAt)}</td>
+                        <td className="px-3 py-2.5 text-right font-mono text-xs font-bold whitespace-nowrap">
+                          {priorityLabel(t.priority)}
+                        </td>
+                        <td
+                          className="px-3 py-2.5 font-mono text-[11px] text-on-surface-variant whitespace-nowrap"
+                          title={t.assignedTo || ''}
+                        >
+                          {t.assignedToName || t.assignedTo || 'Unassigned'}
+                        </td>
+                        <td className="px-3 py-2.5 text-right font-mono text-[11px] text-on-surface-variant whitespace-nowrap">
+                          {relTime(t.createdAt)}
+                        </td>
                       </tr>
                     ))}
                   </tbody>
                 </table>
               </div>
               {ticketsLoading && (
-                <p className="font-mono text-[10px] uppercase tracking-widest text-on-surface-variant/50 text-center py-4">Loading tickets…</p>
+                <p className="font-mono text-[10px] uppercase tracking-widest text-on-surface-variant/50 text-center py-4">
+                  Loading tickets…
+                </p>
               )}
               {!ticketsLoading && tickets.length === 0 && (
                 <p className="font-mono text-[10px] text-on-surface-variant/40 text-center py-8">No tickets match the current filters</p>
@@ -601,32 +788,49 @@ export default function AdminSupport() {
             </div>
 
             {selectedTicket && (
-              <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/50 p-0 sm:p-4" onClick={() => setSelectedTicket(null)} role="dialog" aria-modal="true" aria-label={`Ticket ${selectedTicket.ticketNumber}`}>
-                <div className="bg-white rounded-t-2xl sm:rounded-2xl w-full max-w-2xl max-h-[90vh] overflow-y-auto p-6" onClick={(e) => e.stopPropagation()}>
+              <div
+                className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/50 p-0 sm:p-4"
+                onClick={() => setSelectedTicket(null)}
+                role="dialog"
+                aria-modal="true"
+                aria-label={`Ticket ${selectedTicket.ticketNumber}`}
+              >
+                <div
+                  className="bg-white rounded-t-2xl sm:rounded-2xl w-full max-w-2xl max-h-[90vh] overflow-y-auto p-6"
+                  onClick={(e) => e.stopPropagation()}
+                >
                   <div className="flex items-start justify-between gap-3 mb-4">
                     <div>
-                      <p className="font-mono text-[10px] uppercase tracking-widest text-on-surface-variant/50 font-bold">Ticket #{selectedTicket.ticketNumber}</p>
+                      <p className="font-mono text-[10px] uppercase tracking-widest text-on-surface-variant/50 font-bold">
+                        Ticket #{selectedTicket.ticketNumber}
+                      </p>
                       <h3 className="font-display font-bold text-lg text-primary">{selectedTicket.customerName || 'Unknown customer'}</h3>
                     </div>
-                    <button onClick={() => setSelectedTicket(null)} className="font-mono text-[10px] uppercase font-bold text-on-surface-variant hover:text-primary px-3 py-1.5" aria-label="Close ticket details">
+                    <button
+                      onClick={() => setSelectedTicket(null)}
+                      className="font-mono text-[10px] uppercase font-bold text-on-surface-variant hover:text-primary px-3 py-1.5"
+                      aria-label="Close ticket details"
+                    >
                       Close
                     </button>
                   </div>
                   <div className="flex flex-wrap gap-1.5 mb-4">
-                    <span className={cn(
-                      'text-[10px] font-bold font-mono',
-                      selectedTicket.status === 'closed' ? 'text-green-700' : 'text-amber-700'
-                    )}>
+                    <span
+                      className={cn(
+                        'text-[10px] font-bold font-mono',
+                        selectedTicket.status === 'closed' ? 'text-green-700' : 'text-amber-700',
+                      )}
+                    >
                       {selectedTicket.status}
                     </span>
-                    <span className="text-[10px] font-bold font-mono text-zinc-600">
-                      {priorityLabel(selectedTicket.priority)} priority
-                    </span>
+                    <span className="text-[10px] font-bold font-mono text-zinc-600">{priorityLabel(selectedTicket.priority)} priority</span>
                     {selectedTicket.slaBreached && (
                       <span className="text-[10px] font-bold font-mono text-red-600">SLA breached (1.5h)</span>
                     )}
                   </div>
-                  <p className="text-sm text-on-surface-variant whitespace-pre-wrap mb-4">{selectedTicket.description || 'No description.'}</p>
+                  <p className="text-sm text-on-surface-variant whitespace-pre-wrap mb-4">
+                    {selectedTicket.description || 'No description.'}
+                  </p>
                   <dl className="grid grid-cols-2 gap-x-4 gap-y-2 font-mono text-xs border-t border-border/50 pt-4">
                     <dt className="text-on-surface-variant/50 uppercase text-[10px] font-bold">Customer email</dt>
                     <dd className="text-right break-words">{selectedTicket.customerEmail || '—'}</dd>
@@ -647,7 +851,9 @@ export default function AdminSupport() {
                       {selectedTicket.resolutionNotes}
                     </div>
                   )}
-                  <p className="font-mono text-[10px] text-on-surface-variant/40 mt-4">Synced from Splynx — edit status and assignment there.</p>
+                  <p className="font-mono text-[10px] text-on-surface-variant/40 mt-4">
+                    Synced from Splynx — edit status and assignment there.
+                  </p>
                 </div>
               </div>
             )}
@@ -679,7 +885,9 @@ function MetricCell({ icon: Icon, label, value }: { icon: React.ElementType; lab
       <Icon className="w-4 h-4 text-secondary shrink-0" />
       <div className="min-w-0">
         <p className="font-mono text-[8px] uppercase tracking-widest font-bold text-on-surface-variant/50">{label}</p>
-        <p className="font-mono text-base xl:text-lg font-bold break-words text-primary" title={value}>{value}</p>
+        <p className="font-mono text-base xl:text-lg font-bold break-words text-primary" title={value}>
+          {value}
+        </p>
       </div>
     </div>
   );

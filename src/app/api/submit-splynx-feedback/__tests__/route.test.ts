@@ -126,9 +126,7 @@ describe('POST /api/submit-splynx-feedback', () => {
   });
 
   it('maps the FCR answer into the feedback doc ratings', async () => {
-    const response = await POST(
-      buildRequest({ token, rating: 5, fcr: 'Yes', comment: 'Fixed first time.' }),
-    );
+    const response = await POST(buildRequest({ token, rating: 5, fcr: 'Yes', comment: 'Fixed first time.' }));
 
     expect(response.status).toBe(201);
     expect(mockTransactionSet).toHaveBeenCalledWith(

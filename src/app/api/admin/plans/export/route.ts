@@ -46,10 +46,7 @@ export async function GET(request: NextRequest) {
     );
 
     // Aggregate by plan name (empty/unknown plans are skipped).
-    const byPlan = new Map<
-      string,
-      { plan: string; segment: string; customers: number; active: number; mrrTotal: number }
-    >();
+    const byPlan = new Map<string, { plan: string; segment: string; customers: number; active: number; mrrTotal: number }>();
     for (const row of rows) {
       const plan = String(row.servicePlan || '').trim();
       if (!plan) continue;

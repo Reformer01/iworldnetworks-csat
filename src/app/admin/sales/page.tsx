@@ -71,7 +71,9 @@ function AnimatedCard({
       </div>
       <p className="font-mono text-[10px] uppercase text-on-surface-variant mb-1 font-bold tracking-wider truncate">{label}</p>
       <div className="flex items-baseline gap-1 flex-wrap min-w-0">
-        <span className="text-xl xl:text-2xl font-mono font-black text-primary break-words min-w-0" title={value}>{value}</span>
+        <span className="text-xl xl:text-2xl font-mono font-black text-primary break-words min-w-0" title={value}>
+          {value}
+        </span>
         {unit && <span className="text-base xl:text-xl font-display text-on-surface-variant font-bold">{unit}</span>}
       </div>
       <p className="mt-4 font-mono text-[9px] text-on-surface-variant/60 uppercase font-bold tracking-wider break-words">{detail}</p>
@@ -231,7 +233,11 @@ function ChannelTable({ data }: { data: ChannelMetrics[] }) {
               .filter((c) => c.count > 0)
               .sort((a, b) => b.mrc - a.mrc)
               .map((c, i) => (
-                <tr key={c.meansOfSale} className="hover:bg-surface-container-lowest transition-colors" style={{ animationDelay: `${i * 40}ms` }}>
+                <tr
+                  key={c.meansOfSale}
+                  className="hover:bg-surface-container-lowest transition-colors"
+                  style={{ animationDelay: `${i * 40}ms` }}
+                >
                   <td className="py-3 pr-4 font-bold text-primary whitespace-nowrap">{c.meansOfSale}</td>
                   <td className="py-3 px-4 text-right font-mono">{c.count}</td>
                   <td className="py-3 px-4 text-right font-mono">{c.active}</td>
@@ -677,11 +683,18 @@ export default function SalesDashboard() {
     );
   }
 
-  const { overall, regionMetrics, agentMetrics, segmentBreakdown, btsMetrics, agentSegmentBreakdown, meansOfSaleBreakdown, totalRecords } = data;
+  const { overall, regionMetrics, agentMetrics, segmentBreakdown, btsMetrics, agentSegmentBreakdown, meansOfSaleBreakdown, totalRecords } =
+    data;
 
   const kpiCards = [
     { label: 'Monthly Revenue', value: formatNaira(overall.mrr), icon: Banknote, color: 'text-secondary', detail: 'From active customers' },
-    { label: 'Total MRC Closed', value: formatNaira(overall.totalMrcClosed), icon: TrendingUp, color: 'text-green-600', detail: 'All contracted recurring fees' },
+    {
+      label: 'Total MRC Closed',
+      value: formatNaira(overall.totalMrcClosed),
+      icon: TrendingUp,
+      color: 'text-green-600',
+      detail: 'All contracted recurring fees',
+    },
     { label: 'Active Customers', value: String(overall.activeSubscribers), icon: Users, color: 'text-blue-600', detail: 'Paying accounts' },
     { label: 'Avg. per Customer', value: formatNaira(overall.arpu), icon: Activity, color: 'text-purple-600', detail: 'Monthly average' },
     {

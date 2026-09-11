@@ -119,7 +119,16 @@ async function authedFetch(user: User, url: string, init?: RequestInit) {
 
 export async function createCampaign(
   user: User,
-  input: { name: string; type?: string; subject: string; html?: string; text: string; audience: unknown; scheduledAt?: number; action?: 'send' },
+  input: {
+    name: string;
+    type?: string;
+    subject: string;
+    html?: string;
+    text: string;
+    audience: unknown;
+    scheduledAt?: number;
+    action?: 'send';
+  },
 ): Promise<{ id: string }> {
   return authedFetch(user, '/api/admin/campaigns', { method: 'POST', body: JSON.stringify(input) });
 }

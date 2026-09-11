@@ -17,7 +17,13 @@ export async function GET(request: NextRequest) {
 
     const configured = isPaystackConfigured();
     if (!configured) {
-      return success({ configured: false, monthly: [], total: 0, count: 0, message: 'PAYSTACK_SECRET_KEY not configured. Set it in .env to enable.' });
+      return success({
+        configured: false,
+        monthly: [],
+        total: 0,
+        count: 0,
+        message: 'PAYSTACK_SECRET_KEY not configured. Set it in .env to enable.',
+      });
     }
 
     // If ?sync=1, trigger incremental sync first (super admin could, but allow any admin)

@@ -41,20 +41,35 @@ async function main() {
   for (const c of zeros) {
     try {
       const data = await splynxGetCustomer(c.customerId);
-      if (!data) { skipped++; continue; }
+      if (!data) {
+        skipped++;
+        continue;
+      }
       const mrrRaw = data.mrr_total ?? data.mrrTotal ?? data.monthly_cost ?? null;
       const mrr = parseFloat(String(mrrRaw ?? '0')) || 0;
       const plan = String(data.tariff_name ?? data.plan ?? data.service_name ?? data.tariff?.title ?? '').trim();
       // fallback to tariff price if mrr still 0 but plan known
-      const planMrr: Record<string, number> = { 'H-Lite': 27500, 'H-Max': 36500, 'H-Pro': 43500, 'U-Lite': 32500, 'U-Max': 43500, 'U-Pro': 58000, 'N-10K': 10000, 'N-15K': 15000, 'N-22-5K': 22500 };
-      let effective = mrr > 0 ? mrr : (plan ? (planMrr[plan] ?? 0) : 0);
+      const planMrr: Record<string, number> = {
+        'H-Lite': 27500,
+        'H-Max': 36500,
+        'H-Pro': 43500,
+        'U-Lite': 32500,
+        'U-Max': 43500,
+        'U-Pro': 58000,
+        'N-10K': 10000,
+        'N-15K': 15000,
+        'N-22-5K': 22500,
+      };
+      let effective = mrr > 0 ? mrr : plan ? (planMrr[plan] ?? 0) : 0;
       // Last resort: try latest paid invoice total for this customer via Splynx
       if (effective === 0) {
         try {
           const env2 = getSplynxConfig();
           const base2 = String(env2.host).replace(/\/+$/, '') + '/api/2.0';
           const auth2 = await buildAuthHeader();
-          const invRes = await fetch(`${base2}/admin/finance/invoices?customer_id=${encodeURIComponent(c.customerId)}&limit=1`, { headers: { Authorization: auth2, Accept: 'application/json' } } as any);
+          const invRes = await fetch(`${base2}/admin/finance/invoices?customer_id=${encodeURIComponent(c.customerId)}&limit=1`, {
+            headers: { Authorization: auth2, Accept: 'application/json' },
+          } as any);
           if (invRes.ok) {
             const invData: any = await invRes.json();
             const inv = Array.isArray(invData) ? invData[0] : invData?.data?.[0];
@@ -65,7 +80,8 @@ async function main() {
       }
       if (effective === 0) {
         if (verbose) console.log(`skip ${c.customerId} ${c.customerName} plan='${plan}' mrr_raw=${mrrRaw} -> 0`);
-        skipped++; continue;
+        skipped++;
+        continue;
       }
       console.log(`${c.customerId} ${c.customerName} plan='${plan}' mrr ${c.mrrTotal} -> ${effective}`);
       if (apply) {
@@ -73,7 +89,7 @@ async function main() {
         updated++;
       }
       // be gentle on Splynx API
-      await new Promise(r => setTimeout(r, 120));
+      await new Promise((r) => setTimeout(r, 120));
     } catch (e) {
       console.error(`fail ${c.customerId}`, e);
       skipped++;
@@ -82,4 +98,7 @@ async function main() {
   console.log(`Done. ${apply ? `updated ${updated}` : `would update ~${zeros.length - skipped}`} skipped ${skipped}`);
 }
 
-main().catch(e => { console.error(e); process.exit(1); });
+main().catch((e) => {
+  console.error(e);
+  process.exit(1);
+});

@@ -103,7 +103,7 @@ export function regionFromMajorityCity(customers: CustomerAuditRow[]): string | 
 /**
  * Pure per-tower computation. Customers are attributed by btsId (unified).
  * Account type falls back to the service plan when Splynx sends `regular`.
- * 
+ *
  * Potential MRC = billed MRR for every connected, non-deleted customer. It is
  * the revenue opportunity if all customers attached to the BTS were active.
  * Active MRC = billed MRR for active customers only.
@@ -140,13 +140,11 @@ export function computeTowerAuditRows(towers: TowerSiteRow[], customers: Custome
       byAccountType[key] = (byAccountType[key] ?? 0) + 1;
       const planKey = c.servicePlan || 'PLAN NOT PROVIDED';
       byServicePlan[planKey] = (byServicePlan[planKey] ?? 0) + 1;
-      
+
       // Splynx's customer-level MRR includes bundle and relationship discounts.
       // Only fall back to the exact catalog price when the mirror has no MRR.
       const storedMrr = Number(c.mrrTotal ?? 0);
-      const billedMrr = Number.isFinite(storedMrr) && storedMrr > 0
-        ? storedMrr
-        : getPlanMrc(c.servicePlan || '') ?? 0;
+      const billedMrr = Number.isFinite(storedMrr) && storedMrr > 0 ? storedMrr : (getPlanMrc(c.servicePlan || '') ?? 0);
       // Every connected customer contributes to the opportunity estimate,
       // including blocked/churned rows that could be restored or reactivated.
       const potentialCustomerMrr = billedMrr;
@@ -187,10 +185,10 @@ export function computeTowerAuditRows(towers: TowerSiteRow[], customers: Custome
       lastSyncAt: t.lastSyncAt,
       rosterSyncAt,
       customers: { total, active, byAccountType, byServicePlan, customerDetails },
-      mrrTotal: potentialMrr,      // Potential MRR (all connected customers)
-      activeMrr,                   // Active MRR (only active)
+      mrrTotal: potentialMrr, // Potential MRR (all connected customers)
+      activeMrr, // Active MRR (only active)
       mrrByAccountType: potentialMrrByAccountType, // Potential MRR breakdown
-      activeMrrByAccountType,      // Active MRR breakdown
+      activeMrrByAccountType, // Active MRR breakdown
     };
   });
 }

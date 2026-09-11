@@ -63,7 +63,9 @@ export default function FeedbackPopup() {
   const isEmbed = searchParams.get('embed') === 'true';
   const subject = searchParams.get('subject');
   const [shareUrl, setShareUrl] = useState('');
-  useEffect(() => { setShareUrl(window.location.href); }, []);
+  useEffect(() => {
+    setShareUrl(window.location.href);
+  }, []);
 
   const [pageState, setPageState] = useState<PageState>('loading');
   const [errorMessage, setErrorMessage] = useState('');
@@ -377,7 +379,9 @@ export default function FeedbackPopup() {
 
               {/* 3. First Contact Resolution (optional — powers the CES metric) */}
               <div className="space-y-2">
-                <label className="text-sm font-semibold text-primary block uppercase tracking-wider font-mono">First Contact Resolution</label>
+                <label className="text-sm font-semibold text-primary block uppercase tracking-wider font-mono">
+                  First Contact Resolution
+                </label>
                 <p className="text-xs text-muted-foreground">Was your issue fixed on the first try?</p>
                 <div className="grid grid-cols-2 gap-2">
                   <button

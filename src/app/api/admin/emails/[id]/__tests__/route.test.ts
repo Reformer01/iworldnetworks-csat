@@ -11,7 +11,9 @@ const mocks = vi.hoisted(() => ({
   verifySuperAdmin: vi.fn(),
 }));
 
-vi.mock('@/lib/prisma', () => ({ prisma: { emailJob: { findUnique: mocks.findUnique, update: mocks.update, updateMany: mocks.updateMany } } }));
+vi.mock('@/lib/prisma', () => ({
+  prisma: { emailJob: { findUnique: mocks.findUnique, update: mocks.update, updateMany: mocks.updateMany } },
+}));
 vi.mock('@/lib/admin-auth', () => ({
   verifyAdminToken: mocks.verifyAdmin,
   verifySuperAdminToken: mocks.verifySuperAdmin,

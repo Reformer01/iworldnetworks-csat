@@ -41,11 +41,7 @@ export async function GET(request: NextRequest) {
     if (agent && agent !== '__all') andClauses.push({ OR: [{ assignedSalesRep: agent }, { agentName: agent }] });
     if (search) {
       andClauses.push({
-        OR: [
-          { customerName: { contains: search } },
-          { location: { contains: search } },
-          { description: { contains: search } },
-        ],
+        OR: [{ customerName: { contains: search } }, { location: { contains: search } }, { description: { contains: search } }],
       });
     }
     const where: Record<string, unknown> = {
@@ -112,7 +108,17 @@ export async function GET(request: NextRequest) {
     }
 
     const header = ['Date', 'Customer', 'Email', 'BTS', 'MRR', 'Purpose', 'Agent', 'Amount', 'Description'];
-    const rows = mapped.map((m) => [m.date, m.customer, m.email, m.bts, String(m.mrr), m.purpose, m.agent, String(m.amount), m.description]);
+    const rows = mapped.map((m) => [
+      m.date,
+      m.customer,
+      m.email,
+      m.bts,
+      String(m.mrr),
+      m.purpose,
+      m.agent,
+      String(m.amount),
+      m.description,
+    ]);
     const csv = toCsv([header, ...rows]);
 
     return new NextResponse(csv, {

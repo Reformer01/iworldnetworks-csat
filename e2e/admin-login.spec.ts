@@ -18,12 +18,12 @@ test.describe('admin login', () => {
   });
 
   test('super-admin login lands inside the admin hub', async ({ page }) => {
-    await login(page, SUPER(), "super-admin");
+    await login(page, SUPER(), 'super-admin');
     await expect(page.getByText(/sign out/i).first()).toBeVisible({ timeout: 20_000 });
   });
 
   test('editor login lands inside the admin hub', async ({ page }) => {
-    await login(page, EDITOR(), "editor");
+    await login(page, EDITOR(), 'editor');
     await expect(page.getByText(/sign out/i).first()).toBeVisible({ timeout: 20_000 });
   });
 

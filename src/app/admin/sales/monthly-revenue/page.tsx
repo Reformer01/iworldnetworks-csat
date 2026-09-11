@@ -494,22 +494,30 @@ export default function MonthlyRevenuePage() {
   const { user, loading: authLoading } = useUser(auth);
   const [metric, setMetric] = useState<'revenue' | 'mrr' | 'nrcRevenue' | 'newCustomers'>('revenue');
   const [regionFilter, setRegionFilter] = useState<string>('__all');
-  const [paystack, setPaystack] = useState<{ configured: boolean; monthly: { month: string; total: number; count: number }[]; total: number; count: number } | null>(null);
+  const [paystack, setPaystack] = useState<{
+    configured: boolean;
+    monthly: { month: string; total: number; count: number }[];
+    total: number;
+    count: number;
+  } | null>(null);
   const [paystackLoading, setPaystackLoading] = useState(false);
   const [paystackSyncing, setPaystackSyncing] = useState(false);
 
-  const fetchPaystack = useCallback(async (doSync = false) => {
-    if (!user) return;
-    setPaystackLoading(true);
-    try {
-      const token = await user.getIdToken();
-      const url = `/api/admin/sales/paystack-monthly${doSync ? '?sync=1' : ''}`;
-      const res = await fetch(url, { headers: { Authorization: `Bearer ${token}` } });
-      const json = await res.json();
-      if (json.success) setPaystack(json.data);
-    } catch {}
-    setPaystackLoading(false);
-  }, [user]);
+  const fetchPaystack = useCallback(
+    async (doSync = false) => {
+      if (!user) return;
+      setPaystackLoading(true);
+      try {
+        const token = await user.getIdToken();
+        const url = `/api/admin/sales/paystack-monthly${doSync ? '?sync=1' : ''}`;
+        const res = await fetch(url, { headers: { Authorization: `Bearer ${token}` } });
+        const json = await res.json();
+        if (json.success) setPaystack(json.data);
+      } catch {}
+      setPaystackLoading(false);
+    },
+    [user],
+  );
 
   const handlePaystackSync = async () => {
     if (!user) return;
@@ -706,7 +714,8 @@ export default function MonthlyRevenuePage() {
               <div>
                 <p className="font-mono text-xs font-bold text-amber-800">PAYSTACK_SECRET_KEY not configured</p>
                 <p className="font-mono text-[11px] text-amber-700/80 mt-1">
-                  Set <span className="font-bold">PAYSTACK_SECRET_KEY</span> in .env (server: /home/csat.iwn.ng/.env) to `sk_live_...` or `sk_test_...`, then restart. Transactions will sync on demand via “Sync Paystack”.
+                  Set <span className="font-bold">PAYSTACK_SECRET_KEY</span> in .env (server: /home/csat.iwn.ng/.env) to `sk_live_...` or
+                  `sk_test_...`, then restart. Transactions will sync on demand via “Sync Paystack”.
                 </p>
               </div>
             </div>
@@ -756,7 +765,10 @@ export default function MonthlyRevenuePage() {
                   </tbody>
                 </table>
               </div>
-              <p className="font-mono text-[9px] opacity-50 mt-3">* Sales Revenue = NRC+MRC from new customers that month. Paystack = gateway success (all products). Variance helps reconcile.</p>
+              <p className="font-mono text-[9px] opacity-50 mt-3">
+                * Sales Revenue = NRC+MRC from new customers that month. Paystack = gateway success (all products). Variance helps
+                reconcile.
+              </p>
             </>
           )}
         </SectionCard>

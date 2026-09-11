@@ -80,9 +80,7 @@ describe('POST /api/webhooks/uisp', () => {
 
   it('rejects with 503 when no secret is configured', async () => {
     vi.stubEnv('UISP_WEBHOOK_SECRET', '');
-    const response = await POST(
-      buildRequest({ event: { id: 'evt-1', type: 'site/update' } }, { 'x-auth-token': secret }),
-    );
+    const response = await POST(buildRequest({ event: { id: 'evt-1', type: 'site/update' } }, { 'x-auth-token': secret }));
     const json = await response.json();
     expect(response.status).toBe(503);
     expect(json.error).toBe('Not configured');
@@ -91,11 +89,7 @@ describe('POST /api/webhooks/uisp', () => {
 
   it('rejects with 401 on a wrong or missing token', async () => {
     const body = { event: { id: 'evt-1', type: 'site/update' } };
-    for (const headers of [
-      { 'x-auth-token': 'wrong-secret' },
-      { authorization: 'Bearer wrong-secret' },
-      {},
-    ]) {
+    for (const headers of [{ 'x-auth-token': 'wrong-secret' }, { authorization: 'Bearer wrong-secret' }, {}]) {
       const response = await POST(buildRequest(body, headers));
       const json = await response.json();
       expect(response.status).toBe(401);
@@ -181,7 +175,11 @@ describe('POST /api/webhooks/uisp', () => {
   it('deletes the row on a site/delete event and recomputes descendants', async () => {
     mocks.eventUpsert.mockResolvedValue({ processedAt: null });
     const body = {
-      event: { id: 'evt-del', type: 'site/delete', data: { ...sitePayload, identification: { ...sitePayload.identification, id: 'site-gone' } } },
+      event: {
+        id: 'evt-del',
+        type: 'site/delete',
+        data: { ...sitePayload, identification: { ...sitePayload.identification, id: 'site-gone' } },
+      },
     };
 
     const response = await POST(buildRequest(body, { 'x-auth-token': secret }));
@@ -201,9 +199,7 @@ describe('POST /api/webhooks/uisp', () => {
 
     expect(mocks.siteUpsert).not.toHaveBeenCalled();
     expect(mocks.recomputeBtsForNode).not.toHaveBeenCalled();
-    expect(mocks.eventUpdate).toHaveBeenCalledWith(
-      expect.objectContaining({ data: expect.objectContaining({ error: null }) }),
-    );
+    expect(mocks.eventUpdate).toHaveBeenCalledWith(expect.objectContaining({ data: expect.objectContaining({ error: null }) }));
   });
 
   it('stores the error and keeps processedAt null when processing fails, still responding 200', async () => {

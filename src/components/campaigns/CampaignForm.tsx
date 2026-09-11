@@ -96,7 +96,7 @@ export function CampaignForm({ user, onCreated }: { user: User; onCreated: (id: 
     setValues((prev) => (prev.includes(v) ? prev.filter((x) => x !== v) : [...prev, v]));
   };
 
-  const optionList = audienceType === 'all' ? [] : (options?.[audienceType as keyof CampaignSegmentOptions] || []);
+  const optionList = audienceType === 'all' ? [] : options?.[audienceType as keyof CampaignSegmentOptions] || [];
   const filteredOptions = optionSearch.trim()
     ? optionList.filter((o) => o.value.toLowerCase().includes(optionSearch.trim().toLowerCase()))
     : optionList;
@@ -133,11 +133,15 @@ export function CampaignForm({ user, onCreated }: { user: User; onCreated: (id: 
     }
     setSubmitting(true);
     try {
-      const scheduledAtMs = sendMode === 'schedule' && scheduledDate && scheduledTime
-        ? new Date(`${scheduledDate}T${scheduledTime}`).getTime()
-        : undefined;
+      const scheduledAtMs =
+        sendMode === 'schedule' && scheduledDate && scheduledTime ? new Date(`${scheduledDate}T${scheduledTime}`).getTime() : undefined;
       const { id } = await createCampaign(user, {
-        name, type, subject, html, text, audience,
+        name,
+        type,
+        subject,
+        html,
+        text,
+        audience,
         scheduledAt: scheduledAtMs,
         action: sendMode === 'send' ? 'send' : sendMode === 'schedule' ? 'send' : undefined,
       });
@@ -165,10 +169,14 @@ export function CampaignForm({ user, onCreated }: { user: User; onCreated: (id: 
 
   const canProceed = () => {
     switch (step) {
-      case 'template': return true; // Can always proceed from template
-      case 'content': return name.trim() && subject.trim() && text.trim();
-      case 'audience': return true;
-      case 'review': return true;
+      case 'template':
+        return true; // Can always proceed from template
+      case 'content':
+        return name.trim() && subject.trim() && text.trim();
+      case 'audience':
+        return true;
+      case 'review':
+        return true;
     }
   };
 
@@ -192,32 +200,23 @@ export function CampaignForm({ user, onCreated }: { user: User; onCreated: (id: 
                   ? 'bg-secondary text-white'
                   : i < stepIndex
                     ? 'bg-emerald-100 text-emerald-700 cursor-pointer hover:bg-emerald-200'
-                    : 'bg-surface-container-low text-on-surface-variant/40'
+                    : 'bg-surface-container-low text-on-surface-variant/40',
               )}
             >
               {i < stepIndex ? (
                 <Check className="w-3 h-3" />
               ) : (
-                <span className="w-4 h-4 rounded-full border border-current flex items-center justify-center text-[8px]">
-                  {i + 1}
-                </span>
+                <span className="w-4 h-4 rounded-full border border-current flex items-center justify-center text-[8px]">{i + 1}</span>
               )}
               <span className="hidden sm:inline">{s.label}</span>
             </button>
-            {i < STEPS.length - 1 && (
-              <div className={cn('h-px flex-1', i < stepIndex ? 'bg-emerald-300' : 'bg-border/40')} />
-            )}
+            {i < STEPS.length - 1 && <div className={cn('h-px flex-1', i < stepIndex ? 'bg-emerald-300' : 'bg-border/40')} />}
           </React.Fragment>
         ))}
       </div>
 
       {/* Step content */}
-      {step === 'template' && (
-        <TemplatePicker
-          selectedId={selectedTemplate?.id ?? null}
-          onSelect={handleTemplateSelect}
-        />
-      )}
+      {step === 'template' && <TemplatePicker selectedId={selectedTemplate?.id ?? null} onSelect={handleTemplateSelect} />}
 
       {step === 'content' && (
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
@@ -241,7 +240,9 @@ export function CampaignForm({ user, onCreated }: { user: User; onCreated: (id: 
                   </SelectTrigger>
                   <SelectContent>
                     {['campaign', 'downtime', 'notice', 'other'].map((t) => (
-                      <SelectItem key={t} value={t}>{t}</SelectItem>
+                      <SelectItem key={t} value={t}>
+                        {t}
+                      </SelectItem>
                     ))}
                   </SelectContent>
                 </Select>
@@ -297,11 +298,7 @@ export function CampaignForm({ user, onCreated }: { user: User; onCreated: (id: 
 
           {/* Preview */}
           <div className="lg:sticky lg:top-20 lg:self-start">
-            <EmailPreview
-              subject={subject}
-              html={previewHtml}
-              text={previewText}
-            />
+            <EmailPreview subject={subject} html={previewHtml} text={previewText} />
           </div>
         </div>
       )}
@@ -325,7 +322,9 @@ export function CampaignForm({ user, onCreated }: { user: User; onCreated: (id: 
                 </SelectTrigger>
                 <SelectContent>
                   {AUDIENCE_TYPES.map((a) => (
-                    <SelectItem key={a.value} value={a.value}>{a.label}</SelectItem>
+                    <SelectItem key={a.value} value={a.value}>
+                      {a.label}
+                    </SelectItem>
                   ))}
                 </SelectContent>
               </Select>
@@ -429,9 +428,7 @@ export function CampaignForm({ user, onCreated }: { user: User; onCreated: (id: 
                   onClick={() => setSendMode(opt.id)}
                   className={cn(
                     'p-3 rounded-xl border-2 text-left transition-all',
-                    sendMode === opt.id
-                      ? 'border-secondary bg-secondary/10'
-                      : 'border-border hover:border-secondary/40',
+                    sendMode === opt.id ? 'border-secondary bg-secondary/10' : 'border-border hover:border-secondary/40',
                   )}
                 >
                   <div className="flex items-center gap-2 mb-1">
@@ -468,7 +465,11 @@ export function CampaignForm({ user, onCreated }: { user: User; onCreated: (id: 
                   <span className="font-mono text-[10px] text-secondary font-bold flex items-center gap-1.5">
                     <Calendar className="w-3.5 h-3.5" />
                     {new Date(`${scheduledDate}T${scheduledTime}`).toLocaleString('en-NG', {
-                      weekday: 'short', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit',
+                      weekday: 'short',
+                      month: 'short',
+                      day: 'numeric',
+                      hour: '2-digit',
+                      minute: '2-digit',
                     })}
                   </span>
                 )}
@@ -476,11 +477,7 @@ export function CampaignForm({ user, onCreated }: { user: User; onCreated: (id: 
             )}
           </div>
 
-          <EmailPreview
-            subject={subject}
-            html={previewHtml}
-            text={previewText}
-          />
+          <EmailPreview subject={subject} html={previewHtml} text={previewText} />
         </div>
       )}
 
@@ -518,7 +515,15 @@ export function CampaignForm({ user, onCreated }: { user: User; onCreated: (id: 
               className="rounded-full bg-secondary text-white font-mono text-[10px] uppercase font-bold px-8"
             >
               {submitting ? <Loader2 className="w-3.5 h-3.5 mr-2 animate-spin" /> : <Send className="w-3.5 h-3.5 mr-2" />}
-              {submitting ? 'Creating…' : sendMode === 'send' ? 'Approve & Send' : sendMode === 'schedule' ? 'Schedule Campaign' : sendMode === 'review' ? 'Submit for Review' : 'Create Draft'}
+              {submitting
+                ? 'Creating…'
+                : sendMode === 'send'
+                  ? 'Approve & Send'
+                  : sendMode === 'schedule'
+                    ? 'Schedule Campaign'
+                    : sendMode === 'review'
+                      ? 'Submit for Review'
+                      : 'Create Draft'}
             </Button>
           )}
         </div>

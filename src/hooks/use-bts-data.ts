@@ -70,7 +70,18 @@ export function useBtsCustomers(params?: {
         if (showLoading) setLoading(false);
       }
     },
-    [user, authLoading, params?.btsName, params?.region, params?.lifecycle, params?.accountType, params?.overdue, params?.search, params?.page, params?.pageSize],
+    [
+      user,
+      authLoading,
+      params?.btsName,
+      params?.region,
+      params?.lifecycle,
+      params?.accountType,
+      params?.overdue,
+      params?.search,
+      params?.page,
+      params?.pageSize,
+    ],
   );
 
   useEffect(() => {

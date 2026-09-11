@@ -18,14 +18,14 @@ import { Textarea } from '@/components/ui/textarea';
 import { CheckCircle2, MessageSquare } from 'lucide-react';
 
 export default function AdminInstallation() {
-  const networkMap = PlaceHolderImages.find(img => img.id === 'network-map')!;
+  const networkMap = PlaceHolderImages.find((img) => img.id === 'network-map')!;
   const auth = useAuth();
   const { user } = useUser(auth);
   const { toast } = useToast();
   const [selectedFeedback, setSelectedFeedback] = useState<FeedbackDoc | null>(null);
   const [resNotes, setResNotes] = useState('');
 
-  const techsRoster = fieldTechnicians.map(t => ({ name: t.name, region: t.region || '—' }));
+  const techsRoster = fieldTechnicians.map((t) => ({ name: t.name, region: t.region || '—' }));
 
   const handleUpdateStatus = async (feedbackId: string, status: string) => {
     if (!user) return;
@@ -47,15 +47,18 @@ export default function AdminInstallation() {
   }, [allFeedbacks]);
 
   const techLeaderboard = useMemo(() => {
-    if (!installFeedback) return techsRoster.map(t => ({ ...t, completions: 0 })).slice(0, 5);
-    
-    return techsRoster.map((t: { name: string; region: string }) => {
-      const completions = installFeedback.filter((f: FeedbackDoc) => f.staffName === t.name).length;
-      return {
-        ...t,
-        completions
-      };
-    }).sort((a, b) => b.completions - a.completions).slice(0, 5);
+    if (!installFeedback) return techsRoster.map((t) => ({ ...t, completions: 0 })).slice(0, 5);
+
+    return techsRoster
+      .map((t: { name: string; region: string }) => {
+        const completions = installFeedback.filter((f: FeedbackDoc) => f.staffName === t.name).length;
+        return {
+          ...t,
+          completions,
+        };
+      })
+      .sort((a, b) => b.completions - a.completions)
+      .slice(0, 5);
   }, [installFeedback]);
 
   const completionRate = useMemo(() => {
@@ -72,7 +75,7 @@ export default function AdminInstallation() {
     const minutes = Math.round(90 - ((avg - 1) / 4) * 60);
     return {
       score: `${avg.toFixed(1)}/5`,
-      minutes: `${minutes}m`
+      minutes: `${minutes}m`,
     };
   }, [installFeedback]);
 
@@ -103,7 +106,9 @@ export default function AdminInstallation() {
         <div className="col-span-12 md:col-span-4 md:col-start-9 flex flex-col justify-end">
           <div className="bg-white p-6 whisper-shadow rounded-xl border border-border">
             <span className="font-mono text-[12px] uppercase text-secondary">Quality Score</span>
-            <div className="text-2xl text-3xl font-black mt-2"><span className="font-mono">+{completionRate}%</span></div>
+            <div className="text-2xl text-3xl font-black mt-2">
+              <span className="font-mono">+{completionRate}%</span>
+            </div>
           </div>
         </div>
       </div>
@@ -125,7 +130,9 @@ export default function AdminInstallation() {
                   <p className="font-mono text-sm text-on-surface-variant">{tech.region}</p>
                 </div>
                 <div className="text-right">
-                  <p className="font-black text-secondary text-xl"><span className="font-mono">{tech.completions}</span></p>
+                  <p className="font-black text-secondary text-xl">
+                    <span className="font-mono">{tech.completions}</span>
+                  </p>
                   <p className="font-mono text-[10px] uppercase opacity-60">Setups</p>
                 </div>
               </div>
@@ -140,19 +147,21 @@ export default function AdminInstallation() {
               <p className="font-mono text-sm text-on-surface-variant mt-1">Recent installation activity across regions.</p>
             </div>
             <div className="flex gap-2">
-              <Button size="icon" className="w-10 h-10 bg-primary text-white"><Map className="w-5 h-5" /></Button>
+              <Button size="icon" className="w-10 h-10 bg-primary text-white">
+                <Map className="w-5 h-5" />
+              </Button>
             </div>
           </div>
           <div className="flex-1 relative overflow-hidden rounded-lg bg-surface-container-low group">
-            <Image 
-              src={networkMap.imageUrl} 
-              alt="Network Map" 
-              fill 
+            <Image
+              src={networkMap.imageUrl}
+              alt="Network Map"
+              fill
               sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 50vw"
-              className="object-cover grayscale contrast-[1.1] opacity-40 mix-blend-multiply transition-transform duration-1000 group-hover:scale-105" 
-              data-ai-hint="network map" 
+              className="object-cover grayscale contrast-[1.1] opacity-40 mix-blend-multiply transition-transform duration-1000 group-hover:scale-105"
+              data-ai-hint="network map"
             />
-            
+
             <div className="absolute top-1/4 left-1/4 group cursor-pointer">
               <div className="w-4 h-4 bg-secondary rounded-full animate-ping absolute"></div>
               <div className="w-4 h-4 bg-secondary rounded-full relative border-2 border-white"></div>
@@ -177,11 +186,17 @@ export default function AdminInstallation() {
           { label: 'Quality Score', val: `${completionRate}%`, info: 'National Average', icon: Shield },
           { label: 'Completed Installations', val: completedJobs, info: 'Goal: 100% completion rate', icon: CircleCheck, primary: true },
         ].map((item, i) => (
-          <div key={i} className={cn("p-8 rounded-xl border border-border whisper-shadow", item.primary ? "bg-secondary text-white border-secondary" : "bg-white")}>
-            <item.icon className={cn("w-8 h-8 mb-4", item.primary ? "text-white" : "text-secondary")} />
+          <div
+            key={i}
+            className={cn(
+              'p-8 rounded-xl border border-border whisper-shadow',
+              item.primary ? 'bg-secondary text-white border-secondary' : 'bg-white',
+            )}
+          >
+            <item.icon className={cn('w-8 h-8 mb-4', item.primary ? 'text-white' : 'text-secondary')} />
             <h4 className="font-bold text-lg mb-2">{item.label}</h4>
             <p className="text-2xl font-black font-mono">{item.val}</p>
-            <p className={cn("text-xs font-mono mt-2", item.primary ? "text-white/80" : "text-on-surface-variant")}>{item.info}</p>
+            <p className={cn('text-xs font-mono mt-2', item.primary ? 'text-white/80' : 'text-on-surface-variant')}>{item.info}</p>
           </div>
         ))}
       </div>
@@ -205,9 +220,7 @@ export default function AdminInstallation() {
                   >
                     {f.status}
                   </span>
-                  <span className="font-mono text-[9px] text-on-surface-variant uppercase font-bold">
-                    Tech: {f.staffName || 'Unknown'}
-                  </span>
+                  <span className="font-mono text-[9px] text-on-surface-variant uppercase font-bold">Tech: {f.staffName || 'Unknown'}</span>
                   {f.servicePlan && (
                     <span className="font-mono text-[9px] text-on-surface-variant/60 font-bold">Plan: {f.servicePlan}</span>
                   )}

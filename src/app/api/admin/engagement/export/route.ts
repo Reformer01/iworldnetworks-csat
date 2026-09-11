@@ -6,10 +6,23 @@ import { resolveEngagementVisibility } from '@/lib/support-staff-visibility';
 export const dynamic = 'force-dynamic';
 
 const HEADERS = [
-  'Customer Name', 'Phone', 'BTS / Site', 'Account Status', 'Account Type',
-  'Plan', 'Region', 'Call Status', 'Last Contact', 'Next Follow-Up',
-  'Purpose', 'Feedback', 'Complaint', 'Upsell/Cross-sell', 'Retention Risk',
-  'Resolution', 'Agent',
+  'Customer Name',
+  'Phone',
+  'BTS / Site',
+  'Account Status',
+  'Account Type',
+  'Plan',
+  'Region',
+  'Call Status',
+  'Last Contact',
+  'Next Follow-Up',
+  'Purpose',
+  'Feedback',
+  'Complaint',
+  'Upsell/Cross-sell',
+  'Retention Risk',
+  'Resolution',
+  'Agent',
 ];
 
 function esc(v: string | number | null | undefined): string {
@@ -52,11 +65,7 @@ export const GET = withAdmin(
     const logs = await prisma.engagementLog.findMany({
       where: {
         ...(staff ? { staffName: staff } : {}),
-        ...(callStatus
-          ? callStatus === 'Never Contacted'
-            ? { callStatus: null, lastContactAt: null }
-            : { callStatus }
-          : {}),
+        ...(callStatus ? (callStatus === 'Never Contacted' ? { callStatus: null, lastContactAt: null } : { callStatus }) : {}),
         ...(dateFrom || dateTo ? { lastContactAt: lastContactFilter } : {}),
         ...(search ? { customerName: { contains: search } } : {}),
       },
@@ -70,12 +79,27 @@ export const GET = withAdmin(
 
     const rows: string[] = [HEADERS.join(',')];
     for (const l of logs) {
-      rows.push([
-        esc(l.customerName), esc(l.phone), esc(l.btsName), esc(l.accountStatus), esc(l.accountType),
-        esc(l.plan), esc(l.region), esc(l.callStatus), fmtDate(l.lastContactAt), fmtDate(l.nextFollowUpAt),
-        esc(l.purpose), esc(l.feedback), esc(l.complaint), esc(l.upsellNote), esc(l.retentionRisk),
-        esc(l.resolution), esc(l.staffName),
-      ].join(','));
+      rows.push(
+        [
+          esc(l.customerName),
+          esc(l.phone),
+          esc(l.btsName),
+          esc(l.accountStatus),
+          esc(l.accountType),
+          esc(l.plan),
+          esc(l.region),
+          esc(l.callStatus),
+          fmtDate(l.lastContactAt),
+          fmtDate(l.nextFollowUpAt),
+          esc(l.purpose),
+          esc(l.feedback),
+          esc(l.complaint),
+          esc(l.upsellNote),
+          esc(l.retentionRisk),
+          esc(l.resolution),
+          esc(l.staffName),
+        ].join(','),
+      );
     }
 
     return new NextResponse(rows.join('\n'), {

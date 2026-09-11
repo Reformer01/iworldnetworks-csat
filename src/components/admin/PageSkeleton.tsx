@@ -22,15 +22,7 @@ export function KpiSkeleton({ className }: { className?: string }) {
 /*  Table Skeleton                                                     */
 /* ------------------------------------------------------------------ */
 
-export function TableSkeleton({
-  rows = 5,
-  columns = 4,
-  className,
-}: {
-  rows?: number;
-  columns?: number;
-  className?: string;
-}) {
+export function TableSkeleton({ rows = 5, columns = 4, className }: { rows?: number; columns?: number; className?: string }) {
   return (
     <div className={cn('bg-white rounded-2xl whisper-shadow border border-border overflow-hidden', className)}>
       {/* Header */}
@@ -61,11 +53,7 @@ export function ChartSkeleton({ className }: { className?: string }) {
       <Skeleton className="h-4 w-32 mb-6" />
       <div className="flex items-end gap-2 h-48">
         {Array.from({ length: 8 }).map((_, i) => (
-          <Skeleton
-            key={i}
-            className="flex-1 rounded-t"
-            style={{ height: `${30 + Math.random() * 70}%` }}
-          />
+          <Skeleton key={i} className="flex-1 rounded-t" style={{ height: `${30 + Math.random() * 70}%` }} />
         ))}
       </div>
     </div>
@@ -120,13 +108,7 @@ export function PageSkeleton({
 /*  Card Grid Skeleton — for card-based layouts                        */
 /* ------------------------------------------------------------------ */
 
-export function CardGridSkeleton({
-  count = 6,
-  className,
-}: {
-  count?: number;
-  className?: string;
-}) {
+export function CardGridSkeleton({ count = 6, className }: { count?: number; className?: string }) {
   return (
     <div className={cn('grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4', className)}>
       {Array.from({ length: count }).map((_, i) => (

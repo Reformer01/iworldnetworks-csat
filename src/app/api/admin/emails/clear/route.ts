@@ -21,9 +21,10 @@ export async function POST(request: NextRequest) {
     if (!admin) return unauthorized();
 
     const body = await request.json().catch(() => null);
-    const statuses: string[] = Array.isArray(body?.statuses) && body.statuses.length > 0
-      ? body.statuses.filter((s: unknown) => typeof s === 'string').slice(0, 5)
-      : ['pending'];
+    const statuses: string[] =
+      Array.isArray(body?.statuses) && body.statuses.length > 0
+        ? body.statuses.filter((s: unknown) => typeof s === 'string').slice(0, 5)
+        : ['pending'];
     const hard = body?.hard === true;
 
     const allowed = new Set(['pending', 'pending_approval', 'processing', 'failed']);
@@ -52,7 +53,10 @@ export async function POST(request: NextRequest) {
       // Guard: never overwrite a job that already has a bullJobId (enqueued) or sentAt (delivered) — audit must stay honest
       const res = await prisma.emailJob.updateMany({
         where: { status: { in: filtered }, sentAt: null, bullJobId: null },
-        data: { status: 'cancelled', error: `Cancelled by ${admin.email} at ${new Date().toISOString()} | was ${filtered.join(',')}, not yet enqueued (bullJobId null)` },
+        data: {
+          status: 'cancelled',
+          error: `Cancelled by ${admin.email} at ${new Date().toISOString()} | was ${filtered.join(',')}, not yet enqueued (bullJobId null)`,
+        },
       });
       cleared = res.count;
     }

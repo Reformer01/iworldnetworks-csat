@@ -147,7 +147,11 @@ export default function RiskRegisterPage() {
                     </td>
                     <td className="py-1.5 px-2 text-right font-mono font-bold whitespace-nowrap">₦{Math.round(r.mrr).toLocaleString()}</td>
                     <td className="py-1.5 px-2">
-                      <span className={`px-2 py-0.5 rounded-full font-mono text-[9px] font-bold uppercase whitespace-nowrap ${levelClasses(r.riskLevel)}`}>{r.riskLevel}</span>
+                      <span
+                        className={`px-2 py-0.5 rounded-full font-mono text-[9px] font-bold uppercase whitespace-nowrap ${levelClasses(r.riskLevel)}`}
+                      >
+                        {r.riskLevel}
+                      </span>
                     </td>
                     <td className="py-1.5 px-2 text-xs max-w-[220px]">{r.reason}</td>
                     <td className="py-1 px-1 bg-amber-50/60 min-w-[150px]">
@@ -192,7 +196,8 @@ export default function RiskRegisterPage() {
         </section>
 
         <p className="mt-3 font-mono text-[9px] uppercase tracking-widest opacity-40 flex items-center gap-1">
-          <ShieldAlert className="w-3 h-3" /> Risk level is derived from health-score tier and overdue days; High = critical/churning tier or &gt;30 days overdue.
+          <ShieldAlert className="w-3 h-3" /> Risk level is derived from health-score tier and overdue days; High = critical/churning tier
+          or &gt;30 days overdue.
         </p>
       </div>
     </SalesLayout>

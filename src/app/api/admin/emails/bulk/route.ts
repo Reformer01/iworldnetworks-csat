@@ -49,7 +49,9 @@ export async function POST(request: NextRequest) {
       for (const rec of records) {
         const data = rec.payload as unknown as Omit<EmailJobData, 'type' | 'emailJobId'>;
         try {
-          await queue.add(rec.type, { type: rec.type, ...data, emailJobId: rec.id } as EmailJobData, { priority: getPriorityForType(rec.type) });
+          await queue.add(rec.type, { type: rec.type, ...data, emailJobId: rec.id } as EmailJobData, {
+            priority: getPriorityForType(rec.type),
+          });
         } catch (enqueueError) {
           await markEmailJobFailed(rec.id, enqueueError instanceof Error ? enqueueError.message : String(enqueueError), 0);
         }

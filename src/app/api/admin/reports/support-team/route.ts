@@ -23,7 +23,13 @@ export const GET = withAdmin(
     const staffFilter = url.searchParams.get('staff');
 
     const fromDate: Date | null = from ? new Date(from) : null;
-    const toDate: Date | null = to ? (() => { const d = new Date(to); d.setHours(23, 59, 59, 999); return d; })() : null;
+    const toDate: Date | null = to
+      ? (() => {
+          const d = new Date(to);
+          d.setHours(23, 59, 59, 999);
+          return d;
+        })()
+      : null;
 
     const dateFilter = (field: 'createdAt' | 'lastContactAt' | 'date') => {
       const f: Record<string, unknown> = {};
@@ -106,7 +112,8 @@ export const GET = withAdmin(
       if (e.retentionRisk === 'High') s.reachout.highRisk++;
     }
 
-    let totalRating = 0, ratingCount = 0;
+    let totalRating = 0,
+      ratingCount = 0;
     for (const f of feedbackFiltered) {
       const staff = String(f.staffName ?? '').trim();
       if (!staff) continue;

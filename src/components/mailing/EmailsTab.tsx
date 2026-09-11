@@ -4,7 +4,15 @@ import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
 import { useAuth, useUser } from '@/firebase';
-import { useEmails, type EmailJobRecord, retryEmailJob, approveEmailJob, rejectEmailJob, bulkEmailAction, fetchPendingEmailIds } from '@/hooks/use-emails';
+import {
+  useEmails,
+  type EmailJobRecord,
+  retryEmailJob,
+  approveEmailJob,
+  rejectEmailJob,
+  bulkEmailAction,
+  fetchPendingEmailIds,
+} from '@/hooks/use-emails';
 import { useToast } from '@/hooks/use-toast';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
@@ -153,7 +161,7 @@ export function EmailsTab() {
   const handleClearPending = async () => {
     if (!user || bulking) return;
     const ok = window.confirm(
-      `Clear all PENDING mail queue?\n\nThis will mark ${stats?.pending ?? 0} pending emails as CANCELLED and drain Redis queue.\nPending_approval (awaiting your approval) will be kept.\n\nContinue?`
+      `Clear all PENDING mail queue?\n\nThis will mark ${stats?.pending ?? 0} pending emails as CANCELLED and drain Redis queue.\nPending_approval (awaiting your approval) will be kept.\n\nContinue?`,
     );
     if (!ok) return;
     setBulking(true);
@@ -210,9 +218,7 @@ export function EmailsTab() {
       {canApprove && stats?.pendingApproval !== undefined && stats.pendingApproval > 0 && (
         <div className="mt-4 flex items-center gap-3 px-4 py-3 rounded-xl bg-orange-50 border border-orange-200">
           <span className="w-2 h-2 rounded-full bg-orange-500 animate-pulse" />
-          <span className="font-mono text-[11px] font-bold text-orange-800">
-            {stats.pendingApproval} awaiting approval
-          </span>
+          <span className="font-mono text-[11px] font-bold text-orange-800">{stats.pendingApproval} awaiting approval</span>
           <Button
             size="sm"
             className="ml-auto h-8 rounded-full bg-orange-600 hover:bg-orange-700 text-white font-mono text-[10px] uppercase font-bold"

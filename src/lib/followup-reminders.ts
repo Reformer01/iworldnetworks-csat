@@ -33,7 +33,10 @@ export async function runFollowUpReminders(now = new Date()): Promise<{ sent: nu
   });
 
   // Group by agent
-  const byAgent = new Map<string, Array<{ customerName: string; phone: string | null; nextFollowUpAt: Date | null; retentionRisk: string | null }>>();
+  const byAgent = new Map<
+    string,
+    Array<{ customerName: string; phone: string | null; nextFollowUpAt: Date | null; retentionRisk: string | null }>
+  >();
   for (const d of due) {
     const list = byAgent.get(d.staffName) ?? [];
     list.push({ customerName: d.customerName, phone: d.phone, nextFollowUpAt: d.nextFollowUpAt, retentionRisk: d.retentionRisk });

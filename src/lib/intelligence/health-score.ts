@@ -21,11 +21,11 @@ import { prisma } from '@/lib/prisma';
 
 const WEIGHTS = {
   complaint: 0.25,
-  payment: 0.20,
+  payment: 0.2,
   device: 0.15,
   network: 0.15,
   engagement: 0.15,
-  lifecycle: 0.10,
+  lifecycle: 0.1,
 } as const;
 
 function scoreToTier(score: number): string {
@@ -55,11 +55,7 @@ function computePaymentRisk(overdueInfo: Record<string, unknown> | string | null
   return 100;
 }
 
-function computeDeviceRisk(
-  deviceStatus: string | null,
-  outageCount: number | null,
-  lastSyncAt: bigint | number | null
-): number {
+function computeDeviceRisk(deviceStatus: string | null, outageCount: number | null, lastSyncAt: bigint | number | null): number {
   let risk = 0;
   if (deviceStatus === 'offline' || deviceStatus === 'disabled') risk += 40;
   if (outageCount != null && outageCount > 0) risk += Math.min(outageCount * 20, 40);
@@ -89,11 +85,7 @@ function computeEngagementRisk(lastContactAt: Date | null): number {
   return 90;
 }
 
-function computeLifecycleRisk(
-  lifecycle: string | null,
-  churnedAt: bigint | number | null,
-  inactiveSince: bigint | number | null
-): number {
+function computeLifecycleRisk(lifecycle: string | null, churnedAt: bigint | number | null, inactiveSince: bigint | number | null): number {
   if (lifecycle === 'churned' || churnedAt) return 100;
   if (lifecycle === 'blocked') return 90;
   if (lifecycle === 'inactive') {
@@ -140,24 +132,12 @@ export interface HealthScoreResult {
  * Note: complaint risk and network risk require batch queries —
  * pass pre-computed values or use computeAllHealthScores.
  */
-export function computeHealthScore(
-  customer: CustomerInput,
-  complaintRisk: number,
-  towerHealthScore: number | null
-): HealthScoreResult {
+export function computeHealthScore(customer: CustomerInput, complaintRisk: number, towerHealthScore: number | null): HealthScoreResult {
   const paymentRisk = computePaymentRisk(customer.overdueInfo);
-  const deviceRisk = computeDeviceRisk(
-    customer.uispDeviceStatus,
-    customer.uispOutageCount,
-    customer.lastSyncAt
-  );
+  const deviceRisk = computeDeviceRisk(customer.uispDeviceStatus, customer.uispOutageCount, customer.lastSyncAt);
   const networkRisk = computeNetworkRisk(towerHealthScore);
   const engagementRisk = computeEngagementRisk(customer.lastContactAt);
-  const lifecycleRisk = computeLifecycleRisk(
-    customer.lifecycle,
-    customer.churnedAt,
-    customer.inactiveSince
-  );
+  const lifecycleRisk = computeLifecycleRisk(customer.lifecycle, customer.churnedAt, customer.inactiveSince);
 
   const raw =
     complaintRisk * WEIGHTS.complaint +
@@ -237,9 +217,7 @@ export async function computeAllHealthScores(): Promise<{
     },
     _count: { id: true },
   });
-  const complaintMap = new Map(
-    complaintCounts.map((c) => [c.customerId, c._count.id])
-  );
+  const complaintMap = new Map(complaintCounts.map((c) => [c.customerId, c._count.id]));
 
   // 4. Fetch last contact per customer
   const lastContacts = await prisma.engagementLog.groupBy({
@@ -247,9 +225,7 @@ export async function computeAllHealthScores(): Promise<{
     where: { customerId: { not: null } },
     _max: { lastContactAt: true },
   });
-  const lastContactMap = new Map(
-    lastContacts.map((l) => [l.customerId, l._max.lastContactAt])
-  );
+  const lastContactMap = new Map(lastContacts.map((l) => [l.customerId, l._max.lastContactAt]));
 
   // 5. Compute scores
   const results: HealthScoreResult[] = [];
@@ -258,7 +234,7 @@ export async function computeAllHealthScores(): Promise<{
     const complaintCount = complaintMap.get(customer.id) ?? 0;
     const complaintRisk = Math.min(complaintCount * 10, 100);
 
-    const towerHealth = customer.btsId ? towerHealthMap.get(customer.btsId) ?? null : null;
+    const towerHealth = customer.btsId ? (towerHealthMap.get(customer.btsId) ?? null) : null;
     const lastContact = lastContactMap.get(customer.id) ?? null;
 
     const result = computeHealthScore(
@@ -275,7 +251,7 @@ export async function computeAllHealthScores(): Promise<{
         lastContactAt: lastContact,
       },
       complaintRisk,
-      towerHealth
+      towerHealth,
     );
     results.push(result);
   }

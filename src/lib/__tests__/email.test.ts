@@ -117,7 +117,7 @@ describe('email templates (tone + safety)', () => {
     });
 
     const mail = sendMail.mock.calls[0][0] as { subject: string; text: string; html: string };
-    expect(mail.subject).toContain("sorry to see you go");
+    expect(mail.subject).toContain('sorry to see you go');
     expect(mail.text).toContain('genuinely sorry to see you go');
     expect(mail.text).toContain('anything we could have done better');
     expect(mail.text).toContain('only takes a minute');

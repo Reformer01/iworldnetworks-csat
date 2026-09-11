@@ -78,9 +78,7 @@ export async function GET(request: NextRequest) {
     // still-paying customers with outstanding balances, not disconnected debt.
     const filteredRows = overdueOnly
       ? rows.filter(
-          (r) =>
-            (r.overdueInfo as { hasOverdueInvoice?: boolean } | null | undefined)?.hasOverdueInvoice === true &&
-            r.online !== true,
+          (r) => (r.overdueInfo as { hasOverdueInvoice?: boolean } | null | undefined)?.hasOverdueInvoice === true && r.online !== true,
         )
       : rows;
 

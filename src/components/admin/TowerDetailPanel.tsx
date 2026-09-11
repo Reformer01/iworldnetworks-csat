@@ -4,19 +4,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { cn, toLocalDateString } from '@/lib/utils';
 import { useAuth, useUser } from '@/firebase';
 import { Sparkline, TrendIndicator } from '@/components/admin/Sparkline';
-import {
-  Loader2,
-  X,
-  Users,
-  DollarSign,
-  Wifi,
-  WifiOff,
-  Clock,
-  Shield,
-  TrendingUp,
-  TrendingDown,
-  BarChart3,
-} from 'lucide-react';
+import { Loader2, X, Users, DollarSign, Wifi, WifiOff, Clock, Shield, TrendingUp, TrendingDown, BarChart3 } from 'lucide-react';
 
 interface TowerAuditRow {
   towerId: string;
@@ -149,9 +137,7 @@ export function TowerDetailPanel({ tower, onClose }: TowerDetailPanelProps) {
     fetchTrends();
   }, [fetchTrends]);
 
-  const mrrPercentage = tower.mrrTotal > 0
-    ? Math.round((tower.activeMrr / tower.mrrTotal) * 100)
-    : 0;
+  const mrrPercentage = tower.mrrTotal > 0 ? Math.round((tower.activeMrr / tower.mrrTotal) * 100) : 0;
   const freshness = syncFreshness(tower.rosterSyncAt ?? tower.lastSyncAt);
 
   return (
@@ -186,16 +172,16 @@ export function TowerDetailPanel({ tower, onClose }: TowerDetailPanelProps) {
 
         {/* Tabs */}
         <div className="flex gap-1 px-6 pt-3 border-b border-border/60">
-          {([
+          {[
             { id: 'overview' as Tab, label: 'Overview', icon: BarChart3 },
             { id: 'customers' as Tab, label: 'Customers', icon: Users },
-          ]).map((tab) => (
+          ].map((tab) => (
             <button
               key={tab.id}
               onClick={() => setActiveTab(tab.id)}
               className={cn(
                 'flex items-center gap-1.5 px-3 py-2 font-mono text-[10px] uppercase font-bold border-b-2 transition-colors',
-                activeTab === tab.id ? 'border-secondary text-secondary' : 'border-transparent text-on-surface-variant hover:text-primary'
+                activeTab === tab.id ? 'border-secondary text-secondary' : 'border-transparent text-on-surface-variant hover:text-primary',
               )}
             >
               <tab.icon className="w-3 h-3" />
@@ -248,7 +234,9 @@ export function TowerDetailPanel({ tower, onClose }: TowerDetailPanelProps) {
                     )}
                   </div>
                   <p className="font-display text-2xl font-bold text-primary">{fmtNaira(tower.mrrTotal)}</p>
-                  <p className="font-mono text-[11px] font-bold">{fmtNaira(tower.activeMrr)} <span className="text-emerald-600">active</span></p>
+                  <p className="font-mono text-[11px] font-bold">
+                    {fmtNaira(tower.activeMrr)} <span className="text-emerald-600">active</span>
+                  </p>
                   {mrrTrend.length > 0 && (
                     <div className="mt-2">
                       <Sparkline
@@ -267,14 +255,16 @@ export function TowerDetailPanel({ tower, onClose }: TowerDetailPanelProps) {
               {/* MRR Utilization */}
               <div>
                 <div className="flex items-center justify-between mb-1.5">
-                  <span className="font-mono text-[9px] uppercase tracking-widest font-bold text-on-surface-variant/50">MRR Utilization</span>
+                  <span className="font-mono text-[9px] uppercase tracking-widest font-bold text-on-surface-variant/50">
+                    MRR Utilization
+                  </span>
                   <span className="font-mono text-[11px] font-bold text-primary">{mrrPercentage}%</span>
                 </div>
                 <div className="h-2 bg-zinc-100 rounded-full overflow-hidden">
                   <div
                     className={cn(
                       'h-full rounded-full transition-all',
-                      mrrPercentage >= 80 ? 'bg-emerald-500' : mrrPercentage >= 50 ? 'bg-amber-500' : 'bg-red-500'
+                      mrrPercentage >= 80 ? 'bg-emerald-500' : mrrPercentage >= 50 ? 'bg-amber-500' : 'bg-red-500',
                     )}
                     style={{ width: `${mrrPercentage}%` }}
                   />
@@ -316,7 +306,9 @@ export function TowerDetailPanel({ tower, onClose }: TowerDetailPanelProps) {
               {/* Health trend */}
               {healthTrend.length > 0 && (
                 <div>
-                  <p className="font-mono text-[9px] uppercase tracking-widest font-bold text-on-surface-variant/50 mb-2">Health Score Trend</p>
+                  <p className="font-mono text-[9px] uppercase tracking-widest font-bold text-on-surface-variant/50 mb-2">
+                    Health Score Trend
+                  </p>
                   <Sparkline
                     data={healthTrend.map((d) => d.score ?? 0)}
                     color="#6366f1"
@@ -342,7 +334,9 @@ export function TowerDetailPanel({ tower, onClose }: TowerDetailPanelProps) {
                           <div className="flex-1 h-2 bg-zinc-100 rounded-full overflow-hidden">
                             <div className="h-full bg-secondary rounded-full" style={{ width: `${pct}%` }} />
                           </div>
-                          <span className="font-mono text-[10px] font-bold text-primary w-16 text-right">{count} · {pct}%</span>
+                          <span className="font-mono text-[10px] font-bold text-primary w-16 text-right">
+                            {count} · {pct}%
+                          </span>
                         </div>
                       );
                     })}
@@ -367,12 +361,24 @@ export function TowerDetailPanel({ tower, onClose }: TowerDetailPanelProps) {
                   <table className="w-full min-w-[600px] text-left" aria-label="Customer MRR details">
                     <thead className="bg-surface-container-lowest">
                       <tr className="font-mono text-[9px] uppercase tracking-widest text-on-surface-variant/70">
-                        <th scope="col" className="px-3 py-2">Customer</th>
-                        <th scope="col" className="px-3 py-2">Segment</th>
-                        <th scope="col" className="px-3 py-2">Plan</th>
-                        <th scope="col" className="px-3 py-2">Status</th>
-                        <th scope="col" className="px-3 py-2 text-right">Potential</th>
-                        <th scope="col" className="px-3 py-2 text-right">Active</th>
+                        <th scope="col" className="px-3 py-2">
+                          Customer
+                        </th>
+                        <th scope="col" className="px-3 py-2">
+                          Segment
+                        </th>
+                        <th scope="col" className="px-3 py-2">
+                          Plan
+                        </th>
+                        <th scope="col" className="px-3 py-2">
+                          Status
+                        </th>
+                        <th scope="col" className="px-3 py-2 text-right">
+                          Potential
+                        </th>
+                        <th scope="col" className="px-3 py-2 text-right">
+                          Active
+                        </th>
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-border/50">
@@ -385,8 +391,12 @@ export function TowerDetailPanel({ tower, onClose }: TowerDetailPanelProps) {
                           <td className="px-3 py-2 whitespace-nowrap">{accountLabel(c.accountType)}</td>
                           <td className="px-3 py-2 min-w-[140px]">{c.servicePlan || '—'}</td>
                           <td className="px-3 py-2 whitespace-nowrap">{c.lifecycle || 'unknown'}</td>
-                          <td className="px-3 py-2 text-right font-bold text-zinc-900 whitespace-nowrap">{fmtExactNaira(c.potentialMrr)}</td>
-                          <td className="px-3 py-2 text-right font-bold text-emerald-600 whitespace-nowrap">{fmtExactNaira(c.activeMrr)}</td>
+                          <td className="px-3 py-2 text-right font-bold text-zinc-900 whitespace-nowrap">
+                            {fmtExactNaira(c.potentialMrr)}
+                          </td>
+                          <td className="px-3 py-2 text-right font-bold text-emerald-600 whitespace-nowrap">
+                            {fmtExactNaira(c.activeMrr)}
+                          </td>
                         </tr>
                       ))}
                     </tbody>

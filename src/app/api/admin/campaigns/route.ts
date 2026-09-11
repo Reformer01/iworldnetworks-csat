@@ -81,9 +81,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Scheduling: if scheduledAt is a future timestamp, set status=scheduled
-    const scheduledAt = typeof body?.scheduledAt === 'number' && body.scheduledAt > Date.now()
-      ? body.scheduledAt
-      : null;
+    const scheduledAt = typeof body?.scheduledAt === 'number' && body.scheduledAt > Date.now() ? body.scheduledAt : null;
 
     const campaign = await prisma.campaign.create({
       data: {

@@ -5,7 +5,21 @@ import Link from 'next/link';
 import { useAuth, useUser } from '@/firebase';
 import { cn } from '@/lib/utils';
 import { Loader2, Mail, MousePointerClick, Eye, TrendingUp, BarChart3, Smartphone, ExternalLink } from 'lucide-react';
-import { AreaChart, Area, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell, Legend } from 'recharts';
+import {
+  AreaChart,
+  Area,
+  BarChart,
+  Bar,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  Tooltip,
+  ResponsiveContainer,
+  PieChart,
+  Pie,
+  Cell,
+  Legend,
+} from 'recharts';
 
 interface CampaignAnalytics {
   overall: {
@@ -45,7 +59,19 @@ function fmtDate(ms: number | null): string {
   return new Date(ms).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' });
 }
 
-function MetricCard({ icon: Icon, label, value, sub, color }: { icon: React.ElementType; label: string; value: string | number; sub?: string; color?: string }) {
+function MetricCard({
+  icon: Icon,
+  label,
+  value,
+  sub,
+  color,
+}: {
+  icon: React.ElementType;
+  label: string;
+  value: string | number;
+  sub?: string;
+  color?: string;
+}) {
   return (
     <div className="bg-white p-5 rounded-2xl whisper-shadow border border-border">
       <div className="flex items-center gap-3 mb-2">
@@ -102,14 +128,24 @@ export function AnalyticsTab() {
     return (
       <div className="text-center py-12">
         <p className="font-mono text-xs text-red-500">{error}</p>
-        <button onClick={fetchAnalytics} className="mt-2 font-mono text-[10px] text-secondary underline">Retry</button>
+        <button onClick={fetchAnalytics} className="mt-2 font-mono text-[10px] text-secondary underline">
+          Retry
+        </button>
       </div>
     );
   }
 
   if (!data) return null;
 
-  const overall = data?.overall ?? { totalSent: 0, totalOpens: 0, totalClicks: 0, openRate: 0, clickRate: 0, uniqueOpens: 0, uniqueClicks: 0 };
+  const overall = data?.overall ?? {
+    totalSent: 0,
+    totalOpens: 0,
+    totalClicks: 0,
+    openRate: 0,
+    clickRate: 0,
+    uniqueOpens: 0,
+    uniqueClicks: 0,
+  };
   const byCampaign = Array.isArray(data?.byCampaign) ? (data!.byCampaign as CampaignAnalytics['byCampaign']) : [];
   const topLinks = Array.isArray(data?.topLinks) ? (data!.topLinks as CampaignAnalytics['topLinks']) : [];
   const timeline = Array.isArray(data?.timeline) ? (data!.timeline as CampaignAnalytics['timeline']) : [];
@@ -119,10 +155,33 @@ export function AnalyticsTab() {
     <div className="space-y-6">
       {/* Overall Metrics */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
-        <MetricCard icon={Mail} label="Emails Sent" value={overall.totalSent.toLocaleString()} sub={`${overall.uniqueOpens} unique opens`} />
-        <MetricCard icon={Eye} label="Open Rate" value={`${overall.openRate}%`} sub={`${overall.totalOpens} total opens`} color="bg-emerald-500" />
-        <MetricCard icon={MousePointerClick} label="Click Rate" value={`${overall.clickRate}%`} sub={`${overall.totalClicks} total clicks`} color="bg-sky-500" />
-        <MetricCard icon={TrendingUp} label="Engagement" value={`${overall.openRate + overall.clickRate}%`} sub="Open + Click rate" color="bg-violet-500" />
+        <MetricCard
+          icon={Mail}
+          label="Emails Sent"
+          value={overall.totalSent.toLocaleString()}
+          sub={`${overall.uniqueOpens} unique opens`}
+        />
+        <MetricCard
+          icon={Eye}
+          label="Open Rate"
+          value={`${overall.openRate}%`}
+          sub={`${overall.totalOpens} total opens`}
+          color="bg-emerald-500"
+        />
+        <MetricCard
+          icon={MousePointerClick}
+          label="Click Rate"
+          value={`${overall.clickRate}%`}
+          sub={`${overall.totalClicks} total clicks`}
+          color="bg-sky-500"
+        />
+        <MetricCard
+          icon={TrendingUp}
+          label="Engagement"
+          value={`${overall.openRate + overall.clickRate}%`}
+          sub="Open + Click rate"
+          color="bg-violet-500"
+        />
       </div>
 
       {/* Timeline Chart */}
@@ -164,20 +223,52 @@ export function AnalyticsTab() {
             <table className="w-full text-left" aria-label="Campaign performance table">
               <thead>
                 <tr className="border-b border-border">
-                  <th scope="col" className="px-3 py-2 font-mono text-[9px] uppercase tracking-widest font-bold text-on-surface-variant/60">Campaign</th>
-                  <th scope="col" className="px-3 py-2 font-mono text-[9px] uppercase tracking-widest font-bold text-on-surface-variant/60 text-right">Sent</th>
-                  <th scope="col" className="px-3 py-2 font-mono text-[9px] uppercase tracking-widest font-bold text-on-surface-variant/60 text-right">Opens</th>
-                  <th scope="col" className="px-3 py-2 font-mono text-[9px] uppercase tracking-widest font-bold text-on-surface-variant/60 text-right">Open Rate</th>
-                  <th scope="col" className="px-3 py-2 font-mono text-[9px] uppercase tracking-widest font-bold text-on-surface-variant/60 text-right">Clicks</th>
-                  <th scope="col" className="px-3 py-2 font-mono text-[9px] uppercase tracking-widest font-bold text-on-surface-variant/60 text-right">Click Rate</th>
-                  <th scope="col" className="px-3 py-2 font-mono text-[9px] uppercase tracking-widest font-bold text-on-surface-variant/60">Sent</th>
+                  <th scope="col" className="px-3 py-2 font-mono text-[9px] uppercase tracking-widest font-bold text-on-surface-variant/60">
+                    Campaign
+                  </th>
+                  <th
+                    scope="col"
+                    className="px-3 py-2 font-mono text-[9px] uppercase tracking-widest font-bold text-on-surface-variant/60 text-right"
+                  >
+                    Sent
+                  </th>
+                  <th
+                    scope="col"
+                    className="px-3 py-2 font-mono text-[9px] uppercase tracking-widest font-bold text-on-surface-variant/60 text-right"
+                  >
+                    Opens
+                  </th>
+                  <th
+                    scope="col"
+                    className="px-3 py-2 font-mono text-[9px] uppercase tracking-widest font-bold text-on-surface-variant/60 text-right"
+                  >
+                    Open Rate
+                  </th>
+                  <th
+                    scope="col"
+                    className="px-3 py-2 font-mono text-[9px] uppercase tracking-widest font-bold text-on-surface-variant/60 text-right"
+                  >
+                    Clicks
+                  </th>
+                  <th
+                    scope="col"
+                    className="px-3 py-2 font-mono text-[9px] uppercase tracking-widest font-bold text-on-surface-variant/60 text-right"
+                  >
+                    Click Rate
+                  </th>
+                  <th scope="col" className="px-3 py-2 font-mono text-[9px] uppercase tracking-widest font-bold text-on-surface-variant/60">
+                    Sent
+                  </th>
                 </tr>
               </thead>
               <tbody>
                 {byCampaign.map((c) => (
                   <tr key={c.id} className="border-b border-border/50 hover:bg-surface-container-low/50 transition-colors">
                     <td className="px-3 py-2.5">
-                      <Link href={`/admin/campaigns/${c.id}`} className="font-mono text-xs font-bold text-primary hover:text-secondary transition-colors">
+                      <Link
+                        href={`/admin/campaigns/${c.id}`}
+                        className="font-mono text-xs font-bold text-primary hover:text-secondary transition-colors"
+                      >
                         {c.name}
                       </Link>
                       <p className="font-mono text-[9px] text-on-surface-variant/50 truncate max-w-[200px]">{c.subject}</p>
@@ -185,19 +276,31 @@ export function AnalyticsTab() {
                     <td className="px-3 py-2.5 text-right font-mono text-xs text-on-surface-variant">{c.sent}</td>
                     <td className="px-3 py-2.5 text-right font-mono text-xs text-on-surface-variant">{c.uniqueOpens}</td>
                     <td className="px-3 py-2.5 text-right">
-                      <span className={cn(
-                        'px-1.5 py-0.5 rounded text-[9px] font-mono font-bold',
-                        c.openRate >= 30 ? 'bg-emerald-50 text-emerald-600' : c.openRate >= 15 ? 'bg-amber-50 text-amber-600' : 'bg-zinc-100 text-zinc-500'
-                      )}>
+                      <span
+                        className={cn(
+                          'px-1.5 py-0.5 rounded text-[9px] font-mono font-bold',
+                          c.openRate >= 30
+                            ? 'bg-emerald-50 text-emerald-600'
+                            : c.openRate >= 15
+                              ? 'bg-amber-50 text-amber-600'
+                              : 'bg-zinc-100 text-zinc-500',
+                        )}
+                      >
                         {c.openRate}%
                       </span>
                     </td>
                     <td className="px-3 py-2.5 text-right font-mono text-xs text-on-surface-variant">{c.uniqueClicks}</td>
                     <td className="px-3 py-2.5 text-right">
-                      <span className={cn(
-                        'px-1.5 py-0.5 rounded text-[9px] font-mono font-bold',
-                        c.clickRate >= 10 ? 'bg-emerald-50 text-emerald-600' : c.clickRate >= 3 ? 'bg-amber-50 text-amber-600' : 'bg-zinc-100 text-zinc-500'
-                      )}>
+                      <span
+                        className={cn(
+                          'px-1.5 py-0.5 rounded text-[9px] font-mono font-bold',
+                          c.clickRate >= 10
+                            ? 'bg-emerald-50 text-emerald-600'
+                            : c.clickRate >= 3
+                              ? 'bg-amber-50 text-amber-600'
+                              : 'bg-zinc-100 text-zinc-500',
+                        )}
+                      >
                         {c.clickRate}%
                       </span>
                     </td>
@@ -253,16 +356,7 @@ export function AnalyticsTab() {
               <div className="w-40 h-40 shrink-0">
                 <ResponsiveContainer width="100%" height="100%">
                   <PieChart>
-                    <Pie
-                      data={devices}
-                      cx="50%"
-                      cy="50%"
-                      innerRadius={35}
-                      outerRadius={65}
-                      paddingAngle={3}
-                      dataKey="count"
-                      nameKey="name"
-                    >
+                    <Pie data={devices} cx="50%" cy="50%" innerRadius={35} outerRadius={65} paddingAngle={3} dataKey="count" nameKey="name">
                       {devices.map((_, i) => (
                         <Cell key={i} fill={PIE_COLORS[i % PIE_COLORS.length]} />
                       ))}

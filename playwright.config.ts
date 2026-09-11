@@ -9,9 +9,7 @@ import { defineConfig, devices } from '@playwright/test';
 const baseURL = process.env.PLAYWRIGHT_BASE_URL || 'https://staging.csat.iwn.ng';
 
 if (baseURL.includes('csat.iwn.ng') && !baseURL.includes('staging')) {
-  throw new Error(
-    `Refusing to run e2e against production (${baseURL}). Set PLAYWRIGHT_BASE_URL to staging.`,
-  );
+  throw new Error(`Refusing to run e2e against production (${baseURL}). Set PLAYWRIGHT_BASE_URL to staging.`);
 }
 
 export default defineConfig({

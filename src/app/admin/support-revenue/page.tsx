@@ -184,9 +184,11 @@ export default function SupportRevenue() {
   const filtered = records.filter((r) => {
     if (search) {
       const q = search.toLowerCase();
-      if (![r.customerName, r.location, r.projectType, r.agentName, r.notes, r.assignedSalesRep].some((f) => f?.toLowerCase().includes(q))) return false;
+      if (![r.customerName, r.location, r.projectType, r.agentName, r.notes, r.assignedSalesRep].some((f) => f?.toLowerCase().includes(q)))
+        return false;
     }
-    if (filterAgent !== '__all' && (r.agentName || '').trim() !== filterAgent && (r.assignedSalesRep || '').trim() !== filterAgent) return false;
+    if (filterAgent !== '__all' && (r.agentName || '').trim() !== filterAgent && (r.assignedSalesRep || '').trim() !== filterAgent)
+      return false;
     if (filterMonth !== '__all' && effectiveMonth(r) !== filterMonth) return false;
     return true;
   });
@@ -298,212 +300,212 @@ export default function SupportRevenue() {
                 <Plus className="w-3 h-3 mr-2" /> Add Record
               </Button>
             </DialogTrigger>
-          <DialogContent className="max-w-2xl rounded-3xl max-h-[85vh] overflow-y-auto">
-            <DialogHeader>
-              <DialogTitle className="font-display uppercase tracking-tight">{editId ? 'Edit' : 'Add'} Revenue Record</DialogTitle>
-              <DialogDescription className="sr-only">
-                {editId ? 'Edit an existing revenue record.' : 'Add a new support revenue record.'}
-              </DialogDescription>
-            </DialogHeader>
-            <div className="grid grid-cols-2 gap-4 py-4">
-              <div className="col-span-2">
-                <label className="font-mono text-[10px] uppercase font-bold text-on-surface-variant">Customer Name</label>
-                <Input
-                  className="rounded-xl mt-1"
-                  value={form.customerName}
-                  onChange={(e) => setForm({ ...form, customerName: e.target.value })}
-                />
-              </div>
-              <div>
-                <label className="font-mono text-[10px] uppercase font-bold text-on-surface-variant">Location</label>
-                <Select value={form.location} onValueChange={(v) => setForm({ ...form, location: v })}>
-                  <SelectTrigger className="rounded-xl mt-1">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {locations.map((l) => (
-                      <SelectItem key={l.name} value={l.name}>
-                        {l.name} ({l.region})
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-              <div>
-                <label className="font-mono text-[10px] uppercase font-bold text-on-surface-variant">Sale Type</label>
-                <Select value={form.projectType} onValueChange={(v) => setForm({ ...form, projectType: v })}>
-                  <SelectTrigger className="rounded-xl mt-1">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {SALE_TYPES.map((p) => (
-                      <SelectItem key={p} value={p}>
-                        {p}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-              <div>
-                <label className="font-mono text-[10px] uppercase font-bold text-on-surface-variant">Sale Kind</label>
-                <Select value={form.saleKind} onValueChange={(v) => setForm({ ...form, saleKind: v })}>
-                  <SelectTrigger className="rounded-xl mt-1">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {SALE_KINDS.map((k) => (
-                      <SelectItem key={k} value={k}>
-                        {k}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-              {form.projectType === 'BANDWIDTH UPGRADE' && (
-                <>
-                  <div>
-                    <label className="font-mono text-[10px] uppercase font-bold text-on-surface-variant">From Bandwidth</label>
-                    <Input
-                      className="rounded-xl mt-1"
-                      placeholder="e.g. 10Mbps"
-                      value={form.bandwidthFrom}
-                      onChange={(e) => setForm({ ...form, bandwidthFrom: e.target.value })}
-                    />
-                  </div>
-                  <div>
-                    <label className="font-mono text-[10px] uppercase font-bold text-on-surface-variant">To Bandwidth</label>
-                    <Input
-                      className="rounded-xl mt-1"
-                      placeholder="e.g. 20Mbps"
-                      value={form.bandwidthTo}
-                      onChange={(e) => setForm({ ...form, bandwidthTo: e.target.value })}
-                    />
-                  </div>
-                </>
-              )}
-              {(form.projectType === 'REFERRALS' || form.projectType === 'REVIVED CUSTOMER') && (
+            <DialogContent className="max-w-2xl rounded-3xl max-h-[85vh] overflow-y-auto">
+              <DialogHeader>
+                <DialogTitle className="font-display uppercase tracking-tight">{editId ? 'Edit' : 'Add'} Revenue Record</DialogTitle>
+                <DialogDescription className="sr-only">
+                  {editId ? 'Edit an existing revenue record.' : 'Add a new support revenue record.'}
+                </DialogDescription>
+              </DialogHeader>
+              <div className="grid grid-cols-2 gap-4 py-4">
                 <div className="col-span-2">
-                  <label className="font-mono text-[10px] uppercase font-bold text-on-surface-variant">Assigned Sales Rep</label>
-                  <Select value={form.assignedSalesRep} onValueChange={(v) => setForm({ ...form, assignedSalesRep: v })}>
+                  <label className="font-mono text-[10px] uppercase font-bold text-on-surface-variant">Customer Name</label>
+                  <Input
+                    className="rounded-xl mt-1"
+                    value={form.customerName}
+                    onChange={(e) => setForm({ ...form, customerName: e.target.value })}
+                  />
+                </div>
+                <div>
+                  <label className="font-mono text-[10px] uppercase font-bold text-on-surface-variant">Location</label>
+                  <Select value={form.location} onValueChange={(v) => setForm({ ...form, location: v })}>
                     <SelectTrigger className="rounded-xl mt-1">
-                      <SelectValue placeholder="Select sales rep" />
+                      <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
-                      {salesAgents.map((a) => (
-                        <SelectItem key={a.name} value={a.name}>
-                          {a.name}
+                      {locations.map((l) => (
+                        <SelectItem key={l.name} value={l.name}>
+                          {l.name} ({l.region})
                         </SelectItem>
                       ))}
                     </SelectContent>
                   </Select>
                 </div>
-              )}
-              <div>
-                <label className="font-mono text-[10px] uppercase font-bold text-on-surface-variant">Closed By (Frontend Support)</label>
-                <Select value={form.agentName} onValueChange={(v) => setForm({ ...form, agentName: v })}>
-                  <SelectTrigger className="rounded-xl mt-1">
-                    <SelectValue placeholder="Select staff" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {supportStaff.map((s) => (
-                      <SelectItem key={s.id} value={s.name}>
-                        {s.name}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-              <div>
-                <label className="font-mono text-[10px] uppercase font-bold text-on-surface-variant">Date</label>
-                <Input
-                  className="rounded-xl mt-1"
-                  type="date"
-                  value={form.date}
-                  onChange={(e) => setForm({ ...form, date: e.target.value })}
-                />
-              </div>
-              <div className="col-span-2">
-                <label className="font-mono text-[10px] uppercase font-bold text-on-surface-variant">Items</label>
-                <div className="space-y-3 mt-2">
-                  {form.items.map((item, i) => (
-                    <div key={i} className="flex gap-3 items-start">
-                      <div className="flex-1">
-                        <Input
-                          className="rounded-xl"
-                          placeholder="Item name"
-                          value={item.name}
-                          onChange={(e) => updateItem(i, 'name', e.target.value)}
-                        />
-                      </div>
-                      <div className="w-20">
-                        <Input
-                          className="rounded-xl"
-                          type="number"
-                          placeholder="Qty"
-                          min={1}
-                          value={item.quantity || ''}
-                          onFocus={(e) => e.target.select()}
-                          onChange={(e) => updateItem(i, 'quantity', parseInt(e.target.value) || 1)}
-                        />
-                      </div>
-                      <div className="w-28">
-                        <Input
-                          className="rounded-xl"
-                          type="number"
-                          placeholder="Unit price"
-                          min={0}
-                          value={item.unitPrice || ''}
-                          onFocus={(e) => e.target.select()}
-                          onChange={(e) => updateItem(i, 'unitPrice', e.target.value === '' ? 0 : Number(e.target.value))}
-                        />
-                      </div>
-                      <div className="w-20 flex items-center justify-end font-mono text-sm font-bold pt-2">
-                        ₦{(item.quantity * item.unitPrice).toLocaleString()}
-                      </div>
-                      <button onClick={() => removeItem(i)} className="pt-2 text-destructive hover:text-destructive/80">
-                        <Trash2 className="w-4 h-4" />
-                      </button>
+                <div>
+                  <label className="font-mono text-[10px] uppercase font-bold text-on-surface-variant">Sale Type</label>
+                  <Select value={form.projectType} onValueChange={(v) => setForm({ ...form, projectType: v })}>
+                    <SelectTrigger className="rounded-xl mt-1">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {SALE_TYPES.map((p) => (
+                        <SelectItem key={p} value={p}>
+                          {p}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div>
+                  <label className="font-mono text-[10px] uppercase font-bold text-on-surface-variant">Sale Kind</label>
+                  <Select value={form.saleKind} onValueChange={(v) => setForm({ ...form, saleKind: v })}>
+                    <SelectTrigger className="rounded-xl mt-1">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {SALE_KINDS.map((k) => (
+                        <SelectItem key={k} value={k}>
+                          {k}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                {form.projectType === 'BANDWIDTH UPGRADE' && (
+                  <>
+                    <div>
+                      <label className="font-mono text-[10px] uppercase font-bold text-on-surface-variant">From Bandwidth</label>
+                      <Input
+                        className="rounded-xl mt-1"
+                        placeholder="e.g. 10Mbps"
+                        value={form.bandwidthFrom}
+                        onChange={(e) => setForm({ ...form, bandwidthFrom: e.target.value })}
+                      />
                     </div>
-                  ))}
-                  <Button variant="outline" className="rounded-full font-mono text-[10px] uppercase font-bold" onClick={addItem}>
-                    <Package className="w-3 h-3 mr-2" /> Add Item
-                  </Button>
+                    <div>
+                      <label className="font-mono text-[10px] uppercase font-bold text-on-surface-variant">To Bandwidth</label>
+                      <Input
+                        className="rounded-xl mt-1"
+                        placeholder="e.g. 20Mbps"
+                        value={form.bandwidthTo}
+                        onChange={(e) => setForm({ ...form, bandwidthTo: e.target.value })}
+                      />
+                    </div>
+                  </>
+                )}
+                {(form.projectType === 'REFERRALS' || form.projectType === 'REVIVED CUSTOMER') && (
+                  <div className="col-span-2">
+                    <label className="font-mono text-[10px] uppercase font-bold text-on-surface-variant">Assigned Sales Rep</label>
+                    <Select value={form.assignedSalesRep} onValueChange={(v) => setForm({ ...form, assignedSalesRep: v })}>
+                      <SelectTrigger className="rounded-xl mt-1">
+                        <SelectValue placeholder="Select sales rep" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {salesAgents.map((a) => (
+                          <SelectItem key={a.name} value={a.name}>
+                            {a.name}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                )}
+                <div>
+                  <label className="font-mono text-[10px] uppercase font-bold text-on-surface-variant">Closed By (Frontend Support)</label>
+                  <Select value={form.agentName} onValueChange={(v) => setForm({ ...form, agentName: v })}>
+                    <SelectTrigger className="rounded-xl mt-1">
+                      <SelectValue placeholder="Select staff" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {supportStaff.map((s) => (
+                        <SelectItem key={s.id} value={s.name}>
+                          {s.name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div>
+                  <label className="font-mono text-[10px] uppercase font-bold text-on-surface-variant">Date</label>
+                  <Input
+                    className="rounded-xl mt-1"
+                    type="date"
+                    value={form.date}
+                    onChange={(e) => setForm({ ...form, date: e.target.value })}
+                  />
+                </div>
+                <div className="col-span-2">
+                  <label className="font-mono text-[10px] uppercase font-bold text-on-surface-variant">Items</label>
+                  <div className="space-y-3 mt-2">
+                    {form.items.map((item, i) => (
+                      <div key={i} className="flex gap-3 items-start">
+                        <div className="flex-1">
+                          <Input
+                            className="rounded-xl"
+                            placeholder="Item name"
+                            value={item.name}
+                            onChange={(e) => updateItem(i, 'name', e.target.value)}
+                          />
+                        </div>
+                        <div className="w-20">
+                          <Input
+                            className="rounded-xl"
+                            type="number"
+                            placeholder="Qty"
+                            min={1}
+                            value={item.quantity || ''}
+                            onFocus={(e) => e.target.select()}
+                            onChange={(e) => updateItem(i, 'quantity', parseInt(e.target.value) || 1)}
+                          />
+                        </div>
+                        <div className="w-28">
+                          <Input
+                            className="rounded-xl"
+                            type="number"
+                            placeholder="Unit price"
+                            min={0}
+                            value={item.unitPrice || ''}
+                            onFocus={(e) => e.target.select()}
+                            onChange={(e) => updateItem(i, 'unitPrice', e.target.value === '' ? 0 : Number(e.target.value))}
+                          />
+                        </div>
+                        <div className="w-20 flex items-center justify-end font-mono text-sm font-bold pt-2">
+                          ₦{(item.quantity * item.unitPrice).toLocaleString()}
+                        </div>
+                        <button onClick={() => removeItem(i)} className="pt-2 text-destructive hover:text-destructive/80">
+                          <Trash2 className="w-4 h-4" />
+                        </button>
+                      </div>
+                    ))}
+                    <Button variant="outline" className="rounded-full font-mono text-[10px] uppercase font-bold" onClick={addItem}>
+                      <Package className="w-3 h-3 mr-2" /> Add Item
+                    </Button>
+                  </div>
+                </div>
+                <div className="col-span-2 text-right font-mono text-sm font-bold pt-2">
+                  Total: ₦{(computedTotal || form.totalAmount).toLocaleString()}
+                </div>
+                <div className="col-span-2">
+                  <label className="font-mono text-[10px] uppercase font-bold text-on-surface-variant">Notes</label>
+                  <Textarea
+                    className="rounded-xl mt-1 min-h-[80px]"
+                    value={form.notes}
+                    onChange={(e) => setForm({ ...form, notes: e.target.value })}
+                  />
                 </div>
               </div>
-              <div className="col-span-2 text-right font-mono text-sm font-bold pt-2">
-                Total: ₦{(computedTotal || form.totalAmount).toLocaleString()}
-              </div>
-              <div className="col-span-2">
-                <label className="font-mono text-[10px] uppercase font-bold text-on-surface-variant">Notes</label>
-                <Textarea
-                  className="rounded-xl mt-1 min-h-[80px]"
-                  value={form.notes}
-                  onChange={(e) => setForm({ ...form, notes: e.target.value })}
-                />
-              </div>
-            </div>
-            <DialogFooter>
-              <Button
-                variant="outline"
-                className="rounded-full font-mono text-[10px] uppercase font-bold"
-                onClick={() => {
-                  setIsOpen(false);
-                  resetForm();
-                }}
-              >
-                Cancel
-              </Button>
-              <Button
-                className="rounded-full bg-secondary text-white font-mono text-[10px] uppercase font-bold px-8"
-                onClick={handleSave}
-                disabled={saving}
-              >
-                {saving && <Loader2 className="w-3 h-3 animate-spin mr-2" />}
-                {editId ? 'Update' : 'Create'}
-              </Button>
-            </DialogFooter>
+              <DialogFooter>
+                <Button
+                  variant="outline"
+                  className="rounded-full font-mono text-[10px] uppercase font-bold"
+                  onClick={() => {
+                    setIsOpen(false);
+                    resetForm();
+                  }}
+                >
+                  Cancel
+                </Button>
+                <Button
+                  className="rounded-full bg-secondary text-white font-mono text-[10px] uppercase font-bold px-8"
+                  onClick={handleSave}
+                  disabled={saving}
+                >
+                  {saving && <Loader2 className="w-3 h-3 animate-spin mr-2" />}
+                  {editId ? 'Update' : 'Create'}
+                </Button>
+              </DialogFooter>
             </DialogContent>
-        </Dialog>
+          </Dialog>
         </div>
       </header>
 
@@ -520,7 +522,12 @@ export default function SupportRevenue() {
           <div key={c.label} className="bg-white p-4 md:p-5 border border-border whisper-shadow rounded-xl min-w-0">
             <c.icon className="w-5 h-5 text-secondary mb-3" />
             <p className="font-mono text-[9px] text-on-surface-variant uppercase tracking-widest truncate">{c.label}</p>
-            <h3 className="font-mono text-xl xl:text-2xl font-black mt-1 break-words" title={typeof c.val === 'number' ? String(c.val) : c.val}>{typeof c.val === 'number' ? c.val : c.val}</h3>
+            <h3
+              className="font-mono text-xl xl:text-2xl font-black mt-1 break-words"
+              title={typeof c.val === 'number' ? String(c.val) : c.val}
+            >
+              {typeof c.val === 'number' ? c.val : c.val}
+            </h3>
           </div>
         ))}
       </div>
@@ -561,7 +568,10 @@ export default function SupportRevenue() {
                           .sort((a, b) => b[1] - a[1])
                           .slice(0, 3)
                           .map(([t, n]) => (
-                            <span key={t} className="px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-600 text-[9px] font-mono font-bold">
+                            <span
+                              key={t}
+                              className="px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-600 text-[9px] font-mono font-bold"
+                            >
                               {t} ×{n}
                             </span>
                           ))}

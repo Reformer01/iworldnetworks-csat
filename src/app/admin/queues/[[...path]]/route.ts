@@ -57,7 +57,7 @@ export async function GET(request: NextRequest) {
         new NextResponse(mockRes.body, {
           status: mockRes.statusCode,
           headers: mockRes.headers,
-        })
+        }),
       );
     };
     router(mockReq, mockRes);
@@ -104,7 +104,7 @@ export async function POST(request: NextRequest) {
         new NextResponse(mockRes.body, {
           status: mockRes.statusCode,
           headers: mockRes.headers,
-        })
+        }),
       );
     };
     router(mockReq, mockRes);

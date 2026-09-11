@@ -40,7 +40,7 @@ export async function generateReferralCode(): Promise<string> {
  */
 export async function createReferralForCustomer(
   customerId: string,
-  rewardAmount: number = DEFAULT_REWARD
+  rewardAmount: number = DEFAULT_REWARD,
 ): Promise<{ referralCode: string; id: string }> {
   // Check if customer already has a code
   const existing = await prisma.referralProgram.findFirst({
@@ -177,12 +177,13 @@ export async function getReferralFunnel() {
     select: { refereeId: true },
   });
   const ids = referredCustomerIds.map((r) => r.refereeId!).filter(Boolean);
-  const referredRevenue = ids.length > 0
-    ? await prisma.customer.aggregate({
-        _sum: { mrrTotal: true },
-        where: { id: { in: ids }, deleted: false },
-      })
-    : { _sum: { mrrTotal: 0 } };
+  const referredRevenue =
+    ids.length > 0
+      ? await prisma.customer.aggregate({
+          _sum: { mrrTotal: true },
+          where: { id: { in: ids }, deleted: false },
+        })
+      : { _sum: { mrrTotal: 0 } };
 
   return {
     totalCodes: total,
@@ -199,11 +200,7 @@ export async function getReferralFunnel() {
 /**
  * Get all referrals with optional status filter.
  */
-export async function listReferrals(params: {
-  status?: string;
-  limit?: number;
-  offset?: number;
-}) {
+export async function listReferrals(params: { status?: string; limit?: number; offset?: number }) {
   const { status, limit = 50, offset = 0 } = params;
 
   const where = status ? { status } : {};
@@ -236,7 +233,7 @@ export async function listReferrals(params: {
       referrerName: customerMap.get(r.referrerId)?.customerName ?? 'Unknown',
       referrerPhone: customerMap.get(r.referrerId)?.phone ?? null,
       city: customerMap.get(r.referrerId)?.city ?? null,
-      refereeName: r.refereeId ? customerMap.get(r.refereeId)?.customerName ?? r.refereeName : null,
+      refereeName: r.refereeId ? (customerMap.get(r.refereeId)?.customerName ?? r.refereeName) : null,
     })),
     total,
   };

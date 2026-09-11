@@ -58,10 +58,10 @@ const SidebarProvider = React.forwardRef<
   const [_open, _setOpen] = React.useState(defaultOpen);
   const open = openProp ?? _open;
   function isFunction(value: boolean | ((value: boolean) => boolean)): value is (value: boolean) => boolean {
-  return typeof value === 'function';
-}
+    return typeof value === 'function';
+  }
 
-const setOpen = React.useCallback(
+  const setOpen = React.useCallback(
     (value: boolean | ((value: boolean) => boolean)) => {
       const openState = isFunction(value) ? value(open) : value;
       if (setOpenProp) {

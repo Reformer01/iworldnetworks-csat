@@ -10,7 +10,15 @@ import {
 
 const TOWERS: TowerSiteRow[] = [
   { id: 't1', name: 'Dominion', status: 'active', suspended: false, deviceCount: 4, deviceOutageCount: 0, lastSyncAt: 1786000000000 },
-  { id: 't2', name: 'Unknown UISP Tower', status: 'disabled', suspended: true, deviceCount: 2, deviceOutageCount: 1, lastSyncAt: 1786000000001 },
+  {
+    id: 't2',
+    name: 'Unknown UISP Tower',
+    status: 'disabled',
+    suspended: true,
+    deviceCount: 2,
+    deviceOutageCount: 1,
+    lastSyncAt: 1786000000001,
+  },
   { id: 't3', name: 'Empty Tower', status: 'active', suspended: false, deviceCount: 1, deviceOutageCount: 0, lastSyncAt: 1786000000002 },
 ];
 
@@ -48,7 +56,9 @@ describe('regionFromMajorityCity', () => {
   });
 
   it('returns null with no resolvable cities', () => {
-    expect(regionFromMajorityCity([{ btsId: 't3', lifecycle: 'active', accountType: 'RETAIL', mrrTotal: 1, city: 'Nowhereville' }])).toBeNull();
+    expect(
+      regionFromMajorityCity([{ btsId: 't3', lifecycle: 'active', accountType: 'RETAIL', mrrTotal: 1, city: 'Nowhereville' }]),
+    ).toBeNull();
     expect(regionFromMajorityCity([])).toBeNull();
   });
 });
@@ -75,10 +85,16 @@ describe('computeTowerAuditRows', () => {
   });
 
   it('uses stored discounted MRR for a bundled service label', () => {
-    const rows = computeTowerAuditRows(TOWERS, [{
-      btsId: 't1', lifecycle: 'active', accountType: 'regular',
-      servicePlan: 'H-Lite + U-Lite', mrrTotal: 54000, city: 'Ibadan',
-    }]);
+    const rows = computeTowerAuditRows(TOWERS, [
+      {
+        btsId: 't1',
+        lifecycle: 'active',
+        accountType: 'regular',
+        servicePlan: 'H-Lite + U-Lite',
+        mrrTotal: 54000,
+        city: 'Ibadan',
+      },
+    ]);
     expect(rows[0].mrrTotal).toBe(54000);
     expect(rows[0].activeMrr).toBe(54000);
     expect(rows[0].customers.byAccountType.BUNDLED).toBe(1);

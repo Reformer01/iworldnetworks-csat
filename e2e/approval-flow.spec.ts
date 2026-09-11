@@ -11,7 +11,7 @@ test.describe('approval flow end-to-end (fake SMTP)', () => {
     // --- 1. Editor composes (becomes pending_approval, never auto-sends) ---
     const editorCtx = await browser.newContext();
     const editor = await editorCtx.newPage();
-    await login(editor, EDITOR(), "editor");
+    await login(editor, EDITOR(), 'editor');
     await editor.goto('/admin/mailing?tab=emails');
     await expect(editor.getByPlaceholder(/search name or email/i)).toBeVisible({ timeout: 20_000 });
 
@@ -31,7 +31,7 @@ test.describe('approval flow end-to-end (fake SMTP)', () => {
     // --- 2. Super approves the exact row ---
     const superCtx = await browser.newContext();
     const admin = await superCtx.newPage();
-    await login(admin, SUPER(), "super-admin");
+    await login(admin, SUPER(), 'super-admin');
     await admin.goto('/admin/mailing?tab=emails');
     await admin.getByPlaceholder(/search name or email/i).fill(to);
     const row = admin.locator('tr', { hasText: to }).first();

@@ -31,11 +31,7 @@ export async function GET(request: NextRequest) {
     const customers = await prisma.customer.findMany({
       where: {
         deleted: false,
-        OR: [
-          { customerName: { contains: q } },
-          { phone: { contains: q } },
-          { email: { contains: q } },
-        ],
+        OR: [{ customerName: { contains: q } }, { phone: { contains: q } }, { email: { contains: q } }],
       },
       select: {
         id: true,

@@ -96,10 +96,10 @@ export async function GET(request: NextRequest) {
     if (servicePlan) where.servicePlan = servicePlan;
     if (search) {
       where.OR = [
-          { customerName: { contains: search } },
-          { email: { contains: search } },
-          { login: { contains: search } },
-          { btsName: { contains: search } },
+        { customerName: { contains: search } },
+        { email: { contains: search } },
+        { login: { contains: search } },
+        { btsName: { contains: search } },
       ];
     }
 
@@ -157,9 +157,7 @@ export async function GET(request: NextRequest) {
       totalMrr: rows.reduce((acc, r) => acc + (r.mrrTotal ?? 0), 0),
       // Count real towers by ID, not free-text btsName strings (stale label text
       // and endpoint names inflated this to 93 vs 63 real towers).
-      towers: new Set(
-        rows.map((r) => (r as unknown as { btsId?: string | null }).btsId).filter(Boolean),
-      ).size,
+      towers: new Set(rows.map((r) => (r as unknown as { btsId?: string | null }).btsId).filter(Boolean)).size,
     };
 
     const records: UnifiedCustomerRecord[] = paged.map((r) => ({

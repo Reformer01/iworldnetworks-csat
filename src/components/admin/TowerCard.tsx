@@ -2,16 +2,7 @@
 
 import React from 'react';
 import { cn, toLocalDateString } from '@/lib/utils';
-import {
-  Wifi,
-  WifiOff,
-  AlertTriangle,
-  Pause,
-  Clock3,
-  Radio,
-  TrendingUp,
-  ArrowUpRight,
-} from 'lucide-react';
+import { Wifi, WifiOff, AlertTriangle, Pause, Clock3, Radio, TrendingUp, ArrowUpRight } from 'lucide-react';
 
 interface TowerAuditRow {
   towerId: string;
@@ -78,12 +69,9 @@ export function towerDevicesStale(tower: Pick<TowerAuditRow, 'lastSyncAt'>, now 
 }
 
 function calculateHealthScore(tower: TowerAuditRow): number {
-  const deviceUptime = tower.deviceCount && tower.deviceCount > 0
-    ? ((tower.deviceCount - (tower.deviceOutageCount ?? 0)) / tower.deviceCount) * 100
-    : 100;
-  const mrrUtilization = tower.mrrTotal > 0
-    ? (tower.activeMrr / tower.mrrTotal) * 100
-    : 100;
+  const deviceUptime =
+    tower.deviceCount && tower.deviceCount > 0 ? ((tower.deviceCount - (tower.deviceOutageCount ?? 0)) / tower.deviceCount) * 100 : 100;
+  const mrrUtilization = tower.mrrTotal > 0 ? (tower.activeMrr / tower.mrrTotal) * 100 : 100;
   let syncScore = 100;
   const syncClock = towerSyncClock(tower);
   if (syncClock) {
@@ -95,7 +83,7 @@ function calculateHealthScore(tower: TowerAuditRow): number {
     else syncScore = 0;
   }
   const statusScore = tower.status === 'active' ? 100 : tower.status === null ? 50 : 0;
-  return Math.round(deviceUptime * 0.40 + mrrUtilization * 0.30 + syncScore * 0.20 + statusScore * 0.10);
+  return Math.round(deviceUptime * 0.4 + mrrUtilization * 0.3 + syncScore * 0.2 + statusScore * 0.1);
 }
 
 function getAttentionReasons(tower: TowerAuditRow): Array<{ icon: React.ElementType; text: string; tone: 'red' | 'amber' }> {
@@ -171,7 +159,7 @@ export function TowerCard({ tower, onClick, showHealth = true, isComparing = fal
           'w-full text-left bg-white rounded-xl border border-border/60 p-5',
           'hover:shadow-md hover:border-primary/30 transition-all',
           'focus:outline-none focus:ring-2 focus:ring-primary/30 focus:ring-offset-2',
-          isComparing && 'ring-2 ring-primary/40 ring-offset-2'
+          isComparing && 'ring-2 ring-primary/40 ring-offset-2',
         )}
         aria-label={`${tower.towerName} tower in ${tower.region}. ${tower.customers.total} customers, ${fmtNaira(tower.mrrTotal)} MRR.`}
       >
@@ -180,21 +168,19 @@ export function TowerCard({ tower, onClick, showHealth = true, isComparing = fal
           <div className="min-w-0">
             <div className="flex items-center gap-2 mb-1">
               <Radio className="w-3.5 h-3.5 text-primary shrink-0" />
-              <h3 className="font-display font-bold text-primary text-[13px] uppercase tracking-tight truncate">
-                {tower.towerName}
-              </h3>
+              <h3 className="font-display font-bold text-primary text-[13px] uppercase tracking-tight truncate">{tower.towerName}</h3>
             </div>
-            <p className="font-mono text-[9px] uppercase tracking-widest text-on-surface-variant/50 ml-[22px]">
-              {tower.region}
-            </p>
+            <p className="font-mono text-[9px] uppercase tracking-widest text-on-surface-variant/50 ml-[22px]">{tower.region}</p>
           </div>
           {showHealth && (
             <div
               className={cn(
                 'shrink-0 w-9 h-9 rounded-full flex items-center justify-center font-mono text-[10px] font-bold',
-                healthScore >= 80 ? 'bg-primary/10 text-primary'
-                  : healthScore >= 50 ? 'bg-amber-50 text-amber-700'
-                  : 'bg-red-50 text-red-700'
+                healthScore >= 80
+                  ? 'bg-primary/10 text-primary'
+                  : healthScore >= 50
+                    ? 'bg-amber-50 text-amber-700'
+                    : 'bg-red-50 text-red-700',
               )}
               title={`Health: ${healthScore}/100`}
             >
@@ -213,9 +199,7 @@ export function TowerCard({ tower, onClick, showHealth = true, isComparing = fal
                   key={i}
                   className={cn(
                     'inline-flex items-center gap-1 px-2 py-0.5 rounded text-[9px] font-mono font-semibold',
-                    reason.tone === 'red'
-                      ? 'bg-red-50 text-red-600'
-                      : 'bg-amber-50 text-amber-600'
+                    reason.tone === 'red' ? 'bg-red-50 text-red-600' : 'bg-amber-50 text-amber-600',
                   )}
                 >
                   <Icon className="w-3 h-3" />
@@ -229,31 +213,19 @@ export function TowerCard({ tower, onClick, showHealth = true, isComparing = fal
         {/* ─── Core Metrics ─── */}
         <div className="grid grid-cols-2 gap-4 mb-4">
           <div>
-            <p className="font-mono text-[9px] uppercase tracking-widest font-semibold text-on-surface-variant/50 mb-1">
-              Customers
-            </p>
-            <p className="font-display text-xl font-bold text-primary leading-none mb-0.5">
-              {tower.customers.total}
-            </p>
+            <p className="font-mono text-[9px] uppercase tracking-widest font-semibold text-on-surface-variant/50 mb-1">Customers</p>
+            <p className="font-display text-xl font-bold text-primary leading-none mb-0.5">{tower.customers.total}</p>
             <div className="flex items-center gap-1">
               <ArrowUpRight className="w-2.5 h-2.5 text-emerald-500" />
-              <span className="font-mono text-[9px] text-emerald-600 font-semibold">
-                {tower.customers.active} active
-              </span>
+              <span className="font-mono text-[9px] text-emerald-600 font-semibold">{tower.customers.active} active</span>
             </div>
           </div>
           <div>
-            <p className="font-mono text-[9px] uppercase tracking-widest font-semibold text-on-surface-variant/50 mb-1">
-              MRR
-            </p>
-            <p className="font-display text-xl font-bold text-primary leading-none mb-0.5">
-              {fmtNaira(tower.mrrTotal)}
-            </p>
+            <p className="font-mono text-[9px] uppercase tracking-widest font-semibold text-on-surface-variant/50 mb-1">MRR</p>
+            <p className="font-display text-xl font-bold text-primary leading-none mb-0.5">{fmtNaira(tower.mrrTotal)}</p>
             <div className="flex items-center gap-1">
               <ArrowUpRight className="w-3 h-3 text-emerald-500" />
-              <span className="font-mono text-[10px] text-emerald-600 font-bold">
-                {fmtNaira(tower.activeMrr)} active
-              </span>
+              <span className="font-mono text-[10px] text-emerald-600 font-bold">{fmtNaira(tower.activeMrr)} active</span>
             </div>
           </div>
         </div>
@@ -261,20 +233,14 @@ export function TowerCard({ tower, onClick, showHealth = true, isComparing = fal
         {/* ─── Utilization Bar ─── */}
         <div className="mb-4">
           <div className="flex items-center justify-between mb-1.5">
-            <span className="font-mono text-[9px] uppercase tracking-widest font-semibold text-on-surface-variant/50">
-              Utilization
-            </span>
-            <span className="font-mono text-[10px] font-bold text-primary">
-              {mrrPercentage}%
-            </span>
+            <span className="font-mono text-[9px] uppercase tracking-widest font-semibold text-on-surface-variant/50">Utilization</span>
+            <span className="font-mono text-[10px] font-bold text-primary">{mrrPercentage}%</span>
           </div>
           <div className="h-1.5 bg-zinc-100 rounded-full overflow-hidden">
             <div
               className={cn(
                 'h-full rounded-full transition-all',
-                mrrPercentage >= 80 ? 'bg-primary'
-                  : mrrPercentage >= 50 ? 'bg-amber-400'
-                  : 'bg-red-400'
+                mrrPercentage >= 80 ? 'bg-primary' : mrrPercentage >= 50 ? 'bg-amber-400' : 'bg-red-400',
               )}
               style={{ width: `${mrrPercentage}%` }}
             />
@@ -284,12 +250,8 @@ export function TowerCard({ tower, onClick, showHealth = true, isComparing = fal
         {/* ─── Revenue Opportunity ─── */}
         {opportunity > 0 && (
           <div className="flex items-center justify-between mb-4 px-3 py-2 bg-primary/5 rounded-lg border border-primary/10">
-            <span className="font-mono text-[9px] uppercase tracking-widest font-semibold text-primary/70">
-              Revenue Gap
-            </span>
-            <span className="font-mono text-[10px] font-bold text-primary">
-              {fmtNaira(opportunity)}
-            </span>
+            <span className="font-mono text-[9px] uppercase tracking-widest font-semibold text-primary/70">Revenue Gap</span>
+            <span className="font-mono text-[10px] font-bold text-primary">{fmtNaira(opportunity)}</span>
           </div>
         )}
 
@@ -298,25 +260,27 @@ export function TowerCard({ tower, onClick, showHealth = true, isComparing = fal
           <div className="flex items-center gap-2">
             <Wifi className={cn('w-3.5 h-3.5', (tower.deviceOutageCount ?? 0) > 0 ? 'text-red-500' : 'text-emerald-500')} />
             <div>
-              <p className="font-mono text-[8px] uppercase tracking-widest text-on-surface-variant/40">
-                Devices
-              </p>
+              <p className="font-mono text-[8px] uppercase tracking-widest text-on-surface-variant/40">Devices</p>
               <p className="font-mono text-[10px] font-semibold text-on-surface-variant/70">
                 {tower.deviceCount ?? '—'}
                 {tower.deviceOutageCount != null && tower.deviceOutageCount > 0 && (
-                  <span className="text-red-500 ml-1">
-                    ({tower.deviceOutageCount} down)
-                  </span>
+                  <span className="text-red-500 ml-1">({tower.deviceOutageCount} down)</span>
                 )}
               </p>
             </div>
           </div>
           <div className="flex items-center gap-2">
-            <Clock3 className={cn('w-3.5 h-3.5', (() => { const c = towerSyncClock(tower); return (c && (Date.now() - c) > 86400000) ? 'text-amber-500' : 'text-emerald-500'; })())} />
+            <Clock3
+              className={cn(
+                'w-3.5 h-3.5',
+                (() => {
+                  const c = towerSyncClock(tower);
+                  return c && Date.now() - c > 86400000 ? 'text-amber-500' : 'text-emerald-500';
+                })(),
+              )}
+            />
             <div>
-              <p className="font-mono text-[8px] uppercase tracking-widest text-on-surface-variant/40">
-                Last Sync
-              </p>
+              <p className="font-mono text-[8px] uppercase tracking-widest text-on-surface-variant/40">Last Sync</p>
               <p className="font-mono text-[10px] font-semibold text-on-surface-variant/70" title="Customer roster freshness (Splynx sync)">
                 {relTime(towerSyncClock(tower))}
               </p>
@@ -332,9 +296,7 @@ export function TowerCard({ tower, onClick, showHealth = true, isComparing = fal
         {/* ─── Account Mix ─── */}
         {topAccounts.length > 0 && (
           <div className="border-t border-border/40 pt-3">
-            <p className="font-mono text-[8px] uppercase tracking-widest font-semibold text-on-surface-variant/40 mb-2">
-              Account Mix
-            </p>
+            <p className="font-mono text-[8px] uppercase tracking-widest font-semibold text-on-surface-variant/40 mb-2">Account Mix</p>
             <div className="h-1.5 bg-zinc-100 rounded-full overflow-hidden flex mb-2">
               {topAccounts.map(([key, count]) => {
                 const pct = (count / totalCustomers) * 100;
@@ -344,10 +306,13 @@ export function TowerCard({ tower, onClick, showHealth = true, isComparing = fal
                     key={key}
                     className={cn(
                       'h-full',
-                      key === 'RESIDENTIAL' || key === 'NEIGHBOURHOOD' ? 'bg-emerald-500'
-                        : key === 'SME' ? 'bg-sky-500'
-                        : key === 'ENTERPRISE' ? 'bg-amber-500'
-                        : 'bg-zinc-300'
+                      key === 'RESIDENTIAL' || key === 'NEIGHBOURHOOD'
+                        ? 'bg-emerald-500'
+                        : key === 'SME'
+                          ? 'bg-sky-500'
+                          : key === 'ENTERPRISE'
+                            ? 'bg-amber-500'
+                            : 'bg-zinc-300',
                     )}
                     style={{ width: `${pct}%` }}
                     title={`${accountLabel(key)}: ${count} (${Math.round(pct)}%)`}
@@ -360,12 +325,19 @@ export function TowerCard({ tower, onClick, showHealth = true, isComparing = fal
                 const pct = Math.round((count / totalCustomers) * 100);
                 if (pct < 3) return null;
                 return (
-                  <span key={key} className={cn('font-mono text-[8px] font-semibold',
-                    key === 'RESIDENTIAL' || key === 'NEIGHBOURHOOD' ? 'text-emerald-600'
-                      : key === 'SME' ? 'text-sky-600'
-                      : key === 'ENTERPRISE' ? 'text-amber-600'
-                      : 'text-on-surface-variant/50'
-                  )}>
+                  <span
+                    key={key}
+                    className={cn(
+                      'font-mono text-[8px] font-semibold',
+                      key === 'RESIDENTIAL' || key === 'NEIGHBOURHOOD'
+                        ? 'text-emerald-600'
+                        : key === 'SME'
+                          ? 'text-sky-600'
+                          : key === 'ENTERPRISE'
+                            ? 'text-amber-600'
+                            : 'text-on-surface-variant/50',
+                    )}
+                  >
                     {accountLabel(key)} {pct}%
                   </span>
                 );

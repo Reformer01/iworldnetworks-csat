@@ -80,15 +80,18 @@ export async function register() {
         } catch (err) {
           console.error('[followup-reminder] failed:', err instanceof Error ? err.message : err);
         }
-        setInterval(async () => {
-          try {
-            const { runFollowUpReminders } = await import('@/lib/followup-reminders');
-            const r = await runFollowUpReminders();
-            console.log('[followup-reminder]', JSON.stringify(r));
-          } catch (err) {
-            console.error('[followup-reminder] failed:', err instanceof Error ? err.message : err);
-          }
-        }, 24 * 60 * 60 * 1000);
+        setInterval(
+          async () => {
+            try {
+              const { runFollowUpReminders } = await import('@/lib/followup-reminders');
+              const r = await runFollowUpReminders();
+              console.log('[followup-reminder]', JSON.stringify(r));
+            } catch (err) {
+              console.error('[followup-reminder] failed:', err instanceof Error ? err.message : err);
+            }
+          },
+          24 * 60 * 60 * 1000,
+        );
       }, delay);
     };
     scheduleFollowUpReminders();
@@ -106,19 +109,24 @@ export async function register() {
         try {
           const { computeAllHealthScores } = await import('@/lib/intelligence/health-score');
           const result = await computeAllHealthScores();
-          console.log(`[health-score] Computed ${result.computed} scores: ${result.healthy} healthy, ${result.atRisk} at-risk, ${result.churning} churning, ${result.critical} critical, ${result.lost} lost`);
+          console.log(
+            `[health-score] Computed ${result.computed} scores: ${result.healthy} healthy, ${result.atRisk} at-risk, ${result.churning} churning, ${result.critical} critical, ${result.lost} lost`,
+          );
         } catch (err) {
           console.error('[health-score] failed:', err instanceof Error ? err.message : err);
         }
-        setInterval(async () => {
-          try {
-            const { computeAllHealthScores } = await import('@/lib/intelligence/health-score');
-            const r = await computeAllHealthScores();
-            console.log(`[health-score] Computed ${r.computed} scores`);
-          } catch (err) {
-            console.error('[health-score] failed:', err instanceof Error ? err.message : err);
-          }
-        }, 24 * 60 * 60 * 1000);
+        setInterval(
+          async () => {
+            try {
+              const { computeAllHealthScores } = await import('@/lib/intelligence/health-score');
+              const r = await computeAllHealthScores();
+              console.log(`[health-score] Computed ${r.computed} scores`);
+            } catch (err) {
+              console.error('[health-score] failed:', err instanceof Error ? err.message : err);
+            }
+          },
+          24 * 60 * 60 * 1000,
+        );
       }, delay);
     };
     scheduleHealthScores();
@@ -152,19 +160,24 @@ export async function register() {
         try {
           const { detectUpsellOpportunities } = await import('@/lib/intelligence/upsell-detection');
           const result = await detectUpsellOpportunities();
-          console.log(`[upsell-detection] Found ${result.detected} opportunities: ${result.bandwidth} bandwidth, ${result.loyalty} loyalty, ${result.enterprise} enterprise, ${result.bundle} bundle`);
+          console.log(
+            `[upsell-detection] Found ${result.detected} opportunities: ${result.bandwidth} bandwidth, ${result.loyalty} loyalty, ${result.enterprise} enterprise, ${result.bundle} bundle`,
+          );
         } catch (err) {
           console.error('[upsell-detection] failed:', err instanceof Error ? err.message : err);
         }
-        setInterval(async () => {
-          try {
-            const { detectUpsellOpportunities } = await import('@/lib/intelligence/upsell-detection');
-            const r = await detectUpsellOpportunities();
-            console.log(`[upsell-detection] Found ${r.detected} opportunities`);
-          } catch (err) {
-            console.error('[upsell-detection] failed:', err instanceof Error ? err.message : err);
-          }
-        }, 7 * 24 * 60 * 60 * 1000);
+        setInterval(
+          async () => {
+            try {
+              const { detectUpsellOpportunities } = await import('@/lib/intelligence/upsell-detection');
+              const r = await detectUpsellOpportunities();
+              console.log(`[upsell-detection] Found ${r.detected} opportunities`);
+            } catch (err) {
+              console.error('[upsell-detection] failed:', err instanceof Error ? err.message : err);
+            }
+          },
+          7 * 24 * 60 * 60 * 1000,
+        );
       }, delay);
     };
     scheduleUpsellDetection();

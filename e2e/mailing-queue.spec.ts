@@ -3,7 +3,7 @@ import { login, SUPER } from './helpers';
 
 test.describe('mailing queue (read + validate)', () => {
   test.beforeEach(async ({ page }) => {
-    await login(page, SUPER(), "super-admin");
+    await login(page, SUPER(), 'super-admin');
     await page.goto('/admin/mailing?tab=emails');
     await expect(page.getByPlaceholder(/search name or email/i)).toBeVisible({ timeout: 20_000 });
   });

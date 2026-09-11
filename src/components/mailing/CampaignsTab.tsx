@@ -249,7 +249,13 @@ export function CampaignsTab() {
                       </span>
                       {c.status === 'scheduled' && c.scheduledAt && (
                         <p className="font-mono text-[9px] text-violet-600 mt-0.5">
-                          Sends {new Date(c.scheduledAt).toLocaleString('en-NG', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })}
+                          Sends{' '}
+                          {new Date(c.scheduledAt).toLocaleString('en-NG', {
+                            month: 'short',
+                            day: 'numeric',
+                            hour: '2-digit',
+                            minute: '2-digit',
+                          })}
                         </p>
                       )}
                     </td>
@@ -354,10 +360,20 @@ export function CampaignsTab() {
               placeholder="e.g. Subject line needs revision, wrong audience..."
             />
             <div className="flex justify-end gap-2 mt-4">
-              <Button variant="outline" className="rounded-full font-mono text-[10px] uppercase font-bold" onClick={() => { setRejectingId(null); setRejectReason(''); }}>
+              <Button
+                variant="outline"
+                className="rounded-full font-mono text-[10px] uppercase font-bold"
+                onClick={() => {
+                  setRejectingId(null);
+                  setRejectReason('');
+                }}
+              >
                 Cancel
               </Button>
-              <Button className="rounded-full bg-rose-500 text-white font-mono text-[10px] uppercase font-bold px-6" onClick={() => handleReject(rejectingId)}>
+              <Button
+                className="rounded-full bg-rose-500 text-white font-mono text-[10px] uppercase font-bold px-6"
+                onClick={() => handleReject(rejectingId)}
+              >
                 Reject
               </Button>
             </div>

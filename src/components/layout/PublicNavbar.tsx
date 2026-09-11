@@ -5,13 +5,7 @@ import Image from 'next/image';
 import { Menu } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useRouter } from 'next/navigation';
-import {
-  Sheet,
-  SheetContent,
-  SheetHeader,
-  SheetTitle,
-  SheetTrigger,
-} from "@/components/ui/sheet";
+import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from '@/components/ui/sheet';
 
 export function PublicNavbar() {
   const router = useRouter();
@@ -21,18 +15,21 @@ export function PublicNavbar() {
       <Link href="/" className="flex items-center">
         <Image src="/logo.png" alt="I-World Logo" width={90} height={27} className="h-6 w-auto object-contain" priority />
       </Link>
-      
+
       <div className="hidden md:flex gap-8 items-center">
         <Link href="/" className="text-secondary border-b-2 border-secondary pb-1 font-mono text-[10px] uppercase tracking-wider font-bold">
           Public Portal
         </Link>
-        <Link href="/admin/dashboard" className="text-on-surface-variant font-mono text-[10px] uppercase tracking-wider hover:text-secondary transition-all duration-300">
+        <Link
+          href="/admin/dashboard"
+          className="text-on-surface-variant font-mono text-[10px] uppercase tracking-wider hover:text-secondary transition-all duration-300"
+        >
           Admin Hub
         </Link>
         <div className="flex gap-4 items-center pl-4 border-l border-border">
-          <Button 
+          <Button
             onClick={() => router.push('/admin/login')}
-            variant="default" 
+            variant="default"
             className="rounded-full px-8 py-2 font-mono text-[10px] uppercase tracking-widest font-bold hover:scale-105 transition-transform bg-primary text-white"
           >
             Sign In

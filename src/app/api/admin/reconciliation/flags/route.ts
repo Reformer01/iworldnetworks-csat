@@ -22,13 +22,15 @@ const RESOLVING_ACTIONS = ['auto', 'ignore'];
 
 // The generated Prisma client predates Leaf A's ReconciliationLog model —
 // access it through a cast, removable once `prisma generate` has run.
-const reconciliationLog = (prisma as unknown as {
-  reconciliationLog: {
-    findMany: (args: unknown) => Promise<unknown[]>;
-    findUnique: (args: { where: { id: string } }) => Promise<unknown | null>;
-    create: (args: { data: Record<string, unknown> }) => Promise<unknown>;
-  };
-}).reconciliationLog;
+const reconciliationLog = (
+  prisma as unknown as {
+    reconciliationLog: {
+      findMany: (args: unknown) => Promise<unknown[]>;
+      findUnique: (args: { where: { id: string } }) => Promise<unknown | null>;
+      create: (args: { data: Record<string, unknown> }) => Promise<unknown>;
+    };
+  }
+).reconciliationLog;
 
 interface FlagRow {
   id: string;

@@ -49,19 +49,18 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
     resolve('light');
   }, [resolve]);
 
-  const setTheme = useCallback((t: Theme) => {
-    setThemeState(t);
-    try {
-      localStorage.setItem('theme', t);
-    } catch {
-      /* skip */
-    }
-    resolve(t);
-  }, [resolve]);
-
-  return (
-    <ThemeContext.Provider value={{ theme, resolvedTheme, setTheme }}>
-      {children}
-    </ThemeContext.Provider>
+  const setTheme = useCallback(
+    (t: Theme) => {
+      setThemeState(t);
+      try {
+        localStorage.setItem('theme', t);
+      } catch {
+        /* skip */
+      }
+      resolve(t);
+    },
+    [resolve],
   );
+
+  return <ThemeContext.Provider value={{ theme, resolvedTheme, setTheme }}>{children}</ThemeContext.Provider>;
 }

@@ -50,9 +50,8 @@ function syncFreshness(ms: number | null): string {
 }
 
 function calculateHealthScore(tower: TowerAuditRow): number {
-  const deviceUptime = tower.deviceCount && tower.deviceCount > 0
-    ? ((tower.deviceCount - (tower.deviceOutageCount ?? 0)) / tower.deviceCount) * 100
-    : 100;
+  const deviceUptime =
+    tower.deviceCount && tower.deviceCount > 0 ? ((tower.deviceCount - (tower.deviceOutageCount ?? 0)) / tower.deviceCount) * 100 : 100;
   const mrrUtilization = tower.mrrTotal > 0 ? (tower.activeMrr / tower.mrrTotal) * 100 : 100;
   let syncScore = 100;
   const syncClock = tower.rosterSyncAt ?? tower.lastSyncAt;
@@ -65,7 +64,7 @@ function calculateHealthScore(tower: TowerAuditRow): number {
     else syncScore = 0;
   }
   const statusScore = tower.status === 'active' ? 100 : tower.status === null ? 50 : 0;
-  return Math.round(deviceUptime * 0.40 + mrrUtilization * 0.30 + syncScore * 0.20 + statusScore * 0.10);
+  return Math.round(deviceUptime * 0.4 + mrrUtilization * 0.3 + syncScore * 0.2 + statusScore * 0.1);
 }
 
 function accountLabel(key: string): string {
@@ -81,12 +80,16 @@ type DeltaDirection = 'up' | 'down' | 'same';
 function DeltaIndicator({ a, b, higherIsBetter = true }: { a: number; b: number; higherIsBetter?: boolean }) {
   if (a === b) return <Minus className="w-3 h-3 text-on-surface-variant/40" />;
   const isBetter = higherIsBetter ? a > b : a < b;
-  return isBetter
-    ? <ArrowUp className="w-3 h-3 text-emerald-500" />
-    : <ArrowDown className="w-3 h-3 text-red-500" />;
+  return isBetter ? <ArrowUp className="w-3 h-3 text-emerald-500" /> : <ArrowDown className="w-3 h-3 text-red-500" />;
 }
 
-function ComparisonRow({ label, a, b, format, higherIsBetter = true }: {
+function ComparisonRow({
+  label,
+  a,
+  b,
+  format,
+  higherIsBetter = true,
+}: {
   label: string;
   a: number;
   b: number;
@@ -99,7 +102,9 @@ function ComparisonRow({ label, a, b, format, higherIsBetter = true }: {
       <td className="px-4 py-3 font-mono text-[10px] uppercase tracking-widest font-bold text-on-surface-variant/60">{label}</td>
       <td className="px-4 py-3 font-mono text-xs font-bold text-primary">{fmt(a)}</td>
       <td className="px-4 py-3 font-mono text-xs font-bold text-primary">{fmt(b)}</td>
-      <td className="px-4 py-3 text-center"><DeltaIndicator a={a} b={b} higherIsBetter={higherIsBetter} /></td>
+      <td className="px-4 py-3 text-center">
+        <DeltaIndicator a={a} b={b} higherIsBetter={higherIsBetter} />
+      </td>
     </tr>
   );
 }
@@ -120,24 +125,22 @@ export function TowerComparison({ towers, onClose }: TowerComparisonProps) {
   const freshnessB = syncFreshness(b.rosterSyncAt ?? b.lastSyncAt);
 
   return (
-    <div 
+    <div
       className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/50 p-0 sm:p-4"
       onClick={onClose}
       role="dialog"
       aria-modal="true"
       aria-label="Tower comparison"
     >
-      <div 
-        onClick={e => e.stopPropagation()} 
+      <div
+        onClick={(e) => e.stopPropagation()}
         className="bg-white rounded-t-2xl sm:rounded-2xl w-full max-w-4xl max-h-[85vh] overflow-auto"
       >
         {/* Header */}
         <div className="sticky top-0 bg-white border-b border-border/60 px-6 py-4 flex items-center justify-between z-10">
           <div>
             <h2 className="font-display font-bold text-lg uppercase">Tower Comparison</h2>
-            <p className="font-mono text-[10px] uppercase tracking-widest text-on-surface-variant/60">
-              {towers.length} towers selected
-            </p>
+            <p className="font-mono text-[10px] uppercase tracking-widest text-on-surface-variant/60">{towers.length} towers selected</p>
           </div>
           <button
             onClick={onClose}
@@ -179,21 +182,39 @@ export function TowerComparison({ towers, onClose }: TowerComparisonProps) {
 
               {/* Sync freshness row */}
               <tr className="border-b border-border/50">
-                <td className="px-4 py-3 font-mono text-[10px] uppercase tracking-widest font-bold text-on-surface-variant/60">Last Sync</td>
+                <td className="px-4 py-3 font-mono text-[10px] uppercase tracking-widest font-bold text-on-surface-variant/60">
+                  Last Sync
+                </td>
                 <td className="px-4 py-3 font-mono text-xs font-bold text-primary">
                   <span className="flex items-center gap-1.5">
-                    <span className={cn('w-2 h-2 rounded-full', freshnessA === 'Fresh' ? 'bg-emerald-500' : freshnessA === 'Aging' ? 'bg-amber-500' : 'bg-red-500')} />
+                    <span
+                      className={cn(
+                        'w-2 h-2 rounded-full',
+                        freshnessA === 'Fresh' ? 'bg-emerald-500' : freshnessA === 'Aging' ? 'bg-amber-500' : 'bg-red-500',
+                      )}
+                    />
                     {relTime(a.rosterSyncAt ?? a.lastSyncAt)}
                   </span>
                 </td>
                 <td className="px-4 py-3 font-mono text-xs font-bold text-primary">
                   <span className="flex items-center gap-1.5">
-                    <span className={cn('w-2 h-2 rounded-full', freshnessB === 'Fresh' ? 'bg-emerald-500' : freshnessB === 'Aging' ? 'bg-amber-500' : 'bg-red-500')} />
+                    <span
+                      className={cn(
+                        'w-2 h-2 rounded-full',
+                        freshnessB === 'Fresh' ? 'bg-emerald-500' : freshnessB === 'Aging' ? 'bg-amber-500' : 'bg-red-500',
+                      )}
+                    />
                     {relTime(b.rosterSyncAt ?? b.lastSyncAt)}
                   </span>
                 </td>
                 <td className="px-4 py-3 text-center">
-                  {freshnessA === freshnessB ? <Minus className="w-3 h-3 text-on-surface-variant/40" /> : freshnessA === 'Fresh' ? <ArrowUp className="w-3 h-3 text-emerald-500" /> : <ArrowDown className="w-3 h-3 text-red-500" />}
+                  {freshnessA === freshnessB ? (
+                    <Minus className="w-3 h-3 text-on-surface-variant/40" />
+                  ) : freshnessA === 'Fresh' ? (
+                    <ArrowUp className="w-3 h-3 text-emerald-500" />
+                  ) : (
+                    <ArrowDown className="w-3 h-3 text-red-500" />
+                  )}
                 </td>
               </tr>
 
@@ -203,14 +224,20 @@ export function TowerComparison({ towers, onClose }: TowerComparisonProps) {
                 <td className="px-4 py-3 font-mono text-xs font-bold text-primary">{a.status || 'unknown'}</td>
                 <td className="px-4 py-3 font-mono text-xs font-bold text-primary">{b.status || 'unknown'}</td>
                 <td className="px-4 py-3 text-center">
-                  {a.status === b.status ? <Minus className="w-3 h-3 text-on-surface-variant/40" /> : a.status === 'active' ? <ArrowUp className="w-3 h-3 text-emerald-500" /> : <ArrowDown className="w-3 h-3 text-red-500" />}
+                  {a.status === b.status ? (
+                    <Minus className="w-3 h-3 text-on-surface-variant/40" />
+                  ) : a.status === 'active' ? (
+                    <ArrowUp className="w-3 h-3 text-emerald-500" />
+                  ) : (
+                    <ArrowDown className="w-3 h-3 text-red-500" />
+                  )}
                 </td>
               </tr>
 
               {/* Account type rows */}
               {(() => {
                 const allTypes = new Set([...Object.keys(a.customers.byAccountType), ...Object.keys(b.customers.byAccountType)]);
-                return Array.from(allTypes).map(type => (
+                return Array.from(allTypes).map((type) => (
                   <tr key={type} className="border-b border-border/50">
                     <td className="px-4 py-3 font-mono text-[10px] uppercase tracking-widest font-bold text-on-surface-variant/60">
                       {accountLabel(type)}

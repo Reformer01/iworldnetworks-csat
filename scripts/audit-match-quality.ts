@@ -19,18 +19,26 @@ async function main() {
   });
   const regionByTower = new Map(towers.map((t) => [t.btsName!, t.region]));
 
-  let agree = 0, disagree = 0, unknown = 0;
+  let agree = 0,
+    disagree = 0,
+    unknown = 0;
   const byMethod: Record<string, { agree: number; disagree: number }> = {};
   const disagreements: string[] = [];
 
   for (const r of rows) {
     const custRegion = customerRegionKey(r.city);
     const towerRegion = regionByTower.get(r.btsName ?? '') ?? null;
-    if (!custRegion || !towerRegion) { unknown++; continue; }
+    if (!custRegion || !towerRegion) {
+      unknown++;
+      continue;
+    }
     const m = (byMethod[r.method ?? '?'] ??= { agree: 0, disagree: 0 });
-    if (custRegion === towerRegion) { agree++; m.agree++; }
-    else {
-      disagree++; m.disagree++;
+    if (custRegion === towerRegion) {
+      agree++;
+      m.agree++;
+    } else {
+      disagree++;
+      m.disagree++;
       if (disagreements.length < 8) disagreements.push(`${r.method}: ${r.city} -> ${r.btsName} (${towerRegion})`);
     }
   }
@@ -40,4 +48,7 @@ async function main() {
   console.log('sample disagreements:\n' + disagreements.join('\n'));
   process.exit(0);
 }
-main().catch((e) => { console.error(e); process.exit(1); });
+main().catch((e) => {
+  console.error(e);
+  process.exit(1);
+});

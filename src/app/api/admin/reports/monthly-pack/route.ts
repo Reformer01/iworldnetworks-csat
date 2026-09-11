@@ -28,7 +28,7 @@ const saveSchema = z.object({
         comment: z.string().max(1000).optional(),
         action: z.string().max(1000).optional(),
         owner: z.string().max(191).optional(),
-      })
+      }),
     )
     .max(100)
     .optional(),
@@ -39,7 +39,7 @@ const saveSchema = z.object({
         rootCause: z.string().max(1000).optional(),
         action: z.string().max(1000).optional(),
         owner: z.string().max(191).optional(),
-      })
+      }),
     )
     .max(200)
     .optional(),
@@ -50,7 +50,7 @@ const saveSchema = z.object({
       z.object({
         kpi: z.string().min(1),
         actual: z.string().max(100).optional(),
-      })
+      }),
     )
     .max(100)
     .optional(),
@@ -96,7 +96,9 @@ export async function GET(request: NextRequest) {
         const ms = Date.parse(v.replace(' ', 'T'));
         return Number.isNaN(ms) ? null : ms;
       };
-      let opening = 0, churned = 0, mrrAtRisk = 0;
+      let opening = 0,
+        churned = 0,
+        mrrAtRisk = 0;
       let liveTotal = 0;
       for (const r of live as unknown as Array<{ status: string; last_update: string; mrr_total: string; lifecycle?: string }>) {
         const st = (r as unknown as { status: string }).status;
@@ -113,7 +115,12 @@ export async function GET(request: NextRequest) {
         if (mrr > 0 && lc !== 'churned') mrrAtRisk += 0; // live MRR at risk requires overdueInfo, not available live — show total MRR instead
       }
       // For live, just return the raw Splynx counts as verifiable, with — for derived
-      return success({ month, source: 'splynx', liveCount: live.length, note: 'Live Splynx: counts from /admin/customers/customer direct, not CSAT mirror. Historical churn/overdue not available live — use CSAT mirror for previous/YTD.' });
+      return success({
+        month,
+        source: 'splynx',
+        liveCount: live.length,
+        note: 'Live Splynx: counts from /admin/customers/customer direct, not CSAT mirror. Historical churn/overdue not available live — use CSAT mirror for previous/YTD.',
+      });
     } catch (e) {
       return error(`Live Splynx fetch failed: ${e instanceof Error ? e.message : String(e)}`, 502);
     }

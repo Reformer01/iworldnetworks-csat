@@ -29,7 +29,10 @@ const salesNavItems: NavItem[] = [
 
 const salesNavGroups = [
   { label: 'Customer Ops', hrefs: ['/admin/customers', '/admin/bts/customers', '/admin/bts/audit', '/admin/bts/review'] },
-  { label: 'Sales & Revenue', hrefs: ['/admin/sales', '/admin/sales/monthly-revenue', '/admin/sales/records', '/admin/sales/import', '/admin/sales/targets'] },
+  {
+    label: 'Sales & Revenue',
+    hrefs: ['/admin/sales', '/admin/sales/monthly-revenue', '/admin/sales/records', '/admin/sales/import', '/admin/sales/targets'],
+  },
   { label: 'Engagement', hrefs: ['/admin/mailing'] },
 ];
 

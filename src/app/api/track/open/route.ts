@@ -18,7 +18,7 @@ export async function GET(request: NextRequest) {
   if (isRateLimited(request, 200, 60 * 1000)) {
     return new NextResponse(getTrackingPixelBuffer(), {
       status: 200,
-      headers: { 'Content-Type': 'image/gif', 'Cache-Control': 'no-store, no-cache, must-revalidate', 'Pragma': 'no-cache' },
+      headers: { 'Content-Type': 'image/gif', 'Cache-Control': 'no-store, no-cache, must-revalidate', Pragma: 'no-cache' },
     });
   }
   try {
@@ -33,7 +33,7 @@ export async function GET(request: NextRequest) {
         headers: {
           'Content-Type': 'image/gif',
           'Cache-Control': 'no-store, no-cache, must-revalidate',
-          'Pragma': 'no-cache',
+          Pragma: 'no-cache',
         },
       });
     }
@@ -79,7 +79,7 @@ export async function GET(request: NextRequest) {
     headers: {
       'Content-Type': 'image/gif',
       'Cache-Control': 'no-store, no-cache, must-revalidate',
-      'Pragma': 'no-cache',
+      Pragma: 'no-cache',
     },
   });
 }

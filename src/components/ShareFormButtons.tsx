@@ -30,7 +30,9 @@ export default function ShareFormButtons({
 }: ShareFormButtonsProps) {
   const [copied, setCopied] = useState<'link' | 'whatsapp' | 'email' | null>(null);
   const [hasNativeShare, setHasNativeShare] = useState(false);
-  React.useEffect(() => { setHasNativeShare(typeof navigator !== 'undefined' && 'share' in navigator); }, []);
+  React.useEffect(() => {
+    setHasNativeShare(typeof navigator !== 'undefined' && 'share' in navigator);
+  }, []);
   const disabled = !url;
 
   const handleCopy = async (text: string, type: 'link' | 'whatsapp' | 'email') => {

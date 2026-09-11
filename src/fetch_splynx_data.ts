@@ -28,7 +28,7 @@ async function main() {
   try {
     // /admin/customers/customer returns all customers or paginated
     const data = await apiFetch('/admin/customers/customer');
-    customers = Array.isArray(data) ? data : (data.data || []);
+    customers = Array.isArray(data) ? data : data.data || [];
     console.log(`Fetched ${customers.length} total customer records from Splynx.`);
   } catch (e: any) {
     console.error('Error fetching customers:', e.message);
@@ -37,15 +37,11 @@ async function main() {
   // 2. Fetch Tickets / Helpdesk
   console.log('Fetching tickets/complaints...');
   let tickets: any[] = [];
-  const ticketEndpoints = [
-    '/admin/helpdesk/tickets',
-    '/admin/tickets/ticket',
-    '/admin/helpdesk/ticket'
-  ];
+  const ticketEndpoints = ['/admin/helpdesk/tickets', '/admin/tickets/ticket', '/admin/helpdesk/ticket'];
   for (const ep of ticketEndpoints) {
     try {
       const data = await apiFetch(ep);
-      const list = Array.isArray(data) ? data : (data.data || []);
+      const list = Array.isArray(data) ? data : data.data || [];
       if (list.length > 0) {
         console.log(`Found ${list.length} tickets from ${ep}`);
         tickets = list;
@@ -62,9 +58,9 @@ async function main() {
   try {
     const invData = await apiFetch('/admin/finance/invoices', {
       'main_attributes[status][0]': '=',
-      'main_attributes[status][1]': 'not_paid'
+      'main_attributes[status][1]': 'not_paid',
     });
-    unpaidInvoices = Array.isArray(invData) ? invData : (invData.data || []);
+    unpaidInvoices = Array.isArray(invData) ? invData : invData.data || [];
     console.log(`Found ${unpaidInvoices.length} unpaid invoices.`);
   } catch (e: any) {
     console.log('Error fetching invoices:', e.message);
@@ -75,7 +71,7 @@ async function main() {
   const statusSummary: Record<string, { count: number; totalMrr: number }> = {};
   const currentYear = new Date().getFullYear();
   const currentMonth = new Date().getMonth(); // 0-indexed
-  
+
   // Date analysis: created_at / last_update
   let newCustomersThisMonth = 0;
   let newCustomersYTD = 0;
@@ -91,7 +87,7 @@ async function main() {
   for (const c of customers) {
     const st = String(c.status || 'unknown').toLowerCase();
     const mrr = parseFloat(c.mrr_total || c.mrc || '0') || 0;
-    
+
     if (!statusSummary[st]) {
       statusSummary[st] = { count: 0, totalMrr: 0 };
     }
@@ -111,9 +107,9 @@ async function main() {
         mrr,
         status: st,
         reason: 'Account Blocked / Payment Suspension',
-        riskLevel: mrr >= 50000 ? 'High' : (mrr >= 20000 ? 'Medium' : 'Low'),
+        riskLevel: mrr >= 50000 ? 'High' : mrr >= 20000 ? 'Medium' : 'Low',
         city: c.city || c.street_1 || '',
-        category: c.category || c.account_type || ''
+        category: c.category || c.account_type || '',
       });
     } else if (st === 'inactive' || st === 'disabled') {
       inactiveCount++;
@@ -195,25 +191,34 @@ async function main() {
   console.log('TOP AT-RISK CUSTOMERS (by MRR):');
   console.log('=============================================');
   atRiskCustomers.slice(0, 15).forEach((c, idx) => {
-    console.log(`${idx + 1}. ${c.name} (${c.login}) - MRR: ₦${c.mrr.toLocaleString()} | Risk: ${c.riskLevel} | Status: ${c.status} | City: ${c.city}`);
+    console.log(
+      `${idx + 1}. ${c.name} (${c.login}) - MRR: ₦${c.mrr.toLocaleString()} | Risk: ${c.riskLevel} | Status: ${c.status} | City: ${c.city}`,
+    );
   });
 
   // Write full JSON output for parsing
   const fs = require('fs');
-  fs.writeFileSync('splynx_summary.json', JSON.stringify({
-    statusSummary,
-    activeCount,
-    blockedCount,
-    inactiveCount,
-    totalCount: customers.length,
-    totalMrrActive,
-    totalMrrBlocked,
-    newCustomersThisMonth,
-    newCustomersYTD,
-    ticketsCount: tickets.length,
-    atRiskCustomers: atRiskCustomers.slice(0, 20),
-    sampleCustomer: customers[0]
-  }, null, 2));
+  fs.writeFileSync(
+    'splynx_summary.json',
+    JSON.stringify(
+      {
+        statusSummary,
+        activeCount,
+        blockedCount,
+        inactiveCount,
+        totalCount: customers.length,
+        totalMrrActive,
+        totalMrrBlocked,
+        newCustomersThisMonth,
+        newCustomersYTD,
+        ticketsCount: tickets.length,
+        atRiskCustomers: atRiskCustomers.slice(0, 20),
+        sampleCustomer: customers[0],
+      },
+      null,
+      2,
+    ),
+  );
 }
 
 main().catch(console.error);

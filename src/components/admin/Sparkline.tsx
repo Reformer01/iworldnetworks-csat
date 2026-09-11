@@ -59,45 +59,16 @@ export function Sparkline({
     <div className={cn('relative inline-flex items-center', className)} role="img" aria-label={ariaLabel || 'Trend chart'}>
       <svg width={width} height={height} viewBox={`0 0 ${width} ${height}`} className="overflow-visible">
         {/* Fill area */}
-        {fillColor && (
-          <path
-            d={fillD}
-            fill={fillColor}
-            opacity={0.2}
-          />
-        )}
+        {fillColor && <path d={fillD} fill={fillColor} opacity={0.2} />}
 
         {/* Main line */}
-        <path
-          d={pathD}
-          fill="none"
-          stroke={color}
-          strokeWidth={1.5}
-          strokeLinecap="round"
-          strokeLinejoin="round"
-        />
+        <path d={pathD} fill="none" stroke={color} strokeWidth={1.5} strokeLinecap="round" strokeLinejoin="round" />
 
         {/* End dot */}
-        <circle
-          cx={lastPoint.x}
-          cy={lastPoint.y}
-          r={2.5}
-          fill={color}
-          stroke="white"
-          strokeWidth={1}
-        />
+        <circle cx={lastPoint.x} cy={lastPoint.y} r={2.5} fill={color} stroke="white" strokeWidth={1} />
 
         {/* Optional data points */}
-        {showDots && points.map((p, i) => (
-          <circle
-            key={i}
-            cx={p.x}
-            cy={p.y}
-            r={1.5}
-            fill={color}
-            opacity={0.6}
-          />
-        ))}
+        {showDots && points.map((p, i) => <circle key={i} cx={p.x} cy={p.y} r={1.5} fill={color} opacity={0.6} />)}
 
         {/* Optional axis */}
         {showAxis && (
@@ -132,9 +103,21 @@ export function TrendIndicator({ current, previous, format, className }: TrendIn
 
   return (
     <span className={cn('inline-flex items-center gap-1 font-mono text-[9px] font-bold', className)}>
-      {isUp && <span className="inline-flex items-center gap-0.5 text-emerald-600"><TrendingUp className="w-3 h-3" /> {fmt(Math.abs(diff))} ({Math.abs(pctChange)}%)</span>}
-      {isDown && <span className="inline-flex items-center gap-0.5 text-red-600"><TrendingDown className="w-3 h-3" /> {fmt(Math.abs(diff))} ({Math.abs(pctChange)}%)</span>}
-      {!isUp && !isDown && <span className="inline-flex items-center gap-0.5 text-on-surface-variant/40"><Minus className="w-3 h-3" /> No change</span>}
+      {isUp && (
+        <span className="inline-flex items-center gap-0.5 text-emerald-600">
+          <TrendingUp className="w-3 h-3" /> {fmt(Math.abs(diff))} ({Math.abs(pctChange)}%)
+        </span>
+      )}
+      {isDown && (
+        <span className="inline-flex items-center gap-0.5 text-red-600">
+          <TrendingDown className="w-3 h-3" /> {fmt(Math.abs(diff))} ({Math.abs(pctChange)}%)
+        </span>
+      )}
+      {!isUp && !isDown && (
+        <span className="inline-flex items-center gap-0.5 text-on-surface-variant/40">
+          <Minus className="w-3 h-3" /> No change
+        </span>
+      )}
     </span>
   );
 }

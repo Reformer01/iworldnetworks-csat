@@ -29,7 +29,9 @@ export default function FeedbackPage() {
   const token = searchParams.get('token');
   const subject = searchParams.get('subject');
   const [shareUrl, setShareUrl] = useState('');
-  useEffect(() => { setShareUrl(window.location.href); }, []);
+  useEffect(() => {
+    setShareUrl(window.location.href);
+  }, []);
 
   const [pageState, setPageState] = useState<PageState>('loading');
   const [errorMessage, setErrorMessage] = useState('');
@@ -46,7 +48,7 @@ export default function FeedbackPage() {
 
   // Initialize active category from URL subject or token
   useEffect(() => {
-    if (subject && FEEDBACK_CATEGORIES.includes(subject as typeof FEEDBACK_CATEGORIES[number])) {
+    if (subject && FEEDBACK_CATEGORIES.includes(subject as (typeof FEEDBACK_CATEGORIES)[number])) {
       setActiveCategory(subject);
     }
   }, [subject]);
@@ -335,7 +337,9 @@ export default function FeedbackPage() {
 
               {/* 3. First Contact Resolution (optional — powers the CES metric) */}
               <div className="space-y-3">
-                <label className="text-sm font-semibold text-primary block uppercase tracking-wider font-mono">First Contact Resolution</label>
+                <label className="text-sm font-semibold text-primary block uppercase tracking-wider font-mono">
+                  First Contact Resolution
+                </label>
                 <p className="text-xs text-muted-foreground">Was your issue fixed on the first try?</p>
 
                 <div className="grid grid-cols-2 gap-3 pt-1">

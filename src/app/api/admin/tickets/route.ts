@@ -57,10 +57,7 @@ export async function GET(request: NextRequest) {
       createdBy,
       search,
     };
-    const [tickets, total] = await Promise.all([
-      listTicketsDb(filters, pageSize, (page - 1) * pageSize),
-      countTicketsDb(filters),
-    ]);
+    const [tickets, total] = await Promise.all([listTicketsDb(filters, pageSize, (page - 1) * pageSize), countTicketsDb(filters)]);
 
     return success({
       tickets: tickets.map((t) => ({ ...t, assignedToName: displayAssigneeName(t.assignedTo) })),

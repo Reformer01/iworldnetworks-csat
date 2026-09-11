@@ -127,12 +127,8 @@ export function IncidentTimeline({ towerId, towerName }: IncidentTimelineProps) 
     return (
       <div className="text-center py-8">
         <CheckCircle2 className="w-8 h-8 text-emerald-500 mx-auto mb-2" aria-hidden="true" />
-        <p className="font-mono text-[10px] text-on-surface-variant/60 uppercase font-bold">
-          No incidents recorded for {towerName}
-        </p>
-        <p className="font-mono text-[9px] text-on-surface-variant/40 mt-1">
-          History is captured hourly. Check back later.
-        </p>
+        <p className="font-mono text-[10px] text-on-surface-variant/60 uppercase font-bold">No incidents recorded for {towerName}</p>
+        <p className="font-mono text-[9px] text-on-surface-variant/40 mt-1">History is captured hourly. Check back later.</p>
       </div>
     );
   }
@@ -142,15 +138,9 @@ export function IncidentTimeline({ towerId, towerName }: IncidentTimelineProps) 
       {incidents.map((incident, i) => {
         const Icon = INCIDENT_ICONS[incident.type] || AlertTriangle;
         return (
-          <div
-            key={`${incident.type}-${incident.timestamp}-${i}`}
-            className="relative flex gap-3 pb-4"
-            role="listitem"
-          >
+          <div key={`${incident.type}-${incident.timestamp}-${i}`} className="relative flex gap-3 pb-4" role="listitem">
             {/* Timeline line */}
-            {i < incidents.length - 1 && (
-              <div className="absolute left-[11px] top-6 bottom-0 w-0.5 bg-border/40" aria-hidden="true" />
-            )}
+            {i < incidents.length - 1 && <div className="absolute left-[11px] top-6 bottom-0 w-0.5 bg-border/40" aria-hidden="true" />}
 
             {/* Severity dot */}
             <div className={cn('w-6 h-6 rounded-full flex items-center justify-center shrink-0 z-10', SEVERITY_DOT[incident.severity])}>
@@ -160,13 +150,13 @@ export function IncidentTimeline({ towerId, towerName }: IncidentTimelineProps) 
             {/* Content */}
             <div className="flex-1 min-w-0">
               <div className="flex items-start justify-between gap-2">
-                <p className="font-mono text-xs font-bold text-primary">
-                  {incident.message}
-                </p>
-                <span className={cn(
-                  'shrink-0 px-2 py-0.5 rounded-full text-[8px] font-bold font-mono uppercase border',
-                  SEVERITY_STYLES[incident.severity]
-                )}>
+                <p className="font-mono text-xs font-bold text-primary">{incident.message}</p>
+                <span
+                  className={cn(
+                    'shrink-0 px-2 py-0.5 rounded-full text-[8px] font-bold font-mono uppercase border',
+                    SEVERITY_STYLES[incident.severity],
+                  )}
+                >
                   {incident.severity}
                 </span>
               </div>

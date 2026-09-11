@@ -78,9 +78,7 @@ export default function AdminStability() {
   }, [feedbacks]);
 
   const logRows = useMemo(() => {
-    return [...feedbacks]
-      .sort((a, b) => (b.timestamp ?? 0) - (a.timestamp ?? 0))
-      .slice(0, 12);
+    return [...feedbacks].sort((a, b) => (b.timestamp ?? 0) - (a.timestamp ?? 0)).slice(0, 12);
   }, [feedbacks]);
 
   const handleExport = async () => {
@@ -128,9 +126,7 @@ export default function AdminStability() {
       <div className="max-w-container-max mx-auto">
         <header className="grid grid-cols-12 gap-gutter mb-16 items-end">
           <div className="col-span-12 md:col-span-7">
-            <h2 className="font-display text-2xl md:text-2xl text-primary tracking-tight font-bold uppercase">
-              Internet Quality
-            </h2>
+            <h2 className="font-display text-2xl md:text-2xl text-primary tracking-tight font-bold uppercase">Internet Quality</h2>
             <div className="flex items-center gap-2 mt-2 text-on-surface-variant font-mono text-[10px] font-bold uppercase tracking-widest">
               <Calendar className="w-3 h-3 text-secondary" /> Performance from customer reliability reports
             </div>
@@ -148,7 +144,10 @@ export default function AdminStability() {
               From {metrics.ratedCount} rated {metrics.ratedCount === 1 ? 'report' : 'reports'}
             </p>
             <div className="mt-4 h-1 w-full bg-surface-container rounded-full overflow-hidden">
-              <div className="h-full bg-secondary transition-all duration-1000" style={{ width: `${(metrics.avgStability / 5) * 100}%` }}></div>
+              <div
+                className="h-full bg-secondary transition-all duration-1000"
+                style={{ width: `${(metrics.avgStability / 5) * 100}%` }}
+              ></div>
             </div>
           </div>
 
@@ -178,7 +177,9 @@ export default function AdminStability() {
             <div className="flex justify-between items-center mb-10">
               <div>
                 <h3 className="font-display text-xl text-primary font-bold uppercase">Stability Trend</h3>
-                <p className="font-mono text-[10px] text-on-surface-variant uppercase font-bold opacity-60">Stability rating per report (1–5)</p>
+                <p className="font-mono text-[10px] text-on-surface-variant uppercase font-bold opacity-60">
+                  Stability rating per report (1–5)
+                </p>
               </div>
             </div>
             <div className="flex-1">
@@ -248,7 +249,8 @@ export default function AdminStability() {
               <div className="relative z-10">
                 <p className="text-white/60 font-mono text-[10px] uppercase font-bold mb-2">Reliability Reports</p>
                 <h4 className="text-white font-display text-lg font-bold uppercase">
-                  {feedbacks.length} total · {REGIONS.filter((r) => nodeHealth.some((n) => n.name === r && n.count > 0)).length} regions active
+                  {feedbacks.length} total · {REGIONS.filter((r) => nodeHealth.some((n) => n.name === r && n.count > 0)).length} regions
+                  active
                 </h4>
               </div>
               <Activity className="w-12 h-12 text-white/20 group-hover:text-secondary transition-colors duration-500 relative z-10" />
@@ -302,7 +304,11 @@ export default function AdminStability() {
                           <Star
                             className={cn(
                               'w-3.5 h-3.5',
-                              stability >= 4 ? 'text-amber-400 fill-amber-400' : stability === 3 ? 'text-orange-400 fill-orange-400' : 'text-red-400 fill-red-400',
+                              stability >= 4
+                                ? 'text-amber-400 fill-amber-400'
+                                : stability === 3
+                                  ? 'text-orange-400 fill-orange-400'
+                                  : 'text-red-400 fill-red-400',
                             )}
                           />
                           <span className="text-[10px] font-bold text-on-surface-variant">/5</span>

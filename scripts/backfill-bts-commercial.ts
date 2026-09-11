@@ -13,7 +13,17 @@ config({ path: '.env' });
 config({ path: '.env.production', override: true });
 
 type Tariff = { id?: number; title?: string; name?: string; price?: number | string };
-type Service = { id?: number; tariff_id?: number; description?: string; title?: string; unit_price?: number | string; status?: string; start_date?: string; bundle_id?: number; bundle_name?: string };
+type Service = {
+  id?: number;
+  tariff_id?: number;
+  description?: string;
+  title?: string;
+  unit_price?: number | string;
+  status?: string;
+  start_date?: string;
+  bundle_id?: number;
+  bundle_name?: string;
+};
 
 function amount(value: unknown): number {
   const parsed = Number(value);
@@ -26,10 +36,13 @@ function serviceKey(service: Service): string {
 
 function currentServices(services: Service[], tariffById: Map<number, Tariff>): Service[] {
   const current = services.filter((service) => ['active', 'pending'].includes(String(service.status ?? '').toLowerCase()));
-  const source = current.length > 0 ? current : services.filter((service) => {
-    const tariff = tariffById.get(Number(service.tariff_id));
-    return amount(service.unit_price) > 0 || amount(tariff?.price) > 0;
-  });
+  const source =
+    current.length > 0
+      ? current
+      : services.filter((service) => {
+          const tariff = tariffById.get(Number(service.tariff_id));
+          return amount(service.unit_price) > 0 || amount(tariff?.price) > 0;
+        });
   const unique = new Map<string, Service>();
   for (const service of source) unique.set(serviceKey(service), service);
   return [...unique.values()];
@@ -67,7 +80,13 @@ async function main() {
     select: { id: true, customerId: true, customerName: true, servicePlan: true, mrrTotal: true },
     take: limit,
     orderBy: { customerId: 'asc' },
-  })) as unknown as Array<{ id: string; customerId: string; customerName: string | null; servicePlan: string | null; mrrTotal: number | null }>;
+  })) as unknown as Array<{
+    id: string;
+    customerId: string;
+    customerName: string | null;
+    servicePlan: string | null;
+    mrrTotal: number | null;
+  }>;
 
   console.log(`BTS commercial backfill: ${apply ? 'APPLY' : 'DRY-RUN'}; customers=${customers.length}; tariffs=${tariffById.size}`);
   let enriched = 0;
@@ -78,15 +97,18 @@ async function main() {
 
   async function processCustomer(customer: (typeof customers)[number], index: number) {
     try {
-      const services = currentServices(await getCustomerServices(customer.customerId) as Service[], tariffById);
+      const services = currentServices((await getCustomerServices(customer.customerId)) as Service[], tariffById);
       if (services.length === 0) {
         if (customerArg) console.log(`${customer.customerId}: no internet service returned by Splynx`);
         return;
       }
-      const planNames = services.map((service) => {
-        const tariff = tariffById.get(Number(service.tariff_id));
-        return String(tariff?.title ?? tariff?.name ?? service.description ?? service.title ?? '').trim();
-      }).filter(Boolean).filter((plan, index, all) => all.indexOf(plan) === index);
+      const planNames = services
+        .map((service) => {
+          const tariff = tariffById.get(Number(service.tariff_id));
+          return String(tariff?.title ?? tariff?.name ?? service.description ?? service.title ?? '').trim();
+        })
+        .filter(Boolean)
+        .filter((plan, index, all) => all.indexOf(plan) === index);
       const plan = planNames.join(' + ');
       const price = services.reduce((sum, service) => {
         const tariff = tariffById.get(Number(service.tariff_id));
@@ -98,25 +120,35 @@ async function main() {
       // are gross line amounts and would overstate the billed MRR.
       let accountMrr: number | null = null;
       if (services.length >= 2) {
-        const detail = await getCustomerById(Number(customer.customerId)) as unknown as { mrr_total?: number | string } | null;
-        const parsedMrr = detail?.mrr_total === undefined || detail?.mrr_total === null || detail?.mrr_total === ''
-          ? NaN
-          : Number(detail.mrr_total);
+        const detail = (await getCustomerById(Number(customer.customerId))) as unknown as { mrr_total?: number | string } | null;
+        const parsedMrr =
+          detail?.mrr_total === undefined || detail?.mrr_total === null || detail?.mrr_total === '' ? NaN : Number(detail.mrr_total);
         if (Number.isFinite(parsedMrr)) accountMrr = Math.max(0, parsedMrr);
       }
       if (customerArg) console.log(`${customer.customerId}: services=${JSON.stringify(services)} plan='${plan}' price=${price}`);
       if (!plan && price === 0) return;
       enriched += 1;
-      const nextMrr = services.length >= 2
-        ? accountMrr === null
-          ? (amount(customer.mrrTotal) > 0 ? customer.mrrTotal : price)
-          : accountMrr > 0
-            ? accountMrr
-            : (hasDirectServicePrice ? (amount(customer.mrrTotal) > 0 ? customer.mrrTotal : price) : 0)
-        : (amount(customer.mrrTotal) > 0 ? customer.mrrTotal : price);
+      const nextMrr =
+        services.length >= 2
+          ? accountMrr === null
+            ? amount(customer.mrrTotal) > 0
+              ? customer.mrrTotal
+              : price
+            : accountMrr > 0
+              ? accountMrr
+              : hasDirectServicePrice
+                ? amount(customer.mrrTotal) > 0
+                  ? customer.mrrTotal
+                  : price
+                : 0
+          : amount(customer.mrrTotal) > 0
+            ? customer.mrrTotal
+            : price;
       const mrrToWrite = nextMrr ?? 0;
       if (index < 20 || index % 100 === 0) {
-        console.log(`${customer.customerId} ${customer.customerName ?? ''} plan='${plan || '(unknown)'}' mrr ${customer.mrrTotal ?? 0} -> ${nextMrr ?? 0}`);
+        console.log(
+          `${customer.customerId} ${customer.customerName ?? ''} plan='${plan || '(unknown)'}' mrr ${customer.mrrTotal ?? 0} -> ${nextMrr ?? 0}`,
+        );
       }
       const shouldWriteMrr = services.length >= 2 || amount(customer.mrrTotal) === 0;
       if (apply) {

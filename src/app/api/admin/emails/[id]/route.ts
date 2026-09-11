@@ -68,7 +68,9 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
         // type so the worker's guards match (payloads never contain `type`).
         const data = record.payload as unknown as Omit<EmailJobData, 'type' | 'emailJobId'>;
         try {
-          await getEmailQueue().add(record.type, { type: record.type, ...data, emailJobId: record.id } as EmailJobData, { priority: getPriorityForType(record.type) });
+          await getEmailQueue().add(record.type, { type: record.type, ...data, emailJobId: record.id } as EmailJobData, {
+            priority: getPriorityForType(record.type),
+          });
         } catch (enqueueError) {
           await markEmailJobFailed(id, enqueueError instanceof Error ? enqueueError.message : String(enqueueError), 0);
           throw enqueueError;
@@ -89,7 +91,9 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
     if (record.status !== 'failed') return error('Only failed emails can be retried');
 
     const data = record.payload as unknown as Omit<EmailJobData, 'type' | 'emailJobId'>;
-    await getEmailQueue().add(record.type, { type: record.type, ...data, emailJobId: record.id } as EmailJobData, { priority: getPriorityForType(record.type) });
+    await getEmailQueue().add(record.type, { type: record.type, ...data, emailJobId: record.id } as EmailJobData, {
+      priority: getPriorityForType(record.type),
+    });
     await prisma.emailJob.update({ where: { id }, data: { status: 'pending', error: null } });
 
     return success({ ok: true, status: 'pending' });

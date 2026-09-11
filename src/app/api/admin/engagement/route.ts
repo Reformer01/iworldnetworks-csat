@@ -36,15 +36,9 @@ export const GET = withAdmin(
     const where = {
       ...(staff ? { staffName: staff } : {}),
       ...(hasDateRange ? { lastContactAt: lastContactFilter } : {}),
-      ...(callStatus
-        ? callStatus === 'Never Contacted'
-          ? { callStatus: null, lastContactAt: null }
-          : { callStatus }
-        : {}),
+      ...(callStatus ? (callStatus === 'Never Contacted' ? { callStatus: null, lastContactAt: null } : { callStatus }) : {}),
       ...(risk === 'unrated' ? { retentionRisk: null } : risk ? { retentionRisk: risk } : {}),
-      ...(search
-        ? { customerName: { contains: search } }
-        : {}),
+      ...(search ? { customerName: { contains: search } } : {}),
     };
 
     // Dashboard stats — scoped to the agent filter (not search) so agents see

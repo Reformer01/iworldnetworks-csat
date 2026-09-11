@@ -11,6 +11,6 @@ export async function GET() {
       redirect: '/api/admin/intelligence/overview',
       message: 'Deprecated — use /api/admin/intelligence/overview. This endpoint now returns 200 to stop cached-client 401 spam.',
     }),
-    { headers: { 'Cache-Control': 'no-store, max-age=0' } }
+    { headers: { 'Cache-Control': 'no-store, max-age=0' } },
   );
 }

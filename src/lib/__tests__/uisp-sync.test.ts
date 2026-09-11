@@ -142,9 +142,7 @@ describe('syncUisp', () => {
     const stats = await syncUisp(Date.now());
 
     expect(stats).toMatchObject({ sitesUpserted: 1 });
-    expect(prisma.uispMeta.update).toHaveBeenCalledWith(
-      expect.objectContaining({ data: expect.objectContaining({ lastStatus: 'ok' }) }),
-    );
+    expect(prisma.uispMeta.update).toHaveBeenCalledWith(expect.objectContaining({ data: expect.objectContaining({ lastStatus: 'ok' }) }));
   });
 
   it('marks run as error and rethrows on failure', async () => {
@@ -226,7 +224,7 @@ describe('mapSiteRow', () => {
       sla: 24,
       deviceCount: 2,
       deviceOutageCount: 0,
-        ucrmId: '42',
+      ucrmId: '42',
     },
   };
 

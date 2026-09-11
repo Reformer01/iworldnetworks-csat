@@ -60,10 +60,7 @@ export async function detectUpsellOpportunities(): Promise<{
   const customers = await prisma.customer.findMany({
     where: {
       deleted: false,
-      OR: [
-        { lifecycle: 'active' },
-        { lifecycle: null },
-      ],
+      OR: [{ lifecycle: 'active' }, { lifecycle: null }],
     },
     select: {
       id: true,
@@ -114,9 +111,7 @@ export async function detectUpsellOpportunities(): Promise<{
     // ─── Loyalty: customer for >6 months, no upgrade ───
     const syncedAt = customer.firstSyncedAt ? Number(customer.firstSyncedAt) : null;
     if (syncedAt && syncedAt < sixMonthsAgo) {
-      const monthsActive = Math.floor(
-        (now.getTime() - syncedAt) / (30 * 24 * 60 * 60 * 1000)
-      );
+      const monthsActive = Math.floor((now.getTime() - syncedAt) / (30 * 24 * 60 * 60 * 1000));
       if (monthsActive > 6) {
         const revenue = planUpgradeRevenue(customer.servicePlan) * 0.5; // loyalty discount
         if (revenue > 0) {
@@ -137,12 +132,7 @@ export async function detectUpsellOpportunities(): Promise<{
 
     // ─── Enterprise: non-residential accounts ───
     const acctType = (customer.accountType ?? '').toLowerCase();
-    if (
-      acctType.includes('sme') ||
-      acctType.includes('enterprise') ||
-      acctType.includes('corporate') ||
-      acctType.includes('business')
-    ) {
+    if (acctType.includes('sme') || acctType.includes('enterprise') || acctType.includes('corporate') || acctType.includes('business')) {
       const lowerPlan = (customer.servicePlan ?? '').toLowerCase();
       if (!lowerPlan.includes('enterprise') && !lowerPlan.includes('business')) {
         candidates.push({

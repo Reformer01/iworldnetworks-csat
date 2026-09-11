@@ -24,18 +24,12 @@ function extraEmails(varName: string): string[] {
 
 export function isSuperAdmin(email: string): boolean {
   const lower = email.toLowerCase();
-  return (
-    SUPER_ADMIN_EMAILS.map((e) => e.toLowerCase()).includes(lower) ||
-    extraEmails('SUPER_ADMIN_EMAILS_EXTRA').includes(lower)
-  );
+  return SUPER_ADMIN_EMAILS.map((e) => e.toLowerCase()).includes(lower) || extraEmails('SUPER_ADMIN_EMAILS_EXTRA').includes(lower);
 }
 
 export function isEditor(email: string): boolean {
   const lower = email.toLowerCase();
-  return (
-    EDITOR_EMAILS.map((e) => e.toLowerCase()).includes(lower) ||
-    extraEmails('EDITOR_EMAILS_EXTRA').includes(lower)
-  );
+  return EDITOR_EMAILS.map((e) => e.toLowerCase()).includes(lower) || extraEmails('EDITOR_EMAILS_EXTRA').includes(lower);
 }
 
 export function isAllowedDomain(email: string): boolean {

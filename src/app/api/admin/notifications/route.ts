@@ -62,7 +62,10 @@ export const GET = withAdmin(
         items.push({
           type: 'followup-due',
           title: `${dueFollowUps.length} follow-up${dueFollowUps.length === 1 ? '' : 's'} due`,
-          body: `Starting with: ${dueFollowUps.map((f) => f.customerName).slice(0, 3).join(', ')}`,
+          body: `Starting with: ${dueFollowUps
+            .map((f) => f.customerName)
+            .slice(0, 3)
+            .join(', ')}`,
           href: `/admin/engagement?staff=${encodeURIComponent(myName)}`,
           severity: 'warning',
         });
@@ -72,7 +75,10 @@ export const GET = withAdmin(
         items.push({
           type: 'high-risk',
           title: `${highRisk.length} high retention-risk customer${highRisk.length === 1 ? '' : 's'}`,
-          body: `Needs attention: ${highRisk.map((f) => f.customerName).slice(0, 3).join(', ')}`,
+          body: `Needs attention: ${highRisk
+            .map((f) => f.customerName)
+            .slice(0, 3)
+            .join(', ')}`,
           href: `/admin/engagement?staff=${encodeURIComponent(myName)}`,
           severity: 'critical',
         });
@@ -115,7 +121,10 @@ export const GET = withAdmin(
         items.push({
           type: 'validation',
           title: `${pendingCampaigns.length} campaign${pendingCampaigns.length === 1 ? '' : 's'} awaiting approval`,
-          body: `Review: ${pendingCampaigns.map((c) => c.name).slice(0, 3).join(', ')}`,
+          body: `Review: ${pendingCampaigns
+            .map((c) => c.name)
+            .slice(0, 3)
+            .join(', ')}`,
           href: '/admin/mailing?tab=approval',
           severity: 'warning',
         });

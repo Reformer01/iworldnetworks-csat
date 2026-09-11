@@ -31,9 +31,8 @@ function calculateHealthScore(tower: {
   lastSyncAt: number | null;
   status: string | null;
 }): number {
-  const deviceUptime = tower.deviceCount && tower.deviceCount > 0
-    ? ((tower.deviceCount - (tower.deviceOutageCount ?? 0)) / tower.deviceCount) * 100
-    : 100;
+  const deviceUptime =
+    tower.deviceCount && tower.deviceCount > 0 ? ((tower.deviceCount - (tower.deviceOutageCount ?? 0)) / tower.deviceCount) * 100 : 100;
   const mrrUtilization = tower.mrrTotal > 0 ? (tower.activeMrr / tower.mrrTotal) * 100 : 100;
   let syncScore = 100;
   if (tower.lastSyncAt) {
@@ -45,7 +44,7 @@ function calculateHealthScore(tower: {
     else syncScore = 0;
   }
   const statusScore = tower.status === 'active' ? 100 : tower.status === null ? 50 : 0;
-  return Math.round(deviceUptime * 0.40 + mrrUtilization * 0.30 + syncScore * 0.20 + statusScore * 0.10);
+  return Math.round(deviceUptime * 0.4 + mrrUtilization * 0.3 + syncScore * 0.2 + statusScore * 0.1);
 }
 
 /**
@@ -109,7 +108,7 @@ export async function captureTowerSnapshots(): Promise<{ captured: number; error
  */
 export async function getTowerSnapshots(
   towerId: string,
-  limit: number = 168 // 7 days of hourly snapshots
+  limit: number = 168, // 7 days of hourly snapshots
 ): Promise<TowerSnapshot[]> {
   const rows = await prisma.towerAuditSnapshot.findMany({
     where: { towerId },
@@ -142,13 +141,15 @@ export async function getTowerSnapshots(
  */
 export async function getTowerIncidents(
   towerId: string,
-  limit: number = 50
-): Promise<Array<{
-  timestamp: Date;
-  type: string;
-  severity: 'critical' | 'warning' | 'info';
-  message: string;
-}>> {
+  limit: number = 50,
+): Promise<
+  Array<{
+    timestamp: Date;
+    type: string;
+    severity: 'critical' | 'warning' | 'info';
+    message: string;
+  }>
+> {
   const snapshots = await prisma.towerAuditSnapshot.findMany({
     where: { towerId },
     orderBy: { capturedAt: 'desc' },
@@ -233,7 +234,7 @@ export async function getTowerIncidents(
     // MRR drop (>10% revenue loss)
     if (prev.mrrTotal && curr.mrrTotal && prev.mrrTotal > 10000) {
       const mrrDrop = (prev.mrrTotal - curr.mrrTotal) / prev.mrrTotal;
-      if (mrrDrop > 0.10) {
+      if (mrrDrop > 0.1) {
         incidents.push({
           timestamp: curr.capturedAt,
           type: 'mrr_drop',
@@ -264,10 +265,7 @@ export async function getTowerIncidents(
 /**
  * Get customer count trend for sparkline (last 30 data points).
  */
-export async function getCustomerTrend(
-  towerId: string,
-  limit: number = 30
-): Promise<Array<{ date: Date; total: number; active: number }>> {
+export async function getCustomerTrend(towerId: string, limit: number = 30): Promise<Array<{ date: Date; total: number; active: number }>> {
   const rows = await prisma.towerAuditSnapshot.findMany({
     where: { towerId },
     orderBy: { capturedAt: 'desc' },
@@ -285,10 +283,7 @@ export async function getCustomerTrend(
 /**
  * Get MRR trend for sparkline (last 30 data points).
  */
-export async function getMrrTrend(
-  towerId: string,
-  limit: number = 30
-): Promise<Array<{ date: Date; potential: number; active: number }>> {
+export async function getMrrTrend(towerId: string, limit: number = 30): Promise<Array<{ date: Date; potential: number; active: number }>> {
   const rows = await prisma.towerAuditSnapshot.findMany({
     where: { towerId },
     orderBy: { capturedAt: 'desc' },
@@ -306,10 +301,7 @@ export async function getMrrTrend(
 /**
  * Get health score trend for sparkline (last 30 data points).
  */
-export async function getHealthTrend(
-  towerId: string,
-  limit: number = 30
-): Promise<Array<{ date: Date; score: number }>> {
+export async function getHealthTrend(towerId: string, limit: number = 30): Promise<Array<{ date: Date; score: number }>> {
   const rows = await prisma.towerAuditSnapshot.findMany({
     where: { towerId },
     orderBy: { capturedAt: 'desc' },

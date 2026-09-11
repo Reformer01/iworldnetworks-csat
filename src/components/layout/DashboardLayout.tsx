@@ -106,9 +106,7 @@ export function DashboardLayout({
       <div className="min-h-screen flex items-center justify-center bg-background">
         <div className="flex flex-col items-center gap-4">
           <div className="w-12 h-12 border-4 border-secondary/20 border-t-secondary rounded-full animate-spin" />
-          <p className="font-mono text-[10px] text-on-surface-variant uppercase animate-pulse font-bold">
-            Initializing Session
-          </p>
+          <p className="font-mono text-[10px] text-on-surface-variant uppercase animate-pulse font-bold">Initializing Session</p>
         </div>
       </div>
     );
@@ -126,22 +124,14 @@ export function DashboardLayout({
           <div className="space-y-2">
             <h2 className="font-display text-2xl font-bold text-primary">Action Required</h2>
             <p className="text-on-surface-variant text-sm">
-              Your account <strong>{user.email}</strong> is not yet verified or authorized for this
-              regional node.
+              Your account <strong>{user.email}</strong> is not yet verified or authorized for this regional node.
             </p>
           </div>
           <div className="w-full space-y-3">
-            <Button
-              onClick={handleSendVerification}
-              className="w-full bg-secondary text-white rounded-full py-6 font-bold flex gap-2"
-            >
+            <Button onClick={handleSendVerification} className="w-full bg-secondary text-white rounded-full py-6 font-bold flex gap-2">
               <Send className="w-4 h-4" /> Resend Verification Link
             </Button>
-            <Button
-              onClick={handleLogout}
-              variant="ghost"
-              className="w-full rounded-full py-6 font-bold text-on-surface-variant"
-            >
+            <Button onClick={handleLogout} variant="ghost" className="w-full rounded-full py-6 font-bold text-on-surface-variant">
               Sign Out & Try Again
             </Button>
           </div>
@@ -168,9 +158,7 @@ export function DashboardLayout({
   const mobileItemClass = (active: boolean) =>
     cn(
       'flex items-center gap-4 py-3 px-6 transition-all group rounded-xl',
-      active
-        ? 'text-primary font-bold active-pill bg-surface-container-low'
-        : 'text-on-surface-variant hover:bg-surface-container-low',
+      active ? 'text-primary font-bold active-pill bg-surface-container-low' : 'text-on-surface-variant hover:bg-surface-container-low',
     );
 
   /* ---- Grouped sidebar nav --------------------------------------- */
@@ -201,9 +189,7 @@ export function DashboardLayout({
 
         {/* Grouped items */}
         {navGroups.map((group) => {
-          const items = group.hrefs
-            .map((href) => navItems.find((item) => item.href === href))
-            .filter(Boolean) as NavItem[];
+          const items = group.hrefs.map((href) => navItems.find((item) => item.href === href)).filter(Boolean) as NavItem[];
           if (items.length === 0) return null;
           return (
             <div key={group.label} className="mt-4 min-w-0">
@@ -211,12 +197,7 @@ export function DashboardLayout({
                 {group.label}
               </p>
               {items.map((item) => (
-                <Link
-                  key={item.href}
-                  href={item.href}
-                  className={sidebarItemClass(isActive(item.href))}
-                  title={item.name}
-                >
+                <Link key={item.href} href={item.href} className={sidebarItemClass(isActive(item.href))} title={item.name}>
                   <item.icon className={sidebarIconClass(isActive(item.href))} />
                   <span className="font-mono text-[11px] uppercase tracking-wider font-bold truncate min-w-0">{item.name}</span>
                 </Link>
@@ -259,14 +240,7 @@ export function DashboardLayout({
 
           {/* Logo */}
           <Link href="/" className="flex items-center shrink-0">
-            <Image
-              src="/logo.png"
-              alt="I-World Logo"
-              width={90}
-              height={27}
-              className="h-6 w-auto object-contain"
-              priority
-            />
+            <Image src="/logo.png" alt="I-World Logo" width={90} height={27} className="h-6 w-auto object-contain" priority />
           </Link>
 
           {/* Section label */}
@@ -303,20 +277,12 @@ export function DashboardLayout({
                   <div className="h-full flex flex-col pt-10">
                     <SheetHeader className="px-6 mb-8 text-left">
                       <SheetTitle className="text-left">
-                        <Image
-                          src="/logo.png"
-                          alt="I-World Logo"
-                          width={100}
-                          height={30}
-                          className="h-6 w-auto object-contain"
-                        />
+                        <Image src="/logo.png" alt="I-World Logo" width={100} height={30} className="h-6 w-auto object-contain" />
                       </SheetTitle>
                     </SheetHeader>
                     {/* User email in mobile menu */}
                     <div className="px-6 mb-4 border-b border-border">
-                      <p className="font-mono text-[10px] text-on-surface-variant/70 uppercase font-medium truncate">
-                        {user?.email}
-                      </p>
+                      <p className="font-mono text-[10px] text-on-surface-variant/70 uppercase font-medium truncate">{user?.email}</p>
                     </div>
                     <nav className="flex-1 space-y-1">
                       {backLink && (
@@ -339,22 +305,11 @@ export function DashboardLayout({
                       )}
                       {(backLink || showPublicPortal) && <div className="h-px bg-border my-2" />}
                       {navItems.map((item) => (
-                        <Link
-                          key={item.href}
-                          href={item.href}
-                          className={mobileItemClass(isActive(item.href))}
-                        >
+                        <Link key={item.href} href={item.href} className={mobileItemClass(isActive(item.href))}>
                           <item.icon
-                            className={cn(
-                              'w-4 h-4',
-                              isActive(item.href)
-                                ? 'text-white'
-                                : 'group-hover:text-secondary transition-colors',
-                            )}
+                            className={cn('w-4 h-4', isActive(item.href) ? 'text-white' : 'group-hover:text-secondary transition-colors')}
                           />
-                          <span className="font-mono text-[10px] uppercase tracking-wider font-bold">
-                            {item.name}
-                          </span>
+                          <span className="font-mono text-[10px] uppercase tracking-wider font-bold">{item.name}</span>
                         </Link>
                       ))}
                     </nav>
@@ -378,9 +333,7 @@ export function DashboardLayout({
       {/* ===== SIDEBAR (desktop only) ===== */}
       <aside className="fixed left-0 top-0 h-full w-60 xl:w-64 bg-background border-r border-border pt-16 pb-8 flex-col z-40 hidden lg:flex">
         <div className="px-4 xl:px-6 mb-8 min-w-0">
-          <h2 className="font-display text-sm font-bold text-primary uppercase tracking-tight truncate">
-            I-World Networks
-          </h2>
+          <h2 className="font-display text-sm font-bold text-primary uppercase tracking-tight truncate">I-World Networks</h2>
         </div>
         <nav className="flex-1 space-y-1 overflow-y-auto overflow-x-hidden">{renderSidebarNav()}</nav>
       </aside>
@@ -393,16 +346,8 @@ export function DashboardLayout({
       {/* ===== FOOTER ===== */}
       <footer className="lg:ml-60 xl:ml-64 bg-background border-t border-border py-6">
         <div className="max-w-screen-2xl mx-auto px-4 md:px-6 flex justify-between items-center">
-          <Image
-            src="/logo.png"
-            alt="I-World Networks"
-            width={110}
-            height={33}
-            className="h-6 w-auto object-contain"
-          />
-          <span className="font-mono text-[9px] text-on-surface-variant uppercase font-bold">
-            {footerLabel}
-          </span>
+          <Image src="/logo.png" alt="I-World Networks" width={110} height={33} className="h-6 w-auto object-contain" />
+          <span className="font-mono text-[9px] text-on-surface-variant uppercase font-bold">{footerLabel}</span>
         </div>
       </footer>
     </div>
@@ -437,11 +382,13 @@ function NotificationBell() {
     };
     load();
     const id = setInterval(load, 60_000);
-    return () => { cancelled = true; clearInterval(id); };
+    return () => {
+      cancelled = true;
+      clearInterval(id);
+    };
   }, [loading, user]);
 
-  const color = (severity: string) =>
-    severity === 'critical' ? 'bg-red-500' : severity === 'warning' ? 'bg-amber-400' : 'bg-secondary';
+  const color = (severity: string) => (severity === 'critical' ? 'bg-red-500' : severity === 'warning' ? 'bg-amber-400' : 'bg-secondary');
 
   return (
     <div className="relative">
@@ -462,9 +409,7 @@ function NotificationBell() {
           <div className="fixed inset-0 z-40" onClick={() => setOpen(false)} aria-hidden="true" />
           <div className="absolute right-0 top-10 z-50 w-80 bg-white border border-border whisper-shadow rounded-2xl p-3 space-y-2 max-h-[70vh] overflow-y-auto">
             <p className="font-mono text-[9px] uppercase tracking-widest text-on-surface-variant font-bold px-2 pt-1">Notifications</p>
-            {items.length === 0 && (
-              <p className="font-mono text-[11px] opacity-40 px-2 py-4 text-center">You&apos;re all caught up.</p>
-            )}
+            {items.length === 0 && <p className="font-mono text-[11px] opacity-40 px-2 py-4 text-center">You&apos;re all caught up.</p>}
             {items.map((n) => (
               <a
                 key={n.type + n.title}

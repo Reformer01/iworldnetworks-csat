@@ -421,28 +421,36 @@ describe('buildCustomerDoc', () => {
   });
 
   it('preserves an enriched bundle when the list sync returns a generic plan', () => {
-    const prev = rowToCustomerDoc(customerRow({
-      servicePlan: 'H-Lite + U-Lite',
-      mrrTotal: 60000,
-    }));
-    const doc = buildCustomerDoc(prev, {
-      customerId: 1,
-      accountType: 'regular',
-      servicePlan: 'H-Lite',
-      mrrTotal: 27500,
-    }, NOW);
+    const prev = rowToCustomerDoc(
+      customerRow({
+        servicePlan: 'H-Lite + U-Lite',
+        mrrTotal: 60000,
+      }),
+    );
+    const doc = buildCustomerDoc(
+      prev,
+      {
+        customerId: 1,
+        accountType: 'regular',
+        servicePlan: 'H-Lite',
+        mrrTotal: 27500,
+      },
+      NOW,
+    );
     expect(doc.servicePlan).toBe('H-Lite + U-Lite');
     expect(doc.mrrTotal).toBe(60000);
   });
 
   it('carries match-owned tower attribution through sync reconciles (no bts wipe)', () => {
-    const prev = rowToCustomerDoc(customerRow({
-      btsId: 'tower-1',
-      btsName: 'OGBC Ibara Local',
-      uispEndpointId: 'ep-1',
-      matchState: 'matched',
-      matchMethod: 'auto',
-    } as never));
+    const prev = rowToCustomerDoc(
+      customerRow({
+        btsId: 'tower-1',
+        btsName: 'OGBC Ibara Local',
+        uispEndpointId: 'ep-1',
+        matchState: 'matched',
+        matchMethod: 'auto',
+      } as never),
+    );
     const doc = buildCustomerDoc(prev, { customerId: 1, customerName: 'Changed Name' }, NOW);
     expect(doc.btsId).toBe('tower-1');
     expect(doc.btsName).toBe('OGBC Ibara Local');
@@ -579,7 +587,15 @@ describe('reconcileInvoicesDb', () => {
 describe('runReminderJobDb', () => {
   it('returns zeros when there are no unpaid invoices', async () => {
     const result = await runReminderJobDb(NOW, []);
-    expect(result).toEqual({ sent15: 0, sent30: 0, skippedOptOut: 0, skippedInvalid: 0, skippedChurned: 0, skippedStale: 0, skippedConnected: 0 });
+    expect(result).toEqual({
+      sent15: 0,
+      sent30: 0,
+      skippedOptOut: 0,
+      skippedInvalid: 0,
+      skippedChurned: 0,
+      skippedStale: 0,
+      skippedConnected: 0,
+    });
     expect(emailMock.sendInvoiceReminderEmail).not.toHaveBeenCalled();
   });
 
@@ -731,7 +747,9 @@ describe('runChurnSurveyJobDb', () => {
 
 describe('runWinBackJobDb', () => {
   it('creates pending_approval win-back for inactive 90d+ offline (does not auto-send)', async () => {
-    prismaMock.customer.findMany.mockResolvedValue([customerRow({ lifecycle: 'inactive', inactiveSince: BigInt(NOW - 100 * DAY), online: false })]);
+    prismaMock.customer.findMany.mockResolvedValue([
+      customerRow({ lifecycle: 'inactive', inactiveSince: BigInt(NOW - 100 * DAY), online: false }),
+    ]);
     const result = await runWinBackJobDb('https://csat.iwn.ng', NOW);
     expect(result.sent).toBe(1);
     expect(emailMock.sendWinBackEmail).not.toHaveBeenCalled();
@@ -739,13 +757,18 @@ describe('runWinBackJobDb', () => {
       expect.objectContaining({
         type: 'winback',
         status: 'pending_approval',
-        payload: expect.objectContaining({ winBackToken: expect.any(String), feedbackUrl: expect.stringContaining('/feedback/popup?token=') }),
+        payload: expect.objectContaining({
+          winBackToken: expect.any(String),
+          feedbackUrl: expect.stringContaining('/feedback/popup?token='),
+        }),
       }),
     );
   });
 
   it('creates pending_approval win-back for blocked 90d+ offline', async () => {
-    prismaMock.customer.findMany.mockResolvedValue([customerRow({ lifecycle: 'blocked', blockedSince: BigInt(NOW - 120 * DAY), online: false })]);
+    prismaMock.customer.findMany.mockResolvedValue([
+      customerRow({ lifecycle: 'blocked', blockedSince: BigInt(NOW - 120 * DAY), online: false }),
+    ]);
     const result = await runWinBackJobDb('https://csat.iwn.ng', NOW);
     expect(result.sent).toBe(1);
     expect(emailMock.sendWinBackEmail).not.toHaveBeenCalled();
@@ -767,7 +790,9 @@ describe('runWinBackJobDb', () => {
   });
 
   it('skips long-inactive customers who are still online', async () => {
-    prismaMock.customer.findMany.mockResolvedValue([customerRow({ lifecycle: 'inactive', inactiveSince: BigInt(NOW - 200 * DAY), online: true })]);
+    prismaMock.customer.findMany.mockResolvedValue([
+      customerRow({ lifecycle: 'inactive', inactiveSince: BigInt(NOW - 200 * DAY), online: true }),
+    ]);
     const result = await runWinBackJobDb('https://csat.iwn.ng', NOW);
     expect(result.sent).toBe(0);
     expect(result.skippedStale).toBe(1);
@@ -788,9 +813,7 @@ describe('runWinBackJobDb', () => {
 describe('runOverdueFeedbackReminderJobDb', () => {
   it('sends paid-feedback once per customer per month (paid invoice this month)', async () => {
     prismaMock.customer.findMany.mockResolvedValue([customerRow()]);
-    prismaMock.invoice.findMany.mockResolvedValue([
-      invoiceRow({ isPaid: true, paidAt: BigInt(NOW - 2 * DAY), status: 'paid' }),
-    ]);
+    prismaMock.invoice.findMany.mockResolvedValue([invoiceRow({ isPaid: true, paidAt: BigInt(NOW - 2 * DAY), status: 'paid' })]);
     const result = await runOverdueFeedbackReminderJobDb('https://csat.iwn.ng', NOW);
     expect(result.sent).toBe(1);
     expect(prismaMock.feedbackToken.create).toHaveBeenCalledTimes(1);
@@ -804,9 +827,7 @@ describe('runOverdueFeedbackReminderJobDb', () => {
 
   it('skips churned customers', async () => {
     prismaMock.customer.findMany.mockResolvedValue([customerRow({ lifecycle: 'churned' })]);
-    prismaMock.invoice.findMany.mockResolvedValue([
-      invoiceRow({ isPaid: true, paidAt: BigInt(NOW - 2 * DAY), status: 'paid' }),
-    ]);
+    prismaMock.invoice.findMany.mockResolvedValue([invoiceRow({ isPaid: true, paidAt: BigInt(NOW - 2 * DAY), status: 'paid' })]);
     const result = await runOverdueFeedbackReminderJobDb('https://csat.iwn.ng', NOW);
     expect(result.skippedChurned).toBe(1);
     expect(prismaMock.feedbackToken.create).not.toHaveBeenCalled();
@@ -814,9 +835,7 @@ describe('runOverdueFeedbackReminderJobDb', () => {
 
   it('does not re-send when a recent token already exists for the same customer', async () => {
     prismaMock.customer.findMany.mockResolvedValue([customerRow()]);
-    prismaMock.invoice.findMany.mockResolvedValue([
-      invoiceRow({ isPaid: true, paidAt: BigInt(NOW - 2 * DAY), status: 'paid' }),
-    ]);
+    prismaMock.invoice.findMany.mockResolvedValue([invoiceRow({ isPaid: true, paidAt: BigInt(NOW - 2 * DAY), status: 'paid' })]);
     prismaMock.feedbackToken.findFirst.mockResolvedValue({ id: 'existing-token', expiresAt: BigInt(NOW + 7 * DAY) });
     const result = await runOverdueFeedbackReminderJobDb('https://csat.iwn.ng', NOW);
     expect(result.sent).toBe(0);
@@ -863,11 +882,7 @@ describe('runHourlySyncDb', () => {
   it('records the error and returns partial stats when a step throws', async () => {
     apiMock.getAllCustomers.mockRejectedValue(new Error('Splynx API down'));
     const stats = await runHourlySyncDb('https://csat.iwn.ng', NOW);
-    expect(syncDbMock.completeSyncRun).toHaveBeenCalledWith(
-      expect.any(Object),
-      'Splynx API down',
-      NOW,
-    );
+    expect(syncDbMock.completeSyncRun).toHaveBeenCalledWith(expect.any(Object), 'Splynx API down', NOW);
     expect(stats.customersUpserted).toBe(0);
   });
 });
@@ -943,14 +958,10 @@ describe('mapSplynxTicket', () => {
   });
 
   it('resolves assignees via the admin directory (roster id, name, placeholder)', () => {
-    expect(mapSplynxTicket(splynxTicket({ assign_to: 19 }), NOW, LINK).assignedTo)
-      .toBe('support-olusegun-oluwanishola');
-    expect(mapSplynxTicket(splynxTicket({ assign_to: 18 }), NOW, LINK).assignedTo)
-      .toBe('support-adekomoya-joseph');
-    expect(mapSplynxTicket(splynxTicket({ assign_to: 16 }), NOW, LINK).assignedTo)
-      .toBe('Tosin Adedeji');
-    expect(mapSplynxTicket(splynxTicket({ assign_to: 9999 }), NOW, LINK).assignedTo)
-      .toBe('splynx-admin-9999');
+    expect(mapSplynxTicket(splynxTicket({ assign_to: 19 }), NOW, LINK).assignedTo).toBe('support-olusegun-oluwanishola');
+    expect(mapSplynxTicket(splynxTicket({ assign_to: 18 }), NOW, LINK).assignedTo).toBe('support-adekomoya-joseph');
+    expect(mapSplynxTicket(splynxTicket({ assign_to: 16 }), NOW, LINK).assignedTo).toBe('Tosin Adedeji');
+    expect(mapSplynxTicket(splynxTicket({ assign_to: 9999 }), NOW, LINK).assignedTo).toBe('splynx-admin-9999');
   });
 });
 
@@ -982,23 +993,25 @@ describe('reconcileTicketsDb', () => {
     prismaMock.customer.findMany.mockResolvedValue([customerRow({ customerId: '1270' })]);
     const created = BigInt(Date.parse('2026-08-15T07:34:48Z'));
     const updated = BigInt(Date.parse('2026-08-15T07:35:43Z'));
-    prismaMock.ticket.findMany.mockResolvedValue([{
-      id: 'splynx-11699',
-      customerName: 'Acme ISP',
-      customerEmail: 'billing@acme.test',
-      location: 'Ibadan',
-      region: 'Oyo',
-      bts: null,
-      description: 'HIGH SIGNAL',
-      assignedTo: 'Splynx Support',
-      status: 'closed',
-      createdAt: created,
-      updatedAt: updated,
-      resolvedAt: updated,
-      deletedAt: null,
-      slaBreached: false,
-      priority: 2,
-    }]);
+    prismaMock.ticket.findMany.mockResolvedValue([
+      {
+        id: 'splynx-11699',
+        customerName: 'Acme ISP',
+        customerEmail: 'billing@acme.test',
+        location: 'Ibadan',
+        region: 'Oyo',
+        bts: null,
+        description: 'HIGH SIGNAL',
+        assignedTo: 'Splynx Support',
+        status: 'closed',
+        createdAt: created,
+        updatedAt: updated,
+        resolvedAt: updated,
+        deletedAt: null,
+        slaBreached: false,
+        priority: 2,
+      },
+    ]);
     const result = await reconcileTicketsDb(NOW);
     expect(result.upserted).toBe(0);
     expect(prismaMock.ticket.upsert).not.toHaveBeenCalled();

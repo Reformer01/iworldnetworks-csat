@@ -5,8 +5,15 @@ import { prisma } from '@/lib/prisma';
 export const dynamic = 'force-dynamic';
 
 const EDITABLE = [
-  'phone', 'callStatus', 'purpose', 'feedback', 'complaint',
-  'upsellNote', 'retentionRisk', 'resolution', 'accountStatus',
+  'phone',
+  'callStatus',
+  'purpose',
+  'feedback',
+  'complaint',
+  'upsellNote',
+  'retentionRisk',
+  'resolution',
+  'accountStatus',
 ] as const;
 
 /**

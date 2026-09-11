@@ -41,5 +41,3 @@ export async function hasDeliverableEmail(email: string): Promise<boolean> {
   cache.set(domain, { ok, at: now });
   return ok;
 }
-
-

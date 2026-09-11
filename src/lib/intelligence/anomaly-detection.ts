@@ -35,9 +35,7 @@ async function detectTowerMrrDrops(): Promise<Anomaly[]> {
   const sixtyDaysAgo = now.getTime() - 60 * 24 * 60 * 60 * 1000;
 
   // Get latest snapshots for each tower
-  const latestSnapshots = await prisma.$queryRaw<
-    Array<{ towerId: string; towerName: string; mrrTotal: number; capturedAt: bigint }>
-  >`
+  const latestSnapshots = await prisma.$queryRaw<Array<{ towerId: string; towerName: string; mrrTotal: number; capturedAt: bigint }>>`
     SELECT towerId, towerName, mrrTotal, capturedAt
     FROM (
       SELECT towerId, towerName, mrrTotal, capturedAt,
@@ -49,9 +47,7 @@ async function detectTowerMrrDrops(): Promise<Anomaly[]> {
   `;
 
   // Get snapshots from 30-60 days ago for comparison
-  const previousSnapshots = await prisma.$queryRaw<
-    Array<{ towerId: string; mrrTotal: number; capturedAt: bigint }>
-  >`
+  const previousSnapshots = await prisma.$queryRaw<Array<{ towerId: string; mrrTotal: number; capturedAt: bigint }>>`
     SELECT towerId, mrrTotal, capturedAt
     FROM (
       SELECT towerId, mrrTotal, capturedAt,
@@ -174,9 +170,7 @@ async function detectComplaintSurges(): Promise<Anomaly[]> {
   });
 
   // 23 days in the historical period
-  const histMap = new Map(
-    historicalComplaints.map((h) => [h.region, h._count.id / 23])
-  );
+  const histMap = new Map(historicalComplaints.map((h) => [h.region, h._count.id / 23]));
 
   for (const recent of recentComplaints) {
     const dailyAvg = histMap.get(recent.region!) ?? 0;
@@ -210,11 +204,7 @@ export async function detectRevenueAnomalies(): Promise<{
   warning: number;
   info: number;
 }> {
-  const allAnomalies = [
-    ...(await detectTowerMrrDrops()),
-    ...(await detectRegionalChurnSpikes()),
-    ...(await detectComplaintSurges()),
-  ];
+  const allAnomalies = [...(await detectTowerMrrDrops()), ...(await detectRegionalChurnSpikes()), ...(await detectComplaintSurges())];
 
   // Deduplicate: don't create duplicate anomalies for same entity+type in last 24h
   const oneDayAgo = new Date(Date.now() - 24 * 60 * 60 * 1000);

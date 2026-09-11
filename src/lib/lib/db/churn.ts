@@ -1,14 +1,14 @@
-import { prisma } from "@/lib/prisma"
-import { randomUUID } from 'crypto'
+import { prisma } from '@/lib/prisma';
+import { randomUUID } from 'crypto';
 
 export async function createChurnSurvey(data: {
-  customerId: string
-  customerName: string
-  customerEmail: string
-  sentAt: number
-  expiresAt: number
+  customerId: string;
+  customerName: string;
+  customerEmail: string;
+  sentAt: number;
+  expiresAt: number;
 }) {
-  const token = randomUUID()
+  const token = randomUUID();
   await prisma.churnSurvey.create({
     data: {
       id: token,
@@ -19,12 +19,12 @@ export async function createChurnSurvey(data: {
       expiresAt: BigInt(data.expiresAt),
       used: false,
     },
-  })
-  return { token }
+  });
+  return { token };
 }
 
 export async function getChurnSurvey(token: string) {
-  return prisma.churnSurvey.findUnique({ where: { id: token } })
+  return prisma.churnSurvey.findUnique({ where: { id: token } });
 }
 
 export async function markChurnSurveyUsed(token: string, submittedAt: number, rating?: number, reason?: string, comment?: string) {
@@ -37,12 +37,12 @@ export async function markChurnSurveyUsed(token: string, submittedAt: number, ra
       reason: reason ?? null,
       comment: comment ?? null,
     },
-  })
+  });
 }
 
 export async function getChurnSurveysSent() {
   return prisma.churnSurvey.findMany({
     where: { used: false },
     orderBy: { sentAt: 'desc' },
-  })
+  });
 }

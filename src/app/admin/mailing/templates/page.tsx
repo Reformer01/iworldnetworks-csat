@@ -37,7 +37,8 @@ const templates = [
     name: 'Feedback Request (paid only, 1/month)',
     type: 'feedback_request',
     subject: 'How was your experience with I-World Networks?',
-    trigger: 'isPaid=true AND paidAt >= monthStart (e.g. Aug 1), 1 per customer per calendar month (pending_approval dedup 30d), lifecycle != churned',
+    trigger:
+      'isPaid=true AND paidAt >= monthStart (e.g. Aug 1), 1 per customer per calendar month (pending_approval dedup 30d), lifecycle != churned',
     to: 'Customers who paid an invoice this month',
     bodyText: `Hi Ada Customer,\n\nThank you for being an I-World Networks customer — we truly value your business. We'd love to hear how your experience has been so far; your honest feedback helps us improve.\n\nShare your feedback in 30 seconds:\nhttps://csat.iwn.ng/feedback?token=...&subject=Billing`,
     bodyHtml: `<p>Hi Ada Customer,</p><p>Thank you for being an I-World Networks customer — we truly value your business.</p><p><a href="https://csat.iwn.ng/feedback?token=...">Share your feedback in 30 seconds</a></p>`,
@@ -46,7 +47,8 @@ const templates = [
     name: 'Manual',
     type: 'manual',
     subject: 'Your subject (stripped \\r\\n, ≤200)',
-    trigger: 'POST /api/admin/emails {to, subject, html, text} — super: pending → enqueued immediately; editor: pending_approval → super must POST /api/admin/emails/[id] {approve}',
+    trigger:
+      'POST /api/admin/emails {to, subject, html, text} — super: pending → enqueued immediately; editor: pending_approval → super must POST /api/admin/emails/[id] {approve}',
     to: 'Single address you type',
     bodyText: 'Your raw html/text as composed in Mailing → Compose',
     bodyHtml: '<p>Your raw html as composed</p>',
@@ -55,7 +57,8 @@ const templates = [
     name: 'Campaign',
     type: 'campaign',
     subject: 'Your campaign subject',
-    trigger: 'POST /api/admin/campaigns/[id]/send (super only, status pending_approval→approved) — resolves audience (customer where deleted false filtered by audienceJson) → 1 EmailJob + 1 Bull Job per recipient, status pending → processing → sent',
+    trigger:
+      'POST /api/admin/campaigns/[id]/send (super only, status pending_approval→approved) — resolves audience (customer where deleted false filtered by audienceJson) → 1 EmailJob + 1 Bull Job per recipient, status pending → processing → sent',
     to: 'Segment (lifecycle/city/bts/servicePlan)',
     bodyText: 'Your campaign html/text with tracking injected via injectTracking(html, emailJobId, campaignId)',
     bodyHtml: '<p>Your campaign html with tracking pixel</p>',
@@ -66,8 +69,9 @@ const templates = [
     subject: "We're sorry to see you go",
     trigger: 'DISABLED per your request — no longer sends. Previously: lifecycle=churned within 30d, churnSurveySentAt is null',
     to: '—',
-    bodyText: 'Hi Ada,\n\nWe\'re genuinely sorry to see you go. Tell us what happened: https://csat.iwn.ng/churn?token=...',
-    bodyHtml: '<p>Hi Ada,</p><p>We’re genuinely sorry to see you go.</p><p><a href="https://csat.iwn.ng/churn?token=...">Tell us what happened</a></p>',
+    bodyText: "Hi Ada,\n\nWe're genuinely sorry to see you go. Tell us what happened: https://csat.iwn.ng/churn?token=...",
+    bodyHtml:
+      '<p>Hi Ada,</p><p>We’re genuinely sorry to see you go.</p><p><a href="https://csat.iwn.ng/churn?token=...">Tell us what happened</a></p>',
   },
 ];
 
@@ -91,7 +95,9 @@ export default function MailingTemplatesPage() {
                   <h2 className="font-display font-bold text-primary uppercase text-base">{t.name}</h2>
                   <p className="font-mono text-[10px] uppercase font-bold text-secondary mt-1">{t.type}</p>
                 </div>
-                <span className="px-2 py-1 rounded-full bg-zinc-100 text-zinc-600 text-[10px] font-mono font-bold whitespace-nowrap">{t.type.includes('disabled') ? 'Disabled' : 'Active'}</span>
+                <span className="px-2 py-1 rounded-full bg-zinc-100 text-zinc-600 text-[10px] font-mono font-bold whitespace-nowrap">
+                  {t.type.includes('disabled') ? 'Disabled' : 'Active'}
+                </span>
               </div>
               <div className="mt-4 grid md:grid-cols-2 gap-4">
                 <div className="space-y-3">
@@ -110,22 +116,30 @@ export default function MailingTemplatesPage() {
                 </div>
                 <div className="space-y-3">
                   <div>
-                    <p className="font-mono text-[9px] uppercase font-bold text-on-surface-variant flex items-center gap-1"><Eye className="w-3 h-3" /> Text preview</p>
-                    <pre className="font-mono text-[11px] whitespace-pre-wrap bg-white border rounded-lg px-3 py-2 mt-1 max-h-48 overflow-auto">{t.bodyText}</pre>
+                    <p className="font-mono text-[9px] uppercase font-bold text-on-surface-variant flex items-center gap-1">
+                      <Eye className="w-3 h-3" /> Text preview
+                    </p>
+                    <pre className="font-mono text-[11px] whitespace-pre-wrap bg-white border rounded-lg px-3 py-2 mt-1 max-h-48 overflow-auto">
+                      {t.bodyText}
+                    </pre>
                   </div>
                   <div>
                     <p className="font-mono text-[9px] uppercase font-bold text-on-surface-variant">HTML preview</p>
-                    <div className="border rounded-lg px-3 py-2 mt-1 max-h-48 overflow-auto text-xs" dangerouslySetInnerHTML={{ __html: t.bodyHtml }} />
+                    <div
+                      className="border rounded-lg px-3 py-2 mt-1 max-h-48 overflow-auto text-xs"
+                      dangerouslySetInnerHTML={{ __html: t.bodyHtml }}
+                    />
                   </div>
                 </div>
               </div>
             </div>
           ))}
         </div>
-        <p className="font-mono text-[10px] opacity-50 mt-6 text-center">Follow-up reminders (📋 3 follow-ups due today) are *not* EmailJobs — they are direct transporter.sendMail at 15:00 WAT via src/lib/followup-reminders.ts.</p>
+        <p className="font-mono text-[10px] opacity-50 mt-6 text-center">
+          Follow-up reminders (📋 3 follow-ups due today) are *not* EmailJobs — they are direct transporter.sendMail at 15:00 WAT via
+          src/lib/followup-reminders.ts.
+        </p>
       </div>
     </SalesLayout>
   );
 }
-
-

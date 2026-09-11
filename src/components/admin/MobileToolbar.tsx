@@ -23,12 +23,7 @@ interface MobileToolbarProps {
  *
  * On desktop (md+) all controls render inline as a flex row.
  */
-export function MobileToolbar({
-  primary,
-  secondary,
-  label = 'Filters',
-  className,
-}: MobileToolbarProps) {
+export function MobileToolbar({ primary, secondary, label = 'Filters', className }: MobileToolbarProps) {
   const [open, setOpen] = useState(false);
 
   return (
@@ -45,24 +40,16 @@ export function MobileToolbar({
         {secondary && (
           <Sheet open={open} onOpenChange={setOpen}>
             <SheetTrigger asChild>
-              <Button
-                variant="outline"
-                size="sm"
-                className="rounded-xl font-mono text-[10px] uppercase font-bold h-9"
-              >
+              <Button variant="outline" size="sm" className="rounded-xl font-mono text-[10px] uppercase font-bold h-9">
                 <SlidersHorizontal className="w-3.5 h-3.5 mr-1.5" />
                 {label}
               </Button>
             </SheetTrigger>
             <SheetContent side="bottom" className="h-auto max-h-[80vh] rounded-t-2xl">
               <SheetHeader className="mb-4">
-                <SheetTitle className="font-mono text-xs uppercase font-bold">
-                  {label}
-                </SheetTitle>
+                <SheetTitle className="font-mono text-xs uppercase font-bold">{label}</SheetTitle>
               </SheetHeader>
-              <div className="space-y-3 pb-6">
-                {secondary}
-              </div>
+              <div className="space-y-3 pb-6">{secondary}</div>
               <div className="sticky bottom-0 bg-background pt-3 border-t border-border">
                 <Button
                   variant="outline"

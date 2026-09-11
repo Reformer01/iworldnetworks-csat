@@ -8,13 +8,17 @@ const FROM_EMAIL = process.env.SPLYNX_FROM_EMAIL || 'no_reply@mail.iworldnetwork
 const FROM_NAME = process.env.SPLYNX_FROM_NAME || 'I-World Networks Limited';
 
 function escapeHtml(value: string): string {
-  return value.replace(/[&<>"']/g, (char) => ({
-    '&': '&amp;',
-    '<': '&lt;',
-    '>': '&gt;',
-    '"': '&quot;',
-    "'": '&#39;',
-  })[char] || char);
+  return value.replace(
+    /[&<>"']/g,
+    (char) =>
+      ({
+        '&': '&amp;',
+        '<': '&lt;',
+        '>': '&gt;',
+        '"': '&quot;',
+        "'": '&#39;',
+      })[char] || char,
+  );
 }
 
 export function getTransporter() {
@@ -80,12 +84,7 @@ function formatInvoiceList(invoices: InvoiceReminderItem[]): { text: string; htm
   return { text, html };
 }
 
-export async function sendInvoiceReminderEmail({
-  to,
-  customerName,
-  invoices,
-  reminderType,
-}: SendInvoiceReminderEmailParams) {
+export async function sendInvoiceReminderEmail({ to, customerName, invoices, reminderType }: SendInvoiceReminderEmailParams) {
   const transporter = getTransporter();
   if (!transporter) {
     // Fail loudly so callers mark the EmailJob 'failed' — never silently skip
@@ -97,9 +96,10 @@ export async function sendInvoiceReminderEmail({
   const { text: invoiceListText, html: invoiceListHtml } = formatInvoiceList(invoices);
   const invoiceCount = invoices.length;
   const maxDaysOverdue = Math.max(...invoices.map((i) => i.daysOverdue));
-  const subject = invoiceCount === 1
-    ? `A gentle reminder about invoice ${invoices[0].invoiceNumber}`
-    : `A gentle reminder about ${invoiceCount} overdue invoices`;
+  const subject =
+    invoiceCount === 1
+      ? `A gentle reminder about invoice ${invoices[0].invoiceNumber}`
+      : `A gentle reminder about ${invoiceCount} overdue invoices`;
 
   const reminderLabel = reminderType === '30d' ? '30 days' : '15 days';
 
@@ -190,7 +190,7 @@ export async function sendWinBackEmail({ to, customerName, portalUrl, csatUrl, f
   await transporter.sendMail({
     from: `"${FROM_NAME}" <${FROM_EMAIL}>`,
     to,
-    subject: "We miss you at I-World Networks",
+    subject: 'We miss you at I-World Networks',
     text: `Dear ${customerName},
 
 We've missed you — truly. If your experience with us didn't meet your expectations, we're sorry, and we'd love the chance to make it right.

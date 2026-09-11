@@ -1,9 +1,5 @@
 import { logWarn } from '@/lib/logger';
-import {
-  createFeedback,
-  updateFeedback,
-  deleteFeedback,
-} from '@/lib/lib/db/feedbacks';
+import { createFeedback, updateFeedback, deleteFeedback } from '@/lib/lib/db/feedbacks';
 import type { FeedbackDoc } from '@/lib/feedback-types';
 
 // Best-effort MariaDB mirrors of Firestore writes. During the strangler-fig

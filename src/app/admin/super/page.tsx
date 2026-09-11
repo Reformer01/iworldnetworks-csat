@@ -184,7 +184,9 @@ export default function SuperAdminPage() {
           <h1 className="text-3xl font-display font-black uppercase tracking-tight flex items-center gap-3">
             <Shield className="w-7 h-7 text-primary" /> Super Admin
           </h1>
-          <p className="font-mono text-[10px] uppercase tracking-widest font-bold opacity-60 mt-1">Role Manager • Accounts • Audit Trail • verifySuperAdminToken gated</p>
+          <p className="font-mono text-[10px] uppercase tracking-widest font-bold opacity-60 mt-1">
+            Role Manager • Accounts • Audit Trail • verifySuperAdminToken gated
+          </p>
         </header>
 
         <Tabs defaultValue="roles">
@@ -203,7 +205,12 @@ export default function SuperAdminPage() {
                 <div className="flex items-center gap-2 min-w-0">
                   <div className="relative min-w-0">
                     <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 opacity-40" />
-                    <Input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Search email..." className="pl-9 rounded-full w-full sm:w-48 xl:w-64 min-w-0" />
+                    <Input
+                      value={search}
+                      onChange={(e) => setSearch(e.target.value)}
+                      placeholder="Search email..."
+                      className="pl-9 rounded-full w-full sm:w-48 xl:w-64 min-w-0"
+                    />
                   </div>
                   <Button size="sm" className="rounded-full whitespace-nowrap" onClick={() => setAddOpen(true)}>
                     <Plus className="w-3.5 h-3.5 mr-1" /> Add Admin
@@ -217,17 +224,41 @@ export default function SuperAdminPage() {
               ) : (
                 <div className="space-y-2">
                   {filtered.map((u) => (
-                    <div key={u.id} className="flex flex-col sm:flex-row sm:items-center gap-2 sm:justify-between p-3 border rounded-xl min-w-0">
+                    <div
+                      key={u.id}
+                      className="flex flex-col sm:flex-row sm:items-center gap-2 sm:justify-between p-3 border rounded-xl min-w-0"
+                    >
                       <div className="min-w-0">
-                        <p className="font-mono text-xs font-bold break-words" title={u.email}>{u.email}</p>
-                        <p className="font-mono text-[10px] opacity-60">{u.name || '—'} · since {u.createdAt ? new Date(u.createdAt).toLocaleDateString() : '—'}</p>
+                        <p className="font-mono text-xs font-bold break-words" title={u.email}>
+                          {u.email}
+                        </p>
+                        <p className="font-mono text-[10px] opacity-60">
+                          {u.name || '—'} · since {u.createdAt ? new Date(u.createdAt).toLocaleDateString() : '—'}
+                        </p>
                       </div>
                       <div className="flex items-center gap-2 shrink-0">
                         <RoleBadge role={u.role} />
-                        <Button size="sm" variant="outline" className="rounded-full whitespace-nowrap" onClick={() => { setSelected(u); setNewRole(u.role); setChangeRoleOpen(true); }}>
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          className="rounded-full whitespace-nowrap"
+                          onClick={() => {
+                            setSelected(u);
+                            setNewRole(u.role);
+                            setChangeRoleOpen(true);
+                          }}
+                        >
                           Change Role
                         </Button>
-                        <Button size="sm" variant="ghost" className="rounded-full whitespace-nowrap text-destructive" onClick={() => { setSelected(u); setDeleteOpen(true); }}>
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          className="rounded-full whitespace-nowrap text-destructive"
+                          onClick={() => {
+                            setSelected(u);
+                            setDeleteOpen(true);
+                          }}
+                        >
                           <Trash2 className="w-3.5 h-3.5" />
                         </Button>
                       </div>
@@ -240,12 +271,18 @@ export default function SuperAdminPage() {
 
           <TabsContent value="accounts" className="mt-6">
             <div className="bg-white rounded-2xl border p-6">
-              <h2 className="font-black uppercase text-sm flex items-center gap-2"><Users className="w-4 h-4" /> Accounts</h2>
-              <p className="font-mono text-[10px] opacity-60 mt-1">{users.length} admin account(s). Manage roles and deletions from the Roles tab.</p>
+              <h2 className="font-black uppercase text-sm flex items-center gap-2">
+                <Users className="w-4 h-4" /> Accounts
+              </h2>
+              <p className="font-mono text-[10px] opacity-60 mt-1">
+                {users.length} admin account(s). Manage roles and deletions from the Roles tab.
+              </p>
               <div className="space-y-2 mt-4">
                 {users.map((u) => (
                   <div key={u.id} className="flex items-center justify-between p-3 border rounded-xl min-w-0">
-                    <p className="font-mono text-xs font-bold break-words min-w-0" title={u.email}>{u.email}</p>
+                    <p className="font-mono text-xs font-bold break-words min-w-0" title={u.email}>
+                      {u.email}
+                    </p>
                     <RoleBadge role={u.role} />
                   </div>
                 ))}
@@ -255,11 +292,23 @@ export default function SuperAdminPage() {
 
           <TabsContent value="mail" className="mt-6">
             <div className="bg-white rounded-2xl border p-6">
-              <h2 className="font-black uppercase text-sm flex items-center gap-2"><Mail className="w-4 h-4 text-secondary" /> Mail Queue Control</h2>
+              <h2 className="font-black uppercase text-sm flex items-center gap-2">
+                <Mail className="w-4 h-4 text-secondary" /> Mail Queue Control
+              </h2>
               <p className="font-mono text-[10px] opacity-60 mt-1">Use Approval Center for pending_approval.</p>
               <div className="mt-4 flex flex-wrap gap-2">
-                <a href="/admin/mailing?tab=emails&status=pending_approval" className="px-4 py-2 rounded-full bg-secondary text-white font-mono text-[10px] uppercase font-bold inline-flex items-center gap-2"><Check className="w-3 h-3" /> Approve Pending</a>
-                <a href="/admin/mailing?tab=emails" className="px-4 py-2 rounded-full border font-mono text-[10px] uppercase font-bold inline-flex items-center gap-2"><X className="w-3 h-3" /> Clear / Reject</a>
+                <a
+                  href="/admin/mailing?tab=emails&status=pending_approval"
+                  className="px-4 py-2 rounded-full bg-secondary text-white font-mono text-[10px] uppercase font-bold inline-flex items-center gap-2"
+                >
+                  <Check className="w-3 h-3" /> Approve Pending
+                </a>
+                <a
+                  href="/admin/mailing?tab=emails"
+                  className="px-4 py-2 rounded-full border font-mono text-[10px] uppercase font-bold inline-flex items-center gap-2"
+                >
+                  <X className="w-3 h-3" /> Clear / Reject
+                </a>
               </div>
             </div>
           </TabsContent>
@@ -287,14 +336,22 @@ export default function SuperAdminPage() {
             </DialogHeader>
             <div className="space-y-3">
               <label className="font-mono text-xs font-bold">New role</label>
-              <select value={newRole} onChange={(e) => setNewRole(e.target.value)} className="w-full rounded-xl border border-border bg-background px-3 py-2 font-mono text-sm">
+              <select
+                value={newRole}
+                onChange={(e) => setNewRole(e.target.value)}
+                className="w-full rounded-xl border border-border bg-background px-3 py-2 font-mono text-sm"
+              >
                 {ROLES.map((r) => (
-                  <option key={r} value={r}>{r}</option>
+                  <option key={r} value={r}>
+                    {r}
+                  </option>
                 ))}
               </select>
               <label className="font-mono text-xs font-bold">Reason</label>
               <Input value={reason} onChange={(e) => setReason(e.target.value)} placeholder="Reason for change (audit)" />
-              <Button onClick={handleChangeRole} disabled={saving} className="w-full rounded-full">Confirm Change Role</Button>
+              <Button onClick={handleChangeRole} disabled={saving} className="w-full rounded-full">
+                Confirm Change Role
+              </Button>
             </div>
           </DialogContent>
         </Dialog>
@@ -311,14 +368,22 @@ export default function SuperAdminPage() {
               <label className="font-mono text-xs font-bold">Name</label>
               <Input value={newName} onChange={(e) => setNewName(e.target.value)} placeholder="Full name" />
               <label className="font-mono text-xs font-bold">Role</label>
-              <select value={newUserRole} onChange={(e) => setNewUserRole(e.target.value)} className="w-full rounded-xl border border-border bg-background px-3 py-2 font-mono text-sm">
+              <select
+                value={newUserRole}
+                onChange={(e) => setNewUserRole(e.target.value)}
+                className="w-full rounded-xl border border-border bg-background px-3 py-2 font-mono text-sm"
+              >
                 {ROLES.map((r) => (
-                  <option key={r} value={r}>{r}</option>
+                  <option key={r} value={r}>
+                    {r}
+                  </option>
                 ))}
               </select>
               <label className="font-mono text-xs font-bold">Password (min 8 chars)</label>
               <Input type="password" value={newPassword} onChange={(e) => setNewPassword(e.target.value)} placeholder="••••••••" />
-              <Button onClick={handleAdd} disabled={saving} className="w-full rounded-full">Create Admin</Button>
+              <Button onClick={handleAdd} disabled={saving} className="w-full rounded-full">
+                Create Admin
+              </Button>
             </div>
           </DialogContent>
         </Dialog>
@@ -330,7 +395,9 @@ export default function SuperAdminPage() {
               <DialogDescription>Type email to confirm: {selected?.email}</DialogDescription>
             </DialogHeader>
             <Input value={confirmEmail} onChange={(e) => setConfirmEmail(e.target.value)} placeholder="type email to confirm" />
-            <Button variant="destructive" onClick={handleDelete} disabled={saving} className="w-full rounded-full">Delete confirm with re-auth</Button>
+            <Button variant="destructive" onClick={handleDelete} disabled={saving} className="w-full rounded-full">
+              Delete confirm with re-auth
+            </Button>
           </DialogContent>
         </Dialog>
       </div>

@@ -24,26 +24,22 @@ export function EmailPreview({ subject, html, text, className }: EmailPreviewPro
       <div className="flex items-center justify-between px-4 py-2 bg-surface-container-lowest border-b border-border/60">
         <div className="flex items-center gap-1">
           <Eye className="w-3.5 h-3.5 text-on-surface-variant/50" />
-          <span className="font-mono text-[9px] uppercase tracking-widest font-bold text-on-surface-variant/50">
-            Preview
-          </span>
+          <span className="font-mono text-[9px] uppercase tracking-widest font-bold text-on-surface-variant/50">Preview</span>
         </div>
         <div className="flex gap-1">
-          {([
+          {[
             { id: 'desktop' as ViewMode, icon: Monitor, label: 'Desktop' },
             { id: 'mobile' as ViewMode, icon: Smartphone, label: 'Mobile' },
             { id: 'html' as ViewMode, icon: Code, label: 'HTML' },
             { id: 'text' as ViewMode, icon: Code, label: 'Text' },
-          ]).map(({ id, icon: Icon, label }) => (
+          ].map(({ id, icon: Icon, label }) => (
             <button
               key={id}
               type="button"
               onClick={() => setViewMode(id)}
               className={cn(
                 'flex items-center gap-1 px-2 py-1 rounded-md font-mono text-[9px] uppercase font-bold transition-colors',
-                viewMode === id
-                  ? 'bg-secondary text-white'
-                  : 'text-on-surface-variant/60 hover:bg-surface-container-low'
+                viewMode === id ? 'bg-secondary text-white' : 'text-on-surface-variant/60 hover:bg-surface-container-low',
               )}
               title={label}
             >
@@ -67,12 +63,8 @@ export function EmailPreview({ subject, html, text, className }: EmailPreviewPro
         {!hasContent ? (
           <div className="flex flex-col items-center justify-center py-12 text-center">
             <Eye className="w-8 h-8 text-on-surface-variant/20 mb-2" />
-            <p className="font-mono text-[10px] text-on-surface-variant/40 uppercase font-bold">
-              No content to preview
-            </p>
-            <p className="font-mono text-[9px] text-on-surface-variant/30 mt-1">
-              Select a template or write your email content
-            </p>
+            <p className="font-mono text-[10px] text-on-surface-variant/40 uppercase font-bold">No content to preview</p>
+            <p className="font-mono text-[9px] text-on-surface-variant/30 mt-1">Select a template or write your email content</p>
           </div>
         ) : viewMode === 'desktop' ? (
           <div className="p-4">
@@ -86,9 +78,7 @@ export function EmailPreview({ subject, html, text, className }: EmailPreviewPro
                   sandbox="allow-same-origin"
                 />
               ) : (
-                <pre className="p-4 font-mono text-xs text-primary whitespace-pre-wrap break-words">
-                  {text}
-                </pre>
+                <pre className="p-4 font-mono text-xs text-primary whitespace-pre-wrap break-words">{text}</pre>
               )}
             </div>
           </div>
@@ -109,9 +99,7 @@ export function EmailPreview({ subject, html, text, className }: EmailPreviewPro
                     sandbox="allow-same-origin"
                   />
                 ) : (
-                  <pre className="p-4 font-mono text-xs text-primary whitespace-pre-wrap break-words">
-                    {text}
-                  </pre>
+                  <pre className="p-4 font-mono text-xs text-primary whitespace-pre-wrap break-words">{text}</pre>
                 )}
               </div>
             </div>

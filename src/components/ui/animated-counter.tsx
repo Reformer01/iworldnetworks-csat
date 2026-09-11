@@ -25,8 +25,14 @@ export function AnimatedCounter({
       </div>
       <div className="min-w-0">
         <p className="font-mono text-[9px] uppercase tracking-widest font-bold opacity-60 truncate">{label}</p>
-        <p className="font-display text-lg xl:text-xl font-black break-words" title={value.toLocaleString()}>{value.toLocaleString()}</p>
-        {sub && <p className="font-mono text-[10px] opacity-60 break-words" title={sub}>{sub}</p>}
+        <p className="font-display text-lg xl:text-xl font-black break-words" title={value.toLocaleString()}>
+          {value.toLocaleString()}
+        </p>
+        {sub && (
+          <p className="font-mono text-[10px] opacity-60 break-words" title={sub}>
+            {sub}
+          </p>
+        )}
       </div>
     </div>
   );

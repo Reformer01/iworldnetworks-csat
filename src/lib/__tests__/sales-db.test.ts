@@ -17,7 +17,9 @@ const prismaMock = vi.hoisted(() => ({
 }));
 
 vi.mock('@/lib/prisma', () => ({ prisma: prismaMock }));
-vi.mock('@/lib/firebase-admin', () => ({ getAdminFirestore: () => ({ collection: () => ({ doc: () => ({ set: async () => {}, update: async () => {} }) }) }) }));
+vi.mock('@/lib/firebase-admin', () => ({
+  getAdminFirestore: () => ({ collection: () => ({ doc: () => ({ set: async () => {}, update: async () => {} }) }) }),
+}));
 vi.mock('@/lib/logger', () => ({ logWarn: vi.fn() }));
 
 import {
@@ -71,7 +73,16 @@ beforeEach(() => {
   prismaMock.salesRecordEntry.update.mockResolvedValue(makeRow());
   prismaMock.salesRecordEntry.findUnique.mockResolvedValue(makeRow());
   prismaMock.salesTarget.findMany.mockResolvedValue([]);
-  prismaMock.salesTarget.create.mockResolvedValue({ id: 't-1', month: '2026-08', region: 'Ogun', agentName: null, targetRevenue: 500000, targetCustomers: 50, createdAt: BigInt(NOW), updatedAt: null });
+  prismaMock.salesTarget.create.mockResolvedValue({
+    id: 't-1',
+    month: '2026-08',
+    region: 'Ogun',
+    agentName: null,
+    targetRevenue: 500000,
+    targetCustomers: 50,
+    createdAt: BigInt(NOW),
+    updatedAt: null,
+  });
   prismaMock.salesImport.create.mockResolvedValue({});
 });
 
@@ -120,9 +131,7 @@ describe('listSalesRecordsDb', () => {
 
   it('omits empty filters', async () => {
     await listSalesRecordsDb({});
-    expect(prismaMock.salesRecordEntry.findMany).toHaveBeenCalledWith(
-      expect.objectContaining({ where: { deletedAt: null } }),
-    );
+    expect(prismaMock.salesRecordEntry.findMany).toHaveBeenCalledWith(expect.objectContaining({ where: { deletedAt: null } }));
   });
 });
 

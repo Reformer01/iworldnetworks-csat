@@ -128,9 +128,7 @@ export default function AdminFieldSupport() {
   return (
     <AdminLayout>
       <div className="mb-12">
-        <h1 className="font-display text-xl md:text-2xl text-primary tracking-tight mb-2 uppercase font-black">
-          Field Support Overview
-        </h1>
+        <h1 className="font-display text-xl md:text-2xl text-primary tracking-tight mb-2 uppercase font-black">Field Support Overview</h1>
         <p className="text-on-surface-variant mt-2 max-w-2xl font-body-md">Track repair quality, speed, and success rates.</p>
       </div>
 

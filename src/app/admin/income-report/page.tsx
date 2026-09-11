@@ -77,7 +77,19 @@ export default function IncomeReportPage() {
     if (!data) return;
     const head = ['Date', 'Customer', 'Reference', 'Amount', 'Residential', 'SME', 'Enterprise', 'Tax (7.5%)', 'Balance', 'Region', 'Note'];
     const rows = data.rows.map((r) =>
-      [r.date, r.customer, r.reference, String(r.amount), String(r.residential), String(r.sme), String(r.enterprise), String(r.tax), String(r.balance), r.region, r.note]
+      [
+        r.date,
+        r.customer,
+        r.reference,
+        String(r.amount),
+        String(r.residential),
+        String(r.sme),
+        String(r.enterprise),
+        String(r.tax),
+        String(r.balance),
+        r.region,
+        r.note,
+      ]
         .map((v) => `"${String(v).replace(/"/g, '""')}"`)
         .join(','),
     );

@@ -1,7 +1,13 @@
 'use client';
 import React from 'react';
 
-export function BarList({ data, valueFormatter }: { data: Array<{ name: string; value: number }>; valueFormatter?: (n: number) => string }) {
+export function BarList({
+  data,
+  valueFormatter,
+}: {
+  data: Array<{ name: string; value: number }>;
+  valueFormatter?: (n: number) => string;
+}) {
   return (
     <div className="space-y-2">
       {data.map((item) => (

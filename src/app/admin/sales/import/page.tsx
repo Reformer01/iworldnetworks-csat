@@ -8,13 +8,7 @@ import { useToast } from '@/hooks/use-toast';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { Loader2, Upload, FileSpreadsheet, FileDown, CheckCircle2, AlertCircle, Check, AlertTriangle } from 'lucide-react';
-import {
-  getRegionForLocation,
-  getSegmentForPlan,
-  getQuarterFromMonth,
-  parseNairaAmount,
-  getBtsForLocation,
-} from '@/lib/sales-staff';
+import { getRegionForLocation, getSegmentForPlan, getQuarterFromMonth, parseNairaAmount, getBtsForLocation } from '@/lib/sales-staff';
 import type { SaleQuarter } from '@/lib/sales-staff';
 
 function parseCSV(text: string): Record<string, string>[] {
@@ -220,7 +214,10 @@ export default function SalesImport() {
     if (!user || parsedRecords.length === 0) return;
     setImporting(true);
     try {
-      const payload = parsedRecords.map(({ region: _region, segment: _segment, btsOptions: _btsOptions, ...rest }) => ({ ...rest, importBatchId: '' }));
+      const payload = parsedRecords.map(({ region: _region, segment: _segment, btsOptions: _btsOptions, ...rest }) => ({
+        ...rest,
+        importBatchId: '',
+      }));
       const result = await importSalesRecords(payload, 'csv_upload', fileName, user);
       setImportResult(result);
       toast({ title: 'Import Complete', description: `${result.recordCount} records imported.` });
@@ -254,7 +251,8 @@ export default function SalesImport() {
                 <FileSpreadsheet className="w-10 h-10 text-on-surface-variant/40 mx-auto mb-4" />
                 <p className="font-mono text-[10px] uppercase font-bold text-on-surface-variant">Select a CSV file</p>
                 <p className="font-mono text-[8px] text-on-surface-variant/40 mt-2">
-                  Use the template: Name, Location, Plan, MRC, NRC, Date, Sales_Agent, Means_of_Sales, Account_Status, Quarter, Month, Package_Type, S_N, Last_Subscription, BTS
+                  Use the template: Name, Location, Plan, MRC, NRC, Date, Sales_Agent, Means_of_Sales, Account_Status, Quarter, Month,
+                  Package_Type, S_N, Last_Subscription, BTS
                 </p>
               </div>
               <input ref={fileRef} type="file" accept=".csv" className="hidden" onChange={handleFile} />
@@ -348,9 +346,15 @@ export default function SalesImport() {
                             ))}
                             {r.bts && !r.btsOptions?.includes(r.bts) && <option value={r.bts}>{r.bts} (manual)</option>}
                           </select>
-                          {r.bts && <span className="ml-2 inline-flex items-center gap-1 text-[9px] font-mono text-green-600"><Check className="w-3 h-3" /> Assigned</span>}
+                          {r.bts && (
+                            <span className="ml-2 inline-flex items-center gap-1 text-[9px] font-mono text-green-600">
+                              <Check className="w-3 h-3" /> Assigned
+                            </span>
+                          )}
                           {!r.bts && r.btsOptions?.length === 0 && (
-                            <span className="ml-2 inline-flex items-center gap-1 text-[9px] font-mono text-red-600"><AlertTriangle className="w-3 h-3" /> No BTS found</span>
+                            <span className="ml-2 inline-flex items-center gap-1 text-[9px] font-mono text-red-600">
+                              <AlertTriangle className="w-3 h-3" /> No BTS found
+                            </span>
                           )}
                         </td>
                       </tr>

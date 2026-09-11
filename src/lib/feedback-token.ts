@@ -113,7 +113,7 @@ export async function findFeedbackTokenByEventHash(eventHash: string): Promise<{
 export async function findRecentFeedbackToken(
   customerEmail: string,
   sourceEvent: string,
-  windowMs = 24 * 60 * 60 * 1000
+  windowMs = 24 * 60 * 60 * 1000,
 ): Promise<{ token: string; expiresAt: number } | null> {
   if (!customerEmail || !sourceEvent) return null;
 

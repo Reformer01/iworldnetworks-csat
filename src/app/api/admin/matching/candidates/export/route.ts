@@ -115,8 +115,17 @@ function deriveRegion(city: string | null, btsName: string | null): string {
   const hay = `${c} ${b}`;
   if (hay.includes('akure')) return 'Ondo';
   if (hay.includes('osogbo') || hay.includes('oshogbo') || hay.includes('osun')) return 'Osun';
-  if (hay.includes('abeokuta') || hay.includes('shagamu') || hay.includes('ota') || hay.includes('ijebu') || hay.includes('orile') || hay.includes('sagamu')) return 'Ogun';
-  if (hay.includes('ibadan') || hay.includes('oriye') || hay.includes('mowe') || hay.includes('ibo') || hay.includes('warewa')) return 'Oyo';
+  if (
+    hay.includes('abeokuta') ||
+    hay.includes('shagamu') ||
+    hay.includes('ota') ||
+    hay.includes('ijebu') ||
+    hay.includes('orile') ||
+    hay.includes('sagamu')
+  )
+    return 'Ogun';
+  if (hay.includes('ibadan') || hay.includes('oriye') || hay.includes('mowe') || hay.includes('ibo') || hay.includes('warewa'))
+    return 'Oyo';
   if (!c && !b) return 'Unknown';
   return 'Unknown';
 }

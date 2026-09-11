@@ -362,10 +362,12 @@ export default function LandingPage() {
 
             <div className="lg:col-span-9">
               <div className="flex items-center justify-between mb-6">
-                <h2 className="font-display text-xl font-bold text-primary">{categories.find(c => c.name === activeCategory)?.label} Feedback</h2>
+                <h2 className="font-display text-xl font-bold text-primary">
+                  {categories.find((c) => c.name === activeCategory)?.label} Feedback
+                </h2>
                 <ShareFeedbackButtons
                   url={buildShareUrl(activeCategory)}
-                  label={categories.find(c => c.name === activeCategory)?.label}
+                  label={categories.find((c) => c.name === activeCategory)?.label}
                   compact
                 />
               </div>
@@ -531,7 +533,10 @@ export default function LandingPage() {
                     {errors.submissionDate && <p className="text-[10px] text-destructive font-semibold mt-1">{errors.submissionDate[0]}</p>}
                   </div>
                   <div className="space-y-1">
-                    <label htmlFor="serviceTime" className="font-mono text-[10px] uppercase text-on-surface-variant font-bold flex items-center gap-2">
+                    <label
+                      htmlFor="serviceTime"
+                      className="font-mono text-[10px] uppercase text-on-surface-variant font-bold flex items-center gap-2"
+                    >
                       <Clock className="w-3 h-3 text-secondary" /> Approx Time of Experience
                     </label>
                     <input
@@ -559,7 +564,9 @@ export default function LandingPage() {
 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
                   <div className="space-y-1">
-                    <label htmlFor="feedbackRegion" className="font-mono text-[10px] uppercase text-on-surface-variant font-bold">Region</label>
+                    <label htmlFor="feedbackRegion" className="font-mono text-[10px] uppercase text-on-surface-variant font-bold">
+                      Region
+                    </label>
                     <select
                       id="feedbackRegion"
                       className={cn(
@@ -586,7 +593,9 @@ export default function LandingPage() {
                     {errors.location && <p className="text-[10px] text-destructive font-semibold mt-1">{errors.location[0]}</p>}
                   </div>
                   <div className="space-y-1">
-                    <label htmlFor="feedbackPlan" className="font-mono text-[10px] uppercase text-on-surface-variant font-bold">Connectivity Plan</label>
+                    <label htmlFor="feedbackPlan" className="font-mono text-[10px] uppercase text-on-surface-variant font-bold">
+                      Connectivity Plan
+                    </label>
                     <select
                       id="feedbackPlan"
                       className={cn(
@@ -754,7 +763,10 @@ export default function LandingPage() {
                         </select>
                       </div>
                       <div className="space-y-4 py-4">
-                        <label htmlFor="fsArrivalTime" className="font-mono text-[10px] uppercase text-on-surface-variant font-bold flex items-center gap-2">
+                        <label
+                          htmlFor="fsArrivalTime"
+                          className="font-mono text-[10px] uppercase text-on-surface-variant font-bold flex items-center gap-2"
+                        >
                           Technician Arrival Time
                         </label>
                         <input
@@ -863,7 +875,10 @@ export default function LandingPage() {
                         </select>
                       </div>
                       <div className="space-y-4 py-4">
-                        <label htmlFor="instArrivalTime" className="font-mono text-[10px] uppercase text-on-surface-variant font-bold flex items-center gap-2">
+                        <label
+                          htmlFor="instArrivalTime"
+                          className="font-mono text-[10px] uppercase text-on-surface-variant font-bold flex items-center gap-2"
+                        >
                           Technician Arrival Time
                         </label>
                         <input

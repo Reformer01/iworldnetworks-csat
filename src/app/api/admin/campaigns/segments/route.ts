@@ -49,7 +49,9 @@ async function resolveBtsNames(opts: Array<{ value: string; count: number }>) {
     const ids = opts.map((o) => o.value);
     const sites = await prisma.uispSite.findMany({ where: { id: { in: ids } }, select: { id: true, name: true } });
     const nameById = new Map(sites.map((s) => [s.id, s.name]));
-    return opts.map((o) => ({ value: o.value, count: o.count, label: nameById.get(o.value) ?? o.value } as { value: string; count: number }));
+    return opts.map(
+      (o) => ({ value: o.value, count: o.count, label: nameById.get(o.value) ?? o.value }) as { value: string; count: number },
+    );
   } catch {
     return opts;
   }

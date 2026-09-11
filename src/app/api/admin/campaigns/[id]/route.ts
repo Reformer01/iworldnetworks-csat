@@ -48,7 +48,8 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
     const { id } = await params;
     const campaign = await prisma.campaign.findUnique({ where: { id } });
     if (!campaign) return notFound('Campaign not found');
-    if (!['draft', 'scheduled', 'rejected'].includes(campaign.status)) return error('Only draft, scheduled, or rejected campaigns can be edited');
+    if (!['draft', 'scheduled', 'rejected'].includes(campaign.status))
+      return error('Only draft, scheduled, or rejected campaigns can be edited');
 
     const body = await request.json().catch(() => null);
     const data: Record<string, unknown> = {};
@@ -198,10 +199,7 @@ export async function DELETE(request: NextRequest, { params }: { params: Promise
     const campaign = await prisma.campaign.findUnique({ where: { id } });
     if (!campaign) return notFound('Campaign not found');
 
-    await prisma.$transaction([
-      prisma.emailJob.deleteMany({ where: { campaignId: id } }),
-      prisma.campaign.delete({ where: { id } }),
-    ]);
+    await prisma.$transaction([prisma.emailJob.deleteMany({ where: { campaignId: id } }), prisma.campaign.delete({ where: { id } })]);
 
     return success({ ok: true, deleted: id });
   } catch (err: unknown) {
