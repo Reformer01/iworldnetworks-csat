@@ -1,8 +1,9 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { AlertTriangle, Loader2, RefreshCw, ShieldAlert } from 'lucide-react';
+import { AlertTriangle, Download, Loader2, RefreshCw, ShieldAlert } from 'lucide-react';
 import { useAuth, useUser } from '@/firebase';
+import { isSuperAdmin } from '@/lib/admin-config';
 import type { PaystackOverviewPayload } from '@/lib/finance/paystack-aggregates';
 import { BreakdownBars } from '@/components/finance/paystack/BreakdownBars';
 import { ChannelDonut } from '@/components/finance/paystack/ChannelDonut';
@@ -34,6 +35,36 @@ export default function PaystackOverviewPage() {
   const [loading, setLoading] = useState(true);
   const [denied, setDenied] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [syncing, setSyncing] = useState(false);
+  const [syncMessage, setSyncMessage] = useState<string | null>(null);
+
+  const canSync = isSuperAdmin(user?.email || '');
+
+  async function handleSync() {
+    if (!user || syncing) return;
+    setSyncing(true);
+    setSyncMessage(null);
+    try {
+      const token = await user.getIdToken();
+      const res = await fetch('/api/admin/finance/paystack/sync', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ maxPages: 100 }),
+      });
+      const json = await res.json().catch(() => null);
+      if (!res.ok || !json?.success) {
+        setSyncMessage(json?.error || `Sync failed (HTTP ${res.status})`);
+      } else {
+        const { fetched = 0, upserted = 0 } = json.data ?? {};
+        setSyncMessage(`Synced ${fetched} transactions, stored ${upserted}`);
+        setReloadKey((k) => k + 1);
+      }
+    } catch {
+      setSyncMessage('Sync failed — check your connection and retry');
+    } finally {
+      setSyncing(false);
+    }
+  }
 
   useEffect(() => {
     if (!user) return;
@@ -151,8 +182,23 @@ export default function PaystackOverviewPage() {
           >
             <RefreshCw className="h-4 w-4" />
           </button>
+          {canSync && (
+            <button
+              onClick={handleSync}
+              disabled={syncing}
+              className="flex items-center gap-2 rounded-full bg-secondary px-5 py-2 font-mono text-[11px] font-bold uppercase tracking-widest text-white disabled:opacity-60"
+            >
+              {syncing ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Download className="h-3.5 w-3.5" />}
+              {syncing ? 'Syncing…' : 'Sync Paystack'}
+            </button>
+          )}
         </div>
       </header>
+      {syncMessage && (
+        <p className="mb-4 rounded-2xl border border-border bg-white p-3 text-center font-mono text-[11px] font-bold uppercase tracking-widest opacity-80">
+          {syncMessage}
+        </p>
+      )}
 
       <FinanceKpiCards kpis={data.kpis} />
 

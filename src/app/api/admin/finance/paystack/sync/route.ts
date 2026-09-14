@@ -8,7 +8,7 @@ import { PAYSTACK_DASHBOARD_STATUSES, syncPaystackTransactions } from '@/lib/pay
 
 export const dynamic = 'force-dynamic';
 
-const MAX_PAGES_CAP = 10;
+const MAX_PAGES_CAP = 100;
 const DEFAULT_MAX_PAGES = 10;
 
 function parseMaxPages(value: unknown): number | null {

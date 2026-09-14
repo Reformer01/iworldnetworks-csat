@@ -69,7 +69,7 @@ describe('POST /api/admin/finance/paystack/sync', () => {
 
   it('returns 400 (not 500) for invalid maxPages', async () => {
     mocks.verifyAdmin.mockResolvedValueOnce(MANAGER);
-    const res = await POST(post({ maxPages: 99 }));
+    const res = await POST(post({ maxPages: 101 }));
     expect(res.status).toBe(400);
     expect(mocks.sync).not.toHaveBeenCalled();
   });
