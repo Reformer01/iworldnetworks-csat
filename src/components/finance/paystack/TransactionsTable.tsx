@@ -21,16 +21,16 @@ function formatVariance(value: number | null | undefined): string {
 export function TransactionsTable({ rows }: { rows: FinanceTransactionRow[] }) {
   if (!rows || rows.length === 0) {
     return (
-      <div className="flex h-[160px] items-center justify-center rounded-2xl border border-white/10 bg-white/[0.04]">
-        <p className="font-mono text-[11px] uppercase tracking-widest text-slate-500">No transactions found</p>
+      <div className="flex h-[160px] items-center justify-center rounded-2xl border border-border bg-white">
+        <p className="font-mono text-[11px] uppercase tracking-widest opacity-60">No transactions found</p>
       </div>
     );
   }
   return (
-    <div className="overflow-x-auto rounded-2xl border border-white/10">
-      <table className="w-full min-w-[860px] border-collapse text-left" aria-label="Transactions">
+    <div className="overflow-x-auto rounded-2xl border border-border bg-white whisper-shadow">
+      <table className="w-full min-w-[860px] text-left" aria-label="Transactions">
         <thead>
-          <tr className="border-b border-white/10 bg-white/[0.03] font-mono text-[9px] font-bold uppercase tracking-widest text-slate-500">
+          <tr className="border-b font-mono text-[10px] uppercase font-bold opacity-60 whitespace-nowrap">
             <th scope="col" className="px-3 py-2.5">
               Reference
             </th>
@@ -54,30 +54,22 @@ export function TransactionsTable({ rows }: { rows: FinanceTransactionRow[] }) {
             </th>
           </tr>
         </thead>
-        <tbody className="divide-y divide-white/5">
+        <tbody className="divide-y">
           {rows.map((row) => (
-            <tr key={row.reference} className="transition-colors hover:bg-white/5">
-              <td className="max-w-[180px] truncate px-3 py-2.5 font-mono text-xs font-bold text-white" title={row.reference}>
+            <tr key={row.reference} className="transition-colors hover:bg-gray-50">
+              <td className="max-w-[180px] truncate px-3 py-2.5 font-mono text-xs font-bold" title={row.reference}>
                 {row.reference}
               </td>
-              <td className="max-w-[180px] truncate px-3 py-2.5 text-xs text-slate-300" title={row.customerEmail || row.customer || ''}>
+              <td className="max-w-[180px] truncate px-3 py-2.5 text-xs" title={row.customerEmail || row.customer || ''}>
                 {row.customer || row.customerEmail || '—'}
               </td>
-              <td className="whitespace-nowrap px-3 py-2.5 text-right font-mono text-xs font-bold text-emerald-300">
+              <td className="whitespace-nowrap px-3 py-2.5 text-right font-mono text-xs font-bold text-emerald-700">
                 {formatNairaNgn(row.amountNaira)}
               </td>
-              <td className="whitespace-nowrap px-3 py-2.5 font-mono text-[11px] text-slate-300">
-                {(row.channel || 'unknown').toLowerCase()}
-              </td>
-              <td className="whitespace-nowrap px-3 py-2.5 font-mono text-[11px] text-slate-300">
-                {(row.status || 'unknown').toLowerCase()}
-              </td>
-              <td className="whitespace-nowrap px-3 py-2.5 font-mono text-[11px] text-slate-300">
-                {(row.reconStatus || '—').toLowerCase()}
-              </td>
-              <td className="whitespace-nowrap px-3 py-2.5 text-right font-mono text-[11px] text-slate-300">
-                {formatVariance(row.varianceNaira)}
-              </td>
+              <td className="whitespace-nowrap px-3 py-2.5 font-mono text-[11px]">{(row.channel || 'unknown').toLowerCase()}</td>
+              <td className="whitespace-nowrap px-3 py-2.5 font-mono text-[11px]">{(row.status || 'unknown').toLowerCase()}</td>
+              <td className="whitespace-nowrap px-3 py-2.5 font-mono text-[11px]">{(row.reconStatus || '—').toLowerCase()}</td>
+              <td className="whitespace-nowrap px-3 py-2.5 text-right font-mono text-[11px]">{formatVariance(row.varianceNaira)}</td>
             </tr>
           ))}
         </tbody>

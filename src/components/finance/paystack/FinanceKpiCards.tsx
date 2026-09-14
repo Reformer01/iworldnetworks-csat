@@ -24,15 +24,15 @@ export function FinanceKpiCards({ kpis }: { kpis: FinanceKpis }) {
   return (
     <div className="grid grid-cols-2 gap-3 md:grid-cols-3 xl:grid-cols-6">
       {cards.map(({ label, value, sub, Icon }) => (
-        <div key={label} className="rounded-2xl border border-white/10 bg-white/[0.04] p-4">
+        <div key={label} className="rounded-2xl border border-border bg-white p-4 whisper-shadow">
           <div className="flex items-center gap-2">
-            <Icon className="h-4 w-4 shrink-0 text-emerald-300" />
-            <p className="truncate font-mono text-[9px] font-bold uppercase tracking-widest text-slate-400">{label}</p>
+            <Icon className="h-4 w-4 shrink-0 text-secondary" />
+            <p className="truncate font-mono text-[10px] font-bold uppercase tracking-widest opacity-60">{label}</p>
           </div>
-          <p className="mt-2 truncate font-display text-xl font-black text-white" title={value}>
+          <p className="mt-2 truncate font-display text-xl font-black" title={value}>
             {value}
           </p>
-          <p className="mt-1 truncate font-mono text-[10px] text-slate-500" title={sub}>
+          <p className="mt-1 truncate font-mono text-[10px] opacity-60" title={sub}>
             {sub}
           </p>
         </div>

@@ -17,9 +17,9 @@ function currentMonth(): string {
 
 function Section({ title, sub, children }: { title: string; sub?: string; children: React.ReactNode }) {
   return (
-    <section className="rounded-2xl border border-white/10 bg-white/[0.04] p-4 md:p-5">
-      <h2 className="font-display text-sm font-black uppercase tracking-tight text-white">{title}</h2>
-      {sub && <p className="mt-0.5 font-mono text-[10px] font-bold uppercase tracking-widest text-slate-500">{sub}</p>}
+    <section className="rounded-2xl border border-border bg-white p-4 whisper-shadow md:p-5">
+      <h2 className="font-display text-sm font-black uppercase tracking-tight">{title}</h2>
+      {sub && <p className="mt-0.5 font-mono text-[10px] font-bold uppercase tracking-widest opacity-60">{sub}</p>}
       <div className="mt-3">{children}</div>
     </section>
   );
@@ -72,7 +72,7 @@ export default function PaystackOverviewPage() {
   if (loading) {
     return (
       <div className="flex h-64 items-center justify-center" role="status" aria-label="Loading overview">
-        <Loader2 className="h-7 w-7 animate-spin text-emerald-300" />
+        <Loader2 className="h-7 w-7 animate-spin text-secondary" />
       </div>
     );
   }
@@ -80,9 +80,9 @@ export default function PaystackOverviewPage() {
   if (denied) {
     return (
       <div className="mx-auto max-w-md py-16 text-center">
-        <ShieldAlert className="mx-auto mb-3 h-10 w-10 text-amber-300" />
-        <h1 className="font-display text-lg font-black uppercase tracking-tight text-white">Access denied</h1>
-        <p className="mt-1 font-mono text-[11px] text-slate-400">Your account does not have Paystack finance access.</p>
+        <ShieldAlert className="mx-auto mb-3 h-10 w-10 text-amber-600" />
+        <h1 className="font-display text-lg font-black uppercase tracking-tight">Access denied</h1>
+        <p className="mt-1 font-mono text-[11px] opacity-60">Your account does not have Paystack finance access.</p>
       </div>
     );
   }
@@ -90,11 +90,11 @@ export default function PaystackOverviewPage() {
   if (error || !data) {
     return (
       <div className="mx-auto max-w-md py-16 text-center">
-        <AlertTriangle className="mx-auto mb-3 h-10 w-10 text-red-400" />
-        <p className="font-mono text-xs font-bold text-red-300">{error || 'No data'}</p>
+        <AlertTriangle className="mx-auto mb-3 h-10 w-10 text-red-500" />
+        <p className="font-mono text-xs font-bold text-red-600">{error || 'No data'}</p>
         <button
           onClick={() => setReloadKey((k) => k + 1)}
-          className="mt-4 rounded-full border border-white/15 px-5 py-2 font-mono text-[11px] font-bold uppercase tracking-widest text-slate-200"
+          className="mt-4 rounded-full border border-border bg-white px-5 py-2 font-mono text-[11px] font-bold uppercase tracking-widest hover:bg-gray-50"
         >
           Retry
         </button>
@@ -131,8 +131,8 @@ export default function PaystackOverviewPage() {
     <div>
       <header className="mb-5 flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
         <div>
-          <h1 className="font-display text-2xl font-black uppercase tracking-tight text-white md:text-3xl">Paystack Overview</h1>
-          <p className="mt-1 font-mono text-[10px] font-bold uppercase tracking-widest text-slate-500">
+          <h1 className="font-display text-2xl font-black uppercase tracking-tight md:text-3xl">Paystack Overview</h1>
+          <p className="mt-1 font-mono text-[10px] font-bold uppercase tracking-widest opacity-60">
             Collections, channels, and reconciliation for {data.month}
           </p>
         </div>
@@ -142,12 +142,12 @@ export default function PaystackOverviewPage() {
             value={month}
             onChange={(e) => e.target.value && setMonth(e.target.value)}
             aria-label="Select month"
-            className="rounded-full border border-white/15 bg-white/5 px-4 py-2 font-mono text-xs text-slate-100"
+            className="rounded-full border border-border bg-white px-4 py-2 font-mono text-xs"
           />
           <button
             onClick={() => setReloadKey((k) => k + 1)}
             aria-label="Refresh overview"
-            className="rounded-full border border-white/15 p-2 text-slate-200 hover:bg-white/10"
+            className="rounded-full border border-border bg-white p-2 hover:bg-gray-50"
           >
             <RefreshCw className="h-4 w-4" />
           </button>
@@ -157,7 +157,7 @@ export default function PaystackOverviewPage() {
       <FinanceKpiCards kpis={data.kpis} />
 
       {isEmpty && (
-        <p className="mt-4 rounded-2xl border border-white/10 bg-white/[0.04] p-4 text-center font-mono text-[11px] uppercase tracking-widest text-slate-500">
+        <p className="mt-4 rounded-2xl border border-border bg-white p-4 text-center font-mono text-[11px] uppercase tracking-widest opacity-60">
           No collections recorded for {data.month}
         </p>
       )}

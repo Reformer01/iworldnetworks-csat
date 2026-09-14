@@ -106,7 +106,7 @@ export default function PaystackCustomersPage() {
   if (loading && !data) {
     return (
       <div className="flex h-64 items-center justify-center" role="status" aria-label="Loading customers">
-        <Loader2 className="h-7 w-7 animate-spin text-emerald-300" />
+        <Loader2 className="h-7 w-7 animate-spin text-secondary" />
       </div>
     );
   }
@@ -114,9 +114,9 @@ export default function PaystackCustomersPage() {
   if (denied) {
     return (
       <div className="mx-auto max-w-md py-16 text-center">
-        <ShieldAlert className="mx-auto mb-3 h-10 w-10 text-amber-300" />
-        <h1 className="font-display text-lg font-black uppercase tracking-tight text-white">Access denied</h1>
-        <p className="mt-1 font-mono text-[11px] text-slate-400">Your account does not have Paystack finance access.</p>
+        <ShieldAlert className="mx-auto mb-3 h-10 w-10 text-amber-600" />
+        <h1 className="font-display text-lg font-black uppercase tracking-tight">Access denied</h1>
+        <p className="mt-1 font-mono text-[11px] opacity-60">Your account does not have Paystack finance access.</p>
       </div>
     );
   }
@@ -125,8 +125,8 @@ export default function PaystackCustomersPage() {
     <div>
       <header className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
         <div>
-          <h1 className="font-display text-2xl font-black uppercase tracking-tight text-white md:text-3xl">Customers</h1>
-          <p className="mt-1 font-mono text-[10px] font-bold uppercase tracking-widest text-slate-500">
+          <h1 className="font-display text-2xl font-black uppercase tracking-tight md:text-3xl">Customers</h1>
+          <p className="mt-1 font-mono text-[10px] font-bold uppercase tracking-widest opacity-60">
             {newCount} new · {returningCount} returning on this page
           </p>
         </div>
@@ -143,7 +143,7 @@ export default function PaystackCustomersPage() {
           }}
           placeholder="Search name, email, reference…"
           aria-label="Search customers"
-          className="rounded-full border border-white/15 bg-white/5 px-4 py-2 font-mono text-xs text-slate-100"
+          className="rounded-full border border-border bg-white px-4 py-2 font-mono text-xs"
         />
         <input
           type="month"
@@ -153,43 +153,43 @@ export default function PaystackCustomersPage() {
             setPage(1);
           }}
           aria-label="Filter by month"
-          className="rounded-full border border-white/15 bg-white/5 px-4 py-2 font-mono text-xs text-slate-100"
+          className="rounded-full border border-border bg-white px-4 py-2 font-mono text-xs"
         />
       </div>
 
       <SavedViewBar scope="customers" currentFilters={filters} getToken={getToken} canManage={canManage} onApply={applySaved} />
 
-      {error && <p className="mt-3 font-mono text-xs font-bold text-red-300">{error}</p>}
+      {error && <p className="mt-3 font-mono text-xs font-bold text-red-600">{error}</p>}
 
       <div className="mt-3 grid grid-cols-1 gap-4 xl:grid-cols-3">
-        <section className="rounded-2xl border border-white/10 bg-white/[0.04] p-4" aria-label="Cohort grouping">
-          <h2 className="font-display text-sm font-black uppercase tracking-tight text-white">Cohorts</h2>
+        <section className="rounded-2xl border border-border bg-white p-4 whisper-shadow" aria-label="Cohort grouping">
+          <h2 className="font-display text-sm font-black uppercase tracking-tight">Cohorts</h2>
           {cohorts.length === 0 ? (
-            <p className="mt-1 font-mono text-[11px] text-slate-500">No cohorts</p>
+            <p className="mt-1 font-mono text-[11px] opacity-60">No cohorts</p>
           ) : (
             <ul className="mt-2 space-y-1">
               {cohorts.map(([name, count]) => (
-                <li key={name} className="flex justify-between font-mono text-[11px] text-slate-300">
+                <li key={name} className="flex justify-between font-mono text-[11px]">
                   <span>{name}</span>
-                  <span className="font-bold text-white">{count}</span>
+                  <span className="font-bold">{count}</span>
                 </li>
               ))}
             </ul>
           )}
         </section>
-        <section className="rounded-2xl border border-white/10 bg-white/[0.04] p-4 xl:col-span-2" aria-label="Follow-up list">
-          <h2 className="font-display text-sm font-black uppercase tracking-tight text-white">Follow-up list</h2>
-          <p className="mt-0.5 font-mono text-[10px] font-bold uppercase tracking-widest text-slate-500">
+        <section className="rounded-2xl border border-border bg-white p-4 whisper-shadow xl:col-span-2" aria-label="Follow-up list">
+          <h2 className="font-display text-sm font-black uppercase tracking-tight">Follow-up list</h2>
+          <p className="mt-0.5 font-mono text-[10px] font-bold uppercase tracking-widest opacity-60">
             Single-payment customers needing nurture
           </p>
           {followUps.length === 0 ? (
-            <p className="mt-2 font-mono text-[11px] text-slate-500">No follow-ups due</p>
+            <p className="mt-2 font-mono text-[11px] opacity-60">No follow-ups due</p>
           ) : (
-            <ul className="mt-2 divide-y divide-white/5">
+            <ul className="mt-2 divide-y">
               {followUps.map((c) => (
-                <li key={c.email || c.name} className="flex flex-wrap justify-between gap-2 py-1.5 font-mono text-[11px] text-slate-300">
+                <li key={c.email || c.name} className="flex flex-wrap justify-between gap-2 py-1.5 font-mono text-[11px]">
                   <span>{c.name || c.email || '—'}</span>
-                  <span className="text-slate-500">{formatNairaNgn(c.lifetimeNaira)}</span>
+                  <span className="opacity-60">{formatNairaNgn(c.lifetimeNaira)}</span>
                 </li>
               ))}
             </ul>
@@ -197,13 +197,13 @@ export default function PaystackCustomersPage() {
         </section>
       </div>
 
-      <div className="mt-3 overflow-x-auto rounded-2xl border border-white/10">
+      <div className="mt-3 overflow-x-auto rounded-2xl border border-border bg-white whisper-shadow">
         {items.length === 0 ? (
-          <p className="py-10 text-center font-mono text-[11px] uppercase tracking-widest text-slate-500">No customers found</p>
+          <p className="py-10 text-center font-mono text-[11px] uppercase tracking-widest opacity-60">No customers found</p>
         ) : (
-          <table className="w-full min-w-[760px] border-collapse text-left" aria-label="Payers">
+          <table className="w-full min-w-[760px] text-left" aria-label="Payers">
             <thead>
-              <tr className="border-b border-white/10 bg-white/[0.03] font-mono text-[9px] font-bold uppercase tracking-widest text-slate-500">
+              <tr className="border-b font-mono text-[10px] uppercase font-bold opacity-60 whitespace-nowrap">
                 <th scope="col" className="px-3 py-2.5">
                   Customer
                 </th>
@@ -224,19 +224,19 @@ export default function PaystackCustomersPage() {
                 </th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-white/5">
+            <tbody className="divide-y">
               {items.map((c) => (
-                <tr key={c.email || c.name} className="transition-colors hover:bg-white/5">
-                  <td className="max-w-[220px] truncate px-3 py-2.5 text-xs text-slate-200" title={c.email || ''}>
+                <tr key={c.email || c.name} className="transition-colors hover:bg-gray-50">
+                  <td className="max-w-[220px] truncate px-3 py-2.5 text-xs" title={c.email || ''}>
                     {c.name || c.email || '—'}
                   </td>
-                  <td className="whitespace-nowrap px-3 py-2.5 text-right font-mono text-xs font-bold text-emerald-300">
+                  <td className="whitespace-nowrap px-3 py-2.5 text-right font-mono text-xs font-bold text-emerald-700">
                     {formatNairaNgn(c.lifetimeNaira)}
                   </td>
-                  <td className="px-3 py-2.5 text-right font-mono text-[11px] text-slate-300">{c.frequency}</td>
-                  <td className="px-3 py-2.5 font-mono text-[11px] text-slate-300">{c.status}</td>
-                  <td className="px-3 py-2.5 font-mono text-[11px] text-slate-300">{c.region || '—'}</td>
-                  <td className="whitespace-nowrap px-3 py-2.5 text-right font-mono text-[11px] text-slate-400">
+                  <td className="px-3 py-2.5 text-right font-mono text-[11px]">{c.frequency}</td>
+                  <td className="px-3 py-2.5 font-mono text-[11px]">{c.status}</td>
+                  <td className="px-3 py-2.5 font-mono text-[11px]">{c.region || '—'}</td>
+                  <td className="whitespace-nowrap px-3 py-2.5 text-right font-mono text-[11px] opacity-60">
                     {c.lastPaidAt ? new Date(c.lastPaidAt).toLocaleDateString('en-NG', { day: 'numeric', month: 'short' }) : '—'}
                   </td>
                 </tr>
@@ -248,21 +248,21 @@ export default function PaystackCustomersPage() {
 
       {data && data.totalPages > 1 && (
         <div className="mt-3 flex items-center justify-between">
-          <p className="font-mono text-[11px] text-slate-500">
+          <p className="font-mono text-[11px] opacity-60">
             Page {data.page} of {data.totalPages}
           </p>
           <div className="flex gap-2">
             <button
               disabled={page <= 1}
               onClick={() => setPage((p) => Math.max(1, p - 1))}
-              className="rounded-full border border-white/15 px-4 py-1.5 font-mono text-[11px] font-bold uppercase tracking-widest text-slate-200 disabled:opacity-40"
+              className="rounded-full border border-border bg-white px-4 py-1.5 font-mono text-[10px] font-bold uppercase tracking-widest hover:bg-gray-50 disabled:opacity-40"
             >
               Prev
             </button>
             <button
               disabled={page >= data.totalPages}
               onClick={() => setPage((p) => p + 1)}
-              className="rounded-full border border-white/15 px-4 py-1.5 font-mono text-[11px] font-bold uppercase tracking-widest text-slate-200 disabled:opacity-40"
+              className="rounded-full border border-border bg-white px-4 py-1.5 font-mono text-[10px] font-bold uppercase tracking-widest hover:bg-gray-50 disabled:opacity-40"
             >
               Next
             </button>

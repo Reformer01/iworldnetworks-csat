@@ -102,7 +102,7 @@ export default function PaystackReconciliationPage() {
   if (loading && !data) {
     return (
       <div className="flex h-64 items-center justify-center" role="status" aria-label="Loading reconciliation">
-        <Loader2 className="h-7 w-7 animate-spin text-emerald-300" />
+        <Loader2 className="h-7 w-7 animate-spin text-secondary" />
       </div>
     );
   }
@@ -110,9 +110,9 @@ export default function PaystackReconciliationPage() {
   if (denied) {
     return (
       <div className="mx-auto max-w-md py-16 text-center">
-        <ShieldAlert className="mx-auto mb-3 h-10 w-10 text-amber-300" />
-        <h1 className="font-display text-lg font-black uppercase tracking-tight text-white">Access denied</h1>
-        <p className="mt-1 font-mono text-[11px] text-slate-400">Your account does not have Paystack finance access.</p>
+        <ShieldAlert className="mx-auto mb-3 h-10 w-10 text-amber-600" />
+        <h1 className="font-display text-lg font-black uppercase tracking-tight">Access denied</h1>
+        <p className="mt-1 font-mono text-[11px] opacity-60">Your account does not have Paystack finance access.</p>
       </div>
     );
   }
@@ -122,14 +122,14 @@ export default function PaystackReconciliationPage() {
   return (
     <div>
       <header className="mb-4">
-        <h1 className="font-display text-2xl font-black uppercase tracking-tight text-white md:text-3xl">Reconciliation</h1>
-        <p className="mt-1 font-mono text-[10px] font-bold uppercase tracking-widest text-slate-500">
+        <h1 className="font-display text-2xl font-black uppercase tracking-tight md:text-3xl">Reconciliation</h1>
+        <p className="mt-1 font-mono text-[10px] font-bold uppercase tracking-widest opacity-60">
           Reference-first matching with assignment-only exceptions
         </p>
       </header>
 
-      {error && <p className="mb-3 font-mono text-xs font-bold text-red-300">{error}</p>}
-      {notice && <p className="mb-3 font-mono text-[11px] text-emerald-300">{notice}</p>}
+      {error && <p className="mb-3 font-mono text-xs font-bold text-red-600">{error}</p>}
+      {notice && <p className="mb-3 font-mono text-[11px] text-emerald-700">{notice}</p>}
 
       <div className="mb-3 flex flex-wrap gap-2" role="tablist" aria-label="Reconciliation queues">
         {QUEUES.map((name) => (
@@ -138,8 +138,8 @@ export default function PaystackReconciliationPage() {
             role="tab"
             aria-selected={queue === name}
             onClick={() => setQueue(name)}
-            className={`rounded-full px-3.5 py-1.5 font-mono text-[10px] font-bold uppercase tracking-widest ${
-              queue === name ? 'bg-emerald-500 text-[#0a0f1e]' : 'bg-white/5 text-slate-300 hover:bg-white/10'
+            className={`rounded-full border px-3.5 py-1.5 font-mono text-[10px] font-bold uppercase tracking-widest ${
+              queue === name ? 'bg-secondary text-white border-secondary' : 'bg-white border-border hover:bg-gray-50'
             }`}
           >
             {name} · {data?.counts[name] ?? 0}
@@ -147,15 +147,15 @@ export default function PaystackReconciliationPage() {
         ))}
       </div>
 
-      <section className="rounded-2xl border border-white/10 bg-white/[0.04] p-4" aria-label={`${queue} queue`}>
+      <section className="rounded-2xl border border-border bg-white p-4 whisper-shadow" aria-label={`${queue} queue`}>
         {queueRows.length === 0 ? (
-          <p className="py-8 text-center font-mono text-[11px] uppercase tracking-widest text-slate-500">No rows in {queue}</p>
+          <p className="py-8 text-center font-mono text-[11px] uppercase tracking-widest opacity-60">No rows in {queue}</p>
         ) : (
-          <ul className="divide-y divide-white/5">
+          <ul className="divide-y">
             {queueRows.slice(0, 50).map((row, i) => (
               <li key={`${rowLabel(row)}-${i}`} className="flex flex-wrap items-center justify-between gap-2 py-2">
-                <span className="font-mono text-xs font-bold text-white">{rowLabel(row)}</span>
-                <span className="font-mono text-[11px] text-slate-400">
+                <span className="font-mono text-xs font-bold">{rowLabel(row)}</span>
+                <span className="font-mono text-[11px] opacity-60">
                   {typeof row.amountNaira === 'number'
                     ? `₦${row.amountNaira.toLocaleString('en-NG')}`
                     : typeof row.paystackAmountNaira === 'number'
@@ -171,7 +171,7 @@ export default function PaystackReconciliationPage() {
       </section>
 
       <section className="mt-4">
-        <h2 className="mb-2 font-display text-sm font-black uppercase tracking-tight text-white">Exception queue</h2>
+        <h2 className="mb-2 font-display text-sm font-black uppercase tracking-tight">Exception queue</h2>
         <ExceptionQueue items={exceptions} canManage={canManage} assigningId={assigningId} onAssign={canManage ? assign : undefined} />
       </section>
     </div>

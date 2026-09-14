@@ -12,8 +12,8 @@ const CHANNEL_COLORS = ['#10b981', '#8b5cf6', '#f59e0b', '#38bdf8', '#f43f5e', '
 export function ChannelDonut({ data }: { data: ChannelPoint[] }) {
   if (!data || data.length === 0) {
     return (
-      <div className="flex h-[240px] items-center justify-center rounded-2xl border border-white/10 bg-white/[0.04]">
-        <p className="font-mono text-[11px] uppercase tracking-widest text-slate-500">No channel data for this period</p>
+      <div className="flex h-[240px] items-center justify-center rounded-2xl border border-border bg-white">
+        <p className="font-mono text-[11px] uppercase tracking-widest opacity-60">No channel data for this period</p>
       </div>
     );
   }
@@ -39,7 +39,8 @@ export function ChannelDonut({ data }: { data: ChannelPoint[] }) {
           <ChartTooltip
             content={
               <ChartTooltipContent
-                className="border-slate-700 bg-slate-900 text-slate-100"
+                className="border-border bg-white text-zinc-900"
+                contentStyle={{ backgroundColor: '#ffffff', borderColor: '#e4e4e7', color: '#18181b' }}
                 formatter={(value: unknown) => formatNairaNgn(Number(value))}
               />
             }
@@ -48,7 +49,7 @@ export function ChannelDonut({ data }: { data: ChannelPoint[] }) {
       </ChartContainer>
       <ul className="mt-2 space-y-1.5">
         {data.map((row, i) => (
-          <li key={row.channel} className="flex items-center gap-2 font-mono text-[11px] font-bold text-slate-300">
+          <li key={row.channel} className="flex items-center gap-2 font-mono text-[11px] font-bold">
             <span className="h-2.5 w-2.5 shrink-0 rounded-full" style={{ background: CHANNEL_COLORS[i % CHANNEL_COLORS.length] }} />
             <span className="truncate capitalize">{row.channel}</span>
             <span className="ml-auto whitespace-nowrap">

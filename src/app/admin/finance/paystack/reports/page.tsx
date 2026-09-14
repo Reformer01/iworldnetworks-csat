@@ -200,7 +200,7 @@ export default function PaystackReportsPage() {
   if (loading && snapshots.length === 0) {
     return (
       <div className="flex h-64 items-center justify-center" role="status" aria-label="Loading reports">
-        <Loader2 className="h-7 w-7 animate-spin text-emerald-300" />
+        <Loader2 className="h-7 w-7 animate-spin text-secondary" />
       </div>
     );
   }
@@ -208,9 +208,9 @@ export default function PaystackReportsPage() {
   if (denied) {
     return (
       <div className="mx-auto max-w-md py-16 text-center">
-        <ShieldAlert className="mx-auto mb-3 h-10 w-10 text-amber-300" />
-        <h1 className="font-display text-lg font-black uppercase tracking-tight text-white">Access denied</h1>
-        <p className="mt-1 font-mono text-[11px] text-slate-400">Your account does not have Paystack finance access.</p>
+        <ShieldAlert className="mx-auto mb-3 h-10 w-10 text-amber-600" />
+        <h1 className="font-display text-lg font-black uppercase tracking-tight">Access denied</h1>
+        <p className="mt-1 font-mono text-[11px] opacity-60">Your account does not have Paystack finance access.</p>
       </div>
     );
   }
@@ -219,8 +219,8 @@ export default function PaystackReportsPage() {
     <div>
       <header className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
         <div>
-          <h1 className="font-display text-2xl font-black uppercase tracking-tight text-white md:text-3xl">Reports</h1>
-          <p className="mt-1 font-mono text-[10px] font-bold uppercase tracking-widest text-slate-500">
+          <h1 className="font-display text-2xl font-black uppercase tracking-tight md:text-3xl">Reports</h1>
+          <p className="mt-1 font-mono text-[10px] font-bold uppercase tracking-widest opacity-60">
             CSV downloads, management PDF, and monthly snapshots
           </p>
         </div>
@@ -229,17 +229,17 @@ export default function PaystackReportsPage() {
           value={month}
           onChange={(e) => e.target.value && setMonth(e.target.value)}
           aria-label="Report month"
-          className="rounded-full border border-white/15 bg-white/5 px-4 py-2 font-mono text-xs text-slate-100"
+          className="rounded-full border border-border bg-white px-4 py-2 font-mono text-xs"
         />
       </header>
 
-      {error && <p className="mb-3 font-mono text-xs font-bold text-red-300">{error}</p>}
-      {notice && <p className="mb-3 font-mono text-[11px] text-emerald-300">{notice}</p>}
+      {error && <p className="mb-3 font-mono text-xs font-bold text-red-600">{error}</p>}
+      {notice && <p className="mb-3 font-mono text-[11px] text-emerald-700">{notice}</p>}
 
       <SavedViewBar scope="reports" currentFilters={filters} getToken={getToken} canManage={canManage} onApply={applySaved} />
 
-      <section className="mt-3 rounded-2xl border border-white/10 bg-white/[0.04] p-4" aria-label="Downloads">
-        <h2 className="font-display text-sm font-black uppercase tracking-tight text-white">Downloads</h2>
+      <section className="mt-3 rounded-2xl border border-border bg-white p-4 whisper-shadow" aria-label="Downloads">
+        <h2 className="font-display text-sm font-black uppercase tracking-tight">Downloads</h2>
         <div className="mt-2">
           <ExportButtons
             items={CSV_SCOPES.map((scope) => ({ scope, label: `${scope} CSV`, month }))}
@@ -251,28 +251,28 @@ export default function PaystackReportsPage() {
         </div>
       </section>
 
-      <section className="mt-3 rounded-2xl border border-white/10 bg-white/[0.04] p-4" aria-label="Monthly snapshots">
+      <section className="mt-3 rounded-2xl border border-border bg-white p-4 whisper-shadow" aria-label="Monthly snapshots">
         <div className="flex flex-wrap items-center justify-between gap-2">
-          <h2 className="font-display text-sm font-black uppercase tracking-tight text-white">Monthly snapshots</h2>
+          <h2 className="font-display text-sm font-black uppercase tracking-tight">Monthly snapshots</h2>
           {canManage && (
             <button
               onClick={() => void freezeSnapshot()}
               disabled={freezing}
-              className="rounded-full bg-emerald-500 px-4 py-1.5 font-mono text-[11px] font-bold uppercase tracking-widest text-[#0a0f1e] disabled:opacity-50"
+              className="rounded-full bg-secondary px-4 py-1.5 font-mono text-[10px] font-bold uppercase tracking-widest text-white disabled:opacity-50"
             >
               {freezing ? 'Freezing…' : `Freeze ${month}`}
             </button>
           )}
         </div>
         {snapshots.length === 0 ? (
-          <p className="mt-2 font-mono text-[11px] text-slate-500">No snapshots frozen yet</p>
+          <p className="mt-2 font-mono text-[11px] opacity-60">No snapshots frozen yet</p>
         ) : (
           <div className="mt-2 flex flex-wrap gap-2">
             {snapshots.map((snap) => (
               <button
                 key={snap.month}
                 onClick={() => void viewSnapshot(snap.month)}
-                className="rounded-full border border-white/15 px-3 py-1 font-mono text-[11px] text-slate-200 hover:bg-white/10"
+                className="rounded-full border border-border bg-white px-3 py-1 font-mono text-[11px] hover:bg-gray-50"
               >
                 {snap.month}
               </button>
@@ -280,8 +280,8 @@ export default function PaystackReportsPage() {
           </div>
         )}
         {activeSnapshot && (
-          <div className="mt-3 rounded-xl border border-white/10 p-3">
-            <p className="font-mono text-[11px] font-bold uppercase tracking-widest text-slate-400">
+          <div className="mt-3 rounded-xl border border-border bg-gray-50 p-3">
+            <p className="font-mono text-[11px] font-bold uppercase tracking-widest opacity-60">
               Snapshot {activeSnapshot.month}
               {activeSnapshot.savedBy ? ` · frozen by ${activeSnapshot.savedBy}` : ''}
             </p>
@@ -296,9 +296,9 @@ export default function PaystackReportsPage() {
                   ['Disputes', String(activeSnapshot.totals.disputeCount)],
                 ] as [string, string][]
               ).map(([label, value]) => (
-                <div key={label} className="rounded-lg bg-white/5 p-2">
-                  <dt className="font-mono text-[9px] font-bold uppercase tracking-widest text-slate-500">{label}</dt>
-                  <dd className="font-mono text-sm font-bold text-white">{value}</dd>
+                <div key={label} className="rounded-lg border border-border bg-white p-2">
+                  <dt className="font-mono text-[9px] font-bold uppercase tracking-widest opacity-60">{label}</dt>
+                  <dd className="font-mono text-sm font-bold">{value}</dd>
                 </div>
               ))}
             </dl>

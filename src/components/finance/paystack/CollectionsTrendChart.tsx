@@ -16,8 +16,8 @@ function compactNaira(value: number): string {
 export function CollectionsTrendChart({ data }: { data: SeriesPoint[] }) {
   if (!data || data.length === 0) {
     return (
-      <div className="flex h-[240px] items-center justify-center rounded-2xl border border-white/10 bg-white/[0.04]">
-        <p className="font-mono text-[11px] uppercase tracking-widest text-slate-500">No collections data for this period</p>
+      <div className="flex h-[240px] items-center justify-center rounded-2xl border border-border bg-white">
+        <p className="font-mono text-[11px] uppercase tracking-widest opacity-60">No collections data for this period</p>
       </div>
     );
   }
@@ -30,11 +30,11 @@ export function CollectionsTrendChart({ data }: { data: SeriesPoint[] }) {
             <stop offset="95%" stopColor="#10b981" stopOpacity={0} />
           </linearGradient>
         </defs>
-        <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#1e293b" />
-        <XAxis dataKey="date" tick={{ fill: '#94a3b8', fontSize: 10 }} axisLine={false} tickLine={false} minTickGap={24} />
+        <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e4e4e7" />
+        <XAxis dataKey="date" tick={{ fill: '#52525b', fontSize: 10 }} axisLine={false} tickLine={false} minTickGap={24} />
         <YAxis
           tickFormatter={(value: number) => compactNaira(value)}
-          tick={{ fill: '#94a3b8', fontSize: 10 }}
+          tick={{ fill: '#52525b', fontSize: 10 }}
           axisLine={false}
           tickLine={false}
           width={64}
@@ -42,7 +42,8 @@ export function CollectionsTrendChart({ data }: { data: SeriesPoint[] }) {
         <ChartTooltip
           content={
             <ChartTooltipContent
-              className="border-slate-700 bg-slate-900 text-slate-100"
+              className="border-border bg-white text-zinc-900"
+              contentStyle={{ backgroundColor: '#ffffff', borderColor: '#e4e4e7', color: '#18181b' }}
               formatter={(value: unknown) => formatNairaNgn(Number(value))}
             />
           }

@@ -6,7 +6,6 @@ import {
   Broadcast,
   CheckCircle,
   ChartLineUp,
-  ChartBar,
   CreditCard,
   Megaphone,
   Database,
@@ -23,7 +22,6 @@ const salesNavItems: NavItem[] = [
   { name: 'BTS Audit', href: '/admin/bts/audit', icon: Broadcast },
   { name: 'BTS Review', href: '/admin/bts/review', icon: CheckCircle },
   { name: 'Dashboard', href: '/admin/sales', icon: ChartLineUp },
-  { name: 'Monthly Revenue', href: '/admin/sales/monthly-revenue', icon: ChartBar },
   { name: 'Paystack Finance', href: '/admin/finance/paystack', icon: CreditCard },
   { name: 'Mailing', href: '/admin/mailing', icon: Megaphone },
   { name: 'Records', href: '/admin/sales/records', icon: Database },
@@ -35,7 +33,7 @@ const salesNavGroups = [
   { label: 'Customer Ops', hrefs: ['/admin/customers', '/admin/bts/customers', '/admin/bts/audit', '/admin/bts/review'] },
   {
     label: 'Sales & Revenue',
-    hrefs: ['/admin/sales', '/admin/sales/monthly-revenue', '/admin/finance/paystack', '/admin/sales/records', '/admin/sales/import', '/admin/sales/targets'],
+    hrefs: ['/admin/sales', '/admin/finance/paystack', '/admin/sales/records', '/admin/sales/import', '/admin/sales/targets'],
   },
   { label: 'Engagement', hrefs: ['/admin/mailing'] },
 ];

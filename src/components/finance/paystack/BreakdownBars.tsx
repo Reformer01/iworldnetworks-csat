@@ -13,8 +13,8 @@ export interface BreakdownItem {
 export function BreakdownBars({ items }: { items: BreakdownItem[] }) {
   if (!items || items.length === 0) {
     return (
-      <div className="flex h-[240px] items-center justify-center rounded-2xl border border-white/10 bg-white/[0.04]">
-        <p className="font-mono text-[11px] uppercase tracking-widest text-slate-500">No breakdown data for this period</p>
+      <div className="flex h-[240px] items-center justify-center rounded-2xl border border-border bg-white">
+        <p className="font-mono text-[11px] uppercase tracking-widest opacity-60">No breakdown data for this period</p>
       </div>
     );
   }
@@ -22,12 +22,12 @@ export function BreakdownBars({ items }: { items: BreakdownItem[] }) {
     <div>
       <ChartContainer config={{ collectedNaira: { label: 'Collected', color: '#38bdf8' } }} className="h-[240px] w-full">
         <BarChart data={items} layout="vertical" margin={{ left: 8, right: 12 }}>
-          <CartesianGrid strokeDasharray="3 3" horizontal={false} stroke="#1e293b" />
-          <XAxis type="number" tick={{ fill: '#94a3b8', fontSize: 10 }} axisLine={false} tickLine={false} />
+          <CartesianGrid strokeDasharray="3 3" horizontal={false} stroke="#e4e4e7" />
+          <XAxis type="number" tick={{ fill: '#52525b', fontSize: 10 }} axisLine={false} tickLine={false} />
           <YAxis
             type="category"
             dataKey="label"
-            tick={{ fill: '#cbd5e1', fontSize: 11, fontWeight: 700 }}
+            tick={{ fill: '#52525b', fontSize: 11, fontWeight: 700 }}
             width={92}
             axisLine={false}
             tickLine={false}
@@ -35,7 +35,8 @@ export function BreakdownBars({ items }: { items: BreakdownItem[] }) {
           <ChartTooltip
             content={
               <ChartTooltipContent
-                className="border-slate-700 bg-slate-900 text-slate-100"
+                className="border-border bg-white text-zinc-900"
+                contentStyle={{ backgroundColor: '#ffffff', borderColor: '#e4e4e7', color: '#18181b' }}
                 formatter={(value: unknown) => formatNairaNgn(Number(value))}
               />
             }
@@ -45,7 +46,7 @@ export function BreakdownBars({ items }: { items: BreakdownItem[] }) {
       </ChartContainer>
       <ul className="mt-2 space-y-1.5">
         {items.slice(0, 6).map((row) => (
-          <li key={row.label} className="flex items-center justify-between gap-2 font-mono text-[11px] text-slate-300">
+          <li key={row.label} className="flex items-center justify-between gap-2 font-mono text-[11px]">
             <span className="truncate font-bold">{row.label}</span>
             <span className="whitespace-nowrap">
               {formatNairaNgn(row.collectedNaira)} · {row.count.toLocaleString('en-NG')}

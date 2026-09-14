@@ -65,7 +65,7 @@ export function ExportButtons({
             key={`${item.scope}-${item.label}`}
             onClick={() => void downloadScope(item)}
             disabled={busy != null}
-            className="rounded-full border border-white/15 px-3.5 py-1.5 font-mono text-[11px] font-bold uppercase tracking-widest text-slate-200 hover:bg-white/10 disabled:opacity-50"
+            className="rounded-full border border-border bg-white px-3.5 py-1.5 font-mono text-[10px] font-bold uppercase tracking-widest hover:bg-gray-50 disabled:opacity-50"
           >
             {busy === item.scope + item.label ? 'Exporting…' : item.label}
           </button>
@@ -74,13 +74,13 @@ export function ExportButtons({
           <button
             onClick={() => void onGeneratePdf()}
             disabled={pdfDisabled}
-            className="rounded-full bg-emerald-500 px-3.5 py-1.5 font-mono text-[11px] font-bold uppercase tracking-widest text-[#0a0f1e] disabled:opacity-50"
+            className="rounded-full bg-secondary px-3.5 py-1.5 font-mono text-[10px] font-bold uppercase tracking-widest text-white disabled:opacity-50"
           >
             {pdfLabel}
           </button>
         )}
       </div>
-      {error && <p className="mt-1 font-mono text-[11px] text-red-300">{error}</p>}
+      {error && <p className="mt-1 font-mono text-[11px] text-red-600">{error}</p>}
     </div>
   );
 }

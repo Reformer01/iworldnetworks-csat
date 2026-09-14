@@ -79,10 +79,10 @@ export function SavedViewBar({
   }
 
   return (
-    <div className="rounded-2xl border border-white/10 bg-white/[0.04] p-3" aria-label="Saved views">
-      <p className="font-mono text-[10px] font-bold uppercase tracking-widest text-slate-500">Saved views</p>
+    <div className="rounded-2xl border border-border bg-white p-3 whisper-shadow" aria-label="Saved views">
+      <p className="font-mono text-[10px] font-bold uppercase tracking-widest opacity-60">Saved views</p>
       {views.length === 0 ? (
-        <p className="mt-1 font-mono text-[11px] text-slate-500">No saved views yet</p>
+        <p className="mt-1 font-mono text-[11px] opacity-60">No saved views yet</p>
       ) : (
         <div className="mt-2 flex flex-wrap gap-2">
           {views.map((view) => (
@@ -90,7 +90,7 @@ export function SavedViewBar({
               key={view.id}
               onClick={() => onApply((view.filters as Record<string, unknown>) || {})}
               title={view.name}
-              className="rounded-full border border-white/15 px-3 py-1 font-mono text-[11px] text-slate-200 hover:bg-white/10"
+              className="rounded-full border border-border bg-white px-3 py-1 font-mono text-[11px] hover:bg-gray-50"
             >
               {view.name}
             </button>
@@ -106,18 +106,18 @@ export function SavedViewBar({
             onChange={(e) => setName(e.target.value)}
             placeholder="Save current filters as…"
             aria-label="Saved view name"
-            className="min-w-0 flex-1 rounded-full border border-white/15 bg-white/5 px-3 py-1.5 font-mono text-xs text-slate-100"
+            className="min-w-0 flex-1 rounded-full border border-border bg-white px-3 py-1.5 font-mono text-xs"
           />
           <button
             onClick={() => void save()}
             disabled={saving}
-            className="rounded-full bg-emerald-500 px-4 py-1.5 font-mono text-[11px] font-bold uppercase tracking-widest text-[#0a0f1e] disabled:opacity-50"
+            className="rounded-full bg-secondary px-4 py-1.5 font-mono text-[10px] font-bold uppercase tracking-widest text-white disabled:opacity-50"
           >
             {saving ? 'Saving…' : 'Save view'}
           </button>
         </div>
       )}
-      {error && <p className="mt-1 font-mono text-[11px] text-red-300">{error}</p>}
+      {error && <p className="mt-1 font-mono text-[11px] text-red-600">{error}</p>}
     </div>
   );
 }

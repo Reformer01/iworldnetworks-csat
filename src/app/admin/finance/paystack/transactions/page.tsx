@@ -129,7 +129,7 @@ export default function PaystackTransactionsPage() {
   if (loading && !data) {
     return (
       <div className="flex h-64 items-center justify-center" role="status" aria-label="Loading transactions">
-        <Loader2 className="h-7 w-7 animate-spin text-emerald-300" />
+        <Loader2 className="h-7 w-7 animate-spin text-secondary" />
       </div>
     );
   }
@@ -137,9 +137,9 @@ export default function PaystackTransactionsPage() {
   if (denied) {
     return (
       <div className="mx-auto max-w-md py-16 text-center">
-        <ShieldAlert className="mx-auto mb-3 h-10 w-10 text-amber-300" />
-        <h1 className="font-display text-lg font-black uppercase tracking-tight text-white">Access denied</h1>
-        <p className="mt-1 font-mono text-[11px] text-slate-400">Your account does not have Paystack finance access.</p>
+        <ShieldAlert className="mx-auto mb-3 h-10 w-10 text-amber-600" />
+        <h1 className="font-display text-lg font-black uppercase tracking-tight">Access denied</h1>
+        <p className="mt-1 font-mono text-[11px] opacity-60">Your account does not have Paystack finance access.</p>
       </div>
     );
   }
@@ -148,15 +148,15 @@ export default function PaystackTransactionsPage() {
     <div>
       <header className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
         <div>
-          <h1 className="font-display text-2xl font-black uppercase tracking-tight text-white md:text-3xl">Transactions</h1>
-          <p className="mt-1 font-mono text-[10px] font-bold uppercase tracking-widest text-slate-500">
+          <h1 className="font-display text-2xl font-black uppercase tracking-tight md:text-3xl">Transactions</h1>
+          <p className="mt-1 font-mono text-[10px] font-bold uppercase tracking-widest opacity-60">
             {data ? `${data.total.toLocaleString('en-NG')} matching payments` : 'Search and filter collections'}
           </p>
         </div>
         <div className="flex items-center gap-2">
           <button
             onClick={() => setView(view === 'table' ? 'chart' : 'table')}
-            className="rounded-full border border-white/15 px-3.5 py-1.5 font-mono text-[11px] font-bold uppercase tracking-widest text-slate-200 hover:bg-white/10"
+            className="rounded-full border border-border bg-white px-3.5 py-1.5 font-mono text-[10px] font-bold uppercase tracking-widest hover:bg-gray-50"
           >
             {view === 'table' ? 'Chart view' : 'Table view'}
           </button>
@@ -174,7 +174,7 @@ export default function PaystackTransactionsPage() {
           }}
           placeholder="Search reference, customer…"
           aria-label="Search transactions"
-          className="rounded-full border border-white/15 bg-white/5 px-4 py-2 font-mono text-xs text-slate-100"
+          className="rounded-full border border-border bg-white px-4 py-2 font-mono text-xs"
         />
         <select
           value={status}
@@ -183,10 +183,10 @@ export default function PaystackTransactionsPage() {
             setPage(1);
           }}
           aria-label="Filter by status"
-          className="rounded-full border border-white/15 bg-white/5 px-4 py-2 font-mono text-xs text-slate-100"
+          className="rounded-full border border-border bg-white px-4 py-2 font-mono text-xs"
         >
           {STATUSES.map((s) => (
-            <option key={s || 'all'} value={s} className="bg-slate-900">
+            <option key={s || 'all'} value={s}>
               {s || 'All statuses'}
             </option>
           ))}
@@ -198,10 +198,10 @@ export default function PaystackTransactionsPage() {
             setPage(1);
           }}
           aria-label="Filter by channel"
-          className="rounded-full border border-white/15 bg-white/5 px-4 py-2 font-mono text-xs text-slate-100"
+          className="rounded-full border border-border bg-white px-4 py-2 font-mono text-xs"
         >
           {CHANNELS.map((c) => (
-            <option key={c || 'all'} value={c} className="bg-slate-900">
+            <option key={c || 'all'} value={c}>
               {c || 'All channels'}
             </option>
           ))}
@@ -214,7 +214,7 @@ export default function PaystackTransactionsPage() {
             setPage(1);
           }}
           aria-label="Filter by month"
-          className="rounded-full border border-white/15 bg-white/5 px-4 py-2 font-mono text-xs text-slate-100"
+          className="rounded-full border border-border bg-white px-4 py-2 font-mono text-xs"
         />
       </div>
 
@@ -222,7 +222,7 @@ export default function PaystackTransactionsPage() {
 
       <div className="mt-3">
         {error ? (
-          <p className="font-mono text-xs font-bold text-red-300">{error}</p>
+          <p className="font-mono text-xs font-bold text-red-600">{error}</p>
         ) : view === 'chart' ? (
           <CollectionsTrendChart data={series} />
         ) : (
@@ -232,21 +232,21 @@ export default function PaystackTransactionsPage() {
 
       {data && data.totalPages > 1 && (
         <div className="mt-3 flex items-center justify-between">
-          <p className="font-mono text-[11px] text-slate-500">
+          <p className="font-mono text-[11px] opacity-60">
             Page {data.page} of {data.totalPages}
           </p>
           <div className="flex gap-2">
             <button
               disabled={page <= 1}
               onClick={() => setPage((p) => Math.max(1, p - 1))}
-              className="rounded-full border border-white/15 px-4 py-1.5 font-mono text-[11px] font-bold uppercase tracking-widest text-slate-200 disabled:opacity-40"
+              className="rounded-full border border-border bg-white px-4 py-1.5 font-mono text-[10px] font-bold uppercase tracking-widest hover:bg-gray-50 disabled:opacity-40"
             >
               Prev
             </button>
             <button
               disabled={page >= data.totalPages}
               onClick={() => setPage((p) => p + 1)}
-              className="rounded-full border border-white/15 px-4 py-1.5 font-mono text-[11px] font-bold uppercase tracking-widest text-slate-200 disabled:opacity-40"
+              className="rounded-full border border-border bg-white px-4 py-1.5 font-mono text-[10px] font-bold uppercase tracking-widest hover:bg-gray-50 disabled:opacity-40"
             >
               Next
             </button>
