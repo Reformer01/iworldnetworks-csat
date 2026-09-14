@@ -23,6 +23,7 @@ import {
 import { DashboardLayout, type NavItem } from '@/components/layout/DashboardLayout';
 import { useAuth, useUser } from '@/firebase';
 import { isSuperAdmin } from '@/lib/admin-config';
+import { canViewFinance } from '@/lib/finance-access';
 
 const adminNavItems: NavItem[] = [
   // Overview
@@ -34,6 +35,7 @@ const adminNavItems: NavItem[] = [
   { name: 'Sales KPIs', href: '/admin/sales', icon: TrendingUp },
   { name: 'Support Revenue', href: '/admin/support-revenue', icon: Receipt },
   { name: 'Income Report', href: '/admin/income-report', icon: Receipt },
+  { name: 'Paystack Finance', href: '/admin/finance/paystack', icon: CreditCard },
 
   // Support & Operations
   { name: 'Support', href: '/admin/support', icon: Headset },
@@ -56,7 +58,7 @@ const adminNavItems: NavItem[] = [
 
 const adminNavGroups = [
   { label: 'Overview', hrefs: ['/admin/dashboard', '/admin/intelligence', '/admin/reports'] },
-  { label: 'Sales & Revenue', hrefs: ['/admin/sales', '/admin/support-revenue', '/admin/income-report', '/admin/billing'] },
+  { label: 'Sales & Revenue', hrefs: ['/admin/sales', '/admin/support-revenue', '/admin/income-report', '/admin/billing', '/admin/finance/paystack'] },
   { label: 'Support', hrefs: ['/admin/support', '/admin/stability', '/admin/field-support', '/admin/installation'] },
   { label: 'Engagement', hrefs: ['/admin/engagement', '/admin/mailing', '/admin/campaigns', '/admin/testimonials'] },
   { label: 'Team', hrefs: ['/admin/staff', '/admin/super', '/admin/crud'] },
@@ -74,6 +76,7 @@ export function AdminLayout({ children }: AdminLayoutProps) {
   // Filter nav items based on role
   const filteredNavItems = adminNavItems.filter((item) => {
     if (item.href === '/admin/super') return isSuper;
+    if (item.href === '/admin/finance/paystack') return canViewFinance(user?.email);
     return true;
   });
 
