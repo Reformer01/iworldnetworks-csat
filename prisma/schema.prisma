@@ -818,11 +818,116 @@ model PaystackTransaction {
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
   raw           Json?
+  feesNaira      Float?
+  netNaira       Float?
+  refundedNaira  Float?   @default(0)
+  disputeStatus  String?
 
   @@index([status])
   @@index([paidAt])
   @@index([customerEmail])
   @@index([reference])
+  @@index([channel])
+}
+
+model SplynxIncomeLedger {
+  id             String    @id @default(cuid())
+  source         String
+  sourceId       String?
+  customerId     String?
+  customerName   String?
+  customerEmail  String?
+  reference      String?
+  amountNaira    Float
+  currency       String    @default("NGN")
+  productSegment String?
+  region         String?
+  taxNaira       Float?    @default(0)
+  discountNaira  Float?    @default(0)
+  paidAt         DateTime?
+  raw            Json?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([source])
+  @@index([reference])
+  @@index([customerEmail])
+  @@index([paidAt])
+}
+
+model PaystackReconciliationLink {
+  id                  String   @id @default(cuid())
+  paystackReference   String
+  splynxLedgerId      String?
+  method              String
+  confidence          Float
+  paystackAmountNaira Float
+  splynxAmountNaira   Float?
+  varianceNaira       Float?
+  status              String
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([paystackReference])
+  @@index([splynxLedgerId])
+  @@index([status])
+  @@index([method])
+}
+
+model ReconciliationException {
+  id                String    @id @default(cuid())
+  kind              String
+  paystackReference String?
+  splynxLedgerId    String?
+  title             String
+  detail            String?   @db.Text
+  amountNaira       Float?
+  ownerEmail        String?
+  status            String    @default("open")
+  followUpAt        DateTime?
+  history           Json?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([kind])
+  @@index([status])
+  @@index([ownerEmail])
+  @@index([followUpAt])
+}
+
+model PaystackSavedView {
+  id         String @id @default(cuid())
+  name       String
+  ownerEmail String
+  scope      String
+  filters    Json
+  grouping   String?
+  metric     String?
+  mode       String
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([ownerEmail])
+  @@index([scope])
+}
+
+model PaystackMonthlySnapshot {
+  id            String  @id @default(cuid())
+  month         String  @unique
+  totals        Json
+  channels      Json?
+  regions       Json?
+  segments      Json?
+  reconciliation Json?
+  exceptions    Json?
+  savedBy       String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 }
 
 // Editable Customer Risk Register rows. One per customer — latest state wins.
