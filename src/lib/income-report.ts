@@ -154,7 +154,7 @@ export function pickDateAddedMs(
   payload: Record<string, unknown>,
   parseDate: (v: string | undefined | null) => number | null,
 ): number | null {
-  const raw = firstNonEmpty(payload, ['date_added', 'registration_date', 'created', 'created_at']);
+  const raw = firstNonEmpty(payload, ['date_add', 'date_added', 'registration_date', 'created', 'created_at']);
   if (!raw) return null;
   const ms = parseDate(raw);
   return typeof ms === 'number' && Number.isFinite(ms) ? ms : null;

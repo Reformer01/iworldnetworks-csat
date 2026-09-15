@@ -162,6 +162,7 @@ describe('date-added picker', () => {
   const parse = (v: string | undefined | null) => (v ? Date.parse(`${v.replace(' ', 'T')}Z`) : null);
   it('parses the first available key, null when unparseable', () => {
     expect(pickDateAddedMs({ date_added: '2026-08-03 10:00:00' }, parse)).toBe(Date.UTC(2026, 7, 3, 10));
+    expect(pickDateAddedMs({ date_add: '2023-03-06' }, parse)).toBe(Date.UTC(2023, 2, 6));
     expect(pickDateAddedMs({ created_at: '2026-08-03 10:00:00' }, parse)).toBe(Date.UTC(2026, 7, 3, 10));
     expect(pickDateAddedMs({ date_added: 'not-a-date' }, parse)).toBeNull();
     expect(pickDateAddedMs({}, parse)).toBeNull();
