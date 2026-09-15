@@ -57,7 +57,8 @@ async function toJobState(jobId: string) {
 
 export async function GET(request: NextRequest) {
   try {
-    if (isRateLimited(request, 10, 60_000)) return tooMany();
+    // Status polling is a cheap Redis lookup — allow the UI's 3s poll loop.
+    if (isRateLimited(request, 60, 60_000)) return tooMany();
     if (!validateOrigin(request)) return forbidden();
     const admin = await verifyAdminToken(request.headers.get('authorization'));
     if (!admin) return unauthorized();

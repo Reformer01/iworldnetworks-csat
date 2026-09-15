@@ -1,10 +1,11 @@
 import { NextRequest } from 'next/server';
 import { verifyAdminToken } from '@/lib/admin-auth';
 import { isRateLimited } from '@/lib/rate-limit';
-import { success, unauthorized, forbidden, tooMany, serverError, error, validateOrigin } from '@/lib/api-response';
+import { success, unauthorized, forbidden, tooMany, serverError, error, notFound, validateOrigin } from '@/lib/api-response';
 import { logError } from '@/lib/logger';
-import { requireFinanceManager } from '@/lib/finance-access';
-import { PAYSTACK_DASHBOARD_STATUSES, syncPaystackTransactions } from '@/lib/paystack';
+import { requireFinanceManager, requireFinanceViewer } from '@/lib/finance-access';
+import { PAYSTACK_DASHBOARD_STATUSES } from '@/lib/paystack';
+import { getPaystackSyncQueue } from '@/lib/queues/paystack-sync-queue';
 
 export const dynamic = 'force-dynamic';
 
@@ -41,18 +42,60 @@ export async function POST(request: NextRequest) {
     const statuses = parseStatuses(body.statuses);
     if (statuses == null) return error('statuses must be a non-empty array of status strings');
 
-    const result = await syncPaystackTransactions({ maxPages, statuses });
-    const fetched = result.fetched ?? 0;
-    const upserted = result.upserted ?? 0;
-    return success({
-      fetched,
-      upserted,
-      skipped: Math.max(0, fetched - upserted),
-      failed: 0,
-    });
+    const queue = getPaystackSyncQueue();
+    const job = await queue.add('sync', { maxPages, statuses });
+    return success({ jobId: job.id, status: 'queued' as const });
   } catch (err: unknown) {
     const message = err instanceof Error ? err.message : 'Unknown error';
     logError('[paystack-sync] POST error', { error: message });
+    return serverError();
+  }
+}
+
+async function toJobState(jobId: string) {
+  const queue = getPaystackSyncQueue();
+  const job = await queue.getJob(jobId);
+  if (!job) return null;
+  const status = await job.getState();
+  const progress = (job.progress ?? null) as unknown;
+  const result = (job.returnvalue ?? null) as unknown;
+  return {
+    jobId: job.id as string,
+    status,
+    progress,
+    result,
+    ...(status === 'failed' ? { error: job.failedReason ?? 'Sync failed' } : {}),
+  };
+}
+
+export async function GET(request: NextRequest) {
+  try {
+    // Status polling is a cheap Redis lookup — allow the UI's 3s poll loop.
+    if (isRateLimited(request, 60, 60_000)) return tooMany();
+    if (!validateOrigin(request)) return forbidden();
+    const admin = await verifyAdminToken(request.headers.get('authorization'));
+    if (!admin) return unauthorized();
+    const viewerBlock = requireFinanceViewer(admin);
+    if (viewerBlock) return viewerBlock;
+
+    const jobId = new URL(request.url).searchParams.get('jobId');
+    if (jobId) {
+      const state = await toJobState(jobId);
+      if (!state) return notFound('Sync job not found.');
+      return success(state);
+    }
+
+    const queue = getPaystackSyncQueue();
+    const jobs = await queue.getJobs(['active', 'waiting', 'delayed', 'paused', 'completed', 'failed'], 0, 5);
+    if (!jobs.length) return success({ job: null });
+    jobs.sort((a, b) => (b.timestamp ?? 0) - (a.timestamp ?? 0));
+    const newest = jobs[0];
+    const state = await toJobState(newest.id as string);
+    if (!state) return success({ job: null });
+    return success(state);
+  } catch (err: unknown) {
+    const message = err instanceof Error ? err.message : 'Unknown error';
+    logError('[paystack-sync] GET error', { error: message });
     return serverError();
   }
 }
