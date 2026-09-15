@@ -16,6 +16,12 @@ function parseMonth(value: unknown): string | null {
   return null;
 }
 
+function parseTask(value: unknown): 'reconcile' | 'payments-backfill' | null {
+  if (value == null || value === '') return 'reconcile';
+  if (value === 'reconcile' || value === 'payments-backfill') return value;
+  return null;
+}
+
 export async function POST(request: NextRequest) {
   try {
     if (isRateLimited(request, 10, 60_000)) return tooMany();
@@ -28,9 +34,15 @@ export async function POST(request: NextRequest) {
     const body = (await request.json().catch(() => ({}))) as Record<string, unknown>;
     const month = parseMonth(body.month);
     if (!month) return error('month must be YYYY-MM');
+    const task = parseTask(body.task);
+    if (!task) return error("task must be 'reconcile' or 'payments-backfill'");
 
     const queue = getReconciliationQueue();
-    const job = await queue.add('reconcile', { month });
+    if (task === 'payments-backfill') {
+      const job = await queue.add('payments-backfill', { kind: 'payments-backfill' });
+      return success({ jobId: job.id, status: 'queued' as const });
+    }
+    const job = await queue.add('reconcile', { kind: 'reconcile', month });
     return success({ jobId: job.id, status: 'queued' as const });
   } catch (err: unknown) {
     const message = err instanceof Error ? err.message : 'Unknown error';

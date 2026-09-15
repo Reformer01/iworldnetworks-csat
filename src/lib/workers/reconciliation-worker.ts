@@ -12,8 +12,18 @@ export function getReconciliationWorker(): Worker<ReconciliationJobData> {
     reconciliationWorker = new Worker<ReconciliationJobData>(
       RECONCILIATION_QUEUE_NAME,
       async (job: Job<ReconciliationJobData>) => {
-        const { month } = job.data;
-        logInfo('[reconciliation-worker] Processing job', { jobId: job.id, month });
+        const kind = job.data.kind ?? 'reconcile';
+        const month = job.data.month ?? new Date().toISOString().slice(0, 7);
+        logInfo('[reconciliation-worker] Processing job', { jobId: job.id, kind, month });
+
+        if (kind === 'payments-backfill' || kind === 'payments-incremental') {
+          const { syncSplynxPayments } = await import('@/lib/splynx-payments');
+          await job.updateProgress({ stage: 'payments', kind, fetched: 0, upserted: 0 });
+          const result = await syncSplynxPayments({ fullBackfill: kind === 'payments-backfill' });
+          await job.updateProgress({ stage: 'complete', kind, ...result });
+          logInfo('[reconciliation-worker] Payments sync succeeded', { jobId: job.id, kind, ...result });
+          return result;
+        }
 
         // Step 1: Import Splynx ledger
         await job.updateProgress({ stage: 'import', fetched: 0, upserted: 0 });

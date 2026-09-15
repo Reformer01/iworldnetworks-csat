@@ -4,7 +4,8 @@ import { getRedis } from '@/lib/redis';
 export const RECONCILIATION_QUEUE_NAME = 'reconciliation';
 
 export interface ReconciliationJobData {
-  month: string;
+  kind?: 'reconcile' | 'payments-backfill' | 'payments-incremental';
+  month?: string;
 }
 
 let reconciliationQueue: Queue<ReconciliationJobData> | null = null;

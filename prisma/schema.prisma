@@ -294,8 +294,31 @@ model SplynxMeta {
   invoicesApiDenied Boolean @default(false)
   deniedAt  BigInt?
   lastInvoiceSyncAt BigInt?
+  paymentsMaxId Int?
+  paymentsBackfillOffset Int? @default(0)
+  paymentsBackfillComplete Boolean @default(false)
+  paymentsLastSyncAt BigInt?
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+}
+
+model SplynxPayment {
+  id            String   @id @default(cuid())
+  paymentId     String   @unique
+  customerId    String?
+  invoiceId     String?
+  amount        Float
+  paymentType   String?
+  receiptNumber String?
+  note          String?  @db.Text
+  paidAt        DateTime?
+  raw           Json?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  @@index([paidAt])
+  @@index([customerId])
+  @@index([invoiceId])
 }
 
 model UispSite {

@@ -104,8 +104,24 @@ function firstNonEmpty(payload: Record<string, unknown>, keys: string[]): string
   return '';
 }
 
-/** First non-empty of state/province/customer_state/region, trimmed, truncated to 191. */
-export function pickState(payload: Record<string, unknown>): string {
+/** First non-empty of state/province/customer_state/region, trimmed, truncated to 191.
+ * Subdivision map wins first: `subdivision_id` (numeric or numeric-string) → state name.
+ * Text keys are last-resort fallbacks only (customer records carry no state text).
+ */
+export function pickState(payload: Record<string, unknown>, subMap?: Map<number, string> | null): string {
+  if (subMap) {
+    const rawSub = payload['subdivision_id'] ?? payload['subdivisionId'] ?? payload['subdivision'];
+    let subId: number | null = null;
+    if (typeof rawSub === 'number' && Number.isFinite(rawSub) && rawSub > 0) subId = Math.trunc(rawSub);
+    else if (typeof rawSub === 'string' && rawSub.trim() !== '') {
+      const n = Number(rawSub.trim());
+      if (Number.isFinite(n) && n > 0) subId = Math.trunc(n);
+    }
+    if (subId != null) {
+      const name = subMap.get(subId);
+      if (name) return name.slice(0, 191);
+    }
+  }
   return firstNonEmpty(payload, ['state', 'province', 'customer_state', 'region']).slice(0, 191);
 }
 
@@ -313,4 +329,75 @@ export function buildIncomeCsv(rows: IncomeRow[]): string {
       .join(','),
   );
   return [[...INCOME_CSV_HEADERS].join(','), ...lines].join('\n');
+}
+
+/** Discount = linked invoice total − amount paid (0 when no invoice or no discount). */
+export function deriveDiscountAmount(paidAmount: number, invoiceTotal: number | null | undefined): number {
+  if (invoiceTotal == null || !Number.isFinite(invoiceTotal) || !Number.isFinite(paidAmount)) return 0;
+  if (invoiceTotal <= paidAmount) return 0;
+  return round2(invoiceTotal - paidAmount);
+}
+
+/** Remark = trimmed pct of discount over invoice total (`15%`, `12.9%`, '' when none). */
+export function deriveDiscountRemark(discounts: number, invoiceTotal: number | null | undefined): string {
+  if (!discounts || !invoiceTotal || !Number.isFinite(discounts) || !Number.isFinite(invoiceTotal) || invoiceTotal <= 0) return '';
+  return formatDiscountRemark((discounts / invoiceTotal) * 100);
+}
+
+export interface BuildMirrorIncomeRowInput {
+  ms: number;
+  paidAmount: number;
+  invoiceTotal: number | null | undefined;
+  plan: string;
+  category: string;
+  customerName: string;
+  email: string;
+  reference: string;
+  note: string;
+  state: string | null | undefined;
+  splynxDateAdded: number | null | undefined;
+  start: number;
+  end: number;
+  isPrepay: boolean;
+}
+
+/**
+ * Mirror row: buckets hold the FULL plan value (paid + discounts) for a
+ * classified kind, else Others = paid with 0 discount. Amount/Tax/Balance
+ * stay on the paid amount; Remark derives from invoiceTotal.
+ */
+export function buildMirrorIncomeRow(input: BuildMirrorIncomeRowInput): IncomeRow {
+  const kind = classifyPlan(input.plan, input.category);
+  const paid = Number.isFinite(input.paidAmount) ? input.paidAmount : 0;
+  let discounts = kind === 'other' ? 0 : deriveDiscountAmount(paid, input.invoiceTotal);
+  discounts = round2(discounts);
+  const full = round2(paid + discounts);
+  let residential = 0;
+  let sme = 0;
+  let enterprise = 0;
+  let others = 0;
+  if (kind === 'residential') residential = full;
+  else if (kind === 'sme') sme = full;
+  else if (kind === 'enterprise') enterprise = full;
+  else others = paid;
+  const added = Number(input.splynxDateAdded);
+  return {
+    date: new Date(input.ms).toISOString().slice(0, 10),
+    customer: input.customerName,
+    email: input.email,
+    reference: input.reference,
+    amount: paid,
+    enterprise,
+    isNew: Number.isFinite(added) && added >= input.start && added <= input.end ? 1 : 0,
+    residential,
+    sme,
+    discounts,
+    others,
+    tax: calcTax(paid),
+    balance: calcBalance(paid),
+    region: input.state ?? '',
+    remark: deriveDiscountRemark(discounts, input.invoiceTotal),
+    note: input.note,
+    isPrepay: input.isPrepay,
+  };
 }

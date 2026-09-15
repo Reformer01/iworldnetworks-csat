@@ -80,6 +80,17 @@ export function startSplynxSyncScheduler(): void {
         logInfo('[splynx-sync] sync recovered after failures', { previousFailures: consecutiveFailures });
       }
       consecutiveFailures = 0;
+      // Payments mirror incremental (cheap: usually 0-2 pages). Best-effort —
+      // never fails the main sync.
+      try {
+        const { syncSplynxPayments } = await import('./splynx-payments');
+        const pay = await syncSplynxPayments({});
+        logInfo('[splynx-sync] payments incremental finished', { ...pay });
+      } catch (err) {
+        logWarn('[splynx-sync] payments incremental failed (sync unaffected)', {
+          error: err instanceof Error ? err.message : String(err),
+        });
+      }
       // Reconcile sales records against the fresh customer truth. A failure
       // here must never roll back the sync itself (and vice versa).
       try {

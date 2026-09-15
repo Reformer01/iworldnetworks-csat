@@ -84,20 +84,30 @@ async function getDefaultPrisma(): Promise<PrismaClient> {
   return defaultPrisma;
 }
 
-
-
 const DAY_MS = 24 * 60 * 60 * 1000;
 const CHURN_SURVEY_TTL_MS = 30 * DAY_MS;
 
 export const CUSTOMER_COMPARE_KEYS = [
-  'customerName', 'email', 'billingEmail', 'phone', 'login', 'city', 'state',
-  'discountPercent', 'splynxDateAdded',
+  'customerName',
+  'email',
+  'billingEmail',
+  'phone',
+  'login',
+  'city',
+  'state',
+  'discountPercent',
+  'splynxDateAdded',
   'street',
-  'status', 'lifecycle', 'online', 'lastOnlineAt', 'lastUpdateAt', 'mrrTotal',
-  'accountType', 'category', 'servicePlan',
+  'status',
+  'lifecycle',
+  'online',
+  'lastOnlineAt',
+  'lastUpdateAt',
+  'mrrTotal',
+  'accountType',
+  'category',
+  'servicePlan',
 ] as const;
-
-
 
 let mirrorFs: Firestore | null | undefined;
 
@@ -118,7 +128,10 @@ async function mirrorCustomerSet(doc: MirrorCustomerDoc): Promise<void> {
     if (!fs) return;
     // SAFETY: MirrorCustomerDoc is a known-key object with JSON-serializable values,
     // matching the FirestoreData contract for document writes.
-    await fs.collection(CUSTOMERS_COLLECTION).doc(String(doc.customerId)).set(doc as unknown as FirestoreData);
+    await fs
+      .collection(CUSTOMERS_COLLECTION)
+      .doc(String(doc.customerId))
+      .set(doc as unknown as FirestoreData);
   } catch (err) {
     logWarn('[splynx-sync-db] Firestore customer mirror failed (best-effort)', {
       customerId: doc.customerId,
@@ -146,7 +159,10 @@ async function mirrorInvoiceSet(doc: MirrorInvoiceDoc): Promise<void> {
     if (!fs) return;
     // SAFETY: MirrorInvoiceDoc is a known-key object with JSON-serializable values,
     // matching the FirestoreData contract for document writes.
-    await fs.collection(INVOICES_COLLECTION).doc(String(doc.invoiceId)).set(doc as unknown as FirestoreData);
+    await fs
+      .collection(INVOICES_COLLECTION)
+      .doc(String(doc.invoiceId))
+      .set(doc as unknown as FirestoreData);
   } catch (err) {
     logWarn('[splynx-sync-db] Firestore invoice mirror failed (best-effort)', {
       invoiceId: doc.invoiceId,
@@ -185,7 +201,10 @@ async function mirrorChurnSurveySet(doc: ChurnSurveyDoc): Promise<void> {
   try {
     const fs = await getMirrorFirestore();
     if (!fs) return;
-    await fs.collection(CHURN_COLLECTION).doc(String(doc.customerId)).set(doc as unknown as FirestoreData);
+    await fs
+      .collection(CHURN_COLLECTION)
+      .doc(String(doc.customerId))
+      .set(doc as unknown as FirestoreData);
   } catch (err) {
     logWarn('[splynx-sync-db] Firestore churn survey mirror failed (best-effort)', {
       customerId: doc.customerId,
@@ -194,33 +213,39 @@ async function mirrorChurnSurveySet(doc: ChurnSurveyDoc): Promise<void> {
   }
 }
 
-async function mirrorFeedbackTokenSet(token: string, data: {
-  customerName: string;
-  customerEmail: string;
-  sourceEvent: string;
-  createdAt: number;
-  expiresAt: number;
-  location?: string;
-}): Promise<void> {
+async function mirrorFeedbackTokenSet(
+  token: string,
+  data: {
+    customerName: string;
+    customerEmail: string;
+    sourceEvent: string;
+    createdAt: number;
+    expiresAt: number;
+    location?: string;
+  },
+): Promise<void> {
   try {
     const fs = await getMirrorFirestore();
     if (!fs) return;
-    await fs.collection('feedback_tokens').doc(token).set({
-      customerName: data.customerName,
-      customerEmail: data.customerEmail,
-      servicePlan: '',
-      location: data.location || '',
-      serviceDate: '',
-      sourceEvent: data.sourceEvent,
-      eventHash: '',
-      category: 'Billing',
-      staffName: '',
-      used: false,
-      createdAt: data.createdAt,
-      expiresAt: data.expiresAt,
-      openedAt: null,
-      submittedAt: null,
-    });
+    await fs
+      .collection('feedback_tokens')
+      .doc(token)
+      .set({
+        customerName: data.customerName,
+        customerEmail: data.customerEmail,
+        servicePlan: '',
+        location: data.location || '',
+        serviceDate: '',
+        sourceEvent: data.sourceEvent,
+        eventHash: '',
+        category: 'Billing',
+        staffName: '',
+        used: false,
+        createdAt: data.createdAt,
+        expiresAt: data.expiresAt,
+        openedAt: null,
+        submittedAt: null,
+      });
   } catch (err) {
     logWarn('[splynx-sync-db] Firestore feedback token mirror failed (best-effort)', {
       error: err instanceof Error ? err.message : String(err),
@@ -286,7 +311,6 @@ export function rowToCustomerDoc(row: {
   matchedAt?: bigint | null;
   matchUpdatedAt?: bigint | null;
 }): MirrorCustomerDoc {
-
   const lifecycle: Lifecycle = (row.lifecycle ?? 'active') as Lifecycle;
   const overdueInfo = (row.overdueInfo ?? null) as CustomerOverdueInfo | null;
   return {
@@ -372,33 +396,26 @@ export function rowToInvoiceDoc(row: {
   };
 }
 
-
-
-
 // Customer reconcile
 
-
-
 // Income-report sync fields, pulled from the raw Splynx customer payload.
-// state: first non-empty of state/province/customer_state/region (never city).
+// state: subdivision_id → state name via the states-provinces map (text keys
+// are last-resort fallbacks only; never city).
 // discountPercent: per-customer predefined % — falls back to the prior row when
 // the payload carries none so it survives plan upgrades.
 // splynxDateAdded: epoch ms of the Splynx registration, null when unparseable.
 export function extractIncomeSyncFields(
   record: Record<string, unknown>,
+  subMap?: Map<number, string> | null,
 ): Pick<MirrorCustomerDoc, 'state' | 'discountPercent' | 'splynxDateAdded'> {
   return {
-    state: pickState(record),
+    state: pickState(record, subMap),
     discountPercent: pickDiscountPercent(record),
     splynxDateAdded: pickDateAddedMs(record, parseSplynxApiDate),
   };
 }
 
-export function buildCustomerDoc(
-  prev: MirrorCustomerDoc | undefined,
-  fields: Partial<MirrorCustomerDoc>,
-  now: number,
-): MirrorCustomerDoc {
+export function buildCustomerDoc(prev: MirrorCustomerDoc | undefined, fields: Partial<MirrorCustomerDoc>, now: number): MirrorCustomerDoc {
   const prevLifecycle = prev?.lifecycle ?? 'active';
   let lifecycle: Lifecycle = (fields.lifecycle ?? 'active') as Lifecycle;
   if (prevLifecycle === 'churned' && lifecycle === 'inactive') {
@@ -419,12 +436,9 @@ export function buildCustomerDoc(
   if (lifecycle === 'blocked' && prevLifecycle !== 'blocked' && !blockedSince) blockedSince = now;
   else if (lifecycle !== 'blocked' && prevLifecycle === 'blocked') blockedSince = null;
 
-
   const preserveBundle = !!prev && isBundledServicePlan(prev.servicePlan) && !isBundledServicePlan(fields.servicePlan);
-  const nextMrrTotal = preserveBundle
-    ? prev?.mrrTotal ?? 0
-    : (fields.mrrTotal ?? 0) > 0 ? fields.mrrTotal ?? 0 : prev?.mrrTotal ?? 0;
-  const nextServicePlan = preserveBundle ? prev?.servicePlan ?? '' : fields.servicePlan || prev?.servicePlan || '';
+  const nextMrrTotal = preserveBundle ? (prev?.mrrTotal ?? 0) : (fields.mrrTotal ?? 0) > 0 ? (fields.mrrTotal ?? 0) : (prev?.mrrTotal ?? 0);
+  const nextServicePlan = preserveBundle ? (prev?.servicePlan ?? '') : fields.servicePlan || prev?.servicePlan || '';
 
   // Income-report fields: state is State/Province ONLY (never city); the prior
   // row wins only when the fresh value is empty (same pattern as city).
@@ -434,26 +448,26 @@ export function buildCustomerDoc(
     typeof fields.discountPercent === 'number' && Number.isFinite(fields.discountPercent)
       ? Math.min(100, Math.max(0, fields.discountPercent))
       : null;
-  const prevDiscount =
-    typeof prev?.discountPercent === 'number' && Number.isFinite(prev.discountPercent) ? prev.discountPercent : null;
+  const prevDiscount = typeof prev?.discountPercent === 'number' && Number.isFinite(prev.discountPercent) ? prev.discountPercent : null;
   const nextDiscountPercent = freshDiscount ?? prevDiscount ?? 0;
   const freshDateAdded =
     typeof fields.splynxDateAdded === 'number' && Number.isFinite(fields.splynxDateAdded) ? fields.splynxDateAdded : null;
-  const prevDateAdded =
-    typeof prev?.splynxDateAdded === 'number' && Number.isFinite(prev.splynxDateAdded) ? prev.splynxDateAdded : null;
+  const prevDateAdded = typeof prev?.splynxDateAdded === 'number' && Number.isFinite(prev.splynxDateAdded) ? prev.splynxDateAdded : null;
   const nextSplynxDateAdded = freshDateAdded ?? prevDateAdded ?? null;
 
-  const changed = !prev || CUSTOMER_COMPARE_KEYS.some((key) => {
-    const a = prev?.[key as keyof MirrorCustomerDoc];
-    const b = fields[key as keyof MirrorCustomerDoc];
-    if (key === 'lifecycle') return a !== lifecycle;
-    if (key === 'mrrTotal') return a !== nextMrrTotal;
-    if (key === 'servicePlan') return a !== nextServicePlan;
-    if (key === 'state') return a !== nextState;
-    if (key === 'discountPercent') return a !== nextDiscountPercent;
-    if (key === 'splynxDateAdded') return a !== nextSplynxDateAdded;
-    return a !== b;
-  });
+  const changed =
+    !prev ||
+    CUSTOMER_COMPARE_KEYS.some((key) => {
+      const a = prev?.[key as keyof MirrorCustomerDoc];
+      const b = fields[key as keyof MirrorCustomerDoc];
+      if (key === 'lifecycle') return a !== lifecycle;
+      if (key === 'mrrTotal') return a !== nextMrrTotal;
+      if (key === 'servicePlan') return a !== nextServicePlan;
+      if (key === 'state') return a !== nextState;
+      if (key === 'discountPercent') return a !== nextDiscountPercent;
+      if (key === 'splynxDateAdded') return a !== nextSplynxDateAdded;
+      return a !== b;
+    });
 
   return {
     customerId: fields.customerId ?? prev?.customerId ?? 0,
@@ -472,14 +486,14 @@ export function buildCustomerDoc(
     online: fields.online ?? prev?.online ?? false,
     lastOnlineAt: fields.lastOnlineAt ?? prev?.lastOnlineAt ?? null,
     lastUpdateAt: fields.lastUpdateAt ?? prev?.lastUpdateAt ?? null,
- 
+
     mrrTotal: nextMrrTotal,
     accountType: fields.accountType ?? prev?.accountType ?? 'regular',
     category: fields.category ?? prev?.category ?? '',
     servicePlan: nextServicePlan,
     firstSyncedAt: prev?.firstSyncedAt ?? now,
     lastSyncAt: now,
-    lastChangeAt: changed ? now : prev?.lastChangeAt ?? now,
+    lastChangeAt: changed ? now : (prev?.lastChangeAt ?? now),
     deleted: false,
     reminder15SentAt: prev?.reminder15SentAt ?? null,
     reminder30SentAt: prev?.reminder30SentAt ?? null,
@@ -508,18 +522,20 @@ export function buildCustomerDoc(
   };
 }
 
-
-
-
-
-
-
-
 export async function reconcileCustomersDb(now = Date.now()): Promise<{ upserted: number; deleted: number; fetched: number }> {
   const records = await getAllCustomers();
   const existingRows = await prisma.customer.findMany();
   const existing = new Map<string, MirrorCustomerDoc>();
   for (const row of existingRows) existing.set(String(row.customerId), rowToCustomerDoc(row));
+
+  // Subdivision → state name map (best-effort; text fallbacks apply when unavailable).
+  let subMap: Map<number, string> | null = null;
+  try {
+    const { getSubdivisionNameMap } = await import('./splynx-geo');
+    subMap = await getSubdivisionNameMap();
+  } catch {
+    subMap = null;
+  }
 
   let upserted = 0;
   const seen = new Set<string>();
@@ -529,7 +545,7 @@ export async function reconcileCustomersDb(now = Date.now()): Promise<{ upserted
     const prev = existing.get(idKey);
     const fields = {
       ...buildCustomerFields(record, now),
-      ...extractIncomeSyncFields(record as unknown as Record<string, unknown>),
+      ...extractIncomeSyncFields(record as unknown as Record<string, unknown>, subMap),
     };
     const doc = buildCustomerDoc(prev, fields, now);
     if (prev && !docChanged(prev, doc)) continue;
@@ -564,10 +580,6 @@ export function docChanged(prev: MirrorCustomerDoc, next: MirrorCustomerDoc): bo
     return a !== b;
   });
 }
-
-
-
-
 
 // Invoice reconcile
 
@@ -624,12 +636,11 @@ export async function reconcileInvoicesDb(now = Date.now()): Promise<{ upserted:
       syncedAt: now,
     };
     if (prev) {
-      const same = ['number', 'title', 'total', 'dueDate', 'date', 'status', 'isPaid', 'paidAt']
-        .every((key) => {
-          const a = prev[key as keyof MirrorInvoiceDoc];
-          const b = doc[key as keyof MirrorInvoiceDoc];
-          return a === b;
-        });
+      const same = ['number', 'title', 'total', 'dueDate', 'date', 'status', 'isPaid', 'paidAt'].every((key) => {
+        const a = prev[key as keyof MirrorInvoiceDoc];
+        const b = doc[key as keyof MirrorInvoiceDoc];
+        return a === b;
+      });
       if (same) continue;
     }
     await prisma.invoice.upsert({
@@ -641,7 +652,7 @@ export async function reconcileInvoicesDb(now = Date.now()): Promise<{ upserted:
     upserted++;
   }
 
-  // Prune invoices deleted in Splynx 
+  // Prune invoices deleted in Splynx
   for (const idKey of deletedIds) {
     if (!existing.has(idKey)) continue;
     await prisma.invoice.delete({ where: { invoiceId: idKey } });
@@ -685,11 +696,6 @@ export async function reconcileInvoicesDb(now = Date.now()): Promise<{ upserted:
 
 // Ticket reconcile (Splynx helpdesk → Ticket table)
 
-
-
-
-
-
 const TICKET_PAGE_SIZE = 1000;
 const TICKET_MAX_PAGES = 20;
 
@@ -703,7 +709,6 @@ export interface TicketCustomerLink {
   btsId: string | null;
   btsName: string | null;
 }
-
 
 export function mapSplynxTicket(
   t: SplynxTicket,
@@ -761,9 +766,20 @@ export function mapSplynxTicket(
 }
 
 const TICKET_COMPARE_KEYS = [
-  'customerName', 'customerEmail', 'location', 'region', 'bts', 'description',
-  'assignedTo', 'status', 'createdAt', 'updatedAt', 'resolvedAt', 'deletedAt',
-  'slaBreached', 'priority',
+  'customerName',
+  'customerEmail',
+  'location',
+  'region',
+  'bts',
+  'description',
+  'assignedTo',
+  'status',
+  'createdAt',
+  'updatedAt',
+  'resolvedAt',
+  'deletedAt',
+  'slaBreached',
+  'priority',
 ] as const;
 
 export async function reconcileTicketsDb(now = Date.now()): Promise<TicketSyncResult> {
@@ -803,9 +819,21 @@ export async function reconcileTicketsDb(now = Date.now()): Promise<TicketSyncRe
   const existingRows = await prisma.ticket.findMany({
     where: { id: { startsWith: 'splynx-' } },
     select: {
-      id: true, customerName: true, customerEmail: true, location: true, region: true,
-      bts: true, description: true, assignedTo: true, status: true, createdAt: true,
-      updatedAt: true, resolvedAt: true, deletedAt: true, slaBreached: true, priority: true,
+      id: true,
+      customerName: true,
+      customerEmail: true,
+      location: true,
+      region: true,
+      bts: true,
+      description: true,
+      assignedTo: true,
+      status: true,
+      createdAt: true,
+      updatedAt: true,
+      resolvedAt: true,
+      deletedAt: true,
+      slaBreached: true,
+      priority: true,
     },
   });
   const existing = new Map(existingRows.map((r) => [r.id, r]));
@@ -814,7 +842,7 @@ export async function reconcileTicketsDb(now = Date.now()): Promise<TicketSyncRe
     const splynxId = Number((t as SplynxTicket).id) || 0;
     if (!splynxId) continue;
     const cid = Number((t as SplynxTicket).customer_id) || 0;
-    const mapped = mapSplynxTicket(t as SplynxTicket, now, cid ? customerMap.get(String(cid)) ?? null : null);
+    const mapped = mapSplynxTicket(t as SplynxTicket, now, cid ? (customerMap.get(String(cid)) ?? null) : null);
     const prev = existing.get(mapped.id);
     if (prev) {
       const same = TICKET_COMPARE_KEYS.every((key) => {
@@ -838,9 +866,33 @@ export async function reconcileTicketsDb(now = Date.now()): Promise<TicketSyncRe
 // Email jobs (scan MariaDB)
 // ---------------------------------------------------------------------------
 
-
-export async function runReminderJobDb(now = Date.now(), unpaidRows?: Array<{ invoiceId: string; customerId: string; number: string | null; title: string | null; total: number | null; dueDate: bigint | null; date: bigint | null; status: string | null; isPaid: boolean | null; paidAt: bigint | null; reminder15SentAt: bigint | null; reminder30SentAt: bigint | null; syncedAt: bigint | null }>): Promise<ReminderJobResult> {
-  const result: ReminderJobResult = { sent15: 0, sent30: 0, skippedOptOut: 0, skippedInvalid: 0, skippedChurned: 0, skippedStale: 0, skippedConnected: 0 };
+export async function runReminderJobDb(
+  now = Date.now(),
+  unpaidRows?: Array<{
+    invoiceId: string;
+    customerId: string;
+    number: string | null;
+    title: string | null;
+    total: number | null;
+    dueDate: bigint | null;
+    date: bigint | null;
+    status: string | null;
+    isPaid: boolean | null;
+    paidAt: bigint | null;
+    reminder15SentAt: bigint | null;
+    reminder30SentAt: bigint | null;
+    syncedAt: bigint | null;
+  }>,
+): Promise<ReminderJobResult> {
+  const result: ReminderJobResult = {
+    sent15: 0,
+    sent30: 0,
+    skippedOptOut: 0,
+    skippedInvalid: 0,
+    skippedChurned: 0,
+    skippedStale: 0,
+    skippedConnected: 0,
+  };
   const unpaid = unpaidRows ?? (await prisma.invoice.findMany({ where: { isPaid: false } }));
   if (!unpaid.length) return result;
 
@@ -1171,10 +1223,31 @@ export async function runWinBackJobDb(baseUrl: string, now = Date.now()): Promis
 export async function runOverdueFeedbackReminderJobDb(
   baseUrl: string,
   now = Date.now(),
-  unpaidRows?: Array<{ invoiceId: string; customerId: string; number: string | null; title: string | null; total: number | null; dueDate: bigint | null; date: bigint | null; status: string | null; isPaid: boolean | null; paidAt: bigint | null; reminder15SentAt: bigint | null; reminder30SentAt: bigint | null; syncedAt: bigint | null }>,
+  unpaidRows?: Array<{
+    invoiceId: string;
+    customerId: string;
+    number: string | null;
+    title: string | null;
+    total: number | null;
+    dueDate: bigint | null;
+    date: bigint | null;
+    status: string | null;
+    isPaid: boolean | null;
+    paidAt: bigint | null;
+    reminder15SentAt: bigint | null;
+    reminder30SentAt: bigint | null;
+    syncedAt: bigint | null;
+  }>,
 ): Promise<FeedbackReminderJobResult> {
   void unpaidRows;
-  const result: FeedbackReminderJobResult = { sent: 0, skippedOptOut: 0, skippedNoEmail: 0, skippedInvalid: 0, skippedNoOverdue: 0, skippedChurned: 0 };
+  const result: FeedbackReminderJobResult = {
+    sent: 0,
+    skippedOptOut: 0,
+    skippedNoEmail: 0,
+    skippedInvalid: 0,
+    skippedNoOverdue: 0,
+    skippedChurned: 0,
+  };
 
   const monthStart = new Date(now);
   monthStart.setUTCDate(1);

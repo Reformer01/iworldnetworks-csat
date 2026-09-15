@@ -9,6 +9,9 @@ import {
   pickDiscountPercent,
   pickDateAddedMs,
   buildIncomeRow,
+  deriveDiscountAmount,
+  deriveDiscountRemark,
+  buildMirrorIncomeRow,
   kindOfRow,
   matchesChannel,
   matchesSearch,
@@ -351,5 +354,80 @@ describe('CSV', () => {
       'note',
       'isPrepay',
     ]);
+  });
+});
+
+describe('subdivision state map', () => {
+  const osun = new Map([[30, 'Osun']]);
+  it('30 → Osun via subdivision_id (numeric + string)', () => {
+    expect(pickState({ subdivision_id: 30 }, osun)).toBe('Osun');
+    expect(pickState({ subdivision_id: '30' }, osun)).toBe('Osun');
+  });
+  it('unknown → fallback text, empty when none', () => {
+    expect(pickState({ subdivision_id: 999, state: 'Lagos' }, osun)).toBe('Lagos');
+    expect(pickState({ subdivision_id: 999 }, osun)).toBe('');
+    expect(pickState({ city: 'Ikeja' }, osun)).toBe('');
+  });
+  it('map wins over stale text', () => {
+    expect(pickState({ subdivision_id: 30, state: 'Lagos' }, osun)).toBe('Osun');
+  });
+});
+
+describe('discount derivation (invoice − paid)', () => {
+  it('27500 − 23951.61 = 3548.39', () => {
+    expect(deriveDiscountAmount(23951.61, 27500)).toBe(3548.39);
+  });
+  it('27500 − 23375 = 4125 with 15% remark', () => {
+    expect(deriveDiscountAmount(23375, 27500)).toBe(4125);
+    expect(deriveDiscountRemark(4125, 27500)).toBe('15%');
+  });
+  it('no invoice or no discount → 0 + empty remark', () => {
+    expect(deriveDiscountAmount(15000, null)).toBe(0);
+    expect(deriveDiscountAmount(15000, 15000)).toBe(0);
+    expect(deriveDiscountRemark(0, 27500)).toBe('');
+  });
+  it('mirror row buckets the FULL plan value', () => {
+    const row = buildMirrorIncomeRow({
+      ms: Date.UTC(2026, 7, 5),
+      paidAmount: 23375,
+      invoiceTotal: 27500,
+      plan: 'U-Pro',
+      category: 'retail',
+      customerName: 'SME Co',
+      email: 's@sme.ng',
+      reference: 'PSK-001',
+      note: '',
+      state: 'Osun',
+      splynxDateAdded: Date.UTC(2026, 7, 3),
+      start: START,
+      end: END,
+      isPrepay: false,
+    });
+    expect(row.amount).toBe(23375);
+    expect(row.sme).toBe(27500);
+    expect(row.discounts).toBe(4125);
+    expect(row.remark).toBe('15%');
+    expect(row.region).toBe('Osun');
+  });
+  it('Others holds paid with 0 discount', () => {
+    const row = buildMirrorIncomeRow({
+      ms: Date.UTC(2026, 7, 5),
+      paidAmount: 30000,
+      invoiceTotal: 35000,
+      plan: '',
+      category: '',
+      customerName: 'Cash Walker',
+      email: '',
+      reference: 'INV-9',
+      note: '',
+      state: '',
+      splynxDateAdded: null,
+      start: START,
+      end: END,
+      isPrepay: false,
+    });
+    expect(row.others).toBe(30000);
+    expect(row.discounts).toBe(0);
+    expect(row.remark).toBe('');
   });
 });

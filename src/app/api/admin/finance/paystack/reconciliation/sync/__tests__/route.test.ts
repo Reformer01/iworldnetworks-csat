@@ -76,7 +76,7 @@ describe('POST /api/admin/finance/paystack/reconciliation/sync', () => {
     expect(res.status).toBe(200);
     expect(body.success).toBe(true);
     expect(body.data).toEqual({ jobId: 'job-1', status: 'queued' });
-    expect(mocks.queueAdd).toHaveBeenCalledWith('reconcile', { month: '2026-08' });
+    expect(mocks.queueAdd).toHaveBeenCalledWith('reconcile', { kind: 'reconcile', month: '2026-08' });
   });
 
   it('defaults to current month when month not provided', async () => {
@@ -86,7 +86,23 @@ describe('POST /api/admin/finance/paystack/reconciliation/sync', () => {
     const body = await res.json();
     expect(res.status).toBe(200);
     expect(body.success).toBe(true);
-    expect(mocks.queueAdd).toHaveBeenCalledWith('reconcile', { month: currentMonth });
+    expect(mocks.queueAdd).toHaveBeenCalledWith('reconcile', { kind: 'reconcile', month: currentMonth });
+  });
+
+  it('enqueues a payments-backfill job when task is payments-backfill', async () => {
+    mocks.verifyAdmin.mockResolvedValueOnce(MANAGER);
+    const res = await POST(post({ task: 'payments-backfill' }));
+    const body = await res.json();
+    expect(res.status).toBe(200);
+    expect(body.data).toEqual({ jobId: 'job-1', status: 'queued' });
+    expect(mocks.queueAdd).toHaveBeenCalledWith('payments-backfill', { kind: 'payments-backfill' });
+  });
+
+  it('rejects an unknown task', async () => {
+    mocks.verifyAdmin.mockResolvedValueOnce(MANAGER);
+    const res = await POST(post({ task: 'bogus' }));
+    expect(res.status).toBe(400);
+    expect(mocks.queueAdd).not.toHaveBeenCalled();
   });
 });
 
