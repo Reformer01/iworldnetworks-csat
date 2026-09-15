@@ -2,12 +2,7 @@ import { prisma } from './prisma';
 import { getAdminFirestore } from './firebase-admin';
 import { logWarn } from './logger';
 
-/**
- * Splynx request nonce (was Firestore: splynx_nonces).
- * MariaDB-first; falls back to Firestore when the DB write is unavailable.
- * The backfill seeds the DB counter from Firestore so the sequence stays
- * monotonic across the cutover.
- */
+
 
 const COLLECTION = 'splynx_nonces';
 

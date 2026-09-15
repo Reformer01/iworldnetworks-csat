@@ -40,7 +40,6 @@ import { clearRouteCache } from './route-cache';
 import type { PrismaClient } from '@prisma/client';
 import { isBundledServicePlan } from './bts-account-type';
 
-/** Firestore document data — known-key object with JSON-serializable values. */
 type FirestoreData = { [key: string]: string | number | boolean | null | undefined | string[] | number[] | boolean[] | FirestoreData };
 
 // ---------------------------------------------------------------------------
@@ -84,22 +83,7 @@ async function getDefaultPrisma(): Promise<PrismaClient> {
   return defaultPrisma;
 }
 
-// ---------------------------------------------------------------------------
-// MariaDB-native Splynx sync.
-//
-// The Firestore version of this pipeline (splynx-mirror.ts) bulk-loads the
-// whole customer + invoice collections every run (~8.9k reads) and blew the
-// Spark daily read quota. This module is the strangler replacement:
-//
-//   - reconcile compares against MariaDB (bulk findMany — zero Firestore reads)
-//   - email jobs scan MariaDB (Customer / Invoice tables)
-//   - lock + status live in MariaDB (SyncLock / SplynxMeta)
-//   - the read-budget gate is gone (DB reads are free)
-//
-// Firestore is now WRITE-ONLY and best-effort: a small mirror of the same
-// docs the old sync kept, so the old module stays a viable rollback path and
-// the data remains inspectable. A mirror failure never fails the sync.
-// ---------------------------------------------------------------------------
+
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 const CHURN_SURVEY_TTL_MS = 30 * DAY_MS;
@@ -110,9 +94,7 @@ const CUSTOMER_COMPARE_KEYS = [
   'accountType', 'category', 'servicePlan',
 ] as const;
 
-// ---------------------------------------------------------------------------
-// Firestore mirror (write-only, best-effort)
-// ---------------------------------------------------------------------------
+
 
 let mirrorFs: Firestore | null | undefined;
 
@@ -200,8 +182,6 @@ async function mirrorChurnSurveySet(doc: ChurnSurveyDoc): Promise<void> {
   try {
     const fs = await getMirrorFirestore();
     if (!fs) return;
-    // SAFETY: ChurnSurveyDoc is a known-key object with JSON-serializable values,
-    // matching the FirestoreData contract for document writes.
     await fs.collection(CHURN_COLLECTION).doc(String(doc.customerId)).set(doc as unknown as FirestoreData);
   } catch (err) {
     logWarn('[splynx-sync-db] Firestore churn survey mirror failed (best-effort)', {
@@ -300,10 +280,8 @@ export function rowToCustomerDoc(row: {
   matchedAt?: bigint | null;
   matchUpdatedAt?: bigint | null;
 }): MirrorCustomerDoc {
-  // SAFETY: DB lifecycle column only stores valid Lifecycle enum values ('active'|'blocked'|'inactive'|'churned'),
-  // defaulting to 'active' for null/unknown.
+
   const lifecycle: Lifecycle = (row.lifecycle ?? 'active') as Lifecycle;
-  // SAFETY: overdueInfo is written by this module as CustomerOverdueInfo | null; reading back preserves the shape.
   const overdueInfo = (row.overdueInfo ?? null) as CustomerOverdueInfo | null;
   return {
     customerId: Number(row.customerId),
@@ -385,23 +363,19 @@ export function rowToInvoiceDoc(row: {
   };
 }
 
-// ---------------------------------------------------------------------------
-// Customer reconcile
-// ---------------------------------------------------------------------------
 
-/**
- * Build the full mirror doc for one Splynx customer, applying the same
- * lifecycle transition policy as the Firestore sync:
- *  1. Once churned, always churned — status flapping must not resurrect them.
- *  2. Long-inactive (90d+) customers are reclassified as churned.
- */
+
+
+// Customer reconcile
+
+
+
 export function buildCustomerDoc(
   prev: MirrorCustomerDoc | undefined,
   fields: Partial<MirrorCustomerDoc>,
   now: number,
 ): MirrorCustomerDoc {
   const prevLifecycle = prev?.lifecycle ?? 'active';
-  // SAFETY: fields.lifecycle only comes from buildCustomerFields which produces valid Lifecycle values.
   let lifecycle: Lifecycle = (fields.lifecycle ?? 'active') as Lifecycle;
   if (prevLifecycle === 'churned' && lifecycle === 'inactive') {
     lifecycle = 'churned';
@@ -421,9 +395,7 @@ export function buildCustomerDoc(
   if (lifecycle === 'blocked' && prevLifecycle !== 'blocked' && !blockedSince) blockedSince = now;
   else if (lifecycle !== 'blocked' && prevLifecycle === 'blocked') blockedSince = null;
 
-  // The customer-list endpoint can return a generic/single plan after the
-  // service backfill has found several current tariffs. Preserve the enriched
-  // bundle until a service-level refresh can recalculate its composition.
+
   const preserveBundle = !!prev && isBundledServicePlan(prev.servicePlan) && !isBundledServicePlan(fields.servicePlan);
   const nextMrrTotal = preserveBundle
     ? prev?.mrrTotal ?? 0
@@ -431,9 +403,7 @@ export function buildCustomerDoc(
   const nextServicePlan = preserveBundle ? prev?.servicePlan ?? '' : fields.servicePlan || prev?.servicePlan || '';
 
   const changed = !prev || CUSTOMER_COMPARE_KEYS.some((key) => {
-    // SAFETY: CUSTOMER_COMPARE_KEYS are known keys of MirrorCustomerDoc; prev is a full doc when present.
     const a = prev?.[key as keyof MirrorCustomerDoc];
-    // SAFETY: fields is Partial<MirrorCustomerDoc> with the same key set.
     const b = fields[key as keyof MirrorCustomerDoc];
     if (key === 'lifecycle') return a !== lifecycle;
     if (key === 'mrrTotal') return a !== nextMrrTotal;
@@ -455,9 +425,7 @@ export function buildCustomerDoc(
     online: fields.online ?? prev?.online ?? false,
     lastOnlineAt: fields.lastOnlineAt ?? prev?.lastOnlineAt ?? null,
     lastUpdateAt: fields.lastUpdateAt ?? prev?.lastUpdateAt ?? null,
-    // The list endpoint reports `0.0000` for customers whose tariff is not
-    // resolved. Keep an already-enriched value until the tariff backfill or a
-    // later authoritative positive MRR arrives.
+ 
     mrrTotal: nextMrrTotal,
     accountType: fields.accountType ?? prev?.accountType ?? 'regular',
     category: fields.category ?? prev?.category ?? '',
@@ -478,10 +446,7 @@ export function buildCustomerDoc(
     emailOptOut: prev?.emailOptOut ?? false,
     emailInvalid: prev?.emailInvalid ?? false,
     overdueInfo: prev?.overdueInfo ?? null,
-    // Match-owned fields: carried through untouched so sync reconciles never wipe
-    // tower attribution. Match wins for btsName; a fresh Splynx label fills it only
-    // when no match exists yet (powers deviceResolve splynx-label). Deliberately NOT
-    // in CUSTOMER_COMPARE_KEYS — the matching job owns these, no write ping-pong.
+
     btsId: prev?.btsId ?? null,
     btsName: prev?.btsName ?? fields.btsName ?? null,
     uispEndpointId: prev?.uispEndpointId ?? null,
@@ -495,6 +460,13 @@ export function buildCustomerDoc(
     matchUpdatedAt: prev?.matchUpdatedAt ?? null,
   };
 }
+
+
+
+
+
+
+
 
 export async function reconcileCustomersDb(now = Date.now()): Promise<{ upserted: number; deleted: number; fetched: number }> {
   const records = await getAllCustomers();
@@ -520,7 +492,6 @@ export async function reconcileCustomersDb(now = Date.now()): Promise<{ upserted
     upserted++;
   }
 
-  // Mark customers absent from the live list as deleted (never hard-delete).
   let deleted = 0;
   for (const [idKey, prev] of existing.entries()) {
     if (prev.deleted || seen.has(idKey)) continue;
@@ -535,21 +506,20 @@ export async function reconcileCustomersDb(now = Date.now()): Promise<{ upserted
   return { upserted, deleted, fetched: records.length };
 }
 
-/** True when the two docs differ on any customer data field or lastChangeAt. */
 export function docChanged(prev: MirrorCustomerDoc, next: MirrorCustomerDoc): boolean {
   if (prev.lastChangeAt !== next.lastChangeAt) return true;
   return CUSTOMER_COMPARE_KEYS.some((key) => {
-    // SAFETY: CUSTOMER_COMPARE_KEYS are known keys of MirrorCustomerDoc.
     const a = prev[key as keyof MirrorCustomerDoc];
-    // SAFETY: CUSTOMER_COMPARE_KEYS are known keys of MirrorCustomerDoc.
     const b = next[key as keyof MirrorCustomerDoc];
     return a !== b;
   });
 }
 
-// ---------------------------------------------------------------------------
+
+
+
+
 // Invoice reconcile
-// ---------------------------------------------------------------------------
 
 export async function reconcileInvoicesDb(now = Date.now()): Promise<{ upserted: number; denied: boolean; fetched: number }> {
   let unpaid: SplynxInvoice[];
@@ -606,9 +576,7 @@ export async function reconcileInvoicesDb(now = Date.now()): Promise<{ upserted:
     if (prev) {
       const same = ['number', 'title', 'total', 'dueDate', 'date', 'status', 'isPaid', 'paidAt']
         .every((key) => {
-          // SAFETY: Keys are known properties of MirrorInvoiceDoc.
           const a = prev[key as keyof MirrorInvoiceDoc];
-          // SAFETY: Keys are known properties of MirrorInvoiceDoc.
           const b = doc[key as keyof MirrorInvoiceDoc];
           return a === b;
         });
@@ -623,15 +591,14 @@ export async function reconcileInvoicesDb(now = Date.now()): Promise<{ upserted:
     upserted++;
   }
 
-  // Prune invoices deleted in Splynx (webhook handles paid flips).
+  // Prune invoices deleted in Splynx 
   for (const idKey of deletedIds) {
     if (!existing.has(idKey)) continue;
     await prisma.invoice.delete({ where: { invoiceId: idKey } });
     await mirrorInvoiceDelete(idKey);
   }
 
-  // Denormalize the overdue summary onto customer rows so admin list pages
-  // never scan the invoice table.
+  // Denormalize the overdue summary onto customer rows so admin list pages never scan the invoice table.
   const freshByCustomer = new Map<number, SplynxInvoice[]>();
   for (const inv of unpaid) {
     const bucket = freshByCustomer.get(inv.customerId) || [];
@@ -650,19 +617,14 @@ export async function reconcileInvoicesDb(now = Date.now()): Promise<{ upserted:
     const normalized = fresh.map((inv) => normalizeInvoiceForOverdue(inv, existing.get(String(inv.id)), now));
     await prisma.customer.update({
       where: { customerId: String(cid) },
-      // SAFETY: buildCustomerOverdueInfo returns CustomerOverdueInfo which is JSON-serializable,
-      // matching Prisma's InputJsonValue requirement.
       data: { overdueInfo: buildCustomerOverdueInfo(normalized, now) as unknown as Prisma.InputJsonValue },
     });
   }
-  // Customers whose invoices all disappeared from the unpaid list (paid or
-  // deleted) must have their badge cleared.
+
   for (const [cid] of existingByCustomer) {
     if (!freshByCustomer.has(cid)) {
       await prisma.customer.update({
         where: { customerId: String(cid) },
-        // SAFETY: buildCustomerOverdueInfo returns CustomerOverdueInfo which is JSON-serializable,
-        // matching Prisma's InputJsonValue requirement.
         data: { overdueInfo: buildCustomerOverdueInfo([], now) as unknown as Prisma.InputJsonValue },
       });
     }
@@ -671,14 +633,16 @@ export async function reconcileInvoicesDb(now = Date.now()): Promise<{ upserted:
   return { upserted, denied: false, fetched: unpaid.length + deleted.length + existingRows.length };
 }
 
-// ---------------------------------------------------------------------------
 // Ticket reconcile (Splynx helpdesk → Ticket table)
-// ---------------------------------------------------------------------------
+
+
+
+
+
 
 const TICKET_PAGE_SIZE = 1000;
 const TICKET_MAX_PAGES = 20;
-/** Business rule (confirmed Sep 2026): a ticket breaches SLA when unresolved
- *  1.5h after creation. */
+
 const TICKET_SLA_BREACH_MS = 90 * 60 * 1000;
 const TICKET_PRIORITY_MAP: Record<string, number> = { low: 1, medium: 2, high: 3, urgent: 4, critical: 5 };
 
@@ -690,13 +654,7 @@ export interface TicketCustomerLink {
   btsName: string | null;
 }
 
-/**
- * Map a raw Splynx ticket to a Ticket row. Status names are installation-
- * specific and unreachable via API, so state derives from observables only:
- * trash=1 → soft-deleted, closed=1 → closed (+resolvedAt = updated_at),
- * otherwise open. firstResponseAt/escalation have no list-endpoint signal and
- * stay null for synced rows (staff fill them in the admin ticket workflow).
- */
+
 export function mapSplynxTicket(
   t: SplynxTicket,
   now: number,
@@ -741,8 +699,6 @@ export function mapSplynxTicket(
     bts: customer?.btsName || null,
     complaintType: null,
     description: note ? `${subject}\n\n${note}` : subject || null,
-    // Resolved via the static admin directory (admin endpoint is 403):
-    // roster id when mapped (staff KPIs attribute), else Splynx full name.
     assignedTo: resolveTicketAssignee(t.assign_to),
     status: closed ? 'closed' : 'open',
     createdAt: createdAt != null ? BigInt(createdAt) : null,
@@ -832,12 +788,7 @@ export async function reconcileTicketsDb(now = Date.now()): Promise<TicketSyncRe
 // Email jobs (scan MariaDB)
 // ---------------------------------------------------------------------------
 
-/** Send 15/30-day payment reminders — disconnected customers only (idempotent).
- *  Same mechanism Splynx uses: Splynx disconnects (status → blocked) after the invoice
- *  goes overdue and the term expires. Overdue customers who still have access
- *  (active lifecycle, or seen online within 30d) are skipped — they are still
- *  paying customers with outstanding balances, not disconnected ones.
- *  One email per customer per threshold — 15d and 30d are never combined. */
+
 export async function runReminderJobDb(now = Date.now(), unpaidRows?: Array<{ invoiceId: string; customerId: string; number: string | null; title: string | null; total: number | null; dueDate: bigint | null; date: bigint | null; status: string | null; isPaid: boolean | null; paidAt: bigint | null; reminder15SentAt: bigint | null; reminder30SentAt: bigint | null; syncedAt: bigint | null }>): Promise<ReminderJobResult> {
   const result: ReminderJobResult = { sent15: 0, sent30: 0, skippedOptOut: 0, skippedInvalid: 0, skippedChurned: 0, skippedStale: 0, skippedConnected: 0 };
   const unpaid = unpaidRows ?? (await prisma.invoice.findMany({ where: { isPaid: false } }));

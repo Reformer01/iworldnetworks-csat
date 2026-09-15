@@ -1,16 +1,3 @@
-// Splynx administrator directory (Administration → Administrators export,
-// Sep 2026) + mapping onto the CSAT staff roster (src/lib/staff.ts).
-//
-// Why this file exists: tickets reference assignees by NUMERIC Splynx admin
-// id (assign_to), and the admin-directory endpoint is 403 for our API key.
-// The ticket sync resolves ids through this table so staff KPIs attribute
-// correctly. Names differ between systems (reversed/spelled differently),
-// hence the explicit map — never fuzzy-match names here.
-//
-// If someone new starts getting tickets, add their row (id → roster id).
-// Unmapped ids resolve to the Splynx full name (visible, unattributed).
-
-/** Splynx admin id → full name (from the Administrators CSV export). */
 export const SPLYNX_ADMINS: Record<number, string> = {
   1: 'Main Admin',
   2: 'Splynx admin',
@@ -81,13 +68,7 @@ export const SPLYNX_ADMINS: Record<number, string> = {
   79: 'Morenikeji Abiola',
 };
 
-/**
- * Splynx admin id → CSAT staff roster id (src/lib/staff.ts). Only certain
- * matches are listed: exact names plus the known reversed/misspelled pairs
- * (Ademiju Adekunle, Olopade Oluwasegun, Habeebllahi Hussain, Victoria
- * Fakorede, Christianah Babatunde, Adewale Adekomaya). When in doubt the id
- * stays OUT and the ticket keeps the Splynx name, unattributed.
- */
+
 export const SPLYNX_ADMIN_TO_STAFF: Record<number, string> = {
   // Front-end Support
   19: 'support-olusegun-oluwanishola',
@@ -115,11 +96,7 @@ export const SPLYNX_ADMIN_TO_STAFF: Record<number, string> = {
   64: 'field-oluwasegun-olopade',
 };
 
-/**
- * Resolve a Splynx assign_to id to the Ticket.assignedTo value: roster id
- * when mapped (staff-KPI matching works), else the Splynx full name
- * (visible but unattributed), else a traceable placeholder. 0/null → null.
- */
+
 export function resolveTicketAssignee(adminId: number | null | undefined): string | null {
   const id = Number(adminId) || 0;
   if (id <= 0) return null;

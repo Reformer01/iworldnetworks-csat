@@ -23,7 +23,7 @@ export function verifyPaystackSignature(rawBody: string, signature: string | nul
 }
 
 export interface PaystackWebhookTransaction {
-  paystackId: number;
+  paystackId: string;
   reference: string;
   amountKobo: number;
   currency: string;
@@ -52,7 +52,9 @@ function asRecord(value: unknown): Record<string, unknown> | null {
 export function extractWebhookTransaction(data: unknown): PaystackWebhookTransaction | null {
   const tx = asRecord(data);
   if (!tx) return null;
-  if (typeof tx.id !== 'number' || !Number.isFinite(tx.id)) return null;
+  if (typeof tx.id !== 'number' && typeof tx.id !== 'string') return null;
+  if (typeof tx.id === 'number' && !Number.isFinite(tx.id)) return null;
+  if (typeof tx.id === 'string' && !tx.id.trim()) return null;
   const reference = typeof tx.reference === 'string' ? tx.reference.trim() : '';
   if (!reference) return null;
 
@@ -72,7 +74,7 @@ export function extractWebhookTransaction(data: unknown): PaystackWebhookTransac
     typeof dispute === 'string' ? dispute : typeof asRecord(dispute)?.status === 'string' ? String(asRecord(dispute)?.status) : null;
 
   return {
-    paystackId: tx.id,
+    paystackId: String(tx.id),
     reference,
     amountKobo,
     currency: typeof tx.currency === 'string' && tx.currency ? tx.currency : 'NGN',

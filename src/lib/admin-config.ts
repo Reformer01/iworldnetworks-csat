@@ -36,11 +36,7 @@ export function isAllowedDomain(email: string): boolean {
   return email.toLowerCase().endsWith(ALLOWED_EMAIL_DOMAIN);
 }
 
-/**
- * Whether a user may create/modify/delete sales records. Super admins and
- * editors can manage anything; sales agents can only manage records that
- * carry their own name as the sales agent.
- */
+
 export function canManageSalesRecord(email: string, recordSalesAgent: string): boolean {
   if (isSuperAdmin(email) || isEditor(email)) return true;
   return getAgentByEmail(email)?.name === recordSalesAgent;

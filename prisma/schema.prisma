@@ -805,7 +805,7 @@ model MonthlySnapshot {
 // Synced on demand for monthly revenue reconciliation (splynx sales + paystack collections).
 model PaystackTransaction {
   id            String   @id @default(cuid())
-  paystackId    Int      @unique
+  paystackId    String   @unique
   reference     String   @unique
   amount        Int      // kobo (divide by 100 for Naira)
   currency      String   @default("NGN")

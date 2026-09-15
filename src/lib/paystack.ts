@@ -79,6 +79,7 @@ export async function syncPaystackTransactions(opts?: {
   maxPages?: number;
   perPage?: number;
   statuses?: string[];
+  onProgress?: (p: { fetched: number; upserted: number; page: number }) => void | Promise<void>;
 }): Promise<{ upserted: number; fetched: number }> {
   const maxPages = opts?.maxPages ?? 10;
   const perPage = opts?.perPage ?? 100;
@@ -116,7 +117,7 @@ export async function syncPaystackTransactions(opts?: {
         await prisma.paystackTransaction.upsert({
           where: { reference: tx.reference },
           update: {
-            paystackId: tx.id,
+            paystackId: String(tx.id),
             amount: tx.amount,
             currency: tx.currency || 'NGN',
             status: tx.status,
@@ -132,7 +133,7 @@ export async function syncPaystackTransactions(opts?: {
             raw: tx as unknown as never,
           },
           create: {
-            paystackId: tx.id,
+            paystackId: String(tx.id),
             reference: tx.reference,
             amount: tx.amount,
             currency: tx.currency || 'NGN',
@@ -155,6 +156,7 @@ export async function syncPaystackTransactions(opts?: {
       }
     }
     logInfo('[paystack] page synced', { page, count: data.length });
+    await opts?.onProgress?.({ fetched, upserted, page });
     if (!hasMore) break;
     // polite delay to respect rate limit
     await new Promise((r) => setTimeout(r, 300));

@@ -183,12 +183,11 @@ function isNumberValue(value: string | number): value is number {
   return typeof value === 'number';
 }
 
-/**
- * Parse a Splynx date string ("YYYY-MM-DD" or "YYYY-MM-DD HH:mm:ss") into an
- * epoch millisecond timestamp (UTC). Zero dates ("0000-00-00") and garbage
- * yield null. The explicit "Z" keeps parsing deterministic across timezones:
- * date-only forms otherwise parse as UTC while datetime forms parse as local.
- */
+
+
+
+
+
 export function parseSplynxApiDate(rawValue: string | undefined | null): number | null {
   if (!isStringValue(rawValue)) return null;
   const clean = rawValue.trim();
@@ -200,14 +199,8 @@ export function parseSplynxApiDate(rawValue: string | undefined | null): number 
   return Number.isNaN(ms) ? null : ms;
 }
 
-/**
- * Map the RAW `/admin/finance/invoices` payload to the canonical SplynxInvoice
- * shape. The API returns snake_case fields (`customer_id`, `date_till`,
- * `date_payment`, …) and has NO `title`/`is_paid`/`paidAt` fields — without
- * this mapping every camelCase field is `undefined` and the mirror writes
- * invoice docs with only `id`/`number`/`total`/`status` (the rest silently
- * dropped by `ignoreUndefinedProperties`), which broke overdue denormalization.
- */
+
+
 export function normalizeSplynxInvoice(raw: RawSplynxInvoice): SplynxInvoice {
   const status = String(raw.status ?? '').toLowerCase();
   const paidAt = parseSplynxApiDate(raw.date_payment);
@@ -304,10 +297,8 @@ async function splynxFetch<T>(endpoint: string, params?: URLSearchParams): Promi
 
       return response.json();
     } catch (error) {
-      // SAFETY: fetch errors are always Error instances in this context.
       lastError = error as Error;
 
-      // Check if this is a rate limit error that we should retry on
       const isRateLimit =
         error instanceof Error &&
         (error.message.includes('RESOURCE_EXHAUSTED') ||
@@ -359,11 +350,7 @@ export async function getDeletedInvoices(): Promise<SplynxInvoice[]> {
   return normalizeInvoiceList(raw);
 }
 
-/**
- * Raw `/admin/support/tickets` record. Status names are installation-specific
- * (Config → Helpdesk → Ticket statuses) and NOT exposed by any API endpoint
- * the key can reach, so callers must derive state from `closed`/`trash`.
- */
+
 export interface SplynxTicket {
   id: number;
   customer_id: number;
@@ -419,27 +406,20 @@ export async function getRouters(): Promise<SplynxRouter[]> {
 }
 
 export async function getTariffs(): Promise<SplynxTariff[]> {
-  // Splynx exposes internet tariffs at this endpoint. `/tariffs/tariff` is a
-  // different legacy route and returns 404 on the production installation.
+  
   const response = await splynxFetch<SplynxTariff[] | PaginatedResponse<SplynxTariff>>('/admin/tariffs/internet');
   return Array.isArray(response) ? response : (response.data ?? []);
 }
 
 export async function getCustomerServices(customerId: number | string): Promise<SplynxService[]> {
-  // NOTE: internet services live at /internet-services (NOT /services — that
-  // path 404s). Requires the API key to have Customers → Internet services read.
+  
   const response = await splynxFetch<PaginatedResponse<SplynxService> | SplynxService[]>(
     `/admin/customers/customer/${customerId}/internet-services`,
   );
-  // Shape varies by Splynx version: {data: [...]} envelope or bare array.
   return Array.isArray(response) ? response : (response.data ?? []);
 }
 
-/**
- * Extract BTS name from customer labels.
- * Labels like "BTS - AKURE OFFICE X" contain the BTS assignment.
- * Returns the canonical BTS name if found, null otherwise.
- */
+
 export function extractBtsFromLabels(labels: SplynxCustomerLabel[] | undefined): string | null {
   if (!labels || labels.length === 0) return null;
   for (const lbl of labels) {

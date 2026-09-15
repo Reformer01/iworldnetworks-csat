@@ -103,26 +103,33 @@ export const POST = withAdmin(
     if (!body?.customerName || !body?.staffName) {
       return error('customerName and staffName are required', 400);
     }
+    // MariaDB VARCHAR(191) guard: truncate instead of 500ing (feedback and
+    // upsellNote are TEXT and pass through untouched).
+    const str = (v: unknown, max = 191): string | null => {
+      if (v === null || v === undefined || v === '') return null;
+      const s = String(v);
+      return s.length > max ? s.slice(0, max) : s;
+    };
     const log = await prisma.engagementLog.create({
       data: {
         customerId: body.customerId || null,
-        customerName: String(body.customerName).slice(0, 190),
-        btsName: body.btsName || null,
-        accountStatus: body.accountStatus || null,
-        accountType: body.accountType || null,
-        plan: body.plan || null,
-        region: body.region || null,
-        phone: body.phone || null,
-        callStatus: body.callStatus || null,
+        customerName: String(body.customerName).slice(0, 191),
+        btsName: str(body.btsName),
+        accountStatus: str(body.accountStatus),
+        accountType: str(body.accountType),
+        plan: str(body.plan),
+        region: str(body.region),
+        phone: str(body.phone),
+        callStatus: str(body.callStatus),
         lastContactAt: body.lastContactAt ? new Date(body.lastContactAt) : new Date(),
         nextFollowUpAt: body.nextFollowUpAt ? new Date(body.nextFollowUpAt) : null,
-        purpose: body.purpose || null,
+        purpose: str(body.purpose),
         feedback: body.feedback || null,
-        complaint: body.complaint || null,
+        complaint: str(body.complaint),
         upsellNote: body.upsellNote || null,
-        retentionRisk: body.retentionRisk || null,
-        resolution: body.resolution || null,
-        staffName: String(body.staffName),
+        retentionRisk: str(body.retentionRisk),
+        resolution: str(body.resolution),
+        staffName: String(body.staffName).slice(0, 191),
       },
     });
     return success(log, 201);

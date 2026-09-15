@@ -5,18 +5,8 @@ import { unauthorized, forbidden, tooMany, serverError, validateOrigin } from '@
 import { isSuperAdmin } from '@/lib/admin-config';
 import { logError } from '@/lib/logger';
 
-/**
- * Clean Architecture adapter: HTTP concerns (auth, rate-limit, origin, error
- * envelope) live here. Business logic lives in services — never in routes.
- *
- * Usage:
- *   export const GET = withAdmin(async (req, admin) => success(data), { rate: { limit: 120, windowMs: 60_000 } });
- *   export const POST = withAdmin(async (req, admin) => { ... }, { rate: { limit: 60, windowMs: 60_000 } });
- *
- * Ponytail: one function, no DI container, reuses existing helpers.
- */
+
 type Admin = { uid: string; email: string };
-// ctx is Next.js route context { params } — forwarded for [id] routes.
 type Handler = (req: NextRequest, admin: Admin, ctx?: unknown) => Promise<NextResponse>;
 
 interface WithAdminOpts {

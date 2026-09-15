@@ -40,9 +40,20 @@ export const PATCH = withAdmin(
     const body = await req.json().catch(() => null);
     if (!body || typeof body !== 'object') return error('body required', 400);
 
+    // MariaDB VARCHAR(191) guard (see AGENTS.md): complaint/resolution etc.
+    // overflowed the column and 500'd the update — truncate, never throw.
+    const MAX_LEN = 191;
     const data: Record<string, unknown> = {};
     for (const key of EDITABLE) {
-      if (key in body) data[key] = body[key] === '' ? null : body[key];
+      if (!(key in body)) continue;
+      const v = body[key];
+      if (v === '') {
+        data[key] = null;
+      } else if (typeof v === 'string' && key !== 'feedback' && key !== 'upsellNote') {
+        data[key] = v.slice(0, MAX_LEN);
+      } else {
+        data[key] = v;
+      }
     }
     if ('lastContactAt' in body) {
       data.lastContactAt = body.lastContactAt ? new Date(body.lastContactAt) : null;

@@ -663,11 +663,11 @@ function EditLogDialog({ log, onClose, onSaved }: { log: EngagementLog; onClose:
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <div className="space-y-1">
               <label className="font-mono text-[9px] uppercase font-bold text-on-surface-variant">Complaint Raised</label>
-              <Input className="rounded-xl" value={form.complaint} onChange={(e) => set('complaint', e.target.value)} />
+              <Input className="rounded-xl" value={form.complaint} maxLength={191} onChange={(e) => set('complaint', e.target.value)} />
             </div>
             <div className="space-y-1">
               <label className="font-mono text-[9px] uppercase font-bold text-on-surface-variant">Resolution</label>
-              <Input className="rounded-xl" value={form.resolution} onChange={(e) => set('resolution', e.target.value)} />
+              <Input className="rounded-xl" value={form.resolution} maxLength={191} onChange={(e) => set('resolution', e.target.value)} />
             </div>
           </div>
           <div className="space-y-1">
