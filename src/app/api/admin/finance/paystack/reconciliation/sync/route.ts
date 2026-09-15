@@ -16,9 +16,9 @@ function parseMonth(value: unknown): string | null {
   return null;
 }
 
-function parseTask(value: unknown): 'reconcile' | 'payments-backfill' | null {
+function parseTask(value: unknown): 'reconcile' | 'payments-backfill' | 'invoice-items' | null {
   if (value == null || value === '') return 'reconcile';
-  if (value === 'reconcile' || value === 'payments-backfill') return value;
+  if (value === 'reconcile' || value === 'payments-backfill' || value === 'invoice-items') return value;
   return null;
 }
 
@@ -35,9 +35,25 @@ export async function POST(request: NextRequest) {
     const month = parseMonth(body.month);
     if (!month) return error('month must be YYYY-MM');
     const task = parseTask(body.task);
-    if (!task) return error("task must be 'reconcile' or 'payments-backfill'");
+    if (!task) return error("task must be 'reconcile', 'payments-backfill' or 'invoice-items'");
 
     const queue = getReconciliationQueue();
+    if (task === 'invoice-items') {
+      if (body.invoiceIds !== undefined) {
+        if (!Array.isArray(body.invoiceIds) || !body.invoiceIds.every((v) => typeof v === 'string')) {
+          return error('invoiceIds must be an array of strings');
+        }
+        const invoiceIds = body.invoiceIds
+          .map((v: string) => v.trim())
+          .filter(Boolean)
+          .slice(0, 2000);
+        if (!invoiceIds.length) return error('invoiceIds must not be empty');
+        const job = await queue.add('invoice-items', { kind: 'invoice-items', invoiceIds });
+        return success({ jobId: job.id, status: 'queued' as const });
+      }
+      const job = await queue.add('invoice-items', { kind: 'invoice-items', month });
+      return success({ jobId: job.id, status: 'queued' as const });
+    }
     if (task === 'payments-backfill') {
       const job = await queue.add('payments-backfill', { kind: 'payments-backfill' });
       return success({ jobId: job.id, status: 'queued' as const });

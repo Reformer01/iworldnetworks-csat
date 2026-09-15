@@ -31,6 +31,7 @@ const prismaMock = vi.hoisted(() => ({
 const apiMock = vi.hoisted(() => ({
   getAllCustomers: vi.fn(),
   getAllInvoices: vi.fn(),
+  getInvoiceById: vi.fn(),
   getUnpaidInvoices: vi.fn(),
   getDeletedInvoices: vi.fn(),
   getSupportTickets: vi.fn().mockResolvedValue([]),
@@ -111,6 +112,7 @@ import {
   CUSTOMER_COMPARE_KEYS,
   reconcileCustomersDb,
   reconcileInvoicesDb,
+  syncInvoiceItemsByIds,
   runReminderJobDb,
   runChurnSurveyJobDb,
   runWinBackJobDb,
@@ -656,6 +658,53 @@ describe('reconcileInvoicesDb', () => {
         data: expect.objectContaining({ overdueInfo: expect.objectContaining({ hasOverdueInvoice: true }) }),
       }),
     );
+  });
+});
+
+// ---------------------------------------------------------------------------
+// syncInvoiceItemsByIds (targeted invoice-items backfill)
+// ---------------------------------------------------------------------------
+
+describe('syncInvoiceItemsByIds', () => {
+  const items = [
+    { description: 'Shared Access Plan for Homes', price: 27500 },
+    { description: 'Compensation for July Downtime', price: -3548.39 },
+  ];
+
+  beforeEach(() => {
+    apiMock.getInvoiceById.mockResolvedValue(invoiceRecord({ items }));
+  });
+
+  it('persists items from the single-invoice endpoint', async () => {
+    const result = await syncInvoiceItemsByIds(['101'], { delayMs: 0, now: NOW });
+    expect(result).toEqual({ fetched: 1, upserted: 1, failed: 0 });
+    expect(apiMock.getInvoiceById).toHaveBeenCalledWith('101');
+    const [args] = prismaMock.invoice.upsert.mock.calls[0];
+    expect(args.where).toEqual({ invoiceId: '101' });
+    expect(args.create.items).toEqual(items);
+  });
+
+  it('counts failures separately and continues the batch', async () => {
+    apiMock.getInvoiceById.mockRejectedValueOnce(new Error('Splynx API error 500: boom'));
+    const result = await syncInvoiceItemsByIds(['101', '102'], { delayMs: 0, now: NOW });
+    expect(result).toEqual({ fetched: 1, upserted: 1, failed: 1 });
+    expect(prismaMock.invoice.upsert).toHaveBeenCalledTimes(1);
+  });
+
+  it('dedupes, skips blanks, and caps at 2000 ids', async () => {
+    const ids = ['', '  ', ...Array.from({ length: 2005 }, (_, i) => String(i + 1)), '1', '2'];
+    const result = await syncInvoiceItemsByIds(ids, { delayMs: 0, now: NOW });
+    expect(apiMock.getInvoiceById).toHaveBeenCalledTimes(2000);
+    expect(result.fetched).toBe(2000);
+    expect(result.upserted).toBe(2000);
+    expect(result.failed).toBe(0);
+  });
+
+  it('returns zeros without fetching when given no usable ids', async () => {
+    const result = await syncInvoiceItemsByIds(['', '  '], { delayMs: 0, now: NOW });
+    expect(result).toEqual({ fetched: 0, upserted: 0, failed: 0 });
+    expect(apiMock.getInvoiceById).not.toHaveBeenCalled();
+    expect(prismaMock.invoice.upsert).not.toHaveBeenCalled();
   });
 });
 

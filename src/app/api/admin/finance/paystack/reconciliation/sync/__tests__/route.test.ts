@@ -98,6 +98,48 @@ describe('POST /api/admin/finance/paystack/reconciliation/sync', () => {
     expect(mocks.queueAdd).toHaveBeenCalledWith('payments-backfill', { kind: 'payments-backfill' });
   });
 
+  it('enqueues an invoice-items job with an explicit month', async () => {
+    mocks.verifyAdmin.mockResolvedValueOnce(MANAGER);
+    const res = await POST(post({ task: 'invoice-items', month: '2026-09' }));
+    const body = await res.json();
+    expect(res.status).toBe(200);
+    expect(body.data).toEqual({ jobId: 'job-1', status: 'queued' });
+    expect(mocks.queueAdd).toHaveBeenCalledWith('invoice-items', { kind: 'invoice-items', month: '2026-09' });
+  });
+
+  it('defaults invoice-items month to current month when neither month nor ids given', async () => {
+    mocks.verifyAdmin.mockResolvedValueOnce(MANAGER);
+    const currentMonth = new Date().toISOString().slice(0, 7);
+    const res = await POST(post({ task: 'invoice-items' }));
+    const body = await res.json();
+    expect(res.status).toBe(200);
+    expect(body.data).toEqual({ jobId: 'job-1', status: 'queued' });
+    expect(mocks.queueAdd).toHaveBeenCalledWith('invoice-items', { kind: 'invoice-items', month: currentMonth });
+  });
+
+  it('enqueues an invoice-items job with explicit invoiceIds', async () => {
+    mocks.verifyAdmin.mockResolvedValueOnce(MANAGER);
+    const res = await POST(post({ task: 'invoice-items', invoiceIds: ['101', '102'] }));
+    const body = await res.json();
+    expect(res.status).toBe(200);
+    expect(body.data).toEqual({ jobId: 'job-1', status: 'queued' });
+    expect(mocks.queueAdd).toHaveBeenCalledWith('invoice-items', { kind: 'invoice-items', invoiceIds: ['101', '102'] });
+  });
+
+  it('rejects invoice-items with non-array invoiceIds', async () => {
+    mocks.verifyAdmin.mockResolvedValueOnce(MANAGER);
+    const res = await POST(post({ task: 'invoice-items', invoiceIds: '101' }));
+    expect(res.status).toBe(400);
+    expect(mocks.queueAdd).not.toHaveBeenCalled();
+  });
+
+  it('rejects invoice-items with empty invoiceIds', async () => {
+    mocks.verifyAdmin.mockResolvedValueOnce(MANAGER);
+    const res = await POST(post({ task: 'invoice-items', invoiceIds: ['  '] }));
+    expect(res.status).toBe(400);
+    expect(mocks.queueAdd).not.toHaveBeenCalled();
+  });
+
   it('rejects an unknown task', async () => {
     mocks.verifyAdmin.mockResolvedValueOnce(MANAGER);
     const res = await POST(post({ task: 'bogus' }));

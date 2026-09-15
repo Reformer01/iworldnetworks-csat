@@ -16,6 +16,36 @@ export function getReconciliationWorker(): Worker<ReconciliationJobData> {
         const month = job.data.month ?? new Date().toISOString().slice(0, 7);
         logInfo('[reconciliation-worker] Processing job', { jobId: job.id, kind, month });
 
+        if (kind === 'invoice-items') {
+          const { syncInvoiceItemsByIds, INVOICE_ITEMS_MAX_IDS } = await import('@/lib/splynx-sync-db');
+          const { prisma } = await import('@/lib/prisma');
+          await job.updateProgress({ stage: 'invoice-items', kind, fetched: 0, upserted: 0 });
+          let ids = (Array.isArray(job.data.invoiceIds) ? job.data.invoiceIds : []).map((v) => String(v ?? '').trim()).filter(Boolean);
+          if (!ids.length) {
+            const [y, m] = month.split('-').map(Number);
+            const gte = new Date(Date.UTC(y, m - 1, 1));
+            const lt = new Date(Date.UTC(y, m, 1));
+            const rows = await prisma.splynxPayment.findMany({
+              where: { paidAt: { gte, lt } },
+              select: { invoiceId: true },
+              take: INVOICE_ITEMS_MAX_IDS,
+            });
+            const seen = new Set<string>();
+            ids = [];
+            for (const row of rows) {
+              const inv = String(row.invoiceId ?? '').trim();
+              if (!inv || seen.has(inv)) continue;
+              seen.add(inv);
+              ids.push(inv);
+              if (ids.length >= INVOICE_ITEMS_MAX_IDS) break;
+            }
+          }
+          const result = await syncInvoiceItemsByIds(ids);
+          await job.updateProgress({ stage: 'complete', kind, ...result });
+          logInfo('[reconciliation-worker] Invoice items sync succeeded', { jobId: job.id, kind, ...result });
+          return result;
+        }
+
         if (kind === 'payments-backfill' || kind === 'payments-incremental') {
           const { syncSplynxPayments } = await import('@/lib/splynx-payments');
           await job.updateProgress({ stage: 'payments', kind, fetched: 0, upserted: 0 });

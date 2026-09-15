@@ -373,6 +373,19 @@ export async function getDeletedInvoices(): Promise<SplynxInvoice[]> {
   return normalizeInvoiceList(raw);
 }
 
+/** Single-invoice fetch (full record incl. items). Null on 404. */
+export async function getInvoiceById(id: number | string): Promise<SplynxInvoice | null> {
+  try {
+    const raw = await splynxFetch<RawSplynxInvoice>(`/admin/finance/invoices/${encodeURIComponent(String(id))}`);
+    if (!raw || typeof raw !== 'object') return null;
+    return normalizeSplynxInvoice(raw);
+  } catch (err) {
+    // SAFETY: splynxFetch throws only Error instances.
+    if ((err as Error).message.includes('404')) return null;
+    throw err;
+  }
+}
+
 export interface SplynxTicket {
   id: number;
   customer_id: number;

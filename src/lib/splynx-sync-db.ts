@@ -5,6 +5,7 @@ import type { Firestore } from 'firebase-admin/firestore';
 import {
   getAllCustomers,
   getAllInvoices,
+  getInvoiceById,
   getUnpaidInvoices,
   getDeletedInvoices,
   getSupportTickets,
@@ -594,6 +595,88 @@ export function docChanged(prev: MirrorCustomerDoc, next: MirrorCustomerDoc): bo
 
 // Invoice reconcile
 
+/** Shared Splynx invoice → mirror-doc mapping (full pass + targeted items backfill). */
+export function mapSplynxInvoiceToDoc(invoice: SplynxInvoice, prev: MirrorInvoiceDoc | undefined, now: number): MirrorInvoiceDoc {
+  return {
+    invoiceId: invoice.id,
+    customerId: invoice.customerId,
+    number: invoice.number,
+    title: invoice.title,
+    total: invoice.total,
+    dueDate: invoice.dueDate,
+    date: invoice.date,
+    status: invoice.status,
+    isPaid: invoice.isPaid,
+    paidAt: invoice.paidAt,
+    items: invoice.items ?? null,
+    reminder15SentAt: prev?.reminder15SentAt ?? null,
+    reminder30SentAt: prev?.reminder30SentAt ?? null,
+    syncedAt: now,
+  };
+}
+
+export const INVOICE_ITEMS_MAX_IDS = 2000;
+const INVOICE_ITEMS_DELAY_MS = 300;
+
+/**
+ * Targeted invoice-items backfill: fetch single invoices by id (full record
+ * incl. items) and upsert them into the mirror. Dedupe + cap 2000, 300ms
+ * politeness delay between calls, per-id try/catch (never throws the batch).
+ */
+export async function syncInvoiceItemsByIds(
+  ids: string[],
+  deps?: { delayMs?: number; now?: number },
+): Promise<{ fetched: number; upserted: number; failed: number }> {
+  const now = deps?.now ?? Date.now();
+  const delayMs = deps?.delayMs ?? INVOICE_ITEMS_DELAY_MS;
+  const seen = new Set<string>();
+  const queue: string[] = [];
+  for (const raw of ids) {
+    const id = String(raw ?? '').trim();
+    if (!id || seen.has(id)) continue;
+    seen.add(id);
+    queue.push(id);
+    if (queue.length >= INVOICE_ITEMS_MAX_IDS) break;
+  }
+
+  const existingRows = queue.length ? await prisma.invoice.findMany({ where: { invoiceId: { in: queue } } }) : [];
+  const existing = new Map<string, MirrorInvoiceDoc>();
+  for (const row of existingRows) existing.set(String(row.invoiceId), rowToInvoiceDoc(row));
+
+  let fetched = 0;
+  let upserted = 0;
+  let failed = 0;
+  for (let i = 0; i < queue.length; i++) {
+    const id = queue[i];
+    try {
+      const invoice = await getInvoiceById(id);
+      if (!invoice) {
+        failed++;
+      } else {
+        fetched++;
+        const doc = mapSplynxInvoiceToDoc(invoice, existing.get(id), now);
+        await prisma.invoice.upsert({
+          where: { invoiceId: id },
+          update: mapInvoice(doc),
+          create: mapInvoice(doc),
+        });
+        await mirrorInvoiceSet(doc);
+        upserted++;
+      }
+    } catch (err) {
+      failed++;
+      logWarn('[invoice-items] single-invoice fetch failed', {
+        invoiceId: id,
+        error: err instanceof Error ? err.message : String(err),
+      });
+    }
+    if (delayMs > 0 && i < queue.length - 1) {
+      await new Promise((r) => setTimeout(r, delayMs));
+    }
+  }
+  return { fetched, upserted, failed };
+}
+
 export async function reconcileInvoicesDb(now = Date.now()): Promise<{ upserted: number; denied: boolean; fetched: number }> {
   // Full pass over ALL invoices (paid + unpaid) so the mirror holds line items
   // for discount math. Volume is small (~thousands) — hourly full pass is fine.
@@ -633,22 +716,7 @@ export async function reconcileInvoicesDb(now = Date.now()): Promise<{ upserted:
   for (const invoice of all) {
     const idKey = String(invoice.id);
     const prev = existing.get(idKey);
-    const doc: MirrorInvoiceDoc = {
-      invoiceId: invoice.id,
-      customerId: invoice.customerId,
-      number: invoice.number,
-      title: invoice.title,
-      total: invoice.total,
-      dueDate: invoice.dueDate,
-      date: invoice.date,
-      status: invoice.status,
-      isPaid: invoice.isPaid,
-      paidAt: invoice.paidAt,
-      items: invoice.items ?? null,
-      reminder15SentAt: prev?.reminder15SentAt ?? null,
-      reminder30SentAt: prev?.reminder30SentAt ?? null,
-      syncedAt: now,
-    };
+    const doc = mapSplynxInvoiceToDoc(invoice, prev, now);
     if (prev) {
       const same = ['number', 'title', 'total', 'dueDate', 'date', 'status', 'isPaid', 'paidAt'].every((key) => {
         const a = prev[key as keyof MirrorInvoiceDoc];
