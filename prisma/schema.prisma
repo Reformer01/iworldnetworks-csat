@@ -70,6 +70,9 @@ model Customer {
   phone               String?
   login               String?
   city                String?
+  state               String?
+  discountPercent     Float?
+  splynxDateAdded     BigInt?
   street              String?
   status              String?
   lifecycle           String?
@@ -115,6 +118,7 @@ model Customer {
 
   @@index([lifecycle])
   @@index([city])
+  @@index([state])
   @@index([status])
   @@index([customerId])
   @@index([deleted])

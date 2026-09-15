@@ -105,6 +105,8 @@ import {
   rowToInvoiceDoc,
   buildCustomerDoc,
   docChanged,
+  extractIncomeSyncFields,
+  CUSTOMER_COMPARE_KEYS,
   reconcileCustomersDb,
   reconcileInvoicesDb,
   runReminderJobDb,
@@ -132,6 +134,9 @@ type CustomerRowOverrides = Partial<{
   phone: string;
   login: string;
   city: string;
+  state?: string | null;
+  discountPercent?: number | null;
+  splynxDateAdded?: bigint | null;
   street: string;
   status: string;
   lifecycle: string;
@@ -478,6 +483,64 @@ describe('docChanged', () => {
     const prev = rowToCustomerDoc(customerRow());
     const next = { ...prev, mrrTotal: 2000, lastChangeAt: NOW };
     expect(docChanged(prev, next)).toBe(true);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Income-report sync fields (state / discountPercent / splynxDateAdded)
+// ---------------------------------------------------------------------------
+
+describe('income sync fields', () => {
+  it('tracks all three keys so the next hourly sync backfills them', () => {
+    expect([...CUSTOMER_COMPARE_KEYS]).toEqual(expect.arrayContaining(['state', 'discountPercent', 'splynxDateAdded']));
+  });
+
+  it('extracts state/discount/dateAdded from raw Splynx payload aliases', () => {
+    expect(extractIncomeSyncFields({ state: 'Lagos', discount: 15, date_added: '2026-08-03 10:00:00' })).toEqual({
+      state: 'Lagos',
+      discountPercent: 15,
+      splynxDateAdded: Date.UTC(2026, 7, 3, 10),
+    });
+    expect(extractIncomeSyncFields({ province: 'Oyo', discount_percent: '10', created_at: 'nope' })).toEqual({
+      state: 'Oyo',
+      discountPercent: 10,
+      splynxDateAdded: null,
+    });
+    // city must never feed state
+    expect(extractIncomeSyncFields({ city: 'Ikeja' })).toEqual({ state: '', discountPercent: null, splynxDateAdded: null });
+  });
+
+  it('takes fresh state, keeps the prior row when fresh is empty', () => {
+    const prev = rowToCustomerDoc(customerRow({ state: 'Lagos' }));
+    expect(buildCustomerDoc(prev, { customerId: 1, state: 'Oyo' }, NOW).state).toBe('Oyo');
+    expect(buildCustomerDoc(prev, { customerId: 1, state: '' }, NOW).state).toBe('Lagos');
+    expect(buildCustomerDoc(prev, { customerId: 1 }, NOW).state).toBe('Lagos');
+    expect(buildCustomerDoc(undefined, { customerId: 1 }, NOW).state).toBe('');
+  });
+
+  it('clamps fresh discount 0–100 and preserves the prior row when absent', () => {
+    const prev = rowToCustomerDoc(customerRow({ discountPercent: 15 }));
+    expect(buildCustomerDoc(prev, { customerId: 1, discountPercent: 150 }, NOW).discountPercent).toBe(100);
+    expect(buildCustomerDoc(prev, { customerId: 1, discountPercent: -5 }, NOW).discountPercent).toBe(0);
+    expect(buildCustomerDoc(prev, { customerId: 1 }, NOW).discountPercent).toBe(15);
+    expect(buildCustomerDoc(undefined, { customerId: 1 }, NOW).discountPercent).toBe(0);
+  });
+
+  it('keeps prior dateAdded when fresh is missing, null by default', () => {
+    const added = Date.UTC(2026, 7, 3);
+    const prev = rowToCustomerDoc(customerRow({ splynxDateAdded: BigInt(added) }));
+    expect(buildCustomerDoc(prev, { customerId: 1 }, NOW).splynxDateAdded).toBe(added);
+    expect(buildCustomerDoc(undefined, { customerId: 1 }, NOW).splynxDateAdded).toBeNull();
+  });
+
+  it('backfills state + discount on the next hourly sync', async () => {
+    apiMock.getAllCustomers.mockResolvedValue([customerRecord({ state: 'Lagos', discount: 15 } as never)]);
+    prismaMock.customer.findMany.mockResolvedValue([customerRow()]);
+    const result = await reconcileCustomersDb(NOW);
+    expect(result.upserted).toBe(1);
+    const [args] = prismaMock.customer.upsert.mock.calls[0];
+    expect(args.update.state).toBe('Lagos');
+    expect(args.update.discountPercent).toBe(15);
   });
 });
 

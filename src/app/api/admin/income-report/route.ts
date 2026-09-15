@@ -1,14 +1,26 @@
 import { NextRequest } from 'next/server';
 import { verifyAdminToken } from '@/lib/admin-auth';
 import { isRateLimited } from '@/lib/rate-limit';
-import { success, unauthorized, tooMany, forbidden, serverError, validateOrigin } from '@/lib/api-response';
+import { success, unauthorized, tooMany, forbidden, serverError, error, validateOrigin } from '@/lib/api-response';
 import { logError } from '@/lib/logger';
 import { getSplynxConfig, buildAuthHeader, parseSplynxApiDate } from '@/lib/splynx-api';
 import { prisma } from '@/lib/prisma';
+import {
+  buildIncomeRow,
+  applyRowFilters,
+  summarize,
+  matchesChannel,
+  monthBoundsUTC,
+  dayRangeBoundsUTC,
+  pickState,
+  pickDiscountPercent,
+  pickDateAddedMs,
+  type IncomeRow,
+} from '@/lib/income-report';
 
 export const dynamic = 'force-dynamic';
 
-// Live Splynx fetch per request (no 57k full mirror). Paginate 500/page, filter paidAt in-month.
+// Live Splynx fetch per request (no 57k full mirror). Paginate 500/page, filter paidAt in-window.
 
 type RawPayment = {
   id: number | string;
@@ -31,12 +43,7 @@ type RawInvoice = {
   items?: RawInvoiceItem[];
 };
 
-function monthBounds(month: string) {
-  const [y, m] = month.split('-').map(Number);
-  const start = Date.UTC(y, m - 1, 1);
-  const end = Date.UTC(y, m, 1) - 1; // last ms of month
-  return { start, end };
-}
+const VALID_SEGMENTS = new Set(['__all', 'residential', 'sme', 'enterprise', 'other']);
 
 async function splynxGet<T>(path: string, params?: URLSearchParams): Promise<T> {
   const env = getSplynxConfig();
@@ -55,22 +62,6 @@ async function splynxGet<T>(path: string, params?: URLSearchParams): Promise<T> 
   return res.json() as Promise<T>;
 }
 
-function classifyPlan(plan: string, category: string): 'residential' | 'sme' | 'enterprise' | 'other' {
-  const p = (plan || '').trim().toLowerCase();
-  const c = (category || '').toLowerCase();
-  // H-Lite / H-Max / H-Pro / H-Prime etc => residential (Home)
-  if (/^h[-\s]?(lite|max|pro|prime|ultra)/i.test(p) || p === 'h-lite' || p === 'h-max') return 'residential';
-  if (p.includes('home') || p.includes('residential')) return 'residential';
-  // U-* plus Business SME
-  if (/^u[-\s]?(lite|max|pro)/i.test(p) || p.includes('sme') || p.includes('business')) return 'sme';
-  if (c === 'company' || c === 'business' || c === 'corporate') return 'enterprise';
-  // custom-named tariffs -> enterprise
-  if (p && p !== '—' && p !== '-') return 'enterprise';
-  // fallback by category
-  if (c === 'person' || c === 'individual' || c === 'residential') return 'residential';
-  return 'other';
-}
-
 export async function GET(request: NextRequest) {
   try {
     if (isRateLimited(request, 120, 60_000)) return tooMany();
@@ -81,17 +72,41 @@ export async function GET(request: NextRequest) {
     const { searchParams } = new URL(request.url);
     const rawMonth = searchParams.get('month');
     const month = rawMonth && /^\d{4}-\d{2}$/.test(rawMonth) ? rawMonth : new Date().toISOString().slice(0, 7);
-    const { start, end } = monthBounds(month);
+    const rawFrom = searchParams.get('from');
+    const rawTo = searchParams.get('to');
+    const region = searchParams.get('region') || '__all';
+    const segment = searchParams.get('segment') || '__all';
+    const channel = searchParams.get('channel') || '__all';
+    const search = searchParams.get('search') || '';
 
-    // 1) Fetch payments for month (payments have reliable `date` field; invoices often have 0000-00-00 date_payment)
-    // Pull with pagination until we have covered the month window. Payments are globally ~large; filter client-side by date prefix.
+    if (!VALID_SEGMENTS.has(segment)) return error('Invalid segment. Use residential|sme|enterprise|other.', 400);
+
+    // from/to (inclusive) override month when present; both required together.
+    let start: number;
+    let end: number;
+    let from: string;
+    let to: string;
+    let outMonth: string | null = month;
+    if (rawFrom || rawTo) {
+      if (!rawFrom || !rawTo) return error('Both from and to (YYYY-MM-DD) are required.', 400);
+      const bounds = dayRangeBoundsUTC(rawFrom, rawTo);
+      if (!bounds) return error('Invalid from/to. Use YYYY-MM-DD with from <= to.', 400);
+      ({ start, end } = bounds);
+      from = rawFrom;
+      to = rawTo;
+      outMonth = null;
+    } else {
+      ({ start, end } = monthBoundsUTC(month));
+      from = new Date(start).toISOString().slice(0, 10);
+      to = new Date(end).toISOString().slice(0, 10);
+    }
+
+    // 1) Fetch payments for window (payments have reliable `date` field; invoices often have 0000-00-00 date_payment)
     const payments: RawPayment[] = [];
     let page = 1;
     const perPage = 500;
-    // fetch up to 5 pages (2500 payments) sorted by date desc; enough to cover a month (Aug volume expected 300-600)
-    // If still truncated we continue until out-of-window.
-    let reachedBeforeMonth = false;
-    for (; page <= 10 && !reachedBeforeMonth; page++) {
+    let reachedBeforeWindow = false;
+    for (; page <= 10 && !reachedBeforeWindow; page++) {
       const params = new URLSearchParams({ limit: String(perPage), offset: String((page - 1) * perPage) });
       // Splynx payments endpoint: /admin/finance/payments supports limit/offset; sorting not documented so just page
       const chunk = await splynxGet<RawPayment[] | { data?: RawPayment[] }>('/admin/finance/payments', params);
@@ -100,20 +115,16 @@ export async function GET(request: NextRequest) {
       for (const p of arr) {
         const ms = parseSplynxApiDate(p.date);
         if (ms == null) continue;
-        if (ms > end) continue; // future vs month (payments are chronological but not guaranteed sorted)
-        if (ms < start) {
-          // can't early-exit globally because order not guaranteed, keep fetching a couple pages
-          // but mark heuristic after 2 pages beyond window we stop
-        }
+        if (ms > end) continue;
         if (ms >= start && ms <= end) payments.push(p);
       }
-      // heuristic: if chunk's min date is before month and we've collected enough, stop after 2 more pages
+      // heuristic: if chunk's min date is before window and we've collected enough, stop after 2 more pages
       const minMs = Math.min(...arr.map((p) => parseSplynxApiDate(p.date) ?? Infinity));
-      if (minMs < start && page >= 3) reachedBeforeMonth = true;
+      if (minMs < start && page >= 3) reachedBeforeWindow = true;
       if (arr.length < perPage) break;
     }
 
-    // Fallback: also fetch invoices where date_payment in month to catch payments not in payments list (e.g. deposit offsets)
+    // Fallback: also fetch invoices where date_payment in window to catch payments not in payments list (e.g. deposit offsets)
     let invoices: RawInvoice[] = [];
     try {
       const iparams = new URLSearchParams({ limit: '500' });
@@ -145,10 +156,30 @@ export async function GET(request: NextRequest) {
     const customers = cids.length
       ? await prisma.customer.findMany({
           where: { customerId: { in: cids } },
-          select: { customerId: true, customerName: true, email: true, city: true, category: true, servicePlan: true, accountType: true },
+          select: {
+            customerId: true,
+            customerName: true,
+            email: true,
+            category: true,
+            servicePlan: true,
+            accountType: true,
+            state: true,
+            discountPercent: true,
+            splynxDateAdded: true,
+          },
         })
       : [];
-    const custMap = new Map(customers.map((c) => [c.customerId, c]));
+    type CustInfo = {
+      customerId: string;
+      customerName: string | null;
+      email: string | null;
+      category: string | null;
+      servicePlan: string | null;
+      state: string | null;
+      discountPercent: number | null;
+      splynxDateAdded: number | bigint | null;
+    };
+    const custMap = new Map<string, CustInfo>(customers.map((c) => [c.customerId, c as CustInfo]));
 
     // For missing customers, hydrate directly from Splynx customer endpoint (best-effort, limited)
     const missing = cids.filter((id) => !custMap.has(id)).slice(0, 80);
@@ -159,86 +190,49 @@ export async function GET(request: NextRequest) {
           customerId: id,
           customerName: String(c.name ?? c.login ?? `#${id}`),
           email: String(c.email ?? c.billing_email ?? ''),
-          city: String(c.city ?? ''),
-          category: String((c as Record<string, unknown>).category ?? ''),
-          servicePlan: String((c as Record<string, unknown>).plan ?? ''),
-          accountType: String((c as Record<string, unknown>).account_type ?? 'regular'),
-        } as never);
+          category: String(c.category ?? ''),
+          servicePlan: String(c.plan ?? ''),
+          state: pickState(c) || null,
+          discountPercent: pickDiscountPercent(c),
+          splynxDateAdded: pickDateAddedMs(c, parseSplynxApiDate),
+        });
       } catch {
         /* ignore */
       }
     }
 
     // Build rows
-    type Row = {
-      date: string;
-      customer: string;
-      email: string;
-      reference: string;
-      amount: number;
-      residential: number;
-      sme: number;
-      enterprise: number;
-      tax: number;
-      balance: number;
-      region: string;
-      note: string;
-      isPrepay: boolean;
-      prepayMonths?: string;
-    };
-    const rows: Row[] = [];
-    let totalGross = 0;
-    let newSubscribers = 0;
-    let prepayments = 0;
-
-    // Track seen emails for "New" flag within month (first appearance = new). True new = created within window — we approximate.
-    const seen = new Set<string>();
+    const rows: IncomeRow[] = [];
 
     function pushRow(opts: {
       ms: number;
       amount: number;
       customerId: string;
       reference: string;
+      paymentType: string | number | undefined;
       note: string;
       isPrepay: boolean;
-      prepayMonths?: string;
     }) {
+      if (!matchesChannel(opts.reference, opts.paymentType, channel)) return;
       const c = custMap.get(opts.customerId);
-      const plan = String(c?.servicePlan ?? '');
-      const cat = String(c?.category ?? '');
-      const kind = classifyPlan(plan, cat);
-      let residential = 0,
-        sme = 0,
-        enterprise = 0;
-      if (kind === 'residential') residential = opts.amount;
-      else if (kind === 'sme') sme = opts.amount;
-      else if (kind === 'enterprise') enterprise = opts.amount;
-      else residential = opts.amount; // default bucket (matches previous single-row behaviour)
-
-      const vat = Math.round(opts.amount * 0.075 * 100) / 100;
-      const balance = Math.round((opts.amount - vat) * 100) / 100;
-      const email = String(c?.email ?? '');
-      const isNew = email && !seen.has(email) ? 1 : 0;
-      if (email) seen.add(email);
-      newSubscribers += isNew;
-      if (opts.isPrepay) prepayments++;
-
-      totalGross += opts.amount;
-      rows.push({
-        date: new Date(opts.ms).toISOString().slice(0, 10),
-        customer: String(c?.customerName ?? `#${opts.customerId}`),
-        email,
-        reference: opts.reference,
-        amount: opts.amount,
-        residential,
-        sme,
-        enterprise,
-        tax: vat,
-        balance,
-        region: String(c?.city ?? ''),
-        note: opts.note,
-        isPrepay: opts.isPrepay,
-      });
+      rows.push(
+        buildIncomeRow({
+          ms: opts.ms,
+          amount: opts.amount,
+          plan: String(c?.servicePlan ?? ''),
+          category: String(c?.category ?? ''),
+          customerName: String(c?.customerName ?? `#${opts.customerId}`),
+          email: String(c?.email ?? ''),
+          reference: opts.reference,
+          note: opts.note,
+          state: c?.state ?? '',
+          discountPercent: c?.discountPercent ?? 0,
+          splynxDateAdded: c?.splynxDateAdded != null ? Number(c.splynxDateAdded) : null,
+          start,
+          end,
+          isPrepay: opts.isPrepay,
+        }),
+      );
     }
 
     for (const p of payments) {
@@ -246,18 +240,23 @@ export async function GET(request: NextRequest) {
       if (ms == null) continue;
       const amt = Number(p.amount ?? 0) || 0;
       if (!amt) continue;
-      // detect prepay: invoice items period To > period From spanning >31 days
-      // For payments we don't have invoice items inline; fetch single invoice items if needed (best-effort 1 extra call per suspect)
-      let isPrepay = false;
-      let note = String(p.receipt_number ?? p.field_4 ?? '');
-      pushRow({ ms, amount: amt, customerId: String(p.customer_id), reference: note || `PAY-${p.id}`, note, isPrepay });
+      const note = String(p.receipt_number ?? p.field_4 ?? '');
+      pushRow({
+        ms,
+        amount: amt,
+        customerId: String(p.customer_id),
+        reference: note || `PAY-${p.id}`,
+        paymentType: p.payment_type,
+        note,
+        isPrepay: false,
+      });
     }
     for (const inv of invoiceOnly) {
       const ms = parseSplynxApiDate(inv.date_payment)!;
       const amt = Number(inv.total ?? 0) || 0;
+      if (!amt) continue;
       const items = inv.items ?? [];
       let isPrepay = false;
-      let prepayMonths: string | undefined;
       if (items.length) {
         const periods = items
           .map((it) => ({ from: parseSplynxApiDate(it.period_from), to: parseSplynxApiDate(it.period_to) }))
@@ -266,49 +265,31 @@ export async function GET(request: NextRequest) {
           const minFrom = Math.min(...periods.map((p) => p.from));
           const maxTo = Math.max(...periods.map((p) => p.to));
           const spanDays = Math.round((maxTo - minFrom) / 86400000) + 1;
-          if (spanDays > 35) {
-            isPrepay = true;
-            prepayMonths = `${new Date(minFrom).toISOString().slice(0, 7)} → ${new Date(maxTo).toISOString().slice(0, 7)}`;
-          }
+          if (spanDays > 35) isPrepay = true;
         }
-        // fallback description match
       }
+      const reference = String(inv.number ?? `#${inv.id}`);
       pushRow({
         ms,
         amount: amt,
         customerId: String(inv.customer_id),
-        reference: String(inv.number ?? `#${inv.id}`),
+        reference,
+        paymentType: '',
         note: String(items[0]?.description ?? ''),
         isPrepay,
-        prepayMonths,
       });
     }
 
-    rows.sort((a, b) => b.date.localeCompare(a.date));
-
-    const totals = {
-      gross: Math.round(totalGross * 100) / 100,
-      vat: Math.round(totalGross * 0.075 * 100) / 100,
-      net: Math.round(totalGross * 0.925 * 100) / 100,
-      residential: Math.round(rows.reduce((s, r) => s + r.residential, 0) * 100) / 100,
-      sme: Math.round(rows.reduce((s, r) => s + r.sme, 0) * 100) / 100,
-      enterprise: Math.round(rows.reduce((s, r) => s + r.enterprise, 0) * 100) / 100,
-    };
+    const filtered = applyRowFilters(rows, { region, segment, channel: '__all', search });
+    filtered.sort((a, b) => b.date.localeCompare(a.date));
 
     return success({
-      month,
-      summary: {
-        transactions: rows.length,
-        totalGross: totals.gross,
-        vat: totals.vat,
-        netBalance: totals.net,
-        newSubscribers,
-        prepayments,
-        residential: totals.residential,
-        sme: totals.sme,
-        enterprise: totals.enterprise,
-      },
-      rows,
+      month: outMonth,
+      from,
+      to,
+      filters: { region, segment, channel, search },
+      summary: summarize(filtered),
+      rows: filtered,
       source: payments.length ? 'splynx-payments' : 'splynx-invoices',
     });
   } catch (err: unknown) {

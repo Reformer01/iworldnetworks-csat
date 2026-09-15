@@ -12,6 +12,7 @@ import { createFeedbackToken, findRecentFeedbackToken, TOKEN_TTL_MS } from './fe
 import { createEmailJob, markEmailJobSent, markEmailJobFailed } from '@/lib/repositories/email-job-repo';
 import { logInfo, logWarn, logError } from './logger';
 import { buildCustomerFields, buildCustomerOverdueInfo, daysOverdue, formatDueDate, normalizeInvoiceForOverdue } from './splynx-mirror';
+import { pickState, pickDiscountPercent, pickDateAddedMs } from './income-report';
 import {
   CHURN_SURVEY_WINDOW_MS,
   WINBACK_WINDOW_MS,
@@ -88,8 +89,10 @@ async function getDefaultPrisma(): Promise<PrismaClient> {
 const DAY_MS = 24 * 60 * 60 * 1000;
 const CHURN_SURVEY_TTL_MS = 30 * DAY_MS;
 
-const CUSTOMER_COMPARE_KEYS = [
-  'customerName', 'email', 'billingEmail', 'phone', 'login', 'city', 'street',
+export const CUSTOMER_COMPARE_KEYS = [
+  'customerName', 'email', 'billingEmail', 'phone', 'login', 'city', 'state',
+  'discountPercent', 'splynxDateAdded',
+  'street',
   'status', 'lifecycle', 'online', 'lastOnlineAt', 'lastUpdateAt', 'mrrTotal',
   'accountType', 'category', 'servicePlan',
 ] as const;
@@ -242,6 +245,9 @@ export function rowToCustomerDoc(row: {
   phone: string | null;
   login: string | null;
   city: string | null;
+  state?: string | null;
+  discountPercent?: number | null;
+  splynxDateAdded?: bigint | null;
   street: string | null;
   status: string | null;
   lifecycle: string | null;
@@ -291,6 +297,9 @@ export function rowToCustomerDoc(row: {
     phone: row.phone ?? '',
     login: row.login ?? '',
     city: row.city ?? '',
+    state: row.state ?? '',
+    discountPercent: row.discountPercent ?? 0,
+    splynxDateAdded: toNum(row.splynxDateAdded),
     street: row.street ?? '',
     status: row.status ?? '',
     lifecycle,
@@ -370,6 +379,21 @@ export function rowToInvoiceDoc(row: {
 
 
 
+// Income-report sync fields, pulled from the raw Splynx customer payload.
+// state: first non-empty of state/province/customer_state/region (never city).
+// discountPercent: per-customer predefined % — falls back to the prior row when
+// the payload carries none so it survives plan upgrades.
+// splynxDateAdded: epoch ms of the Splynx registration, null when unparseable.
+export function extractIncomeSyncFields(
+  record: Record<string, unknown>,
+): Pick<MirrorCustomerDoc, 'state' | 'discountPercent' | 'splynxDateAdded'> {
+  return {
+    state: pickState(record),
+    discountPercent: pickDiscountPercent(record),
+    splynxDateAdded: pickDateAddedMs(record, parseSplynxApiDate),
+  };
+}
+
 export function buildCustomerDoc(
   prev: MirrorCustomerDoc | undefined,
   fields: Partial<MirrorCustomerDoc>,
@@ -402,12 +426,32 @@ export function buildCustomerDoc(
     : (fields.mrrTotal ?? 0) > 0 ? fields.mrrTotal ?? 0 : prev?.mrrTotal ?? 0;
   const nextServicePlan = preserveBundle ? prev?.servicePlan ?? '' : fields.servicePlan || prev?.servicePlan || '';
 
+  // Income-report fields: state is State/Province ONLY (never city); the prior
+  // row wins only when the fresh value is empty (same pattern as city).
+  const freshState = typeof fields.state === 'string' ? fields.state.trim().slice(0, 191) : '';
+  const nextState = freshState || prev?.state || '';
+  const freshDiscount =
+    typeof fields.discountPercent === 'number' && Number.isFinite(fields.discountPercent)
+      ? Math.min(100, Math.max(0, fields.discountPercent))
+      : null;
+  const prevDiscount =
+    typeof prev?.discountPercent === 'number' && Number.isFinite(prev.discountPercent) ? prev.discountPercent : null;
+  const nextDiscountPercent = freshDiscount ?? prevDiscount ?? 0;
+  const freshDateAdded =
+    typeof fields.splynxDateAdded === 'number' && Number.isFinite(fields.splynxDateAdded) ? fields.splynxDateAdded : null;
+  const prevDateAdded =
+    typeof prev?.splynxDateAdded === 'number' && Number.isFinite(prev.splynxDateAdded) ? prev.splynxDateAdded : null;
+  const nextSplynxDateAdded = freshDateAdded ?? prevDateAdded ?? null;
+
   const changed = !prev || CUSTOMER_COMPARE_KEYS.some((key) => {
     const a = prev?.[key as keyof MirrorCustomerDoc];
     const b = fields[key as keyof MirrorCustomerDoc];
     if (key === 'lifecycle') return a !== lifecycle;
     if (key === 'mrrTotal') return a !== nextMrrTotal;
     if (key === 'servicePlan') return a !== nextServicePlan;
+    if (key === 'state') return a !== nextState;
+    if (key === 'discountPercent') return a !== nextDiscountPercent;
+    if (key === 'splynxDateAdded') return a !== nextSplynxDateAdded;
     return a !== b;
   });
 
@@ -419,6 +463,9 @@ export function buildCustomerDoc(
     phone: fields.phone ?? prev?.phone ?? '',
     login: fields.login ?? prev?.login ?? '',
     city: fields.city ?? prev?.city ?? '',
+    state: nextState,
+    discountPercent: nextDiscountPercent,
+    splynxDateAdded: nextSplynxDateAdded,
     street: fields.street ?? prev?.street ?? '',
     status: fields.status ?? prev?.status ?? '',
     lifecycle,
@@ -480,7 +527,10 @@ export async function reconcileCustomersDb(now = Date.now()): Promise<{ upserted
     const idKey = String(record.id);
     seen.add(idKey);
     const prev = existing.get(idKey);
-    const fields = buildCustomerFields(record, now);
+    const fields = {
+      ...buildCustomerFields(record, now),
+      ...extractIncomeSyncFields(record as unknown as Record<string, unknown>),
+    };
     const doc = buildCustomerDoc(prev, fields, now);
     if (prev && !docChanged(prev, doc)) continue;
     await prisma.customer.upsert({

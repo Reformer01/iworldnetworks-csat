@@ -27,6 +27,12 @@ export interface MirrorCustomerDoc {
   login: string;
   city: string;
   street: string;
+  /** Splynx customer State/Province ONLY (never city) — drives the income report Region column. */
+  state?: string | null;
+  /** Per-customer predefined discount % (survives plan upgrades) — drives the income report Discounts column. */
+  discountPercent?: number | null;
+  /** Epoch ms of the Splynx customer registration — drives the income report New flag. */
+  splynxDateAdded?: number | null;
   status: string;
   lifecycle: Lifecycle;
   online: boolean;
