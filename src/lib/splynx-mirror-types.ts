@@ -101,6 +101,8 @@ export interface MirrorInvoiceDoc {
   status: string;
   isPaid: boolean;
   paidAt: number | null;
+  /** Raw Splynx line items (negative price = discount/compensation). */
+  items?: Array<{ description?: string; price?: number | string }> | null;
   reminder15SentAt: number | null;
   reminder30SentAt: number | null;
   syncedAt: number;

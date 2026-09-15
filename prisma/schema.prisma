@@ -140,6 +140,7 @@ model Invoice {
   status            String?
   isPaid            Boolean  @default(false)
   paidAt            BigInt?
+  items             Json?
   reminder15SentAt  BigInt?
   reminder30SentAt  BigInt?
   syncedAt          BigInt?
@@ -319,6 +320,27 @@ model SplynxPayment {
   @@index([paidAt])
   @@index([customerId])
   @@index([invoiceId])
+}
+
+model CreditNote {
+  id          String    @id @default(cuid())
+  creditId    String    @unique
+  customerId  String?
+  number      String?
+  total       Float
+  status      String?
+  paymentId   String?
+  invoiceLink String?
+  dateCreated BigInt?
+  paidAt      DateTime?
+  items       Json?
+  raw         Json?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  @@index([paidAt])
+  @@index([customerId])
+  @@index([status])
 }
 
 model UispSite {

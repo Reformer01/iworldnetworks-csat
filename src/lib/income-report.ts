@@ -264,6 +264,8 @@ export interface IncomeSummary {
   enterprise: number;
   discounts: number;
   others: number;
+  /** Credit-note rows folded into the report (set by the route, not summarize). */
+  creditNotes?: { count: number; total: number };
 }
 
 export function summarize(rows: IncomeRow[]): IncomeSummary {
@@ -331,23 +333,63 @@ export function buildIncomeCsv(rows: IncomeRow[]): string {
   return [[...INCOME_CSV_HEADERS].join(','), ...lines].join('\n');
 }
 
-/** Discount = linked invoice total − amount paid (0 when no invoice or no discount). */
+/** Discount = linked invoice total − amount paid (0 when no invoice or no discount).
+ * @deprecated Item-level math (splitInvoiceItems) replaced this: an open
+ * balance is unpaid money, never a discount. Kept for unit-test parity only.
+ */
 export function deriveDiscountAmount(paidAmount: number, invoiceTotal: number | null | undefined): number {
   if (invoiceTotal == null || !Number.isFinite(invoiceTotal) || !Number.isFinite(paidAmount)) return 0;
   if (invoiceTotal <= paidAmount) return 0;
   return round2(invoiceTotal - paidAmount);
 }
 
-/** Remark = trimmed pct of discount over invoice total (`15%`, `12.9%`, '' when none). */
+/** Remark = trimmed pct of discount over invoice total (`15%`, `12.9%`, '' when none).
+ * @deprecated Remarks are always '' under item-level math. Kept for unit-test parity only.
+ */
 export function deriveDiscountRemark(discounts: number, invoiceTotal: number | null | undefined): string {
   if (!discounts || !invoiceTotal || !Number.isFinite(discounts) || !Number.isFinite(invoiceTotal) || invoiceTotal <= 0) return '';
   return formatDiscountRemark((discounts / invoiceTotal) * 100);
 }
 
+export interface InvoiceItemInput {
+  description?: string;
+  price?: number | string;
+}
+
+function itemPrice(v: unknown): number | null {
+  if (typeof v === 'number') return Number.isFinite(v) ? v : null;
+  if (typeof v === 'string' && v.trim() !== '') {
+    const n = Number(v.trim());
+    return Number.isFinite(n) ? n : null;
+  }
+  return null;
+}
+
+/**
+ * Item-level split: planValue = Σ(price>0), discounts = |Σ(price<0)|.
+ * Negative invoice items are discounts/compensation; an open balance (no
+ * negative items) is unpaid money, never a discount.
+ */
+export function splitInvoiceItems(items: Array<InvoiceItemInput> | null | undefined): { planValue: number; discounts: number } {
+  if (!Array.isArray(items) || items.length === 0) return { planValue: 0, discounts: 0 };
+  let pos = 0;
+  let neg = 0;
+  for (const it of items) {
+    const n = itemPrice((it as InvoiceItemInput | null | undefined)?.price);
+    if (n == null) continue;
+    if (n > 0) pos += n;
+    else if (n < 0) neg += n;
+  }
+  return { planValue: round2(pos), discounts: round2(Math.abs(neg)) };
+}
+
 export interface BuildMirrorIncomeRowInput {
   ms: number;
   paidAmount: number;
-  invoiceTotal: number | null | undefined;
+  /** Mirrored invoice line items (negative price = discount/compensation). */
+  items?: Array<InvoiceItemInput> | null;
+  /** @deprecated Ignored: open balances are not discounts. Kept so old callers still compile. */
+  invoiceTotal?: number | null | undefined;
   plan: string;
   category: string;
   customerName: string;
@@ -362,24 +404,29 @@ export interface BuildMirrorIncomeRowInput {
 }
 
 /**
- * Mirror row: buckets hold the FULL plan value (paid + discounts) for a
- * classified kind, else Others = paid with 0 discount. Amount/Tax/Balance
- * stay on the paid amount; Remark derives from invoiceTotal.
+ * Mirror row: the classified bucket holds the FULL plan value (Σ price>0
+ * items); without items it falls back to the paid amount with 0 discount.
+ * Kind other → Others = paid with 0 discount. Amount/Tax/Balance stay on the
+ * paid amount; Remark is always ''.
  */
 export function buildMirrorIncomeRow(input: BuildMirrorIncomeRowInput): IncomeRow {
   const kind = classifyPlan(input.plan, input.category);
   const paid = Number.isFinite(input.paidAmount) ? input.paidAmount : 0;
-  let discounts = kind === 'other' ? 0 : deriveDiscountAmount(paid, input.invoiceTotal);
-  discounts = round2(discounts);
-  const full = round2(paid + discounts);
+  const hasItems = Array.isArray(input.items) && input.items.length > 0;
+  const split = splitInvoiceItems(input.items);
+  const discounts = kind === 'other' ? 0 : split.discounts;
   let residential = 0;
   let sme = 0;
   let enterprise = 0;
   let others = 0;
-  if (kind === 'residential') residential = full;
-  else if (kind === 'sme') sme = full;
-  else if (kind === 'enterprise') enterprise = full;
-  else others = paid;
+  if (kind === 'other') {
+    others = paid;
+  } else {
+    const full = hasItems && split.planValue > 0 ? split.planValue : paid;
+    if (kind === 'residential') residential = full;
+    else if (kind === 'sme') sme = full;
+    else enterprise = full;
+  }
   const added = Number(input.splynxDateAdded);
   return {
     date: new Date(input.ms).toISOString().slice(0, 10),
@@ -396,7 +443,7 @@ export function buildMirrorIncomeRow(input: BuildMirrorIncomeRowInput): IncomeRo
     tax: calcTax(paid),
     balance: calcBalance(paid),
     region: input.state ?? '',
-    remark: deriveDiscountRemark(discounts, input.invoiceTotal),
+    remark: '',
     note: input.note,
     isPrepay: input.isPrepay,
   };

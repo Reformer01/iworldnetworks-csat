@@ -2,7 +2,14 @@ import { randomUUID } from 'crypto';
 import type { Prisma } from '@prisma/client';
 import { prisma } from '@/lib/prisma';
 import type { Firestore } from 'firebase-admin/firestore';
-import { getAllCustomers, getUnpaidInvoices, getDeletedInvoices, getSupportTickets, parseSplynxApiDate } from './splynx-api';
+import {
+  getAllCustomers,
+  getAllInvoices,
+  getUnpaidInvoices,
+  getDeletedInvoices,
+  getSupportTickets,
+  parseSplynxApiDate,
+} from './splynx-api';
 import type { SplynxInvoice, SplynxTicket } from './splynx-api';
 import { getRegionForLocation } from './sales-staff';
 import { resolveTicketAssignee } from './splynx-admins';
@@ -50,6 +57,7 @@ type FirestoreData = { [key: string]: string | number | boolean | null | undefin
 export interface SplynxSyncDbDeps {
   prisma?: PrismaClient;
   getAllCustomers?: typeof getAllCustomers;
+  getAllInvoices?: typeof getAllInvoices;
   getUnpaidInvoices?: typeof getUnpaidInvoices;
   getDeletedInvoices?: typeof getDeletedInvoices;
   sendInvoiceReminderEmail?: typeof sendInvoiceReminderEmail;
@@ -375,10 +383,12 @@ export function rowToInvoiceDoc(row: {
   status: string | null;
   isPaid: boolean | null;
   paidAt: bigint | null;
+  items?: unknown;
   reminder15SentAt: bigint | null;
   reminder30SentAt: bigint | null;
   syncedAt: bigint | null;
 }): MirrorInvoiceDoc {
+  const rawItems = (row as { items?: unknown }).items;
   return {
     invoiceId: Number(row.invoiceId),
     customerId: Number(row.customerId),
@@ -390,6 +400,7 @@ export function rowToInvoiceDoc(row: {
     status: row.status ?? '',
     isPaid: !!row.isPaid,
     paidAt: toNum(row.paidAt),
+    items: Array.isArray(rawItems) ? (rawItems as MirrorInvoiceDoc['items']) : null,
     reminder15SentAt: toNum(row.reminder15SentAt),
     reminder30SentAt: toNum(row.reminder30SentAt),
     syncedAt: toNum(row.syncedAt) ?? 0,
@@ -584,9 +595,11 @@ export function docChanged(prev: MirrorCustomerDoc, next: MirrorCustomerDoc): bo
 // Invoice reconcile
 
 export async function reconcileInvoicesDb(now = Date.now()): Promise<{ upserted: number; denied: boolean; fetched: number }> {
-  let unpaid: SplynxInvoice[];
+  // Full pass over ALL invoices (paid + unpaid) so the mirror holds line items
+  // for discount math. Volume is small (~thousands) — hourly full pass is fine.
+  let all: SplynxInvoice[];
   try {
-    unpaid = await getUnpaidInvoices();
+    all = await getAllInvoices();
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err);
     if (message.includes('403')) {
@@ -617,7 +630,7 @@ export async function reconcileInvoicesDb(now = Date.now()): Promise<{ upserted:
   const deletedIds = new Set(deleted.map((inv) => String(inv.id)));
 
   let upserted = 0;
-  for (const invoice of unpaid) {
+  for (const invoice of all) {
     const idKey = String(invoice.id);
     const prev = existing.get(idKey);
     const doc: MirrorInvoiceDoc = {
@@ -631,6 +644,7 @@ export async function reconcileInvoicesDb(now = Date.now()): Promise<{ upserted:
       status: invoice.status,
       isPaid: invoice.isPaid,
       paidAt: invoice.paidAt,
+      items: invoice.items ?? null,
       reminder15SentAt: prev?.reminder15SentAt ?? null,
       reminder30SentAt: prev?.reminder30SentAt ?? null,
       syncedAt: now,
@@ -641,7 +655,7 @@ export async function reconcileInvoicesDb(now = Date.now()): Promise<{ upserted:
         const b = doc[key as keyof MirrorInvoiceDoc];
         return a === b;
       });
-      if (same) continue;
+      if (same && JSON.stringify(prev.items ?? null) === JSON.stringify(doc.items ?? null)) continue;
     }
     await prisma.invoice.upsert({
       where: { invoiceId: idKey },
@@ -660,6 +674,7 @@ export async function reconcileInvoicesDb(now = Date.now()): Promise<{ upserted:
   }
 
   // Denormalize the overdue summary onto customer rows so admin list pages never scan the invoice table.
+  const unpaid = all.filter((inv) => !inv.isPaid);
   const freshByCustomer = new Map<number, SplynxInvoice[]>();
   for (const inv of unpaid) {
     const bucket = freshByCustomer.get(inv.customerId) || [];
@@ -691,7 +706,7 @@ export async function reconcileInvoicesDb(now = Date.now()): Promise<{ upserted:
     }
   }
 
-  return { upserted, denied: false, fetched: unpaid.length + deleted.length + existingRows.length };
+  return { upserted, denied: false, fetched: all.length + deleted.length + existingRows.length };
 }
 
 // Ticket reconcile (Splynx helpdesk → Ticket table)
@@ -1416,6 +1431,18 @@ export async function runHourlySyncDb(baseUrl: string, now = Date.now()): Promis
     const invoices = await reconcileInvoicesDb(now);
     stats.invoicesUpserted = invoices.upserted;
     stats.invoicesApiDenied = invoices.denied;
+
+    // Credit-note mirror (finance/credit-notes → CreditNote table). Best-effort:
+    // a credit-note failure must never break the main sync.
+    try {
+      const { syncCreditNotes } = await import('./splynx-credit-notes');
+      const cn = await syncCreditNotes();
+      logInfo('[splynx-sync] credit notes finished', { ...cn });
+    } catch (cnErr) {
+      logWarn('[splynx-sync] credit-note sync failed (best-effort)', {
+        error: cnErr instanceof Error ? cnErr.message : String(cnErr),
+      });
+    }
 
     // Ticket mirror (helpdesk → Ticket table). Best-effort within the hourly
     // run: a ticket failure must never take down customers/invoices/mail.

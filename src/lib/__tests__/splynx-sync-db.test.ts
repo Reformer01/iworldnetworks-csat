@@ -30,6 +30,7 @@ const prismaMock = vi.hoisted(() => ({
 
 const apiMock = vi.hoisted(() => ({
   getAllCustomers: vi.fn(),
+  getAllInvoices: vi.fn(),
   getUnpaidInvoices: vi.fn(),
   getDeletedInvoices: vi.fn(),
   getSupportTickets: vi.fn().mockResolvedValue([]),
@@ -99,6 +100,7 @@ vi.mock('../logger', () => loggerMock);
 vi.mock('../route-cache', () => ({ clearRouteCache: vi.fn() }));
 vi.mock('@/lib/journal', () => journalMock);
 vi.mock('@/lib/staff-kpis', () => ({ persistStaffKPIs: vi.fn(async () => ({})) }));
+vi.mock('../splynx-credit-notes', () => ({ syncCreditNotes: vi.fn(async () => ({ fetched: 0, upserted: 0 })) }));
 
 import {
   rowToCustomerDoc,
@@ -289,6 +291,7 @@ type InvoiceRecordOverrides = Partial<{
   status: string;
   isPaid: boolean;
   paidAt: number | null;
+  items: Array<{ description?: string; price?: number | string }>;
 }>;
 
 function invoiceRecord(over: InvoiceRecordOverrides = {}) {
@@ -598,15 +601,15 @@ describe('reconcileCustomersDb', () => {
 // ---------------------------------------------------------------------------
 
 describe('reconcileInvoicesDb', () => {
-  it('records invoicesApiDenied on a 403 from the unpaid endpoint', async () => {
-    apiMock.getUnpaidInvoices.mockRejectedValue(new Error('403 Forbidden'));
+  it('records invoicesApiDenied on a 403 from the invoices endpoint', async () => {
+    apiMock.getAllInvoices.mockRejectedValue(new Error('403 Forbidden'));
     const result = await reconcileInvoicesDb(NOW);
     expect(result.denied).toBe(true);
     expect(syncDbMock.setSplynxMeta).toHaveBeenCalledWith({ invoicesApiDenied: true, deniedAt: NOW });
   });
 
   it('upserts changed invoices and skips unchanged ones', async () => {
-    apiMock.getUnpaidInvoices.mockResolvedValue([invoiceRecord()]);
+    apiMock.getAllInvoices.mockResolvedValue([invoiceRecord()]);
     apiMock.getDeletedInvoices.mockResolvedValue([]);
     prismaMock.invoice.findMany.mockResolvedValue([invoiceRow()]);
     const result = await reconcileInvoicesDb(NOW);
@@ -614,15 +617,28 @@ describe('reconcileInvoicesDb', () => {
     expect(prismaMock.invoice.upsert).not.toHaveBeenCalled();
     expect(syncDbMock.setSplynxMeta).toHaveBeenCalledWith({ invoicesApiDenied: false, lastInvoiceSyncAt: NOW });
 
-    apiMock.getUnpaidInvoices.mockResolvedValue([invoiceRecord({ total: 500 })]);
+    apiMock.getAllInvoices.mockResolvedValue([invoiceRecord({ total: 500 })]);
     const result2 = await reconcileInvoicesDb(NOW);
     expect(result2.upserted).toBe(1);
     const [args] = prismaMock.invoice.upsert.mock.calls[0];
     expect(args.update.total).toBe(500);
   });
 
+  it('stores invoice line items on the mirror', async () => {
+    const items = [
+      { description: 'Shared Access Plan for Homes', price: 27500 },
+      { description: 'Compensation for July Downtime', price: -3548.39 },
+    ];
+    apiMock.getAllInvoices.mockResolvedValue([invoiceRecord({ items })]);
+    apiMock.getDeletedInvoices.mockResolvedValue([]);
+    prismaMock.invoice.findMany.mockResolvedValue([]);
+    await reconcileInvoicesDb(NOW);
+    const [args] = prismaMock.invoice.upsert.mock.calls[0];
+    expect(args.create.items).toEqual(items);
+  });
+
   it('deletes invoices pruned in Splynx', async () => {
-    apiMock.getUnpaidInvoices.mockResolvedValue([]);
+    apiMock.getAllInvoices.mockResolvedValue([]);
     apiMock.getDeletedInvoices.mockResolvedValue([invoiceRecord({ id: 101 })]);
     prismaMock.invoice.findMany.mockResolvedValue([invoiceRow()]);
     const result = await reconcileInvoicesDb(NOW);
@@ -631,7 +647,7 @@ describe('reconcileInvoicesDb', () => {
   });
 
   it('denormalizes overdueInfo onto customer rows', async () => {
-    apiMock.getUnpaidInvoices.mockResolvedValue([invoiceRecord()]);
+    apiMock.getAllInvoices.mockResolvedValue([invoiceRecord()]);
     apiMock.getDeletedInvoices.mockResolvedValue([]);
     await reconcileInvoicesDb(NOW);
     expect(prismaMock.customer.update).toHaveBeenCalledWith(
@@ -929,11 +945,11 @@ describe('runHourlySyncDb', () => {
 
   it('runs the full pipeline and records completion', async () => {
     apiMock.getAllCustomers.mockResolvedValue([]);
-    apiMock.getUnpaidInvoices.mockResolvedValue([]);
+    apiMock.getAllInvoices.mockResolvedValue([]);
     apiMock.getDeletedInvoices.mockResolvedValue([]);
     const stats = await runHourlySyncDb('https://csat.iwn.ng', NOW);
     expect(apiMock.getAllCustomers).toHaveBeenCalled();
-    expect(apiMock.getUnpaidInvoices).toHaveBeenCalled();
+    expect(apiMock.getAllInvoices).toHaveBeenCalled();
     expect(syncDbMock.completeSyncRun).toHaveBeenCalledWith(
       expect.objectContaining({ customersUpserted: 0, invoicesUpserted: 0, invoicesApiDenied: false }),
       null,

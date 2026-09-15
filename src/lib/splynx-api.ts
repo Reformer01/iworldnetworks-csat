@@ -74,6 +74,11 @@ export interface SplynxCustomerListRecord {
   customer_labels?: SplynxCustomerLabel[];
 }
 
+export interface SplynxInvoiceItem {
+  description?: string;
+  price?: number | string;
+}
+
 export interface SplynxInvoice {
   id: number;
   customerId: number;
@@ -85,6 +90,7 @@ export interface SplynxInvoice {
   status: string;
   isPaid: boolean;
   paidAt: number | null;
+  items?: SplynxInvoiceItem[];
 }
 
 export interface SplynxService {
@@ -166,12 +172,15 @@ interface RawSplynxInvoice {
   date_payment?: string;
   status?: string;
   is_paid?: boolean | number;
-  items?: Array<{ description?: string }>;
+  items?: Array<{ description?: string; price?: string | number }>;
 }
 
 type RawInvoiceList = RawSplynxInvoice[];
 
-function isItemObject(value: { description?: string } | undefined): value is { description?: string } {
+function isItemObject(value: { description?: string; price?: string | number } | undefined): value is {
+  description?: string;
+  price?: string | number;
+} {
   return typeof value === 'object' && value !== null;
 }
 
@@ -183,11 +192,6 @@ function isNumberValue(value: string | number): value is number {
   return typeof value === 'number';
 }
 
-
-
-
-
-
 export function parseSplynxApiDate(rawValue: string | undefined | null): number | null {
   if (!isStringValue(rawValue)) return null;
   const clean = rawValue.trim();
@@ -198,8 +202,6 @@ export function parseSplynxApiDate(rawValue: string | undefined | null): number 
   const ms = Date.parse(iso);
   return Number.isNaN(ms) ? null : ms;
 }
-
-
 
 export function normalizeSplynxInvoice(raw: RawSplynxInvoice): SplynxInvoice {
   const status = String(raw.status ?? '').toLowerCase();
@@ -229,6 +231,10 @@ export function normalizeSplynxInvoice(raw: RawSplynxInvoice): SplynxInvoice {
     status,
     isPaid,
     paidAt,
+    // Raw line items (negative prices = discounts/compensation). Stored on the
+    // mirror so the income report derives discounts from items, never from
+    // invoice-total-minus-paid (open balances are not discounts).
+    items: items.map((it) => ({ description: it?.description, price: it?.price })),
   };
 }
 
@@ -342,6 +348,23 @@ export async function getUnpaidInvoices(): Promise<SplynxInvoice[]> {
   return normalizeInvoiceList(raw);
 }
 
+export const INVOICE_PAGE_SIZE = 500;
+
+/** Full invoice pass (paid + unpaid, limit/offset until a short page). Volume is small (~thousands). */
+export async function getAllInvoices(limit = INVOICE_PAGE_SIZE): Promise<SplynxInvoice[]> {
+  const all: SplynxInvoice[] = [];
+  let offset = 0;
+  for (;;) {
+    const params = new URLSearchParams({ limit: String(limit), offset: String(offset) });
+    const raw = await splynxFetch<RawInvoiceList>('/admin/finance/invoices', params);
+    const batch = normalizeInvoiceList(Array.isArray(raw) ? raw : []);
+    all.push(...batch);
+    if (batch.length < limit) break;
+    offset += batch.length;
+  }
+  return all;
+}
+
 export async function getDeletedInvoices(): Promise<SplynxInvoice[]> {
   const params = new URLSearchParams();
   params.set('main_attributes[status][0]', '=');
@@ -349,7 +372,6 @@ export async function getDeletedInvoices(): Promise<SplynxInvoice[]> {
   const raw = await splynxFetch<RawInvoiceList>('/admin/finance/invoices', params);
   return normalizeInvoiceList(raw);
 }
-
 
 export interface SplynxTicket {
   id: number;
@@ -406,19 +428,16 @@ export async function getRouters(): Promise<SplynxRouter[]> {
 }
 
 export async function getTariffs(): Promise<SplynxTariff[]> {
-  
   const response = await splynxFetch<SplynxTariff[] | PaginatedResponse<SplynxTariff>>('/admin/tariffs/internet');
   return Array.isArray(response) ? response : (response.data ?? []);
 }
 
 export async function getCustomerServices(customerId: number | string): Promise<SplynxService[]> {
-  
   const response = await splynxFetch<PaginatedResponse<SplynxService> | SplynxService[]>(
     `/admin/customers/customer/${customerId}/internet-services`,
   );
   return Array.isArray(response) ? response : (response.data ?? []);
 }
-
 
 export function extractBtsFromLabels(labels: SplynxCustomerLabel[] | undefined): string | null {
   if (!labels || labels.length === 0) return null;

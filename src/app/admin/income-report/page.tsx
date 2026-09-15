@@ -49,7 +49,7 @@ function monthBounds(month: string): { from: string; to: string } {
 }
 
 const SEGMENTS = ['__all', 'residential', 'sme', 'enterprise', 'other'];
-const CHANNELS = ['__all', 'paystack', 'bank', 'cash', 'transfer'];
+const CHANNELS = ['__all', 'paystack', 'bank', 'cash', 'transfer', 'credit'];
 
 export default function IncomeReportPage() {
   const auth = useAuth();

@@ -11,6 +11,7 @@ import {
   matchesChannel,
   monthBoundsUTC,
   dayRangeBoundsUTC,
+  round2,
   type IncomeRow,
 } from '@/lib/income-report';
 
@@ -66,19 +67,51 @@ export async function GET(request: NextRequest) {
       take: 20000,
     });
 
-    // 2) Invoice totals for discount derivation (invoice total − amount paid).
+    // 2) Credit notes applied in range (paidAt, falling back to dateCreated).
+    // Void/refunded/cancelled notes are never income.
+    const creditNotes = await prisma.creditNote.findMany({
+      where: {
+        OR: [
+          { paidAt: { gte: new Date(start), lte: new Date(end) } },
+          { paidAt: null, dateCreated: { gte: BigInt(start), lte: BigInt(end) } },
+        ],
+      },
+      orderBy: { paidAt: 'desc' },
+      take: 20000,
+    });
+    const EXCLUDED_CREDIT_STATUS = new Set(['refunded', 'void', 'cancelled']);
+    const appliedCredits = creditNotes.filter(
+      (cn) =>
+        !EXCLUDED_CREDIT_STATUS.has(
+          String(cn.status ?? '')
+            .trim()
+            .toLowerCase(),
+        ),
+    );
+
+    // 3) Invoice line items for discount derivation (negative price = discount).
     const invoiceIds = [...new Set(payments.map((p) => p.invoiceId).filter((v): v is string => !!v))];
-    const invoiceMap = new Map<string, number>();
+    const invoiceItems = new Map<string, Array<{ description?: string; price?: number | string }>>();
     if (invoiceIds.length) {
       const invoices = await prisma.invoice.findMany({
         where: { invoiceId: { in: invoiceIds } },
-        select: { invoiceId: true, total: true },
+        select: { invoiceId: true, items: true },
       });
-      for (const inv of invoices) invoiceMap.set(inv.invoiceId, inv.total ?? 0);
+      for (const inv of invoices) {
+        invoiceItems.set(
+          inv.invoiceId,
+          Array.isArray(inv.items) ? (inv.items as Array<{ description?: string; price?: number | string }>) : [],
+        );
+      }
     }
 
-    // 3) Customers from the mirror (plan/category/state/dateAdded).
-    const cids = [...new Set(payments.map((p) => String(p.customerId ?? '')).filter(Boolean))];
+    // 4) Customers from the mirror (plan/category/state/dateAdded).
+    const cids = [
+      ...new Set([
+        ...payments.map((p) => String(p.customerId ?? '')).filter(Boolean),
+        ...appliedCredits.map((cn) => String(cn.customerId ?? '')).filter(Boolean),
+      ]),
+    ];
     const customers = cids.length
       ? await prisma.customer.findMany({
           where: { customerId: { in: cids } },
@@ -114,12 +147,12 @@ export async function GET(request: NextRequest) {
       const reference = String(p.receiptNumber || p.note || `PAY-${p.paymentId}`);
       if (!matchesChannel(reference, p.paymentType ?? '', channel)) continue;
       const c = custMap.get(String(p.customerId ?? ''));
-      const invoiceTotal = p.invoiceId ? invoiceMap.get(p.invoiceId) : undefined;
+      const items = p.invoiceId ? (invoiceItems.get(p.invoiceId) ?? []) : [];
       rows.push(
         buildMirrorIncomeRow({
           ms,
           paidAmount: amt,
-          invoiceTotal: invoiceTotal ?? null,
+          items,
           plan: String(c?.servicePlan ?? ''),
           category: String(c?.category ?? ''),
           customerName: String(c?.customerName ?? `#${p.customerId ?? p.paymentId}`),
@@ -135,8 +168,62 @@ export async function GET(request: NextRequest) {
       );
     }
 
+    // Credit-note rows: Others = total, no tax split, flowing through the
+    // same region/segment/channel/search filters below.
+    const creditRowSet = new Set<IncomeRow>();
+    for (const cn of appliedCredits) {
+      const total = round2(Number(cn.total ?? 0) || 0);
+      if (!total) continue;
+      let ms: number | null = null;
+      if (cn.paidAt != null) {
+        const t = new Date(cn.paidAt).getTime();
+        if (Number.isFinite(t)) ms = t;
+      }
+      if (ms == null && cn.dateCreated != null) {
+        const t = Number(cn.dateCreated);
+        if (Number.isFinite(t) && t > 0) ms = t;
+      }
+      if (ms == null) continue;
+      const reference = String(cn.number || cn.creditId);
+      if (!matchesChannel(reference, 'credit', channel)) continue;
+      const c = custMap.get(String(cn.customerId ?? ''));
+      const descs = (Array.isArray(cn.items) ? (cn.items as Array<{ description?: unknown }>) : [])
+        .map((it) => String(it?.description ?? '').trim())
+        .filter(Boolean);
+      const row: IncomeRow = {
+        date: new Date(ms).toISOString().slice(0, 10),
+        customer: String(c?.customerName ?? `#${cn.customerId ?? cn.creditId}`),
+        email: String(c?.email ?? ''),
+        reference,
+        amount: total,
+        enterprise: 0,
+        isNew: 0,
+        residential: 0,
+        sme: 0,
+        discounts: 0,
+        others: total,
+        tax: 0,
+        balance: total,
+        region: String(c?.state ?? ''),
+        remark: '',
+        note: descs.length ? `Credit note: ${descs.join('; ')}` : 'Credit note',
+        isPrepay: false,
+      };
+      rows.push(row);
+      creditRowSet.add(row);
+    }
+
     const filtered = applyRowFilters(rows, { region, segment, channel: '__all', search });
     filtered.sort((a, b) => b.date.localeCompare(a.date));
+
+    const creditFiltered = filtered.filter((r) => creditRowSet.has(r));
+    const summary = {
+      ...summarize(filtered),
+      creditNotes: {
+        count: creditFiltered.length,
+        total: round2(creditFiltered.reduce((s, r) => s + r.amount, 0)),
+      },
+    };
 
     let paymentsSyncedAt: string | null = null;
     for (const p of payments) {
@@ -151,7 +238,7 @@ export async function GET(request: NextRequest) {
       from,
       to,
       filters: { region, segment, channel, search },
-      summary: summarize(filtered),
+      summary,
       rows: filtered,
       source: 'splynx-payments-mirror',
       paymentsSyncedAt,

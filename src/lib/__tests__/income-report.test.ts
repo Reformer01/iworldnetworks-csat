@@ -11,6 +11,7 @@ import {
   buildIncomeRow,
   deriveDiscountAmount,
   deriveDiscountRemark,
+  splitInvoiceItems,
   buildMirrorIncomeRow,
   kindOfRow,
   matchesChannel,
@@ -387,11 +388,14 @@ describe('discount derivation (invoice − paid)', () => {
     expect(deriveDiscountAmount(15000, 15000)).toBe(0);
     expect(deriveDiscountRemark(0, 27500)).toBe('');
   });
-  it('mirror row buckets the FULL plan value', () => {
+  it('mirror row buckets the FULL plan value from items', () => {
     const row = buildMirrorIncomeRow({
       ms: Date.UTC(2026, 7, 5),
       paidAmount: 23375,
-      invoiceTotal: 27500,
+      items: [
+        { description: 'U-Pro Monthly', price: 27500 },
+        { description: 'Loyalty discount', price: -4125 },
+      ],
       plan: 'U-Pro',
       category: 'retail',
       customerName: 'SME Co',
@@ -407,14 +411,134 @@ describe('discount derivation (invoice − paid)', () => {
     expect(row.amount).toBe(23375);
     expect(row.sme).toBe(27500);
     expect(row.discounts).toBe(4125);
-    expect(row.remark).toBe('15%');
+    expect(row.remark).toBe('');
     expect(row.region).toBe('Osun');
   });
   it('Others holds paid with 0 discount', () => {
     const row = buildMirrorIncomeRow({
       ms: Date.UTC(2026, 7, 5),
       paidAmount: 30000,
-      invoiceTotal: 35000,
+      items: [
+        { description: 'Walk-in sale', price: 35000 },
+        { description: 'Goodwill', price: -5000 },
+      ],
+      plan: '',
+      category: '',
+      customerName: 'Cash Walker',
+      email: '',
+      reference: 'INV-9',
+      note: '',
+      state: '',
+      splynxDateAdded: null,
+      start: START,
+      end: END,
+      isPrepay: false,
+    });
+    expect(row.others).toBe(30000);
+    expect(row.discounts).toBe(0);
+    expect(row.remark).toBe('');
+  });
+});
+
+describe('item-level discounts (invoice ITEMS)', () => {
+  it('splitInvoiceItems: planValue = Σ(price>0), discounts = |Σ(price<0)|', () => {
+    expect(
+      splitInvoiceItems([
+        { description: 'Shared Access Plan for Homes', price: 27500 },
+        { description: 'Compensation for July Downtime', price: -3548.39 },
+      ]),
+    ).toEqual({ planValue: 27500, discounts: 3548.39 });
+    expect(splitInvoiceItems([])).toEqual({ planValue: 0, discounts: 0 });
+    expect(splitInvoiceItems(null)).toEqual({ planValue: 0, discounts: 0 });
+    expect(
+      splitInvoiceItems([
+        { description: 'Plan', price: '27500' },
+        { description: 'Compensation', price: '-3548.39' },
+      ]),
+    ).toEqual({ planValue: 27500, discounts: 3548.39 });
+  });
+
+  it('canonical compensation: 27500 + (-3548.39) → SME 27500, discounts 3548.39, paid 23951.61, remark empty', () => {
+    const row = buildMirrorIncomeRow({
+      ms: Date.UTC(2026, 7, 5),
+      paidAmount: 23951.61,
+      items: [
+        { description: 'Shared Access Plan for Homes', price: 27500 },
+        { description: 'Compensation for July Downtime', price: -3548.39 },
+      ],
+      plan: 'U-Pro',
+      category: 'retail',
+      customerName: 'SME Co',
+      email: 's@sme.ng',
+      reference: 'PSK-001',
+      note: '',
+      state: 'Lagos',
+      splynxDateAdded: Date.UTC(2026, 7, 3),
+      start: START,
+      end: END,
+      isPrepay: false,
+    });
+    expect(row.amount).toBe(23951.61);
+    expect(row.sme).toBe(27500);
+    expect(row.discounts).toBe(3548.39);
+    expect(row.remark).toBe('');
+    expect(row.tax).toBe(1796.37);
+    expect(row.balance).toBe(22155.24);
+  });
+
+  it('Nutrifield-style open invoice (no negative items) → discounts 0, never the unpaid balance', () => {
+    const row = buildMirrorIncomeRow({
+      ms: Date.UTC(2026, 7, 5),
+      paidAmount: 1487999.99,
+      items: [{ description: 'Nutrifield Dedicated 100Mbps', price: 1719999.99 }],
+      plan: 'Nutrifield 100Mbps Dedicated',
+      category: 'company',
+      customerName: 'Nutrifield',
+      email: 'a@nutrifield.ng',
+      reference: 'BNK-777',
+      note: '',
+      state: 'Oyo',
+      splynxDateAdded: null,
+      start: START,
+      end: END,
+      isPrepay: false,
+    });
+    expect(row.amount).toBe(1487999.99);
+    expect(row.enterprise).toBe(1719999.99);
+    expect(row.discounts).toBe(0);
+    expect(row.remark).toBe('');
+  });
+
+  it('missing invoice (no items) → bucket falls back to paid, discounts 0', () => {
+    const row = buildMirrorIncomeRow({
+      ms: Date.UTC(2026, 7, 5),
+      paidAmount: 23375,
+      items: [],
+      plan: 'U-Pro',
+      category: 'retail',
+      customerName: 'SME Co',
+      email: 's@sme.ng',
+      reference: 'PSK-001',
+      note: '',
+      state: 'Lagos',
+      splynxDateAdded: null,
+      start: START,
+      end: END,
+      isPrepay: false,
+    });
+    expect(row.sme).toBe(23375);
+    expect(row.discounts).toBe(0);
+    expect(row.remark).toBe('');
+  });
+
+  it('kind other → Others = paid even when items carry negatives', () => {
+    const row = buildMirrorIncomeRow({
+      ms: Date.UTC(2026, 7, 5),
+      paidAmount: 30000,
+      items: [
+        { description: 'Walk-in sale', price: 35000 },
+        { description: 'Goodwill', price: -5000 },
+      ],
       plan: '',
       category: '',
       customerName: 'Cash Walker',

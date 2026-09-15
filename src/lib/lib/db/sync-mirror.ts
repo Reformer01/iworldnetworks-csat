@@ -82,6 +82,7 @@ export function mapInvoice(doc: MirrorInvoiceDoc) {
     status: doc.status,
     isPaid: doc.isPaid,
     paidAt: toBigInt(doc.paidAt),
+    items: (doc.items ?? null) as unknown as Prisma.InputJsonValue,
     reminder15SentAt: toBigInt(doc.reminder15SentAt),
     reminder30SentAt: toBigInt(doc.reminder30SentAt),
     syncedAt: toBigInt(doc.syncedAt),

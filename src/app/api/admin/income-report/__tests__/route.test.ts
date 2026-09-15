@@ -5,6 +5,7 @@ const mocks = vi.hoisted(() => ({
   findPayments: vi.fn(),
   findInvoices: vi.fn(),
   findCustomers: vi.fn(),
+  findCredits: vi.fn(),
   verifyAdmin: vi.fn(),
 }));
 
@@ -13,6 +14,7 @@ vi.mock('@/lib/prisma', () => ({
     splynxPayment: { findMany: mocks.findPayments },
     invoice: { findMany: mocks.findInvoices },
     customer: { findMany: mocks.findCustomers },
+    creditNote: { findMany: mocks.findCredits },
   },
 }));
 vi.mock('@/lib/admin-auth', () => ({ verifyAdminToken: mocks.verifyAdmin }));
@@ -65,7 +67,15 @@ const PAYMENTS = [
   },
 ];
 
-const INVOICES = [{ invoiceId: 'inv-1', total: 27500 }];
+const INVOICES = [
+  {
+    invoiceId: 'inv-1',
+    items: [
+      { description: 'U-Pro Monthly', price: 27500 },
+      { description: 'Loyalty discount', price: -4125 },
+    ],
+  },
+];
 
 const CUSTOMERS = [
   {
@@ -117,6 +127,7 @@ describe('GET /api/admin/income-report (mirror)', () => {
     });
     mocks.findInvoices.mockResolvedValue(INVOICES);
     mocks.findCustomers.mockResolvedValue(CUSTOMERS);
+    mocks.findCredits.mockResolvedValue([]);
   });
 
   it('returns 401 for missing auth', async () => {
@@ -145,9 +156,10 @@ describe('GET /api/admin/income-report (mirror)', () => {
     expect(sme.amount).toBe(23375);
     expect(sme.sme).toBe(27500);
     expect(sme.discounts).toBe(4125);
-    expect(sme.remark).toBe('15%');
+    expect(sme.remark).toBe('');
     expect(sme.region).toBe('Lagos');
     expect(sme.isNew).toBe(1);
+    expect(body.data.summary.creditNotes).toEqual({ count: 0, total: 0 });
 
     const walkin = body.data.rows.find((r: { reference: string }) => r.reference === 'INV-009');
     expect(walkin.others).toBe(30000);
@@ -188,5 +200,51 @@ describe('GET /api/admin/income-report (mirror)', () => {
     expect(ps.data.rows).toHaveLength(1);
     const byName = await (await GET(req('http://localhost:9002/api/admin/income-report?month=2026-08&search=SME One'))).json();
     expect(byName.data.rows).toHaveLength(1);
+  });
+
+  it('adds applied credit notes as Others rows with a creditNotes summary', async () => {
+    mocks.findCredits.mockResolvedValue([
+      {
+        creditId: 'cn-1',
+        customerId: '2',
+        number: 'CN202501000002',
+        total: 5000,
+        status: 'not_refunded',
+        paymentId: null,
+        invoiceLink: null,
+        dateCreated: BigInt(Date.UTC(2026, 7, 11)),
+        paidAt: new Date(Date.UTC(2026, 7, 11, 9, 0, 0)),
+        items: [{ description: 'Goodwill credit' }],
+      },
+      {
+        creditId: 'cn-void',
+        customerId: '2',
+        number: 'CN202501000003',
+        total: 9999,
+        status: 'void',
+        paymentId: null,
+        invoiceLink: null,
+        dateCreated: BigInt(Date.UTC(2026, 7, 11)),
+        paidAt: new Date(Date.UTC(2026, 7, 11, 9, 0, 0)),
+        items: [],
+      },
+    ]);
+    const res = await GET(req('http://localhost:9002/api/admin/income-report?month=2026-08'));
+    const body = await res.json();
+    expect(body.data.rows).toHaveLength(4);
+    const cn = body.data.rows.find((r: { reference: string }) => r.reference === 'CN202501000002');
+    expect(cn.amount).toBe(5000);
+    expect(cn.others).toBe(5000);
+    expect(cn.discounts).toBe(0);
+    expect(cn.tax).toBe(0);
+    expect(cn.balance).toBe(5000);
+    expect(cn.remark).toBe('');
+    expect(cn.note).toContain('Credit note');
+    expect(cn.region).toBe('Oyo');
+    expect(body.data.summary.creditNotes).toEqual({ count: 1, total: 5000 });
+
+    const credit = await (await GET(req('http://localhost:9002/api/admin/income-report?month=2026-08&channel=credit'))).json();
+    expect(credit.data.rows).toHaveLength(1);
+    expect(credit.data.rows[0].reference).toBe('CN202501000002');
   });
 });
