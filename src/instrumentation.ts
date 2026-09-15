@@ -17,6 +17,10 @@ export async function register() {
     startUispSyncScheduler();
     const { startEmailWorker } = await import('@/lib/workers/email-worker');
     startEmailWorker();
+    const { startPaystackSyncWorker } = await import('@/lib/workers/paystack-sync-worker');
+    startPaystackSyncWorker();
+    const { startReconciliationWorker } = await import('@/lib/workers/reconciliation-worker');
+    startReconciliationWorker();
 
     // Campaign scheduler — checks for scheduled campaigns every minute
     const { processScheduledCampaigns } = await import('@/lib/campaign-scheduler');

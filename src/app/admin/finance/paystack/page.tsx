@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { AlertTriangle, Download, Loader2, RefreshCw, ShieldAlert } from 'lucide-react';
+import { AlertTriangle, Download, Loader2, RefreshCw, ShieldAlert, GitCompare } from 'lucide-react';
 import { useAuth, useUser } from '@/firebase';
 import { isSuperAdmin } from '@/lib/admin-config';
 import type { PaystackOverviewPayload } from '@/lib/finance/paystack-aggregates';
@@ -37,6 +37,8 @@ export default function PaystackOverviewPage() {
   const [error, setError] = useState<string | null>(null);
   const [syncing, setSyncing] = useState(false);
   const [syncMessage, setSyncMessage] = useState<string | null>(null);
+  const [reconciling, setReconciling] = useState(false);
+  const [reconMessage, setReconMessage] = useState<string | null>(null);
 
   const canSync = isSuperAdmin(user?.email || '');
 
@@ -54,15 +56,130 @@ export default function PaystackOverviewPage() {
       const json = await res.json().catch(() => null);
       if (!res.ok || !json?.success) {
         setSyncMessage(json?.error || `Sync failed (HTTP ${res.status})`);
-      } else {
-        const { fetched = 0, upserted = 0 } = json.data ?? {};
-        setSyncMessage(`Synced ${fetched} transactions, stored ${upserted}`);
-        setReloadKey((k) => k + 1);
+        return;
       }
+      const jobId = json.data?.jobId as string | undefined;
+      if (!jobId) {
+        setSyncMessage('Sync failed to start — no job id returned');
+        return;
+      }
+      // Poll the job until it completes or fails (backfills outlive the proxy).
+      for (let attempt = 0; attempt < 120; attempt++) {
+        await new Promise((r) => setTimeout(r, 3000));
+        const pollToken = await user.getIdToken();
+        const poll = await fetch(`/api/admin/finance/paystack/sync?jobId=${encodeURIComponent(jobId)}`, {
+          headers: { Authorization: `Bearer ${pollToken}` },
+        });
+        const pollJson = await poll.json().catch(() => null);
+        if (!poll.ok || !pollJson?.success) {
+          setSyncMessage(pollJson?.error || `Sync status check failed (HTTP ${poll.status})`);
+          return;
+        }
+        const status = pollJson.data?.status as string;
+        const progress = (pollJson.data?.progress ?? {}) as { fetched?: number; upserted?: number };
+        const result = (pollJson.data?.result ?? null) as { fetched?: number; upserted?: number } | null;
+        if (status === 'completed') {
+          const fetched = result?.fetched ?? progress.fetched ?? 0;
+          const upserted = result?.upserted ?? progress.upserted ?? 0;
+          setSyncMessage(`Synced ${fetched.toLocaleString('en-NG')} transactions, stored ${upserted.toLocaleString('en-NG')}`);
+          setReloadKey((k) => k + 1);
+          return;
+        }
+        if (status === 'failed') {
+          setSyncMessage(pollJson.data?.error || 'Sync failed — retry from the queue');
+          return;
+        }
+        const fetched = Number(progress.fetched ?? 0);
+        setSyncMessage(`Syncing… ${fetched.toLocaleString('en-NG')} fetched`);
+      }
+      setSyncMessage('Sync still running — refresh to check progress');
     } catch {
       setSyncMessage('Sync failed — check your connection and retry');
     } finally {
       setSyncing(false);
+    }
+  }
+
+  async function handleReconcile() {
+    if (!user || reconciling) return;
+    setReconciling(true);
+    setReconMessage(null);
+    try {
+      const token = await user.getIdToken();
+      const res = await fetch('/api/admin/finance/paystack/reconciliation/sync', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ month }),
+      });
+      const json = await res.json().catch(() => null);
+      if (!res.ok || !json?.success) {
+        setReconMessage(json?.error || `Reconciliation failed (HTTP ${res.status})`);
+        return;
+      }
+      const jobId = json.data?.jobId as string | undefined;
+      if (!jobId) {
+        setReconMessage('Reconciliation failed to start — no job id returned');
+        return;
+      }
+      for (let attempt = 0; attempt < 120; attempt++) {
+        await new Promise((r) => setTimeout(r, 3000));
+        const pollToken = await user.getIdToken();
+        const poll = await fetch(`/api/admin/finance/paystack/reconciliation/sync?jobId=${encodeURIComponent(jobId)}`, {
+          headers: { Authorization: `Bearer ${pollToken}` },
+        });
+        const pollJson = await poll.json().catch(() => null);
+        if (!poll.ok || !pollJson?.success) {
+          setReconMessage(pollJson?.error || `Reconciliation status check failed (HTTP ${poll.status})`);
+          return;
+        }
+        const status = pollJson.data?.status as string;
+        const progress = (pollJson.data?.progress ?? {}) as {
+          stage?: string;
+          fetched?: number;
+          upserted?: number;
+          matched?: number;
+          paystackOnly?: number;
+          splynxOnly?: number;
+          amountMismatch?: number;
+          dateMismatch?: number;
+          duplicate?: number;
+          exceptionsCreated?: number;
+        };
+        const result = (pollJson.data?.result ?? null) as typeof progress | null;
+        if (status === 'completed') {
+          const m = result?.matched ?? progress.matched ?? 0;
+          const po = result?.paystackOnly ?? progress.paystackOnly ?? 0;
+          const so = result?.splynxOnly ?? progress.splynxOnly ?? 0;
+          const am = result?.amountMismatch ?? progress.amountMismatch ?? 0;
+          const dm = result?.dateMismatch ?? progress.dateMismatch ?? 0;
+          const dup = result?.duplicate ?? progress.duplicate ?? 0;
+          setReconMessage(
+            `Matched ${m}, Paystack-only ${po}, Splynx-only ${so}, Amount mismatches ${am}, Date mismatches ${dm}, Duplicates ${dup}`,
+          );
+          setReloadKey((k) => k + 1);
+          return;
+        }
+        if (status === 'failed') {
+          setReconMessage(pollJson.data?.error || 'Reconciliation failed — retry from the queue');
+          return;
+        }
+        if (progress.stage === 'import') {
+          const fetched = Number(progress.fetched ?? 0);
+          const upserted = Number(progress.upserted ?? 0);
+          setReconMessage(`Importing Splynx… ${fetched.toLocaleString('en-NG')} fetched, ${upserted.toLocaleString('en-NG')} stored`);
+        } else if (progress.stage === 'match') {
+          const psCount = Number(progress.fetched ?? 0);
+          const spCount = Number(progress.upserted ?? 0);
+          setReconMessage(`Matching… ${psCount.toLocaleString('en-NG')} Paystack / ${spCount.toLocaleString('en-NG')} Splynx`);
+        } else {
+          setReconMessage('Reconciling…');
+        }
+      }
+      setReconMessage('Reconciliation still running — refresh to check progress');
+    } catch {
+      setReconMessage('Reconciliation failed — check your connection and retry');
+    } finally {
+      setReconciling(false);
     }
   }
 
@@ -183,20 +300,35 @@ export default function PaystackOverviewPage() {
             <RefreshCw className="h-4 w-4" />
           </button>
           {canSync && (
-            <button
-              onClick={handleSync}
-              disabled={syncing}
-              className="flex items-center gap-2 rounded-full bg-secondary px-5 py-2 font-mono text-[11px] font-bold uppercase tracking-widest text-white disabled:opacity-60"
-            >
-              {syncing ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Download className="h-3.5 w-3.5" />}
-              {syncing ? 'Syncing…' : 'Sync Paystack'}
-            </button>
+            <>
+              <button
+                onClick={handleSync}
+                disabled={syncing}
+                className="flex items-center gap-2 rounded-full bg-secondary px-5 py-2 font-mono text-[11px] font-bold uppercase tracking-widest text-white disabled:opacity-60"
+              >
+                {syncing ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Download className="h-3.5 w-3.5" />}
+                {syncing ? 'Syncing…' : 'Sync Paystack'}
+              </button>
+              <button
+                onClick={handleReconcile}
+                disabled={reconciling}
+                className="flex items-center gap-2 rounded-full bg-emerald-600 px-5 py-2 font-mono text-[11px] font-bold uppercase tracking-widest text-white disabled:opacity-60"
+              >
+                {reconciling ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <GitCompare className="h-3.5 w-3.5" />}
+                {reconciling ? 'Reconciling…' : 'Reconcile'}
+              </button>
+            </>
           )}
         </div>
       </header>
       {syncMessage && (
         <p className="mb-4 rounded-2xl border border-border bg-white p-3 text-center font-mono text-[11px] font-bold uppercase tracking-widest opacity-80">
           {syncMessage}
+        </p>
+      )}
+      {reconMessage && (
+        <p className="mb-4 rounded-2xl border border-emerald-200 bg-emerald-50 p-3 text-center font-mono text-[11px] font-bold uppercase tracking-widest text-emerald-800">
+          {reconMessage}
         </p>
       )}
 
