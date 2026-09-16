@@ -131,16 +131,32 @@ async function getMirrorFirestore(): Promise<Firestore | null> {
   return mirrorFs;
 }
 
+/**
+ * Firestore mirror writes hang up to 10 minutes when the backend is
+ * unreachable (observed: invoice backfill stalled per row). Race every write
+ * against a short timeout — MariaDB is the system of record, the mirror is
+ * best-effort. A timeout rejects like any other mirror failure.
+ */
+function withMirrorTimeout<T>(work: Promise<T>, ms = 5000): Promise<T> {
+  let timer: ReturnType<typeof setTimeout>;
+  const timeout = new Promise<never>((_, reject) => {
+    timer = setTimeout(() => reject(new Error(`Firestore mirror timeout after ${ms}ms`)), ms);
+  });
+  return Promise.race([work, timeout]).finally(() => clearTimeout(timer));
+}
+
 async function mirrorCustomerSet(doc: MirrorCustomerDoc): Promise<void> {
   try {
     const fs = await getMirrorFirestore();
     if (!fs) return;
     // SAFETY: MirrorCustomerDoc is a known-key object with JSON-serializable values,
     // matching the FirestoreData contract for document writes.
-    await fs
-      .collection(CUSTOMERS_COLLECTION)
-      .doc(String(doc.customerId))
-      .set(doc as unknown as FirestoreData);
+    await withMirrorTimeout(
+      fs
+        .collection(CUSTOMERS_COLLECTION)
+        .doc(String(doc.customerId))
+        .set(doc as unknown as FirestoreData),
+    );
   } catch (err) {
     logWarn('[splynx-sync-db] Firestore customer mirror failed (best-effort)', {
       customerId: doc.customerId,
@@ -153,7 +169,7 @@ async function mirrorCustomerUpdate(customerId: number | string, updates: Firest
   try {
     const fs = await getMirrorFirestore();
     if (!fs) return;
-    await fs.collection(CUSTOMERS_COLLECTION).doc(String(customerId)).update(updates);
+    await withMirrorTimeout(fs.collection(CUSTOMERS_COLLECTION).doc(String(customerId)).update(updates));
   } catch (err) {
     logWarn('[splynx-sync-db] Firestore customer mirror update failed (best-effort)', {
       customerId,
@@ -168,10 +184,12 @@ async function mirrorInvoiceSet(doc: MirrorInvoiceDoc): Promise<void> {
     if (!fs) return;
     // SAFETY: MirrorInvoiceDoc is a known-key object with JSON-serializable values,
     // matching the FirestoreData contract for document writes.
-    await fs
-      .collection(INVOICES_COLLECTION)
-      .doc(String(doc.invoiceId))
-      .set(doc as unknown as FirestoreData);
+    await withMirrorTimeout(
+      fs
+        .collection(INVOICES_COLLECTION)
+        .doc(String(doc.invoiceId))
+        .set(doc as unknown as FirestoreData),
+    );
   } catch (err) {
     logWarn('[splynx-sync-db] Firestore invoice mirror failed (best-effort)', {
       invoiceId: doc.invoiceId,
@@ -184,7 +202,7 @@ async function mirrorInvoiceUpdate(invoiceId: number | string, updates: Firestor
   try {
     const fs = await getMirrorFirestore();
     if (!fs) return;
-    await fs.collection(INVOICES_COLLECTION).doc(String(invoiceId)).update(updates);
+    await withMirrorTimeout(fs.collection(INVOICES_COLLECTION).doc(String(invoiceId)).update(updates));
   } catch (err) {
     logWarn('[splynx-sync-db] Firestore invoice mirror update failed (best-effort)', {
       invoiceId,
@@ -197,7 +215,7 @@ async function mirrorInvoiceDelete(invoiceId: number | string): Promise<void> {
   try {
     const fs = await getMirrorFirestore();
     if (!fs) return;
-    await fs.collection(INVOICES_COLLECTION).doc(String(invoiceId)).delete();
+    await withMirrorTimeout(fs.collection(INVOICES_COLLECTION).doc(String(invoiceId)).delete());
   } catch (err) {
     logWarn('[splynx-sync-db] Firestore invoice mirror delete failed (best-effort)', {
       invoiceId,
@@ -210,10 +228,12 @@ async function mirrorChurnSurveySet(doc: ChurnSurveyDoc): Promise<void> {
   try {
     const fs = await getMirrorFirestore();
     if (!fs) return;
-    await fs
-      .collection(CHURN_COLLECTION)
-      .doc(String(doc.customerId))
-      .set(doc as unknown as FirestoreData);
+    await withMirrorTimeout(
+      fs
+        .collection(CHURN_COLLECTION)
+        .doc(String(doc.customerId))
+        .set(doc as unknown as FirestoreData),
+    );
   } catch (err) {
     logWarn('[splynx-sync-db] Firestore churn survey mirror failed (best-effort)', {
       customerId: doc.customerId,
@@ -236,10 +256,11 @@ async function mirrorFeedbackTokenSet(
   try {
     const fs = await getMirrorFirestore();
     if (!fs) return;
-    await fs
-      .collection('feedback_tokens')
-      .doc(token)
-      .set({
+    await withMirrorTimeout(
+      fs
+        .collection('feedback_tokens')
+        .doc(token)
+        .set({
         customerName: data.customerName,
         customerEmail: data.customerEmail,
         servicePlan: '',
@@ -254,7 +275,8 @@ async function mirrorFeedbackTokenSet(
         expiresAt: data.expiresAt,
         openedAt: null,
         submittedAt: null,
-      });
+      }),
+    );
   } catch (err) {
     logWarn('[splynx-sync-db] Firestore feedback token mirror failed (best-effort)', {
       error: err instanceof Error ? err.message : String(err),
