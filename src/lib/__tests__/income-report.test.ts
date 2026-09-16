@@ -280,6 +280,9 @@ describe('filters', () => {
     expect(matchesChannel('BNK-002', 'bank transfer', 'BANK')).toBe(true);
     expect(matchesChannel('BNK-002', 'bank transfer', 'cash')).toBe(false);
     expect(matchesChannel('x', 'y', '__all')).toBe(true);
+    // PSK receipt numbers count as Paystack even when payment_type is opaque (e.g. a numeric ID)
+    expect(matchesChannel('PSK-001', '5', 'paystack')).toBe(true);
+    expect(matchesChannel('2026-30-07905', '5', 'paystack')).toBe(false);
   });
 });
 

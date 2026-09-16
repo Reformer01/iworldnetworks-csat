@@ -230,10 +230,22 @@ export function kindOfRow(r: Pick<IncomeRow, 'enterprise' | 'residential' | 'sme
   return 'other';
 }
 
+/** Case-insensitive channel tokens — `paystack` also matches PSK receipt numbers. */
+const CHANNEL_TOKENS: Record<string, string[]> = {
+  paystack: ['paystack', 'psk'],
+  bank: ['bank'],
+  cash: ['cash'],
+  transfer: ['transfer'],
+  credit: ['credit'],
+};
+
 /** Case-insensitive substring on reference + payment-type text (`__all`/empty = match). */
 export function matchesChannel(reference: string, paymentType: string | number | undefined, channel: string): boolean {
   if (!channel || channel === '__all') return true;
-  return `${reference ?? ''} ${paymentType ?? ''}`.toLowerCase().includes(channel.toLowerCase());
+  const haystack = `${reference ?? ''} ${paymentType ?? ''}`.toLowerCase();
+  const tokens = CHANNEL_TOKENS[channel.toLowerCase()];
+  if (!tokens) return haystack.includes(channel.toLowerCase());
+  return tokens.some((token) => haystack.includes(token));
 }
 
 /** Case-insensitive substring on customer/email/reference (empty = match). */

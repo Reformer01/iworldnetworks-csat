@@ -749,7 +749,8 @@ export default function MonthlyRevenuePage() {
                   </thead>
                   <tbody className="divide-y">
                     {paystack.monthly.map((m) => {
-                      const sales = overallMonthly.find((s) => s.month.toLowerCase() === m.month.toLowerCase());
+                      // m.month is year-aware ("September 2026"); sales rows are month names ("September").
+                      const sales = overallMonthly.find((s) => m.month.toLowerCase().startsWith(s.month.toLowerCase()));
                       const diff = sales ? m.total - sales.revenue : null;
                       return (
                         <tr key={m.month}>

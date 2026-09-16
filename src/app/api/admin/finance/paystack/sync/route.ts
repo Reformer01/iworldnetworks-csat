@@ -37,13 +37,14 @@ export async function POST(request: NextRequest) {
     if (managerBlock) return managerBlock;
 
     const body = (await request.json().catch(() => ({}))) as Record<string, unknown>;
-    const maxPages = parseMaxPages(body.maxPages);
+    const full = body.full === true;
+    const maxPages = full ? 1 : parseMaxPages(body.maxPages);
     if (maxPages == null) return error(`maxPages must be an integer between 1 and ${MAX_PAGES_CAP}`);
     const statuses = parseStatuses(body.statuses);
     if (statuses == null) return error('statuses must be a non-empty array of status strings');
 
     const queue = getPaystackSyncQueue();
-    const job = await queue.add('sync', { maxPages, statuses });
+    const job = await queue.add('sync', { maxPages, statuses, full });
     return success({ jobId: job.id, status: 'queued' as const });
   } catch (err: unknown) {
     const message = err instanceof Error ? err.message : 'Unknown error';

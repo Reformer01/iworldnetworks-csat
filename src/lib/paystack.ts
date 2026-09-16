@@ -79,14 +79,20 @@ export async function syncPaystackTransactions(opts?: {
   maxPages?: number;
   perPage?: number;
   statuses?: string[];
+  full?: boolean;
   onProgress?: (p: { fetched: number; upserted: number; page: number }) => void | Promise<void>;
-}): Promise<{ upserted: number; fetched: number }> {
-  const maxPages = opts?.maxPages ?? 10;
+}): Promise<{ upserted: number; fetched: number; truncated: boolean }> {
+  // full=true backfills every page from Paystack (newest → oldest) until exhausted,
+  // subject to a generous safety cap. Otherwise maxPages bounds the run.
+  const full = opts?.full === true;
+  const FULL_SYNC_PAGE_CAP = 2000;
+  const maxPages = full ? FULL_SYNC_PAGE_CAP : (opts?.maxPages ?? 10);
   const perPage = opts?.perPage ?? 100;
   const statuses = opts?.statuses ?? PAYSTACK_DASHBOARD_STATUSES;
+  let truncated = false;
   if (!isPaystackConfigured()) {
     logWarn('[paystack] skipped — PAYSTACK_SECRET_KEY not configured');
-    return { upserted: 0, fetched: 0 };
+    return { upserted: 0, fetched: 0, truncated: false };
   }
   let upserted = 0;
   let fetched = 0;
@@ -158,31 +164,54 @@ export async function syncPaystackTransactions(opts?: {
     logInfo('[paystack] page synced', { page, count: data.length });
     await opts?.onProgress?.({ fetched, upserted, page });
     if (!hasMore) break;
+    if (page >= maxPages) {
+      truncated = true;
+      break;
+    }
     // polite delay to respect rate limit
     await new Promise((r) => setTimeout(r, 300));
   }
-  return { upserted, fetched };
+  if (truncated) {
+    logWarn('[paystack] sync truncated — more pages remain on Paystack; run a full sync (full=true)', {
+      fetched,
+      upserted,
+    });
+  }
+  return { upserted, fetched, truncated };
 }
 
-export async function getPaystackMonthlyAggregates() {
+export interface PaystackMonthlyAggregate {
+  /** Human label, year-aware: e.g. "September 2026". */
+  month: string;
+  /** Unambiguous YYYY-MM key, e.g. "2026-09". */
+  monthKey: string;
+  total: number;
+  count: number;
+  byChannel: Record<string, number>;
+}
+
+export async function getPaystackMonthlyAggregates(): Promise<PaystackMonthlyAggregate[]> {
   const rows = await prisma.paystackTransaction.findMany({
-    where: { status: 'success', paidAt: { not: null } },
+    where: { status: 'success', paidAt: { not: null }, currency: 'NGN' },
     select: { amount: true, paidAt: true, channel: true, customerEmail: true },
+    orderBy: { paidAt: 'desc' },
     take: 20000,
   });
-  const map = new Map<string, { totalNaira: number; count: number; byChannel: Record<string, number> }>();
+  const map = new Map<string, { label: string; totalNaira: number; count: number; byChannel: Record<string, number> }>();
   for (const r of rows) {
     if (!r.paidAt) continue;
     const d = new Date(r.paidAt);
-    const month = d.toLocaleString('en-US', { month: 'long', year: 'numeric' }); // but we need "August" style? Use monthly-revenue MONTH_ORDER
-    // Use MONTH_ORDER style: "August" without year — simple for now use month name
-    const key = d.toLocaleString('en-US', { month: 'long' });
-    const entry = map.get(key) || { totalNaira: 0, count: 0, byChannel: {} };
+    // Group by year+month so same-named months in different years never merge.
+    const key = `${d.getUTCFullYear()}-${String(d.getUTCMonth() + 1).padStart(2, '0')}`;
+    const label = d.toLocaleString('en-US', { month: 'long', year: 'numeric', timeZone: 'UTC' });
+    const entry = map.get(key) || { label, totalNaira: 0, count: 0, byChannel: {} };
     const naira = (r.amount || 0) / 100;
     entry.totalNaira += naira;
     entry.count += 1;
     if (r.channel) entry.byChannel[r.channel] = (entry.byChannel[r.channel] || 0) + naira;
     map.set(key, entry);
   }
-  return Array.from(map.entries()).map(([month, v]) => ({ month, total: v.totalNaira, count: v.count, byChannel: v.byChannel }));
+  return Array.from(map.entries())
+    .sort(([a], [b]) => a.localeCompare(b))
+    .map(([monthKey, v]) => ({ month: v.label, monthKey, total: v.totalNaira, count: v.count, byChannel: v.byChannel }));
 }

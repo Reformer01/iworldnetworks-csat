@@ -6,6 +6,7 @@ export const PAYSTACK_SYNC_QUEUE_NAME = 'paystack-sync';
 export interface PaystackSyncJobData {
   maxPages: number;
   statuses: string[];
+  full?: boolean;
 }
 
 let paystackSyncQueue: Queue<PaystackSyncJobData> | null = null;

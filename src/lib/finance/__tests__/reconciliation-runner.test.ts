@@ -14,10 +14,11 @@ vi.mock('../paystack-reconcile', () => ({
   classifyReconciliation: vi.fn(),
   matchByReference: vi.fn(),
   matchByEmailAmountDate: vi.fn(),
+  matchByEmailAmount: vi.fn(),
 }));
 
 const { prisma } = await import('@/lib/prisma');
-const { classifyReconciliation, matchByReference, matchByEmailAmountDate } = await import('../paystack-reconcile');
+const { classifyReconciliation, matchByReference, matchByEmailAmountDate, matchByEmailAmount } = await import('../paystack-reconcile');
 
 describe('runReconciliation', () => {
   beforeEach(() => {
@@ -194,17 +195,70 @@ describe('runReconciliation', () => {
     );
   });
 
-  it('creates splynx-only exceptions for unmatched ledger rows', async () => {
+  it('flags same customer+amount different day as date-mismatch, not paystack-only', async () => {
+    (prisma.paystackTransaction.findMany as ReturnType<typeof vi.fn>).mockResolvedValue([
+      {
+        id: 'tx1',
+        reference: 'PSK-1',
+        customerEmail: 'a@example.com',
+        amount: 4350000,
+        status: 'success',
+        paidAt: new Date('2026-08-03T20:30:00Z'),
+        channel: 'card',
+      },
+    ]);
+    (prisma.splynxIncomeLedger.findMany as ReturnType<typeof vi.fn>).mockResolvedValue([
+      { id: 's1', reference: 'OTHER', customerEmail: 'a@example.com', amountNaira: 43500, paidAt: new Date('2026-08-04T05:00:00Z') },
+    ]);
+    (matchByReference as ReturnType<typeof vi.fn>).mockReturnValue(null);
+    (matchByEmailAmountDate as ReturnType<typeof vi.fn>).mockReturnValue(null);
+    (classifyReconciliation as ReturnType<typeof vi.fn>).mockReturnValue({ kind: 'paystack-only', varianceNaira: 43500 });
+    (matchByEmailAmount as ReturnType<typeof vi.fn>).mockReturnValue({
+      id: 's1',
+      reference: 'OTHER',
+      email: 'a@example.com',
+      amountNaira: 43500,
+      paidAt: '2026-08-04',
+    });
+
+    const result = await runReconciliation({ month: '2026-08' });
+
+    expect(result.dateMismatch).toBe(1);
+    expect(result.paystackOnly).toBe(0);
+    expect(result.exceptionsCreated).toBe(1);
+    expect(prisma.paystackReconciliationLink.create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({ status: 'date-mismatch' }),
+      }),
+    );
+  });
+
+  it('creates splynx-only exceptions only for Paystack-channel ledger rows', async () => {
     (prisma.paystackTransaction.findMany as ReturnType<typeof vi.fn>).mockResolvedValue([]);
     (prisma.splynxIncomeLedger.findMany as ReturnType<typeof vi.fn>).mockResolvedValue([
-      { id: 's1', reference: 'SPL-1', customerEmail: 'a@example.com', amountNaira: 43500, paidAt: new Date('2026-08-01') },
-      { id: 's2', reference: 'SPL-2', customerEmail: 'b@example.com', amountNaira: 25000, paidAt: new Date('2026-08-02') },
+      {
+        id: 's1',
+        reference: 'PSK-SPL-1',
+        customerEmail: 'a@example.com',
+        amountNaira: 43500,
+        paidAt: new Date('2026-08-01'),
+        raw: { payment_type: 'Paystack' },
+      },
+      {
+        id: 's2',
+        reference: 'BNK-2',
+        customerEmail: 'b@example.com',
+        amountNaira: 25000,
+        paidAt: new Date('2026-08-02'),
+        raw: { payment_type: 'Bank Transfer' },
+      },
     ]);
 
     const result = await runReconciliation({ month: '2026-08' });
 
-    expect(result.splynxOnly).toBe(2);
-    expect(result.exceptionsCreated).toBe(2);
-    expect(prisma.reconciliationException.create).toHaveBeenCalledTimes(2);
+    expect(result.splynxOnly).toBe(1);
+    expect(result.nonPaystackLedgerSkipped).toBe(1);
+    expect(result.exceptionsCreated).toBe(1);
+    expect(prisma.reconciliationException.create).toHaveBeenCalledTimes(1);
   });
 });

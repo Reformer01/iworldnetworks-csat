@@ -5,10 +5,11 @@ import type { NextRequest } from 'next/server';
 const mocks = vi.hoisted(() => ({
   findUnique: vi.fn(),
   upsert: vi.fn(),
+  update: vi.fn(),
 }));
 
 vi.mock('@/lib/prisma', () => ({
-  prisma: { paystackTransaction: { findUnique: mocks.findUnique, upsert: mocks.upsert } },
+  prisma: { paystackTransaction: { findUnique: mocks.findUnique, upsert: mocks.upsert, update: mocks.update } },
 }));
 vi.mock('@/lib/logger', () => ({ logError: vi.fn(), logWarn: vi.fn(), logInfo: vi.fn() }));
 
@@ -100,13 +101,76 @@ describe('POST /api/finance/paystack/webhook', () => {
     expect(mocks.upsert).toHaveBeenCalledWith(expect.objectContaining({ where: { reference: 'PSK-1' } }));
   });
 
-  it('returns 200 for verified duplicate deliveries without a second upsert', async () => {
-    mocks.findUnique.mockResolvedValueOnce({ reference: 'PSK-1' });
+  it('returns 200 for verified duplicate deliveries (idempotent re-upsert)', async () => {
+    mocks.findUnique.mockResolvedValueOnce({ reference: 'PSK-1', status: 'success' });
     const raw = chargeSuccessBody('PSK-1');
     const res = await POST(req(raw, `sha512=${sign(raw)}`));
     const body = await res.json();
     expect(res.status).toBe(200);
-    expect(body).toEqual({ status: 'duplicate' });
+    expect(body).toEqual({ status: 'processed' });
+    expect(mocks.upsert).toHaveBeenCalledTimes(1);
+    expect(mocks.upsert).toHaveBeenCalledWith(
+      expect.objectContaining({
+        update: expect.objectContaining({ status: 'success' }),
+      }),
+    );
+  });
+
+  it('never downgrades an existing success on an out-of-order charge.failed', async () => {
+    mocks.findUnique.mockResolvedValueOnce({ reference: 'PSK-1', status: 'success' });
+    const raw = JSON.stringify({
+      event: 'charge.failed',
+      data: {
+        id: 123,
+        reference: 'PSK-1',
+        amount: 4350000,
+        currency: 'NGN',
+        status: 'failed',
+        gateway_response: 'Declined',
+      },
+    });
+    const res = await POST(req(raw, sign(raw)));
+    const body = await res.json();
+    expect(res.status).toBe(200);
+    expect(body).toEqual({ status: 'processed' });
+    expect(mocks.upsert).toHaveBeenCalledWith(
+      expect.objectContaining({
+        update: expect.objectContaining({ status: 'success' }),
+      }),
+    );
+  });
+
+  it('applies refund.processed to the referenced transaction', async () => {
+    const raw = JSON.stringify({
+      event: 'refund.processed',
+      data: {
+        refund_reference: 'RFD-1',
+        transaction_reference: 'PSK-1',
+        amount: 50000,
+        currency: 'NGN',
+        status: 'processed',
+      },
+    });
+    const res = await POST(req(raw, sign(raw)));
+    const body = await res.json();
+    expect(res.status).toBe(200);
+    expect(body).toEqual({ status: 'processed' });
+    expect(mocks.update).toHaveBeenCalledWith({
+      where: { reference: 'PSK-1' },
+      data: { refundedNaira: { increment: 500 } },
+    });
     expect(mocks.upsert).not.toHaveBeenCalled();
+  });
+
+  it('acknowledges refunds for transactions not yet synced without erroring', async () => {
+    mocks.update.mockRejectedValueOnce(new Error('Record to update not found'));
+    const raw = JSON.stringify({
+      event: 'refund.processed',
+      data: { transaction_reference: 'PSK-UNKNOWN', amount: 50000, status: 'processed' },
+    });
+    const res = await POST(req(raw, sign(raw)));
+    const body = await res.json();
+    expect(res.status).toBe(200);
+    expect(body).toEqual({ status: 'unknown-transaction' });
   });
 });

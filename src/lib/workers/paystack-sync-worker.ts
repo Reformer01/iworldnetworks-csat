@@ -11,11 +11,12 @@ export function getPaystackSyncWorker(): Worker<PaystackSyncJobData> {
     paystackSyncWorker = new Worker<PaystackSyncJobData>(
       PAYSTACK_SYNC_QUEUE_NAME,
       async (job: Job<PaystackSyncJobData>) => {
-        const { maxPages, statuses } = job.data;
-        logInfo('[paystack-sync-worker] Processing job', { jobId: job.id, maxPages });
+        const { maxPages, statuses, full } = job.data;
+        logInfo('[paystack-sync-worker] Processing job', { jobId: job.id, maxPages, full });
         const result = await syncPaystackTransactions({
           maxPages,
           statuses,
+          full,
           onProgress: (p) => job.updateProgress({ fetched: p.fetched, upserted: p.upserted }),
         });
         await job.updateProgress({ fetched: result.fetched, upserted: result.upserted });

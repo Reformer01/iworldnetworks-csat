@@ -76,7 +76,16 @@ describe('POST /api/admin/finance/paystack/sync', () => {
     expect(res.status).toBe(200);
     expect(body.success).toBe(true);
     expect(body.data).toEqual({ jobId: 'job-1', status: 'queued' });
-    expect(mocks.queueAdd).toHaveBeenCalledWith('sync', { maxPages: 2, statuses: ['success'] });
+    expect(mocks.queueAdd).toHaveBeenCalledWith('sync', { maxPages: 2, statuses: ['success'], full: false });
+  });
+
+  it('enqueues a full sync when full=true', async () => {
+    mocks.verifyAdmin.mockResolvedValueOnce(MANAGER);
+    const res = await POST(post({ full: true }));
+    const body = await res.json();
+    expect(res.status).toBe(200);
+    expect(body.success).toBe(true);
+    expect(mocks.queueAdd).toHaveBeenCalledWith('sync', { maxPages: 1, statuses: ['success', 'failed', 'abandoned'], full: true });
   });
 
   it('returns 400 (not 500) for invalid maxPages', async () => {

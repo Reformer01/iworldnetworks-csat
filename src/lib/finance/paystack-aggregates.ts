@@ -140,8 +140,9 @@ export function buildPaystackOverview(
   links: PaystackAggregateLink[],
   month: string,
 ): PaystackOverviewPayload {
-  const capped = transactions.slice(0, PAYSTACK_AGGREGATE_CAP);
-  const monthRows = capped.filter((row) => monthKeyOf(row.paidAt) === month);
+  // Filter to the requested month BEFORE capping so the cap can never drop
+  // rows out of the displayed month when the table grows large.
+  const monthRows = transactions.filter((row) => monthKeyOf(row.paidAt) === month).slice(0, PAYSTACK_AGGREGATE_CAP);
   const successRows = monthRows.filter((row) => (row.status || '').toLowerCase() === 'success');
 
   const collectedNaira = round2(successRows.reduce((sum, row) => sum + (row.amount || 0) / 100, 0));

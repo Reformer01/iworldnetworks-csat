@@ -91,3 +91,28 @@ export function extractWebhookTransaction(data: unknown): PaystackWebhookTransac
     raw: data,
   };
 }
+
+export interface PaystackWebhookRefund {
+  /** The reference of the original charge transaction. */
+  reference: string;
+  amountNaira: number;
+}
+
+/**
+ * Refund webhook payloads carry a refund object, not a transaction:
+ * `{ transaction_reference, amount (kobo), status, ... }`. Some payloads nest
+ * the charge under `transaction.reference` instead.
+ */
+export function extractRefundEvent(data: unknown): PaystackWebhookRefund | null {
+  const refund = asRecord(data);
+  if (!refund) return null;
+  const txRef =
+    typeof refund.transaction_reference === 'string'
+      ? refund.transaction_reference
+      : asRecord(refund.transaction)?.reference;
+  const reference = typeof txRef === 'string' ? txRef.trim() : '';
+  if (!reference) return null;
+  const amountKobo = typeof refund.amount === 'number' ? refund.amount : 0;
+  if (amountKobo <= 0) return null;
+  return { reference, amountNaira: amountKobo / 100 };
+}

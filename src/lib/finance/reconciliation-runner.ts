@@ -1,5 +1,10 @@
 import { prisma } from '@/lib/prisma';
-import { classifyReconciliation, matchByEmailAmountDate, matchByReference } from '@/lib/finance/paystack-reconcile';
+import {
+  classifyReconciliation,
+  matchByEmailAmount,
+  matchByEmailAmountDate,
+  matchByReference,
+} from '@/lib/finance/paystack-reconcile';
 import { normalizeReference } from '@/lib/finance/paystack-normalize';
 import type { ReconPaystackRow, ReconSplynxRow } from '@/lib/finance/paystack-reconcile-types';
 
@@ -11,9 +16,25 @@ export interface ReconciliationRunnerResult {
   dateMismatch: number;
   duplicate: number;
   exceptionsCreated: number;
+  /** Ledger rows skipped from splynx-only checks because they are not Paystack-channel payments. */
+  nonPaystackLedgerSkipped: number;
 }
 
 const MONTH_RE = /^\d{4}-\d{2}$/;
+
+/**
+ * A Splynx ledger row plausibly corresponds to a Paystack payment only when its
+ * reference or raw payment type mentions Paystack (receipt numbers like
+ * "PSK-..." or payment_type "Paystack"). Bank/cash/credit rows must NOT be
+ * flagged as splynx-only exceptions — they never have a Paystack side.
+ */
+function isPaystackLedgerRow(row: { reference?: string | null; raw?: unknown }): boolean {
+  const ref = (row.reference || '').toLowerCase();
+  if (ref.includes('psk') || ref.includes('paystack')) return true;
+  const raw = (row.raw ?? null) as Record<string, unknown> | null;
+  const paymentType = String(raw?.payment_type ?? '').toLowerCase();
+  return paymentType.includes('paystack');
+}
 
 function toIso(value: Date | string | null | undefined): string | null {
   if (!value) return null;
@@ -79,7 +100,7 @@ export async function runReconciliation(opts: { month: string }): Promise<Reconc
 
   const [paystackTxs, splynxRows, existingLinks] = await Promise.all([
     prisma.paystackTransaction.findMany({
-      where: { status: 'success', paidAt: { gte: start, lte: end } },
+      where: { status: 'success', paidAt: { gte: start, lte: end }, currency: 'NGN' },
     }),
     prisma.splynxIncomeLedger.findMany({
       where: { paidAt: { gte: start, lte: end } },
@@ -120,7 +141,7 @@ export async function runReconciliation(opts: { month: string }): Promise<Reconc
   let matched = 0;
   let paystackOnly = 0;
   let amountMismatch = 0;
-  const dateMismatch = 0;
+  let dateMismatch = 0;
   let duplicate = 0;
   let exceptionsCreated = 0;
   const duplicateRefsHandled = new Set<string>();
@@ -190,22 +211,61 @@ export async function runReconciliation(opts: { month: string }): Promise<Reconc
       linkedRefs.add(key);
       linkedLedgerIds.add(splynxMatch.id);
     } else {
-      paystackOnly++;
-      await upsertException({
-        kind: 'paystack-only',
-        paystackReference: ps.reference,
-        title: `Paystack-only: ${ps.reference}`,
-        detail: `No matching Splynx ledger row for Paystack reference ${ps.reference} (${ps.email}, ₦${ps.amountNaira})`,
-        amountNaira: ps.amountNaira,
-        status: 'open',
-      });
-      exceptionsCreated++;
+      // Last chance: same customer + same amount but a different day — that is
+      // a date mismatch (e.g. timezone drift between Splynx and Paystack), not
+      // a missing payment. Previously these were miscounted as paystack-only.
+      const dateMatch = matchByEmailAmount(ps, reconSplynxRows);
+      if (dateMatch && !linkedLedgerIds.has(dateMatch.id)) {
+        dateMismatch++;
+        await upsertLink({
+          paystackReference: ps.reference,
+          splynxLedgerId: dateMatch.id,
+          method: 'fallback',
+          confidence: 0.6,
+          paystackAmountNaira: ps.amountNaira,
+          splynxAmountNaira: dateMatch.amountNaira,
+          varianceNaira: 0,
+          status: 'date-mismatch',
+        });
+        await upsertException({
+          kind: 'date-mismatch',
+          paystackReference: ps.reference,
+          splynxLedgerId: dateMatch.id,
+          title: `Date mismatch: ${ps.reference}`,
+          detail: `Paystack paid ${ps.paidAt ?? 'unknown'} but Splynx recorded ${dateMatch.paidAt ?? 'unknown'} for the same customer and amount (₦${ps.amountNaira})`,
+          amountNaira: ps.amountNaira,
+          status: 'open',
+        });
+        exceptionsCreated++;
+        linkedRefs.add(key);
+        linkedLedgerIds.add(dateMatch.id);
+      } else {
+        paystackOnly++;
+        await upsertException({
+          kind: 'paystack-only',
+          paystackReference: ps.reference,
+          title: `Paystack-only: ${ps.reference}`,
+          detail: `No matching Splynx ledger row for Paystack reference ${ps.reference} (${ps.email}, ₦${ps.amountNaira})`,
+          amountNaira: ps.amountNaira,
+          status: 'open',
+        });
+        exceptionsCreated++;
+      }
     }
   }
 
+  // Only Paystack-channel ledger rows belong in the splynx-only queue —
+  // bank/cash/credit payments have no Paystack counterpart by design.
+  const paystackLedgerIds = new Set(splynxRows.filter(isPaystackLedgerRow).map((row) => row.id));
+
   let splynxOnly = 0;
+  let nonPaystackLedgerSkipped = 0;
   for (const sp of reconSplynxRows) {
     if (linkedLedgerIds.has(sp.id)) continue;
+    if (!paystackLedgerIds.has(sp.id)) {
+      nonPaystackLedgerSkipped++;
+      continue;
+    }
     splynxOnly++;
     await upsertException({
       kind: 'splynx-only',
@@ -218,5 +278,14 @@ export async function runReconciliation(opts: { month: string }): Promise<Reconc
     exceptionsCreated++;
   }
 
-  return { matched, paystackOnly, splynxOnly, amountMismatch, dateMismatch, duplicate, exceptionsCreated };
+  return {
+    matched,
+    paystackOnly,
+    splynxOnly,
+    amountMismatch,
+    dateMismatch,
+    duplicate,
+    exceptionsCreated,
+    nonPaystackLedgerSkipped,
+  };
 }

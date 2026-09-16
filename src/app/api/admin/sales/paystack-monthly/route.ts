@@ -33,9 +33,9 @@ export async function GET(request: NextRequest) {
     }
 
     const monthly = await getPaystackMonthlyAggregates();
-    // also compute overall total from DB
+    // also compute overall total from DB (NGN only — kobo/Naira conversion assumes NGN)
     const agg = await prisma.paystackTransaction.aggregate({
-      where: { status: 'success', paidAt: { not: null } },
+      where: { status: 'success', paidAt: { not: null }, currency: 'NGN' },
       _sum: { amount: true },
       _count: true,
     });
@@ -62,8 +62,9 @@ export async function POST(request: NextRequest) {
     if (!admin) return unauthorized();
 
     const body = await request.json().catch(() => ({}));
-    const maxPages = Math.min(Math.max(1, Number(body.maxPages) || 10), 20);
-    const result = await syncPaystackTransactions({ maxPages });
+    const full = (body as { full?: unknown }).full === true;
+    const maxPages = Math.min(Math.max(1, Number((body as { maxPages?: unknown }).maxPages) || 10), 20);
+    const result = await syncPaystackTransactions(full ? { full: true } : { maxPages });
     return success(result);
   } catch (err: unknown) {
     const message = err instanceof Error ? err.message : 'Unknown error';

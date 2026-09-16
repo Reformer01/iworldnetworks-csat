@@ -25,6 +25,17 @@ export function matchByEmailAmountDate(paystack: ReconPaystackRow, rows: ReconSp
   );
 }
 
+/** Same as matchByEmailAmountDate but ignoring the payment day (used to detect date-mismatch rows). */
+export function matchByEmailAmount(paystack: ReconPaystackRow, rows: ReconSplynxRow[]): ReconSplynxRow | null {
+  const email = normalizeEmail(paystack.email);
+  if (!email) return null;
+  return (
+    rows.find(
+      (row) => normalizeEmail(row.email) === email && Math.abs(row.amountNaira - paystack.amountNaira) < 0.01,
+    ) ?? null
+  );
+}
+
 export function classifyReconciliation(paystack: ReconPaystackRow, links: ReconSplynxRow[]): { kind: string; varianceNaira: number } {
   const direct = matchByReference(paystack, links) ?? matchByEmailAmountDate(paystack, links);
   if (!direct) return { kind: 'paystack-only', varianceNaira: paystack.amountNaira };
