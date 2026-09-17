@@ -5,8 +5,8 @@ vi.mock('@/lib/prisma', () => ({
   prisma: {
     paystackTransaction: { findMany: vi.fn() },
     splynxIncomeLedger: { findMany: vi.fn() },
-    paystackReconciliationLink: { findMany: vi.fn(), findFirst: vi.fn(), create: vi.fn(), update: vi.fn() },
-    reconciliationException: { findFirst: vi.fn(), create: vi.fn(), update: vi.fn() },
+    paystackReconciliationLink: { findMany: vi.fn(), upsert: vi.fn() },
+    reconciliationException: { findFirst: vi.fn(), create: vi.fn(), update: vi.fn(), upsert: vi.fn() },
   },
 }));
 
@@ -24,10 +24,10 @@ describe('runReconciliation', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     (prisma.paystackReconciliationLink.findMany as ReturnType<typeof vi.fn>).mockResolvedValue([]);
-    (prisma.paystackReconciliationLink.findFirst as ReturnType<typeof vi.fn>).mockResolvedValue(null);
-    (prisma.paystackReconciliationLink.create as ReturnType<typeof vi.fn>).mockResolvedValue({ id: 'link-1' });
+    (prisma.paystackReconciliationLink.upsert as ReturnType<typeof vi.fn>).mockResolvedValue({ id: 'link-1' });
     (prisma.reconciliationException.findFirst as ReturnType<typeof vi.fn>).mockResolvedValue(null);
     (prisma.reconciliationException.create as ReturnType<typeof vi.fn>).mockResolvedValue({ id: 'exc-1' });
+    (prisma.reconciliationException.upsert as ReturnType<typeof vi.fn>).mockResolvedValue({ id: 'exc-1' });
   });
 
   it('matches identical references, creates link, returns counts', async () => {
@@ -60,7 +60,7 @@ describe('runReconciliation', () => {
     expect(result.paystackOnly).toBe(0);
     expect(result.splynxOnly).toBe(0);
     expect(result.exceptionsCreated).toBe(0);
-    expect(prisma.paystackReconciliationLink.create).toHaveBeenCalledTimes(1);
+    expect(prisma.paystackReconciliationLink.upsert).toHaveBeenCalledTimes(1);
   });
 
   it('falls back to email+amount+date, creates link', async () => {
@@ -91,9 +91,10 @@ describe('runReconciliation', () => {
     const result = await runReconciliation({ month: '2026-08' });
 
     expect(result.matched).toBe(1);
-    expect(prisma.paystackReconciliationLink.create).toHaveBeenCalledWith(
+    expect(prisma.paystackReconciliationLink.upsert).toHaveBeenCalledWith(
       expect.objectContaining({
-        data: expect.objectContaining({ method: 'fallback', confidence: 0.8 }),
+        where: { paystackReference: 'PSK-1' },
+        update: expect.objectContaining({ method: 'fallback', confidence: 0.8 }),
       }),
     );
   });
@@ -154,9 +155,10 @@ describe('runReconciliation', () => {
 
     expect(result.amountMismatch).toBe(1);
     expect(result.exceptionsCreated).toBe(1);
-    expect(prisma.paystackReconciliationLink.create).toHaveBeenCalledWith(
+    expect(prisma.paystackReconciliationLink.upsert).toHaveBeenCalledWith(
       expect.objectContaining({
-        data: expect.objectContaining({ status: 'amount-mismatch', varianceNaira: 500 }),
+        where: { paystackReference: 'PSK-1' },
+        update: expect.objectContaining({ status: 'amount-mismatch', varianceNaira: 500 }),
       }),
     );
   });
@@ -226,9 +228,10 @@ describe('runReconciliation', () => {
     expect(result.dateMismatch).toBe(1);
     expect(result.paystackOnly).toBe(0);
     expect(result.exceptionsCreated).toBe(1);
-    expect(prisma.paystackReconciliationLink.create).toHaveBeenCalledWith(
+    expect(prisma.paystackReconciliationLink.upsert).toHaveBeenCalledWith(
       expect.objectContaining({
-        data: expect.objectContaining({ status: 'date-mismatch' }),
+        where: { paystackReference: 'PSK-1' },
+        update: expect.objectContaining({ status: 'date-mismatch' }),
       }),
     );
   });

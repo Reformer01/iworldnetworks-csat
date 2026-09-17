@@ -1,10 +1,5 @@
 import { prisma } from '@/lib/prisma';
-import {
-  classifyReconciliation,
-  matchByEmailAmount,
-  matchByEmailAmountDate,
-  matchByReference,
-} from '@/lib/finance/paystack-reconcile';
+import { classifyReconciliation, matchByEmailAmount, matchByEmailAmountDate, matchByReference } from '@/lib/finance/paystack-reconcile';
 import { normalizeReference } from '@/lib/finance/paystack-normalize';
 import type { ReconPaystackRow, ReconSplynxRow } from '@/lib/finance/paystack-reconcile-types';
 
@@ -52,17 +47,12 @@ async function upsertLink(data: {
   varianceNaira: number;
   status: string;
 }): Promise<void> {
-  // PaystackReconciliationLink has no unique constraint on paystackReference,
-  // so dedupe via findFirst then create/update.
-  const existing = await prisma.paystackReconciliationLink.findFirst({
+  // paystackReference is a unique key — atomic upsert, race-safe.
+  await prisma.paystackReconciliationLink.upsert({
     where: { paystackReference: data.paystackReference },
-    select: { id: true },
+    update: data,
+    create: data,
   });
-  if (existing) {
-    await prisma.paystackReconciliationLink.update({ where: { id: existing.id }, data });
-  } else {
-    await prisma.paystackReconciliationLink.create({ data });
-  }
 }
 
 async function upsertException(data: {
@@ -74,8 +64,23 @@ async function upsertException(data: {
   amountNaira: number;
   status: string;
 }): Promise<void> {
-  // ReconciliationException has no unique constraint, so dedupe via findFirst
-  // on the natural key then create/update.
+  // (kind, paystackReference, splynxLedgerId) is a unique key. Prisma's compound
+  // unique where cannot address rows with null components, so use the atomic
+  // upsert when both refs are known and fall back otherwise.
+  if (data.paystackReference != null && data.splynxLedgerId != null) {
+    await prisma.reconciliationException.upsert({
+      where: {
+        kind_paystackReference_splynxLedgerId: {
+          kind: data.kind,
+          paystackReference: data.paystackReference,
+          splynxLedgerId: data.splynxLedgerId,
+        },
+      },
+      update: data,
+      create: data,
+    });
+    return;
+  }
   const existing = await prisma.reconciliationException.findFirst({
     where: {
       kind: data.kind,

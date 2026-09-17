@@ -4,7 +4,7 @@ import { importSplynxIncomeLedger } from '../splynx-ledger';
 vi.mock('@/lib/prisma', () => ({
   prisma: {
     customer: { findMany: vi.fn().mockResolvedValue([]) },
-    splynxIncomeLedger: { findFirst: vi.fn(), create: vi.fn(), update: vi.fn() },
+    splynxIncomeLedger: { upsert: vi.fn() },
   },
 }));
 
@@ -23,9 +23,7 @@ describe('importSplynxIncomeLedger', () => {
     vi.clearAllMocks();
     vi.stubGlobal('fetch', vi.fn().mockResolvedValue({ ok: true, json: async () => [], text: async () => '' }));
     (prisma.customer.findMany as ReturnType<typeof vi.fn>).mockResolvedValue([]);
-    (prisma.splynxIncomeLedger.findFirst as ReturnType<typeof vi.fn>).mockResolvedValue(null);
-    (prisma.splynxIncomeLedger.create as ReturnType<typeof vi.fn>).mockResolvedValue({ id: 'ledger-1' });
-    (prisma.splynxIncomeLedger.update as ReturnType<typeof vi.fn>).mockResolvedValue({ id: 'ledger-1' });
+    (prisma.splynxIncomeLedger.upsert as ReturnType<typeof vi.fn>).mockResolvedValue({ id: 'ledger-1' });
   });
 
   it('fetches payments, invoices, upserts ledger rows, returns counts', async () => {
@@ -41,7 +39,7 @@ describe('importSplynxIncomeLedger', () => {
 
     expect(result.fetched).toBe(2);
     expect(result.upserted).toBe(2);
-    expect(prisma.splynxIncomeLedger.create).toHaveBeenCalledTimes(2);
+    expect(prisma.splynxIncomeLedger.upsert).toHaveBeenCalledTimes(2);
   });
 
   it('filters out-of-month payments', async () => {
@@ -92,22 +90,24 @@ describe('importSplynxIncomeLedger', () => {
 
     await importSplynxIncomeLedger({ month: '2026-08' });
 
-    const createCall = (prisma.splynxIncomeLedger.create as ReturnType<typeof vi.fn>).mock.calls[0][0];
-    expect(createCall.data.productSegment).toBe('residential');
+    const upsertCall = (prisma.splynxIncomeLedger.upsert as ReturnType<typeof vi.fn>).mock.calls[0][0];
+    expect(upsertCall.create.productSegment).toBe('residential');
   });
 
-  it('updates existing rows instead of duplicating', async () => {
+  it('upserts on the (source, sourceId) unique key', async () => {
     vi.unstubAllGlobals();
     vi.stubGlobal('fetch', vi.fn());
     mockFetchOnce([{ id: 1, customer_id: 'c1', amount: '43500', date: '2026-08-15', receipt_number: 'RCPT-1' }]);
     mockFetchOnce({ data: [] });
-    (prisma.splynxIncomeLedger.findFirst as ReturnType<typeof vi.fn>).mockResolvedValue({ id: 'existing-1' });
 
     const result = await importSplynxIncomeLedger({ month: '2026-08' });
 
     expect(result.upserted).toBe(1);
-    expect(prisma.splynxIncomeLedger.update).toHaveBeenCalledTimes(1);
-    expect(prisma.splynxIncomeLedger.create).not.toHaveBeenCalled();
+    expect(prisma.splynxIncomeLedger.upsert).toHaveBeenCalledTimes(1);
+    const call = (prisma.splynxIncomeLedger.upsert as ReturnType<typeof vi.fn>).mock.calls[0][0];
+    expect(call.where).toEqual({ source_sourceId: { source: 'payment', sourceId: '1' } });
+    expect(call.update).toBeDefined();
+    expect(call.create).toBeDefined();
   });
 
   it('falls back to #id name and empty email for missing customers', async () => {
@@ -118,8 +118,8 @@ describe('importSplynxIncomeLedger', () => {
 
     await importSplynxIncomeLedger({ month: '2026-08' });
 
-    const createCall = (prisma.splynxIncomeLedger.create as ReturnType<typeof vi.fn>).mock.calls[0][0];
-    expect(createCall.data.customerName).toBe('#c9');
-    expect(createCall.data.customerEmail).toBe('');
+    const upsertCall = (prisma.splynxIncomeLedger.upsert as ReturnType<typeof vi.fn>).mock.calls[0][0];
+    expect(upsertCall.create.customerName).toBe('#c9');
+    expect(upsertCall.create.customerEmail).toBe('');
   });
 });

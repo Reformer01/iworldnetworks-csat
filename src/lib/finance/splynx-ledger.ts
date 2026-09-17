@@ -182,20 +182,28 @@ export async function importSplynxIncomeLedger(opts: { month: string }): Promise
     for (const c of customers) custMap.set(c.customerId, c);
   }
 
-  // 4) Upsert each row. SplynxIncomeLedger has no unique constraint on
-  // (source, sourceId), so dedupe via findFirst then create/update.
+  // 4) Upsert each row. (source, sourceId) is a unique key — atomic upsert when
+  // sourceId is known (always, in practice), findFirst fallback otherwise.
   let upserted = 0;
   let fetched = 0;
   const persist = async (data: ReturnType<typeof toLedgerFields>) => {
     fetched++;
-    const existing = await prisma.splynxIncomeLedger.findFirst({
-      where: { source: data.source, sourceId: data.sourceId },
-      select: { id: true },
-    });
-    if (existing) {
-      await prisma.splynxIncomeLedger.update({ where: { id: existing.id }, data });
+    if (data.sourceId != null) {
+      await prisma.splynxIncomeLedger.upsert({
+        where: { source_sourceId: { source: data.source, sourceId: data.sourceId } },
+        update: data,
+        create: data,
+      });
     } else {
-      await prisma.splynxIncomeLedger.create({ data });
+      const existing = await prisma.splynxIncomeLedger.findFirst({
+        where: { source: data.source, sourceId: null },
+        select: { id: true },
+      });
+      if (existing) {
+        await prisma.splynxIncomeLedger.update({ where: { id: existing.id }, data });
+      } else {
+        await prisma.splynxIncomeLedger.create({ data });
+      }
     }
     upserted++;
   };

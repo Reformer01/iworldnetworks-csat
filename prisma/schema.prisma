@@ -899,6 +899,8 @@ model SplynxIncomeLedger {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
+  // Natural key: one ledger row per Splynx source record.
+  @@unique([source, sourceId])
   @@index([source])
   @@index([reference])
   @@index([customerEmail])
@@ -919,7 +921,7 @@ model PaystackReconciliationLink {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  @@index([paystackReference])
+  @@unique([paystackReference])
   @@index([splynxLedgerId])
   @@index([status])
   @@index([method])
@@ -941,6 +943,8 @@ model ReconciliationException {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
+  // Natural key for dedupe: one exception per (kind, paystackReference, splynxLedgerId).
+  @@unique([kind, paystackReference, splynxLedgerId])
   @@index([kind])
   @@index([status])
   @@index([ownerEmail])
