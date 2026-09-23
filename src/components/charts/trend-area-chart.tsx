@@ -30,23 +30,14 @@ export interface TrendAreaChartProps {
 
 function SquareDot({ cx, cy, fill, opacity = 1, size = 6 }: DotProps & { size?: number; opacity?: number }) {
   if (cx == null || cy == null) return null;
-  return (
-    <rect
-      x={Number(cx) - size / 2}
-      y={Number(cy) - size / 2}
-      width={size}
-      height={size}
-      fill={fill}
-      fillOpacity={opacity}
-      rx={1}
-    />
-  );
+  return <rect x={Number(cx) - size / 2} y={Number(cy) - size / 2} width={size} height={size} fill={fill} fillOpacity={opacity} rx={1} />;
 }
 
 /**
- * Multi-series trend chart in the shadcn-fintech language: dashed muted grid,
- * hidden axis lines, gradient area fill on the primary series, square markers,
- * and the shared `ChartTooltipContent`.
+ * Multi-series trend chart in the shadcn-fintech `FinancialOverview` language:
+ * `linear` polyline, gradient area fill on the primary series, faint comparison
+ * line, square markers, dashed muted grid, hidden axis lines, and the shared
+ * `ChartTooltipContent`.
  */
 export function TrendAreaChart({
   data,
@@ -60,6 +51,8 @@ export function TrendAreaChart({
   connectNulls = true,
   className,
 }: TrendAreaChartProps) {
+  const gidFor = React.useCallback((key: string) => `fill-${xKey}-${key}`.replace(/[^a-zA-Z0-9-_]/g, '-'), [xKey]);
+
   const config = React.useMemo(() => {
     const entries: ChartConfig = {};
     for (const [index, s] of series.entries()) {
@@ -70,19 +63,20 @@ export function TrendAreaChart({
 
   return (
     <ChartContainer config={config} className={className} style={{ height }}>
-      <AreaChart data={data} margin={{ top: 8, right: 8, bottom: 0, left: -16 }}>
+      <AreaChart data={data} margin={{ top: 8, right: 8, bottom: 0, left: 0 }}>
         <defs>
           {series.map((s, index) => {
             const color = s.color ?? `var(--chart-${(index % 5) + 1})`;
+            const gid = gidFor(s.key);
             return (
-              <linearGradient key={s.key} id={`fill-${s.key}`} x1="0" y1="0" x2="0" y2="1">
-                <stop offset="5%" stopColor={color} stopOpacity={s.variant === 'line' ? 0 : 0.22} />
-                <stop offset="95%" stopColor={color} stopOpacity={0} />
+              <linearGradient key={s.key} id={gid} x1="0" y1="0" x2="0" y2="1">
+                <stop offset="0%" stopColor={color} stopOpacity={s.variant === 'line' ? 0 : 0.2} />
+                <stop offset="100%" stopColor={color} stopOpacity={0} />
               </linearGradient>
             );
           })}
         </defs>
-        <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="hsl(var(--border))" />
+        <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="hsl(var(--border))" strokeOpacity={0.5} />
         <XAxis
           dataKey={xKey}
           tickLine={false}
@@ -91,16 +85,18 @@ export function TrendAreaChart({
           tickMargin={8}
           stroke="hsl(var(--muted-foreground))"
           tickFormatter={xTickFormatter}
+          minTickGap={24}
         />
         <YAxis
           tickLine={false}
           axisLine={false}
           fontSize={12}
           tickMargin={8}
-          width={44}
+          width={48}
           domain={yDomain ?? ['auto', 'auto']}
           stroke="hsl(var(--muted-foreground))"
           tickFormatter={yTickFormatter}
+          minTickGap={24}
         />
         <ChartTooltip
           cursor={{ stroke: 'hsl(var(--border))', strokeDasharray: '3 3' }}
@@ -128,16 +124,16 @@ export function TrendAreaChart({
           return (
             <Area
               key={s.key}
-              type="monotone"
+              type="linear"
               dataKey={s.key}
               name={s.key}
               stroke={color}
               strokeWidth={isLine ? 1.5 : 2}
               strokeDasharray={s.dashed ? '6 4' : undefined}
-              strokeOpacity={isLine ? 0.5 : 1}
-              fill={isLine ? 'transparent' : `url(#fill-${s.key})`}
+              strokeOpacity={isLine ? 0.3 : 1}
+              fill={isLine ? 'transparent' : `url(#${gidFor(s.key)})`}
               connectNulls={connectNulls}
-              dot={<SquareDot fill={color} size={isLine ? 4 : 5} opacity={isLine ? 0.4 : 1} />}
+              dot={<SquareDot fill={color} size={isLine ? 5 : 6} opacity={isLine ? 0.3 : 1} />}
               activeDot={<SquareDot fill={color} size={9} />}
             />
           );

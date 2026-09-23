@@ -2,12 +2,22 @@
 
 import React, { useEffect, useState, useMemo, useRef } from 'react';
 import { AdminLayout } from '@/components/layout/AdminLayout';
-import { Clock, ShieldCheck, Brain, Zap, Users, TrendingUp, AlertTriangle, Target, Star, Loader2 } from 'lucide-react';
+import { Clock, ShieldCheck, Zap, Users, TrendingUp, AlertTriangle, Target, Star, Loader2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useAuth, useUser } from '@/firebase';
 import { useAdminFeedbacks } from '@/hooks/use-admin-feedbacks';
 import type { FeedbackDoc } from '@/lib/feedback-types';
-import { AreaChart, Area, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
+import type { ColumnDef } from '@tanstack/react-table';
+import { PageHeader } from '@/components/ui/page-header';
+import { StatCard, StatCardGrid } from '@/components/ui/stat-card';
+import { ChartCard } from '@/components/ui/chart-card';
+import { TrendAreaChart } from '@/components/charts/trend-area-chart';
+import { BreakdownBarChart } from '@/components/charts/breakdown-bar-chart';
+import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
+import { EmptyState } from '@/components/ui/empty-state';
+import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { DataTable, DataTableColumnHeader } from '@/components/data-table';
 
 interface SupportStaffKPI {
   staffId: string;
@@ -64,10 +74,9 @@ export default function AdminSupport() {
   const [loadingKPIs, setLoadingKPIs] = useState(true);
   const [kpiError, setKpiError] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<Tab>('all');
-  const [ticketSearch, setTicketSearch] = useState('');
+  // Search, assignee chip and server-side paging now live inside the tickets DataTable.
   const [ticketStatus, setTicketStatus] = useState<'all' | 'open' | 'closed'>('all');
   const [ticketAssignee, setTicketAssignee] = useState<string>('');
-  const [ticketPage, setTicketPage] = useState(1);
   const [workload, setWorkload] = useState<Array<{ assignee: string | null; name: string; open: number; total: number; pctOpen: number }>>(
     [],
   );
@@ -94,7 +103,6 @@ export default function AdminSupport() {
     }>
   >([]);
   const [ticketsTotal, setTicketsTotal] = useState(0);
-  const [ticketsPages, setTicketsPages] = useState(1);
   const [ticketsLoading, setTicketsLoading] = useState(false);
   const [selectedTicket, setSelectedTicket] = useState<(typeof tickets)[number] | null>(null);
 
@@ -186,15 +194,194 @@ export default function AdminSupport() {
     [stats],
   );
 
+  const totalRequests = volumeData.reduce((sum, d) => sum + d.tickets, 0);
+
+  type TicketRow = (typeof tickets)[number];
+
   const filteredStaff = useMemo(() => {
     if (activeTab === 'backend') return staffKPIs.filter((k) => k.role === 'Back-end Support');
     if (activeTab === 'frontend') return staffKPIs.filter((k) => k.role === 'Support Agent' || k.role === 'Front-end Support');
     return staffKPIs;
   }, [staffKPIs, activeTab]);
 
-  useEffect(() => {
-    setTicketPage(1);
-  }, [ticketSearch, ticketStatus, ticketAssignee]);
+  const staffColumns = useMemo<ColumnDef<SupportStaffKPI>[]>(
+    () => [
+      {
+        accessorKey: 'staffName',
+        header: ({ column }) => <DataTableColumnHeader column={column} title="Staff" />,
+        cell: ({ row }) => (
+          <button
+            onClick={() => filterByAssignee(row.original.staffId)}
+            className="text-left hover:underline"
+            title={`Show ${row.original.staffName}'s tickets`}
+          >
+            <p className="font-mono text-xs font-bold text-primary">{row.original.staffName}</p>
+            <p className="font-mono text-[9px] text-on-surface-variant/50 capitalize">{row.original.role}</p>
+          </button>
+        ),
+      },
+      {
+        accessorKey: 'ticketsAssigned',
+        header: ({ column }) => <DataTableColumnHeader column={column} title="Assigned" />,
+        cell: ({ row }) => <span className="font-mono text-xs text-muted-foreground">{row.original.ticketsAssigned}</span>,
+      },
+      {
+        accessorKey: 'ticketsResolved',
+        header: ({ column }) => <DataTableColumnHeader column={column} title="Resolved" />,
+        cell: ({ row }) => <span className="font-mono text-xs font-bold text-primary">{row.original.ticketsResolved}</span>,
+      },
+      {
+        accessorKey: 'avgResolutionTimeHours',
+        header: ({ column }) => <DataTableColumnHeader column={column} title="Resolution" />,
+        cell: ({ row }) => (
+          <span className="font-mono text-xs text-muted-foreground">{formatHours(row.original.avgResolutionTimeHours)}</span>
+        ),
+      },
+      {
+        accessorKey: 'slaComplianceRate',
+        header: ({ column }) => <DataTableColumnHeader column={column} title="SLA %" />,
+        cell: ({ row }) => (
+          <span className={cn('font-mono text-xs font-bold', getStatusColor(row.original.slaComplianceRate))}>
+            {row.original.slaComplianceRate.toFixed(1)}%
+          </span>
+        ),
+      },
+      {
+        accessorKey: 'firstContactResolutionRate',
+        header: ({ column }) => <DataTableColumnHeader column={column} title="FCR %" />,
+        cell: ({ row }) => (
+          <span className="font-mono text-xs text-muted-foreground">{row.original.firstContactResolutionRate.toFixed(1)}%</span>
+        ),
+      },
+      {
+        accessorKey: 'avgCustomerSatisfaction',
+        header: ({ column }) => <DataTableColumnHeader column={column} title="CSAT" />,
+        cell: ({ row }) => (
+          <span className="font-mono text-xs text-muted-foreground">{row.original.avgCustomerSatisfaction.toFixed(1)}/5</span>
+        ),
+      },
+      {
+        accessorKey: 'currentOpenTickets',
+        header: ({ column }) => <DataTableColumnHeader column={column} title="Open" />,
+        cell: ({ row }) => <span className="font-mono text-xs text-muted-foreground">{row.original.currentOpenTickets}</span>,
+      },
+    ],
+    [],
+  );
+
+  const workloadColumns = useMemo<ColumnDef<(typeof workload)[number]>[]>(
+    () => [
+      {
+        accessorKey: 'name',
+        header: ({ column }) => <DataTableColumnHeader column={column} title="Assignee" />,
+        cell: ({ row }) => (
+          <span className="font-mono text-xs font-bold text-primary" title={`Show ${row.original.name}'s tickets`}>
+            {row.original.name}
+          </span>
+        ),
+      },
+      {
+        accessorKey: 'open',
+        header: ({ column }) => <DataTableColumnHeader column={column} title="Open" />,
+        cell: ({ row }) => <span className="font-mono text-xs font-bold">{row.original.open}</span>,
+      },
+      {
+        accessorKey: 'pctOpen',
+        header: ({ column }) => <DataTableColumnHeader column={column} title="% of open" />,
+        cell: ({ row }) => <span className="font-mono text-xs text-muted-foreground">{row.original.pctOpen}%</span>,
+      },
+      {
+        accessorKey: 'total',
+        header: ({ column }) => <DataTableColumnHeader column={column} title="Total" />,
+        cell: ({ row }) => <span className="font-mono text-xs text-muted-foreground">{row.original.total.toLocaleString()}</span>,
+      },
+    ],
+    [],
+  );
+
+  const ticketColumns = useMemo<ColumnDef<TicketRow>[]>(
+    () => [
+      {
+        accessorKey: 'ticketNumber',
+        header: ({ column }) => <DataTableColumnHeader column={column} title="#" />,
+        cell: ({ row }) => <span className="whitespace-nowrap font-mono text-xs font-bold text-primary">#{row.original.ticketNumber}</span>,
+      },
+      {
+        accessorKey: 'customerName',
+        header: ({ column }) => <DataTableColumnHeader column={column} title="Customer" />,
+        cell: ({ row }) => (
+          <div className="min-w-[170px]">
+            <p className="whitespace-nowrap text-sm font-bold text-primary">{row.original.customerName || '—'}</p>
+            <p className="max-w-[200px] truncate font-mono text-[10px] text-muted-foreground">{row.original.customerEmail || ''}</p>
+          </div>
+        ),
+      },
+      {
+        accessorKey: 'description',
+        header: 'Subject',
+        enableSorting: false,
+        cell: ({ row }) => (
+          <span className="block max-w-[280px] truncate text-sm text-muted-foreground" title={row.original.description}>
+            {row.original.description || '—'}
+          </span>
+        ),
+      },
+      {
+        accessorKey: 'status',
+        header: ({ column }) => <DataTableColumnHeader column={column} title="Status" />,
+        cell: ({ row }) => (
+          <span className="flex flex-wrap items-center gap-1">
+            <Badge variant={row.original.status === 'closed' ? 'success' : 'warning'}>{row.original.status}</Badge>
+            {row.original.slaBreached && (
+              <Badge variant="danger" title="Unresolved past the 1.5h SLA">
+                SLA
+              </Badge>
+            )}
+          </span>
+        ),
+        filterFn: (row, id, value: string[]) => value.includes(String(row.getValue(id))),
+      },
+      {
+        accessorKey: 'priority',
+        header: ({ column }) => <DataTableColumnHeader column={column} title="Priority" />,
+        cell: ({ row }) => <span className="whitespace-nowrap font-mono text-xs font-bold">{priorityLabel(row.original.priority)}</span>,
+        filterFn: (row, id, value: string[]) => value.includes(String(row.getValue(id) ?? '')),
+      },
+      {
+        accessorKey: 'assignedToName',
+        header: ({ column }) => <DataTableColumnHeader column={column} title="Assigned" />,
+        cell: ({ row }) => (
+          <span className="whitespace-nowrap font-mono text-[11px] text-muted-foreground" title={row.original.assignedTo || ''}>
+            {row.original.assignedToName || row.original.assignedTo || 'Unassigned'}
+          </span>
+        ),
+        filterFn: (row, id, value: string[]) => value.includes(String(row.getValue(id) ?? 'Unassigned')),
+      },
+      {
+        accessorKey: 'createdAt',
+        header: ({ column }) => <DataTableColumnHeader column={column} title="Age" />,
+        cell: ({ row }) => (
+          <span className="whitespace-nowrap font-mono text-[11px] text-muted-foreground">{relTime(row.original.createdAt)}</span>
+        ),
+      },
+    ],
+    [],
+  );
+
+  const ticketStatusOptions = useMemo(() => {
+    const counts = new Map<string, number>();
+    for (const t of tickets) counts.set(t.status || 'open', (counts.get(t.status || 'open') || 0) + 1);
+    return [...counts.entries()].sort((a, b) => b[1] - a[1]).map(([status, count]) => ({ label: `${status} (${count})`, value: status }));
+  }, [tickets]);
+
+  const ticketAssigneeOptions = useMemo(
+    () =>
+      workload.map((w) => ({
+        label: `${w.name} (${w.open})`,
+        value: w.name,
+      })),
+    [workload],
+  );
 
   const scrollToTickets = () => {
     ticketsRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
@@ -237,11 +424,10 @@ export default function AdminSupport() {
       try {
         const token = await user.getIdToken();
         const params = new URLSearchParams({
-          page: String(ticketPage),
-          pageSize: '20',
+          page: '1',
+          pageSize: '200',
           ...(ticketStatus !== 'all' ? { status: ticketStatus } : {}),
           ...(ticketAssignee ? { assignedTo: ticketAssignee } : {}),
-          ...(ticketSearch.trim() ? { search: ticketSearch.trim() } : {}),
         });
         const res = await fetch(`/api/admin/tickets?${params.toString()}`, {
           headers: { Authorization: `Bearer ${token}` },
@@ -250,7 +436,6 @@ export default function AdminSupport() {
         if (data.success) {
           setTickets(data.data?.tickets || []);
           setTicketsTotal(data.data?.total || 0);
-          setTicketsPages(Math.max(1, data.data?.totalPages || 1));
         }
       } catch {
         /* keep previous list on transient failure */
@@ -259,7 +444,7 @@ export default function AdminSupport() {
       }
     }, 400);
     return () => clearTimeout(id);
-  }, [user, ticketPage, ticketSearch, ticketStatus, ticketAssignee]);
+  }, [user, ticketStatus, ticketAssignee]);
 
   const avgSLA = staffKPIs.length > 0 ? Math.round(staffKPIs.reduce((s, k) => s + k.slaComplianceRate, 0) / staffKPIs.length) : 0;
   const avgFCR =
@@ -271,28 +456,22 @@ export default function AdminSupport() {
     <AdminLayout>
       <div className="max-w-screen-2xl mx-auto">
         {/* Header */}
-        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-6">
-          <div>
-            <h1 className="text-2xl md:text-3xl font-display font-bold text-primary uppercase tracking-tight">Support Overview</h1>
-            <p className="font-mono text-[10px] uppercase tracking-widest font-bold mt-1 text-on-surface-variant/60">
-              Performance & satisfaction ratings for the support team
-            </p>
-          </div>
-          <div className="flex gap-1.5">
-            {(['week', 'month', 'quarter'] as const).map((p) => (
-              <button
-                key={p}
-                onClick={() => setPeriod(p)}
-                className={cn(
-                  'px-3 py-1.5 rounded-full font-mono text-[10px] uppercase font-bold transition-colors',
-                  period === p ? 'bg-secondary text-white' : 'bg-surface-container-low text-on-surface-variant hover:bg-surface-container',
-                )}
-              >
-                {p}
-              </button>
-            ))}
-          </div>
-        </div>
+        <PageHeader
+          eyebrow="Support"
+          title="Support Overview"
+          description="Performance & satisfaction ratings for the support team."
+          actions={
+            <Tabs value={period} onValueChange={(value) => setPeriod(value as 'week' | 'month' | 'quarter')}>
+              <TabsList variant="segmented">
+                {(['week', 'month', 'quarter'] as const).map((p) => (
+                  <TabsTrigger key={p} value={p}>
+                    {p}
+                  </TabsTrigger>
+                ))}
+              </TabsList>
+            </Tabs>
+          }
+        />
 
         {/* Loading */}
         {isLoading && (
@@ -303,488 +482,212 @@ export default function AdminSupport() {
 
         {/* Error */}
         {kpiError && (
-          <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-xl mb-6 font-mono text-xs">{kpiError}</div>
+          <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-xl mt-4 mb-6 font-mono text-xs">{kpiError}</div>
         )}
 
         {!isLoading && (
-          <>
-            {/* Section 1: Team Summary — 1 unified card with 6 metrics */}
-            <div className="bg-white p-6 md:p-8 rounded-2xl whisper-shadow border border-border mb-6">
-              <h2 className="font-display font-bold text-sm uppercase text-primary mb-4">Team Summary</h2>
-              <div className="grid grid-cols-2 sm:grid-cols-3 2xl:grid-cols-6 gap-4">
-                <MetricCell icon={Users} label="Team Size" value={String(staffKPIs.length)} />
-                <MetricCell icon={TrendingUp} label="Assigned" value={String(teamAverages?.totalTicketsAssigned ?? 0)} />
-                <MetricCell icon={ShieldCheck} label="Resolved" value={String(teamAverages?.totalTicketsResolved ?? 0)} />
-                <MetricCell icon={Target} label="SLA Compliance" value={`${avgSLA}%`} />
-                <MetricCell icon={Star} label="CSAT Score" value={`${teamAverages?.avgCustomerSatisfaction ?? '—'}/5`} />
-                <MetricCell
-                  icon={Clock}
-                  label="Avg Resolution"
-                  value={teamAverages?.avgResolutionTimeHours ? formatHours(teamAverages.avgResolutionTimeHours) : '—'}
-                />
+          <div className="mt-6">
+            {/* Section 1: KPI tiles */}
+            <StatCardGrid columns={6}>
+              <StatCard label="Team Size" value={String(staffKPIs.length)} icon={Users} />
+              <StatCard label="Assigned" value={String(teamAverages?.totalTicketsAssigned ?? 0)} icon={TrendingUp} />
+              <StatCard label="Resolved" value={String(teamAverages?.totalTicketsResolved ?? 0)} icon={ShieldCheck} />
+              <StatCard label="SLA Compliance" value={avgSLA} unit="%" icon={Target} />
+              <StatCard
+                label="CSAT Score"
+                value={teamAverages?.avgCustomerSatisfaction ?? '—'}
+                unit={teamAverages?.avgCustomerSatisfaction ? '/5' : ''}
+                icon={Star}
+              />
+              <StatCard
+                label="Avg Resolution"
+                value={teamAverages?.avgResolutionTimeHours ? formatHours(teamAverages.avgResolutionTimeHours) : '—'}
+                icon={Clock}
+              />
+            </StatCardGrid>
+            {/* First-time fix progress */}
+            <div className="mt-4 rounded-xl border border-border bg-card p-5 shadow-sm">
+              <div className="flex items-center justify-between mb-1.5">
+                <span className="font-mono text-[9px] uppercase tracking-widest font-bold text-muted-foreground">First-Time Fix Rate</span>
+                <span className="font-mono text-[11px] font-bold text-primary">{avgFCR}%</span>
               </div>
-              {/* Progress bar for First-Time Fix */}
-              <div className="mt-4 pt-4 border-t border-border/50">
-                <div className="flex items-center justify-between mb-1.5">
-                  <span className="font-mono text-[9px] uppercase tracking-widest font-bold text-on-surface-variant/50">
-                    First-Time Fix Rate
-                  </span>
-                  <span className="font-mono text-[11px] font-bold text-primary">{avgFCR}%</span>
-                </div>
-                <div className="h-1.5 bg-zinc-100 rounded-full overflow-hidden">
-                  <div className="h-full bg-secondary rounded-full" style={{ width: `${avgFCR}%` }} />
-                </div>
+              <div className="h-1.5 bg-zinc-100 rounded-full overflow-hidden">
+                <div className="h-full bg-secondary rounded-full" style={{ width: `${avgFCR}%` }} />
               </div>
             </div>
 
             {/* Section 2: Charts — above the fold */}
-            <div className="grid grid-cols-1 lg:grid-cols-12 gap-4 mb-6">
-              <div className="lg:col-span-12 bg-white p-6 rounded-2xl whisper-shadow border border-border h-[320px] flex flex-col">
-                <h3 className="font-display font-bold text-sm uppercase text-primary mb-4">Requests Over Time</h3>
-                <div className="flex-1">
-                  <ResponsiveContainer width="100%" height="100%">
-                    <AreaChart data={volumeData}>
-                      <defs>
-                        <linearGradient id="colorTickets" x1="0" y1="0" x2="0" y2="1">
-                          <stop offset="5%" stopColor="#448515" stopOpacity={0.1} />
-                          <stop offset="95%" stopColor="#448515" stopOpacity={0} />
-                        </linearGradient>
-                      </defs>
-                      <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#eee" />
-                      <XAxis dataKey="date" axisLine={false} tickLine={false} tick={{ fontSize: 10 }} />
-                      <YAxis axisLine={false} tickLine={false} tick={{ fontSize: 10 }} />
-                      <Tooltip contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 10px 15px -3px rgba(0,0,0,0.1)' }} />
-                      <Area type="monotone" dataKey="tickets" stroke="#448515" fill="url(#colorTickets)" strokeWidth={2} />
-                    </AreaChart>
-                  </ResponsiveContainer>
-                </div>
-              </div>
+            <div className="mt-6 grid grid-cols-1 gap-4 lg:grid-cols-12">
+              <ChartCard
+                className="lg:col-span-12"
+                title="Requests over time"
+                description={`${totalRequests} support requests in period.`}
+                legend={[{ label: 'Requests', color: 'var(--chart-1)', value: String(totalRequests) }]}
+              >
+                {volumeData.length === 0 ? (
+                  <EmptyState
+                    title="No requests in this period"
+                    description="Widen the period above to see the request volume trend."
+                    className="border-0"
+                  />
+                ) : (
+                  <TrendAreaChart
+                    data={volumeData}
+                    xKey="date"
+                    height={260}
+                    valueFormatter={(value) => `${value}`}
+                    series={[{ key: 'tickets', label: 'Requests', color: 'var(--chart-1)' }]}
+                  />
+                )}
+              </ChartCard>
 
-              <div className="lg:col-span-6 bg-white p-6 rounded-2xl whisper-shadow border border-border h-[320px] flex flex-col">
-                <h3 className="font-display font-bold text-sm uppercase text-primary mb-4">Response Quality</h3>
-                <div className="flex-1">
-                  <ResponsiveContainer width="100%" height="100%">
-                    <BarChart data={dimensionData} layout="vertical" margin={{ left: 20, right: 20 }}>
-                      <CartesianGrid strokeDasharray="3 3" horizontal={false} stroke="#eee" />
-                      <XAxis type="number" domain={[0, 5]} axisLine={false} tickLine={false} tick={{ fontSize: 10 }} />
-                      <YAxis
-                        dataKey="name"
-                        type="category"
-                        axisLine={false}
-                        tickLine={false}
-                        tick={{ fontSize: 10, fontWeight: 'bold' }}
-                        width={110}
-                      />
-                      <Tooltip contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 10px 15px -3px rgba(0,0,0,0.1)' }} />
-                      <Bar dataKey="score" fill="#448515" radius={[0, 4, 4, 0]} barSize={20} />
-                    </BarChart>
-                  </ResponsiveContainer>
-                </div>
-              </div>
+              <ChartCard className="lg:col-span-6" title="Response quality" description="Average score per dimension (0–5).">
+                <BreakdownBarChart
+                  items={dimensionData.map((d) => ({ name: d.name, value: d.score }))}
+                  max={5}
+                  valueFormatter={(item) => `${Number(item.value).toFixed(1)}/5`}
+                  emptyLabel="No quality data for this period"
+                />
+              </ChartCard>
 
-              <div className="lg:col-span-6 bg-white p-6 rounded-2xl whisper-shadow border border-border h-[320px] flex flex-col">
-                <h3 className="font-display font-bold text-sm uppercase text-primary mb-4">Customer Sentiment</h3>
-                <div className="space-y-4 flex-1 flex flex-col justify-center">
-                  {[
-                    { label: 'Positive', val: stats.sentiment.pos, color: 'bg-emerald-500' },
-                    { label: 'Neutral', val: stats.sentiment.neu, color: 'bg-zinc-400' },
-                    { label: 'Frustrated', val: stats.sentiment.frust, color: 'bg-red-500' },
-                  ].map((item) => (
-                    <div key={item.label}>
-                      <div className="flex justify-between mb-1">
-                        <span className="font-mono text-[10px] uppercase tracking-wider font-bold text-on-surface-variant/70">
-                          {item.label}
-                        </span>
-                        <span className="font-mono text-[11px] font-bold text-primary">{item.val}%</span>
-                      </div>
-                      <div className="w-full bg-zinc-100 h-2 rounded-full overflow-hidden">
-                        <div
-                          className={cn('h-full rounded-full transition-all duration-700', item.color)}
-                          style={{ width: `${item.val}%` }}
-                        />
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </div>
+              <ChartCard
+                className="lg:col-span-6"
+                title="Customer sentiment"
+                description="Share of positive, neutral and frustrated answers."
+              >
+                <BreakdownBarChart
+                  items={[
+                    { name: 'Positive', value: stats.sentiment.pos, barClassName: 'bg-emerald-500' },
+                    { name: 'Neutral', value: stats.sentiment.neu, barClassName: 'bg-zinc-400' },
+                    { name: 'Frustrated', value: stats.sentiment.frust, barClassName: 'bg-red-500' },
+                  ]}
+                  max={100}
+                  valueFormatter={(item) => `${item.value}%`}
+                  emptyLabel="No sentiment data for this period"
+                />
+              </ChartCard>
             </div>
 
             {/* Section 3: Staff Performance — single tabbed table */}
-            <div className="bg-white p-6 rounded-2xl whisper-shadow border border-border mb-6">
-              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-4">
-                <h2 className="font-display font-bold text-sm uppercase text-primary">Staff Performance</h2>
-                <div className="flex gap-1">
-                  {[
-                    { id: 'all' as Tab, label: 'All', count: staffKPIs.length },
-                    { id: 'backend' as Tab, label: 'Backend', count: staffKPIs.filter((k) => k.role === 'Back-end Support').length },
-                    {
-                      id: 'frontend' as Tab,
-                      label: 'Frontend',
-                      count: staffKPIs.filter((k) => k.role === 'Support Agent' || k.role === 'Front-end Support').length,
-                    },
-                  ].map((tab) => (
-                    <button
-                      key={tab.id}
-                      onClick={() => setActiveTab(tab.id)}
-                      className={cn(
-                        'px-3 py-1 rounded-full font-mono text-[10px] uppercase font-bold transition-colors',
-                        activeTab === tab.id
-                          ? 'bg-secondary text-white'
-                          : 'bg-surface-container-low text-on-surface-variant hover:bg-surface-container',
-                      )}
-                    >
-                      {tab.label} ({tab.count})
-                    </button>
-                  ))}
-                </div>
-              </div>
-
+            <ChartCard
+              className="mt-6"
+              title="Staff performance"
+              description="Click a row to filter the tickets below."
+              actions={
+                <Tabs value={activeTab} onValueChange={(value) => setActiveTab(value as Tab)}>
+                  <TabsList variant="segmented">
+                    {(
+                      [
+                        { id: 'all', label: 'All', count: staffKPIs.length },
+                        { id: 'backend', label: 'Backend', count: staffKPIs.filter((k) => k.role === 'Back-end Support').length },
+                        {
+                          id: 'frontend',
+                          label: 'Frontend',
+                          count: staffKPIs.filter((k) => k.role === 'Support Agent' || k.role === 'Front-end Support').length,
+                        },
+                      ] as { id: Tab; label: string; count: number }[]
+                    ).map((tab) => (
+                      <TabsTrigger key={tab.id} value={tab.id}>
+                        {tab.label} ({tab.count})
+                      </TabsTrigger>
+                    ))}
+                  </TabsList>
+                </Tabs>
+              }
+              chartClassName="p-0"
+            >
               {filteredStaff.length === 0 ? (
-                <p className="font-mono text-[10px] text-on-surface-variant/40 text-center py-8">No staff data for this period</p>
+                <EmptyState title="No staff data for this period" className="border-0" />
               ) : (
-                <div className="overflow-x-auto">
-                  <table className="w-full text-left" aria-label="Staff performance table">
-                    <thead>
-                      <tr className="border-b border-border">
-                        <th
-                          scope="col"
-                          className="px-3 py-2 font-mono text-[9px] uppercase tracking-widest font-bold text-on-surface-variant/60"
-                        >
-                          Staff
-                        </th>
-                        <th
-                          scope="col"
-                          className="px-3 py-2 font-mono text-[9px] uppercase tracking-widest font-bold text-on-surface-variant/60 text-right"
-                        >
-                          Assigned
-                        </th>
-                        <th
-                          scope="col"
-                          className="px-3 py-2 font-mono text-[9px] uppercase tracking-widest font-bold text-on-surface-variant/60 text-right"
-                        >
-                          Resolved
-                        </th>
-                        <th
-                          scope="col"
-                          className="px-3 py-2 font-mono text-[9px] uppercase tracking-widest font-bold text-on-surface-variant/60 text-right"
-                        >
-                          Resolution
-                        </th>
-                        <th
-                          scope="col"
-                          className="px-3 py-2 font-mono text-[9px] uppercase tracking-widest font-bold text-on-surface-variant/60 text-right"
-                        >
-                          SLA %
-                        </th>
-                        <th
-                          scope="col"
-                          className="px-3 py-2 font-mono text-[9px] uppercase tracking-widest font-bold text-on-surface-variant/60 text-right"
-                        >
-                          FCR %
-                        </th>
-                        <th
-                          scope="col"
-                          className="px-3 py-2 font-mono text-[9px] uppercase tracking-widest font-bold text-on-surface-variant/60 text-right"
-                        >
-                          CSAT
-                        </th>
-                        <th
-                          scope="col"
-                          className="px-3 py-2 font-mono text-[9px] uppercase tracking-widest font-bold text-on-surface-variant/60 text-right"
-                        >
-                          Open
-                        </th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {filteredStaff.map((kpi) => (
-                        <tr key={kpi.staffId} className="border-b border-border/50 hover:bg-surface-container-low/50 transition-colors">
-                          <td className="px-3 py-2.5">
-                            <button
-                              onClick={() => filterByAssignee(kpi.staffId)}
-                              className="text-left hover:underline"
-                              title={`Show ${kpi.staffName}'s tickets`}
-                            >
-                              <p className="font-mono text-xs font-bold text-primary">{kpi.staffName}</p>
-                              <p className="font-mono text-[9px] text-on-surface-variant/50 capitalize">{kpi.role}</p>
-                            </button>
-                          </td>
-                          <td className="px-3 py-2.5 text-right font-mono text-xs text-on-surface-variant">{kpi.ticketsAssigned}</td>
-                          <td className="px-3 py-2.5 text-right font-mono text-xs font-bold text-primary">{kpi.ticketsResolved}</td>
-                          <td className="px-3 py-2.5 text-right font-mono text-xs text-on-surface-variant">
-                            {formatHours(kpi.avgResolutionTimeHours)}
-                          </td>
-                          <td className="px-3 py-2.5 text-right">
-                            <span className={cn('text-[9px] font-mono font-bold', getStatusColor(kpi.slaComplianceRate))}>
-                              {kpi.slaComplianceRate.toFixed(1)}%
-                            </span>
-                          </td>
-                          <td className="px-3 py-2.5 text-right font-mono text-xs text-on-surface-variant">
-                            {kpi.firstContactResolutionRate.toFixed(1)}%
-                          </td>
-                          <td className="px-3 py-2.5 text-right font-mono text-xs text-on-surface-variant">
-                            {kpi.avgCustomerSatisfaction.toFixed(1)}/5
-                          </td>
-                          <td className="px-3 py-2.5 text-right font-mono text-xs text-on-surface-variant">{kpi.currentOpenTickets}</td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
+                <DataTable
+                  columns={staffColumns}
+                  data={filteredStaff}
+                  searchKey="staffName"
+                  searchPlaceholder="Search staff…"
+                  initialPageSize={8}
+                  showPagination
+                  emptyTitle="No staff data for this period"
+                  onRowClick={(row) => filterByAssignee(row.staffId)}
+                />
               )}
-            </div>
+            </ChartCard>
 
             {/* Section 4: Workload — open tickets per assignee (mirrors Splynx) */}
-            <div className="bg-white p-6 rounded-2xl whisper-shadow border border-border mb-6">
-              <h2 className="font-display font-bold text-sm uppercase text-primary mb-1">Workload by Assignee</h2>
-              <p className="font-mono text-[10px] uppercase tracking-widest text-on-surface-variant/50 font-bold mb-4">
-                Open tickets{workloadTotalOpen > 0 ? ` · ${workloadTotalOpen} total` : ''} — click a row to filter the list below
-              </p>
+            <ChartCard
+              className="mt-6"
+              title="Workload by assignee"
+              description={
+                workloadTotalOpen > 0
+                  ? `Open tickets · ${workloadTotalOpen} total — click a row to filter the list below`
+                  : 'Open tickets — click a row to filter the list below'
+              }
+              chartClassName="p-0"
+            >
               {workload.length === 0 ? (
-                <p className="font-mono text-[10px] text-on-surface-variant/40 text-center py-4">No workload data</p>
+                <EmptyState title="No workload data" className="border-0" />
               ) : (
-                <div className="overflow-x-auto -mx-1 px-1">
-                  <table className="w-full min-w-[520px] text-left" aria-label="Workload by assignee">
-                    <thead>
-                      <tr className="border-b border-border">
-                        <th
-                          scope="col"
-                          className="px-3 py-2 font-mono text-[9px] uppercase tracking-widest font-bold text-on-surface-variant/60"
-                        >
-                          Assignee
-                        </th>
-                        <th
-                          scope="col"
-                          className="px-3 py-2 font-mono text-[9px] uppercase tracking-widest font-bold text-on-surface-variant/60 text-right"
-                        >
-                          Open
-                        </th>
-                        <th
-                          scope="col"
-                          className="px-3 py-2 font-mono text-[9px] uppercase tracking-widest font-bold text-on-surface-variant/60 text-right"
-                        >
-                          % of open
-                        </th>
-                        <th
-                          scope="col"
-                          className="px-3 py-2 font-mono text-[9px] uppercase tracking-widest font-bold text-on-surface-variant/60 text-right"
-                        >
-                          Total
-                        </th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {workload.map((w) => (
-                        <tr
-                          key={w.assignee ?? '__unassigned__'}
-                          onClick={() => filterByAssignee(w.assignee)}
-                          className="border-b border-border/50 hover:bg-surface-container-low/50 transition-colors cursor-pointer"
-                          title={`Show ${w.name}'s tickets`}
-                        >
-                          <td className="px-3 py-2.5 font-mono text-xs font-bold text-primary">{w.name}</td>
-                          <td className="px-3 py-2.5 text-right font-mono text-xs font-bold">{w.open}</td>
-                          <td className="px-3 py-2.5 text-right font-mono text-xs text-on-surface-variant">{w.pctOpen}%</td>
-                          <td className="px-3 py-2.5 text-right font-mono text-xs text-on-surface-variant/60">
-                            {w.total.toLocaleString()}
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
+                <DataTable
+                  columns={workloadColumns}
+                  data={workload}
+                  searchKey="name"
+                  searchPlaceholder="Search assignees…"
+                  initialPageSize={8}
+                  showPagination
+                  emptyTitle="No workload data"
+                  onRowClick={(row) => filterByAssignee(row.assignee)}
+                />
               )}
-            </div>
+            </ChartCard>
 
             {/* Section 5: Tickets — searchable list with detail view */}
-            <div ref={ticketsRef} className="bg-white p-6 rounded-2xl whisper-shadow border border-border mb-6 scroll-mt-20">
-              <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-3 mb-4">
-                <h2 className="font-display font-bold text-sm uppercase text-primary">
-                  Tickets {ticketsTotal > 0 && <span className="text-on-surface-variant/50">({ticketsTotal.toLocaleString()})</span>}
-                </h2>
-                <div className="flex flex-col sm:flex-row gap-2">
-                  <input
-                    value={ticketSearch}
-                    onChange={(e) => setTicketSearch(e.target.value)}
-                    placeholder="Search name, email, ticket #..."
-                    className="px-4 py-2 rounded-full border border-border bg-background font-mono text-xs min-w-0 sm:w-56"
-                    aria-label="Search tickets"
-                  />
-                  <select
-                    value={ticketAssignee}
-                    onChange={(e) => setTicketAssignee(e.target.value)}
-                    className="px-4 py-2 rounded-full border border-border bg-background font-mono text-[10px] uppercase font-bold text-on-surface-variant min-w-0 sm:max-w-56"
-                    aria-label="Filter by assignee"
-                  >
-                    <option value="">All assignees</option>
-                    <option value="__unassigned__">Unassigned</option>
-                    {workload
-                      .filter((w) => w.assignee !== null)
-                      .map((w) => (
-                        <option key={w.assignee as string} value={w.assignee as string}>
-                          {w.name} ({w.open} open)
-                        </option>
+            <div ref={ticketsRef} className="scroll-mt-20">
+              <ChartCard
+                className="mt-6"
+                title={ticketsTotal > 0 ? `Tickets (${ticketsTotal.toLocaleString()})` : 'Tickets'}
+                description="Click a row for the full detail."
+                actions={
+                  <Tabs value={ticketStatus} onValueChange={(value) => setTicketStatus(value as 'all' | 'open' | 'closed')}>
+                    <TabsList variant="segmented">
+                      {(['all', 'open', 'closed'] as const).map((s) => (
+                        <TabsTrigger key={s} value={s}>
+                          {s}
+                        </TabsTrigger>
                       ))}
-                  </select>
-                  {ticketAssignee && (
-                    <button
-                      onClick={() => setTicketAssignee('')}
-                      className="px-3 py-2 rounded-full border border-border font-mono text-[10px] uppercase font-bold text-secondary hover:bg-surface-container-low transition-colors whitespace-nowrap"
-                      title="Clear assignee filter"
-                    >
-                      ✕{' '}
-                      {ticketAssignee === '__unassigned__'
-                        ? 'Unassigned'
-                        : (workload.find((w) => w.assignee === ticketAssignee)?.name ?? ticketAssignee)}
-                    </button>
-                  )}
-                  <div className="flex gap-1">
-                    {(['all', 'open', 'closed'] as const).map((s) => (
-                      <button
-                        key={s}
-                        onClick={() => setTicketStatus(s)}
-                        className={cn(
-                          'px-3 py-2 rounded-full font-mono text-[10px] uppercase font-bold transition-colors',
-                          ticketStatus === s
-                            ? 'bg-secondary text-white'
-                            : 'bg-surface-container-low text-on-surface-variant hover:bg-surface-container',
-                        )}
+                    </TabsList>
+                  </Tabs>
+                }
+                chartClassName="p-0"
+              >
+                <DataTable
+                  columns={ticketColumns}
+                  data={tickets}
+                  searchKey="customerName"
+                  searchPlaceholder="Search name, email, ticket #…"
+                  filters={[
+                    { columnId: 'status', title: 'Status', options: ticketStatusOptions },
+                    { columnId: 'assignedToName', title: 'Assignee', options: ticketAssigneeOptions },
+                  ]}
+                  toolbarActions={
+                    ticketAssignee ? (
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="rounded-full font-mono text-[10px] uppercase font-bold"
+                        onClick={() => setTicketAssignee('')}
+                        title="Clear assignee filter"
                       >
-                        {s}
-                      </button>
-                    ))}
-                  </div>
-                </div>
-              </div>
-
-              <div className="overflow-x-auto -mx-1 px-1">
-                <table className="w-full min-w-[860px] text-left" aria-label="Tickets table">
-                  <thead>
-                    <tr className="border-b border-border">
-                      <th
-                        scope="col"
-                        className="px-3 py-2 font-mono text-[9px] uppercase tracking-widest font-bold text-on-surface-variant/60"
-                      >
-                        #
-                      </th>
-                      <th
-                        scope="col"
-                        className="px-3 py-2 font-mono text-[9px] uppercase tracking-widest font-bold text-on-surface-variant/60"
-                      >
-                        Customer
-                      </th>
-                      <th
-                        scope="col"
-                        className="px-3 py-2 font-mono text-[9px] uppercase tracking-widest font-bold text-on-surface-variant/60"
-                      >
-                        Subject
-                      </th>
-                      <th
-                        scope="col"
-                        className="px-3 py-2 font-mono text-[9px] uppercase tracking-widest font-bold text-on-surface-variant/60"
-                      >
-                        Status
-                      </th>
-                      <th
-                        scope="col"
-                        className="px-3 py-2 font-mono text-[9px] uppercase tracking-widest font-bold text-on-surface-variant/60 text-right"
-                      >
-                        Priority
-                      </th>
-                      <th
-                        scope="col"
-                        className="px-3 py-2 font-mono text-[9px] uppercase tracking-widest font-bold text-on-surface-variant/60"
-                      >
-                        Assigned
-                      </th>
-                      <th
-                        scope="col"
-                        className="px-3 py-2 font-mono text-[9px] uppercase tracking-widest font-bold text-on-surface-variant/60 text-right"
-                      >
-                        Age
-                      </th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {tickets.map((t) => (
-                      <tr
-                        key={t.id ?? t.ticketNumber}
-                        onClick={() => setSelectedTicket(t)}
-                        className="border-b border-border/50 hover:bg-surface-container-low/50 transition-colors cursor-pointer"
-                      >
-                        <td className="px-3 py-2.5 font-mono text-xs font-bold text-primary whitespace-nowrap">#{t.ticketNumber}</td>
-                        <td className="px-3 py-2.5">
-                          <p className="font-bold text-primary text-sm whitespace-nowrap">{t.customerName || '—'}</p>
-                          <p className="font-mono text-[10px] text-on-surface-variant/60 truncate max-w-[200px]">{t.customerEmail || ''}</p>
-                        </td>
-                        <td className="px-3 py-2.5 text-sm text-on-surface-variant max-w-[280px] truncate" title={t.description}>
-                          {t.description || '—'}
-                        </td>
-                        <td className="px-3 py-2.5">
-                          <span
-                            className={cn(
-                              'text-[10px] font-bold font-mono whitespace-nowrap',
-                              t.status === 'closed' ? 'text-green-700' : 'text-amber-700',
-                            )}
-                          >
-                            {t.status}
-                          </span>
-                          {t.slaBreached && (
-                            <span
-                              className="ml-1 text-[10px] font-bold font-mono whitespace-nowrap text-red-600"
-                              title="Unresolved past the 1.5h SLA"
-                            >
-                              SLA
-                            </span>
-                          )}
-                        </td>
-                        <td className="px-3 py-2.5 text-right font-mono text-xs font-bold whitespace-nowrap">
-                          {priorityLabel(t.priority)}
-                        </td>
-                        <td
-                          className="px-3 py-2.5 font-mono text-[11px] text-on-surface-variant whitespace-nowrap"
-                          title={t.assignedTo || ''}
-                        >
-                          {t.assignedToName || t.assignedTo || 'Unassigned'}
-                        </td>
-                        <td className="px-3 py-2.5 text-right font-mono text-[11px] text-on-surface-variant whitespace-nowrap">
-                          {relTime(t.createdAt)}
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-              {ticketsLoading && (
-                <p className="font-mono text-[10px] uppercase tracking-widest text-on-surface-variant/50 text-center py-4">
-                  Loading tickets…
-                </p>
-              )}
-              {!ticketsLoading && tickets.length === 0 && (
-                <p className="font-mono text-[10px] text-on-surface-variant/40 text-center py-8">No tickets match the current filters</p>
-              )}
-              {ticketsPages > 1 && (
-                <div className="flex items-center justify-between pt-4">
-                  <span className="font-mono text-[10px] uppercase tracking-widest opacity-60 font-bold">
-                    Page {ticketPage} of {ticketsPages}
-                  </span>
-                  <div className="flex items-center gap-2">
-                    <button
-                      disabled={ticketPage <= 1}
-                      onClick={() => setTicketPage((p) => Math.max(1, p - 1))}
-                      className="px-4 py-2 rounded-xl border border-border font-mono text-[10px] uppercase font-bold text-on-surface-variant hover:bg-surface-container-low transition-colors disabled:opacity-40"
-                    >
-                      Prev
-                    </button>
-                    <button
-                      disabled={ticketPage >= ticketsPages}
-                      onClick={() => setTicketPage((p) => p + 1)}
-                      className="px-4 py-2 rounded-xl border border-border font-mono text-[10px] uppercase font-bold text-on-surface-variant hover:bg-surface-container-low transition-colors disabled:opacity-40"
-                    >
-                      Next
-                    </button>
-                  </div>
-                </div>
-              )}
+                        ✕{' '}
+                        {ticketAssignee === '__unassigned__'
+                          ? 'Unassigned'
+                          : (workload.find((w) => w.assignee === ticketAssignee)?.name ?? ticketAssignee)}
+                      </Button>
+                    ) : undefined
+                  }
+                  loading={ticketsLoading}
+                  emptyTitle="No tickets match the current filters"
+                  onRowClick={(row) => setSelectedTicket(row)}
+                />
+              </ChartCard>
             </div>
 
             {selectedTicket && (
@@ -858,9 +761,8 @@ export default function AdminSupport() {
               </div>
             )}
 
-            {/* Section 5: Feedback Ratings — compact single card */}
-            <div className="bg-white p-6 rounded-2xl whisper-shadow border border-border mb-6">
-              <h2 className="font-display font-bold text-sm uppercase text-primary mb-4">Feedback Ratings</h2>
+            {/* Section 6: Feedback Ratings — compact single card */}
+            <ChartCard className="mt-6" title="Feedback ratings" description="Average score per dimension.">
               <div className="grid grid-cols-2 sm:grid-cols-3 2xl:grid-cols-6 gap-4">
                 <RatingCell label="Helpfulness" value={stats.professionalism} />
                 <RatingCell label="Clarity" value={stats.clarity} />
@@ -869,8 +771,8 @@ export default function AdminSupport() {
                 <RatingCell label="Friendliness" value={stats.friendliness} />
                 <RatingCell label="First-Time Fix" value={`${stats.fcrRate}%`} />
               </div>
-            </div>
-          </>
+            </ChartCard>
+          </div>
         )}
       </div>
     </AdminLayout>
@@ -878,20 +780,6 @@ export default function AdminSupport() {
 }
 
 /* ---- Small sub-components ---- */
-
-function MetricCell({ icon: Icon, label, value }: { icon: React.ElementType; label: string; value: string }) {
-  return (
-    <div className="flex items-center gap-3">
-      <Icon className="w-4 h-4 text-secondary shrink-0" />
-      <div className="min-w-0">
-        <p className="font-mono text-[8px] uppercase tracking-widest font-bold text-on-surface-variant/50">{label}</p>
-        <p className="font-mono text-base xl:text-lg font-bold break-words text-primary" title={value}>
-          {value}
-        </p>
-      </div>
-    </div>
-  );
-}
 
 function RatingCell({ label, value }: { label: string; value: string }) {
   return (
