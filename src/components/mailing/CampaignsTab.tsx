@@ -371,7 +371,8 @@ export function CampaignsTab() {
                 Cancel
               </Button>
               <Button
-                className="rounded-full bg-rose-500 text-white font-mono text-[10px] uppercase font-bold px-6"
+                variant="destructive"
+                className="rounded-full font-mono text-[10px] uppercase font-bold px-6"
                 onClick={() => handleReject(rejectingId)}
               >
                 Reject
