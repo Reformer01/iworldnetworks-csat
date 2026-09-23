@@ -603,6 +603,21 @@ export async function reconcileCustomersDb(now = Date.now()): Promise<{ upserted
     deleted++;
   }
 
+  // Touch the sync clock on seen-but-unchanged rows so Customer.lastSyncAt
+  // means "last verified present", not "last changed". Without this, tower
+  // cards misreport "Last Sync 3d ago" for perfectly healthy mirrors.
+  const seenIds = [...seen];
+  const CHUNK = 1000;
+  for (let i = 0; i < seenIds.length; i += CHUNK) {
+    await prisma.customer.updateMany({
+      where: {
+        customerId: { in: seenIds.slice(i, i + CHUNK) },
+        OR: [{ lastSyncAt: null }, { lastSyncAt: { lt: BigInt(now) } }],
+      },
+      data: { lastSyncAt: BigInt(now) },
+    });
+  }
+
   return { upserted, deleted, fetched: records.length };
 }
 
@@ -699,7 +714,7 @@ export async function syncInvoiceItemsByIds(
   return { fetched, upserted, failed };
 }
 
-export async function reconcileInvoicesDb(now = Date.now()): Promise<{ upserted: number; denied: boolean; fetched: number }> {
+export async function reconcileInvoicesDb(now = Date.now()): Promise<{ upserted: number; denied: boolean; fetched: number; failed: number; firstError: string | null }> {
   // Full pass over ALL invoices (paid + unpaid) so the mirror holds line items
   // for discount math. Volume is small (~thousands) — hourly full pass is fine.
   let all: SplynxInvoice[];
@@ -709,7 +724,7 @@ export async function reconcileInvoicesDb(now = Date.now()): Promise<{ upserted:
     const message = err instanceof Error ? err.message : String(err);
     if (message.includes('403')) {
       await setSplynxMeta({ invoicesApiDenied: true, deniedAt: now });
-      return { upserted: 0, denied: true, fetched: 0 };
+      return { upserted: 0, denied: true, fetched: 0, failed: 0, firstError: null };
     }
     throw err;
   }
@@ -721,7 +736,7 @@ export async function reconcileInvoicesDb(now = Date.now()): Promise<{ upserted:
     const message = err instanceof Error ? err.message : String(err);
     if (message.includes('403')) {
       await setSplynxMeta({ invoicesApiDenied: true, deniedAt: now });
-      return { upserted: 0, denied: true, fetched: 0 };
+      return { upserted: 0, denied: true, fetched: 0, failed: 0, firstError: null };
     }
     throw err;
   }
@@ -735,6 +750,8 @@ export async function reconcileInvoicesDb(now = Date.now()): Promise<{ upserted:
   const deletedIds = new Set(deleted.map((inv) => String(inv.id)));
 
   let upserted = 0;
+  let failed = 0;
+  let firstError: string | null = null;
   for (const invoice of all) {
     const idKey = String(invoice.id);
     const prev = existing.get(idKey);
@@ -747,13 +764,21 @@ export async function reconcileInvoicesDb(now = Date.now()): Promise<{ upserted:
       });
       if (same && JSON.stringify(prev.items ?? null) === JSON.stringify(doc.items ?? null)) continue;
     }
-    await prisma.invoice.upsert({
-      where: { invoiceId: idKey },
-      update: mapInvoice(doc),
-      create: mapInvoice(doc),
-    });
-    await mirrorInvoiceSet(doc);
-    upserted++;
+    // One poisoned invoice must never abort the whole pass — record it and move on.
+    try {
+      await prisma.invoice.upsert({
+        where: { invoiceId: idKey },
+        update: mapInvoice(doc),
+        create: mapInvoice(doc),
+      });
+      await mirrorInvoiceSet(doc);
+      upserted++;
+    } catch (err) {
+      failed++;
+      const message = err instanceof Error ? err.message : String(err);
+      if (!firstError) firstError = `invoice ${idKey}: ${message.slice(0, 300)}`;
+      logWarn('[invoice-reconcile] single-invoice upsert failed', { invoiceId: idKey, error: message.slice(0, 500) });
+    }
   }
 
   // Prune invoices deleted in Splynx
@@ -796,7 +821,7 @@ export async function reconcileInvoicesDb(now = Date.now()): Promise<{ upserted:
     }
   }
 
-  return { upserted, denied: false, fetched: all.length + deleted.length + existingRows.length };
+  return { upserted, denied: false, fetched: all.length + deleted.length + existingRows.length, failed, firstError };
 }
 
 // Ticket reconcile (Splynx helpdesk → Ticket table)
@@ -1490,6 +1515,7 @@ export async function runHourlySyncDb(baseUrl: string, now = Date.now()): Promis
     customersUpserted: 0,
     customersMarkedDeleted: 0,
     invoicesUpserted: 0,
+    invoicesFailed: 0,
     reminders15: 0,
     reminders30: 0,
     churnSent: 0,
@@ -1518,9 +1544,22 @@ export async function runHourlySyncDb(baseUrl: string, now = Date.now()): Promis
     stats.customersUpserted = customers.upserted;
     stats.customersMarkedDeleted = customers.deleted;
 
-    const invoices = await reconcileInvoicesDb(now);
-    stats.invoicesUpserted = invoices.upserted;
-    stats.invoicesApiDenied = invoices.denied;
+    // Invoice pass is individually hardened, but never let it take down the
+    // hourly run if something structural breaks.
+    try {
+      const invoices = await reconcileInvoicesDb(now);
+      stats.invoicesUpserted = invoices.upserted;
+      stats.invoicesApiDenied = invoices.denied;
+      stats.invoicesFailed = invoices.failed;
+      if (invoices.firstError) {
+        const { logWarn } = await import('@/lib/logger');
+        logWarn('[splynx-sync] invoice failures this run', { failed: invoices.failed, firstError: invoices.firstError });
+      }
+    } catch (invErr) {
+      const { logError } = await import('@/lib/logger');
+      logError('[splynx-sync] invoice pass failed (run continues)', { error: invErr instanceof Error ? invErr.message : String(invErr) });
+      stats.invoicesFailed = -1;
+    }
 
     // Credit-note mirror (finance/credit-notes → CreditNote table). Best-effort:
     // a credit-note failure must never break the main sync.

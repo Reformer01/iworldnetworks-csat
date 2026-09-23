@@ -2,30 +2,30 @@
 
 import React from 'react';
 import {
-  UsersThree,
-  Broadcast,
-  CheckCircle,
-  ChartLineUp,
+  Users,
+  Radio,
+  CircleCheck,
+  ChartLine,
   CreditCard,
   Megaphone,
   Database,
-  UploadSimple,
+  Upload,
   Target,
-} from '@phosphor-icons/react';
+} from 'lucide-react';
 import { DashboardLayout, type NavItem } from '@/components/layout/DashboardLayout';
 import { useAuth, useUser } from '@/firebase';
 import { canViewFinance } from '@/lib/finance-access';
 
 const salesNavItems: NavItem[] = [
-  { name: 'Customers', href: '/admin/customers', icon: UsersThree },
-  { name: 'BTS Customers', href: '/admin/bts/customers', icon: UsersThree },
-  { name: 'BTS Audit', href: '/admin/bts/audit', icon: Broadcast },
-  { name: 'BTS Review', href: '/admin/bts/review', icon: CheckCircle },
-  { name: 'Dashboard', href: '/admin/sales', icon: ChartLineUp },
+  { name: 'Customers', href: '/admin/customers', icon: Users },
+  { name: 'BTS Customers', href: '/admin/bts/customers', icon: Users },
+  { name: 'BTS Audit', href: '/admin/bts/audit', icon: Radio },
+  { name: 'BTS Review', href: '/admin/bts/review', icon: CircleCheck },
+  { name: 'Dashboard', href: '/admin/sales', icon: ChartLine },
   { name: 'Paystack Finance', href: '/admin/finance/paystack', icon: CreditCard },
   { name: 'Mailing', href: '/admin/mailing', icon: Megaphone },
   { name: 'Records', href: '/admin/sales/records', icon: Database },
-  { name: 'Import Data', href: '/admin/sales/import', icon: UploadSimple },
+  { name: 'Import Data', href: '/admin/sales/import', icon: Upload },
   { name: 'Targets', href: '/admin/sales/targets', icon: Target },
 ];
 

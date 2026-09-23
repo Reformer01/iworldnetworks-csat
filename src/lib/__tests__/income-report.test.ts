@@ -298,7 +298,7 @@ describe('summary', () => {
 
 describe('date windows', () => {
   it('month bounds cover the full UTC month', () => {
-    expect(monthBoundsUTC('2026-08')).toEqual({ start: Date.UTC(2026, 7, 1), end: Date.UTC(2026, 8, 1) - 1 });
+    expect(monthBoundsUTC('2026-08')).toEqual({ start: Date.UTC(2026, 7, 1) - 3600000, end: Date.UTC(2026, 8, 1) - 3600001 });
   });
   it('from/to bounds are inclusive whole days', () => {
     expect(dayRangeBoundsUTC('2026-08-01', '2026-08-06')).toEqual({

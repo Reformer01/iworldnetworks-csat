@@ -61,6 +61,22 @@ interface StaffPerf {
   byType: Record<string, number>;
 }
 
+// Business date is truth — prefer editable date over immutable createdAt.
+// Module-level (hoisted) so every memo below can use it regardless of order.
+export function effectiveRecordMonth(r: { date?: string; createdAt?: number }): string | null {
+  if (r.date && /^\d{4}-\d{2}-\d{2}/.test(r.date)) return r.date.slice(0, 7);
+  const ts = r.createdAt ? Number(r.createdAt) : null;
+  if (!ts || !Number.isFinite(ts)) return null;
+  const d = new Date(ts);
+  return `${d.getUTCFullYear()}-${String(d.getUTCMonth() + 1).padStart(2, '0')}`;
+}
+
+export function monthLabel(ym: string): string {
+  const [y, m] = ym.split('-').map(Number);
+  if (!y || !m) return ym;
+  return new Date(Date.UTC(y, m - 1, 1)).toLocaleDateString('en-NG', { month: 'short', year: 'numeric', timeZone: 'UTC' });
+}
+
 export default function SupportRevenue() {
   const [search, setSearch] = useState('');
   const [filterProject, setFilterProject] = useState('');
@@ -119,10 +135,17 @@ export default function SupportRevenue() {
     setEditId(null);
   };
 
-  // Staff performance — computed over ALL records (not search-filtered).
+  // Month-scoped record set: the overview (KPIs, staff table, list) shows
+  // this month, or everything when the picker is cleared.
+  const monthScoped = useMemo(
+    () => (filterMonth === '__all' ? records : records.filter((r) => effectiveRecordMonth(r) === filterMonth)),
+    [records, filterMonth],
+  );
+
+  // Staff performance — computed over the month-scoped set.
   const perf = useMemo<StaffPerf[]>(() => {
     const map = new Map<string, StaffPerf>();
-    for (const r of records) {
+    for (const r of monthScoped) {
       const agent = (r.agentName || '').trim();
       if (!agent) continue;
       let p = map.get(agent);
@@ -144,33 +167,15 @@ export default function SupportRevenue() {
 
   const totals = useMemo(
     () => ({
-      revenue: records.reduce((a, r) => a + (r.totalAmount || 0), 0),
-      closed: records.length,
-      upsells: records.filter((r) => r.saleKind === 'Upsell').length,
-      crossSells: records.filter((r) => r.saleKind === 'Cross-sell').length,
-      referrals: records.filter((r) => r.projectType === 'REFERRALS').length,
-      revivals: records.filter((r) => r.projectType === 'REVIVED CUSTOMER').length,
+      revenue: monthScoped.reduce((a, r) => a + (r.totalAmount || 0), 0),
+      closed: monthScoped.length,
+      upsells: monthScoped.filter((r) => r.saleKind === 'Upsell').length,
+      crossSells: monthScoped.filter((r) => r.saleKind === 'Cross-sell').length,
+      referrals: monthScoped.filter((r) => r.projectType === 'REFERRALS').length,
+      revivals: monthScoped.filter((r) => r.projectType === 'REVIVED CUSTOMER').length,
     }),
-    [records],
+    [monthScoped],
   );
-
-  // Business date is truth — prefer editable date over immutable createdAt
-  const effectiveMonth = (r: { date?: string; createdAt?: number }): string | null => {
-    if (r.date && /^\d{4}-\d{2}-\d{2}/.test(r.date)) return r.date.slice(0, 7);
-    const ts = r.createdAt ? Number(r.createdAt) : null;
-    if (!ts || !Number.isFinite(ts)) return null;
-    const d = new Date(ts);
-    return `${d.getUTCFullYear()}-${String(d.getUTCMonth() + 1).padStart(2, '0')}`;
-  };
-
-  const availableMonths = useMemo(() => {
-    const set = new Set<string>();
-    for (const r of records) {
-      const m = effectiveMonth(r);
-      if (m) set.add(m);
-    }
-    return Array.from(set).sort().reverse();
-  }, [records]);
 
   const availableAgents = useMemo(() => {
     const set = new Set<string>();
@@ -181,6 +186,17 @@ export default function SupportRevenue() {
     return Array.from(set).sort();
   }, [records]);
 
+  // Month bounds for the picker: earliest ↔ latest record month.
+  const monthBounds = useMemo(() => {
+    const months = new Set<string>();
+    for (const r of records) {
+      const m = effectiveRecordMonth(r);
+      if (m) months.add(m);
+    }
+    const sorted = [...months].sort();
+    return { min: sorted[0] ?? '', max: sorted[sorted.length - 1] ?? '' };
+  }, [records]);
+
   const filtered = records.filter((r) => {
     if (search) {
       const q = search.toLowerCase();
@@ -189,7 +205,7 @@ export default function SupportRevenue() {
     }
     if (filterAgent !== '__all' && (r.agentName || '').trim() !== filterAgent && (r.assignedSalesRep || '').trim() !== filterAgent)
       return false;
-    if (filterMonth !== '__all' && effectiveMonth(r) !== filterMonth) return false;
+    if (filterMonth !== '__all' && effectiveRecordMonth(r) !== filterMonth) return false;
     return true;
   });
 
@@ -532,6 +548,34 @@ export default function SupportRevenue() {
         ))}
       </div>
 
+      {/* Month picker — the whole overview (KPIs, staff table, list) follows it */}
+      <div className="mb-8 flex flex-wrap items-end gap-2 rounded-xl border border-border bg-white p-3 card-shadow">
+        <div>
+          <p className="mb-1 font-mono text-[10px] font-bold uppercase tracking-widest text-muted-foreground">Revenue month</p>
+          <div className="flex items-center gap-2">
+            <input
+              type="month"
+              value={filterMonth === '__all' ? '' : filterMonth}
+              min={monthBounds.min || undefined}
+              max={monthBounds.max || undefined}
+              onChange={(e) => setFilterMonth(e.target.value || '__all')}
+              aria-label="Pick a revenue month"
+              className="h-9 rounded-[10px] border border-input bg-background px-3 text-sm"
+            />
+            {filterMonth !== '__all' && (
+              <Button variant="outline" size="sm" onClick={() => setFilterMonth('__all')}>
+                All time
+              </Button>
+            )}
+          </div>
+        </div>
+        <p className="pb-2 font-mono text-[11px] text-muted-foreground">
+          {filterMonth === '__all'
+            ? `Showing all time — ${monthBounds.min ? monthLabel(monthBounds.min) : ''}${monthBounds.max && monthBounds.max !== monthBounds.min ? ` to ${monthLabel(monthBounds.max)}` : ''}`
+            : `Showing ${monthLabel(filterMonth)} — KPIs, staff table and list below are month-scoped`}
+        </p>
+      </div>
+
       {/* Staff performance */}
       <section className="bg-white border border-border whisper-shadow rounded-xl p-6 mb-8">
         <h2 className="font-display text-lg font-bold text-primary uppercase mb-4">Staff Performance — Sales Closed</h2>
@@ -604,19 +648,6 @@ export default function SupportRevenue() {
             {SALE_TYPES.map((p) => (
               <SelectItem key={p} value={p}>
                 {p}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-        <Select value={filterMonth} onValueChange={setFilterMonth}>
-          <SelectTrigger className="w-[130px] sm:w-[160px] max-w-full rounded-xl font-mono text-[10px] uppercase font-bold">
-            <SelectValue placeholder="All Months" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="__all">All Months</SelectItem>
-            {availableMonths.map((m) => (
-              <SelectItem key={m} value={m}>
-                {m}
               </SelectItem>
             ))}
           </SelectContent>

@@ -26,3 +26,30 @@ export function isDuplicateReference(seen: Set<string>, reference?: string | nul
   seen.add(key);
   return false;
 }
+
+/**
+ * Extract the Splynx customer id a Paystack transaction belongs to.
+ * The portal.iwn.ng splynx_paystack_addon flow stamps every portal payment
+ * with `metadata.customer_id` (Splynx customer id) and a referrer URL carrying
+ * the same id. Golden join key — preferred over email matching.
+ */
+export function extractSplynxCustomerId(raw: unknown): string | null {
+  if (typeof raw !== 'object' || raw === null) return null;
+  const meta = (raw as Record<string, unknown>).metadata;
+  if (typeof meta === 'object' && meta !== null) {
+    const cid = (meta as Record<string, unknown>).customer_id;
+    if (typeof cid === 'number' && Number.isFinite(cid)) return String(cid);
+    if (typeof cid === 'string' && cid.trim()) {
+      const s = cid.trim();
+      if (/^\d+$/.test(s)) return s;
+    }
+  }
+  // Fallback: referrer query param customer_id=NNN
+  const referrer =
+    typeof meta === 'object' && meta !== null ? (meta as Record<string, unknown>).referrer : null;
+  if (typeof referrer === 'string') {
+    const m = referrer.match(/customer_id=(\d+)/);
+    if (m) return m[1];
+  }
+  return null;
+}

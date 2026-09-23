@@ -55,6 +55,35 @@ describe('paystack aggregates', () => {
     expect(card?.count).toBe(1);
   });
 
+  it('counts attempted across all statuses, not just successes', () => {
+    const out = buildPaystackOverview(rows, [], '2026-08');
+    expect(out.attemptedCount).toBe(3);
+    expect(out.kpis.successCount).toBe(2);
+  });
+
+  it('attributes region from the customer record when metadata lacks it', () => {
+    const noMeta = rows.map((r) => ({ ...r, raw: {} }));
+    const map = new Map([['a@example.com', 'Oyo'], ['b@example.com', 'Oyo']]);
+    const out = buildPaystackOverview(noMeta, [], '2026-08', map);
+    const oyo = out.regions.find((r) => r.region === 'Oyo');
+    expect(oyo?.count).toBe(2);
+    expect(out.regions.find((r) => r.region === 'Unknown')?.count).toBeUndefined();
+  });
+
+  it('prefers metadata region over the customer record', () => {
+    const map = new Map([['a@example.com', 'Oyo']]);
+    const out = buildPaystackOverview(rows, [], '2026-08', map);
+    expect(out.regions.find((r) => r.region === 'Ogun')?.count).toBe(1);
+  });
+
+  it('buckets late-night WAT transactions into the WAT month, not UTC', () => {
+    // Sep 1st 00:05 WAT == Aug 31st 23:05 UTC: belongs to September.
+    const edge = [{ reference: 'PSK-X', amount: 10000, status: 'success', paidAt: '2026-08-31T23:05:00.000Z' }];
+    const out = buildPaystackOverview(edge, [], '2026-09');
+    expect(out.attemptedCount).toBe(1);
+    expect(buildPaystackOverview(edge, [], '2026-08').attemptedCount).toBe(0);
+  });
+
   it('computes unmatched value from links', () => {
     const matched = buildPaystackOverview(rows, [{ paystackReference: 'PSK-1', status: 'matched' }], '2026-08');
     expect(matched.kpis.unmatchedNaira).toBe(1000);

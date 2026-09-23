@@ -145,6 +145,8 @@ export interface SyncStats {
   customersUpserted: number;
   customersMarkedDeleted: number;
   invoicesUpserted: number;
+  /** Per-invoice failures this run (-1 = whole pass threw and was contained). */
+  invoicesFailed: number;
   reminders15: number;
   reminders30: number;
   churnSent: number;

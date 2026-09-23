@@ -1,5 +1,13 @@
 import { prisma } from '@/lib/prisma';
-import { classifyReconciliation, matchByEmailAmount, matchByEmailAmountDate, matchByReference } from '@/lib/finance/paystack-reconcile';
+import {
+  classifyReconciliation,
+  matchByCustomerIdAmount,
+  matchByCustomerIdAmountDate,
+  matchByEmailAmount,
+  matchByEmailAmountDate,
+  matchByReference,
+  watMonthBounds,
+} from '@/lib/finance/paystack-reconcile';
 import { normalizeReference } from '@/lib/finance/paystack-normalize';
 import type { ReconPaystackRow, ReconSplynxRow } from '@/lib/finance/paystack-reconcile-types';
 
@@ -20,15 +28,21 @@ const MONTH_RE = /^\d{4}-\d{2}$/;
 /**
  * A Splynx ledger row plausibly corresponds to a Paystack payment only when its
  * reference or raw payment type mentions Paystack (receipt numbers like
- * "PSK-..." or payment_type "Paystack"). Bank/cash/credit rows must NOT be
- * flagged as splynx-only exceptions — they never have a Paystack side.
+ * "PSK-...", payment_type "Paystack", or the Splynx payment_type id 30 —
+ * discovered Sept 2026: portal Paystack auto-payments arrive as type 30 with
+ * receipt "2026-30-xxxx"). Bank/cash/credit rows must NOT be flagged as
+ * splynx-only exceptions — they never have a Paystack side.
  */
 function isPaystackLedgerRow(row: { reference?: string | null; raw?: unknown }): boolean {
   const ref = (row.reference || '').toLowerCase();
   if (ref.includes('psk') || ref.includes('paystack')) return true;
   const raw = (row.raw ?? null) as Record<string, unknown> | null;
   const paymentType = String(raw?.payment_type ?? '').toLowerCase();
-  return paymentType.includes('paystack');
+  if (paymentType.includes('paystack')) return true;
+  // Splynx payment_type 30 = Paystack (receipt series "YYYY-30-NNNNN").
+  if (paymentType === '30') return true;
+  if (/^\d{4}-30-\d+/.test(ref)) return true;
+  return false;
 }
 
 function toIso(value: Date | string | null | undefined): string | null {
@@ -99,9 +113,8 @@ async function upsertException(data: {
 export async function runReconciliation(opts: { month: string }): Promise<ReconciliationRunnerResult> {
   const month = typeof (opts as unknown) === 'string' ? (opts as unknown as string) : opts.month;
   if (!MONTH_RE.test(month)) throw new Error(`Invalid month "${month}" — expected YYYY-MM`);
-  const [y, m] = month.split('-').map(Number);
-  const start = new Date(Date.UTC(y, m - 1, 1));
-  const end = new Date(Date.UTC(y, m, 1) - 1); // last ms of month
+  // WAT month window — same bounds as the ledger import and the aggregates.
+  const { start, end } = watMonthBounds(month);
 
   const [paystackTxs, splynxRows, existingLinks] = await Promise.all([
     prisma.paystackTransaction.findMany({
@@ -126,6 +139,7 @@ export async function runReconciliation(opts: { month: string }): Promise<Reconc
     email: tx.customerEmail ?? '',
     amountNaira: tx.amount / 100,
     paidAt: toIso(tx.paidAt),
+    splynxCustomerId: (tx as { splynxCustomerId?: string | null }).splynxCustomerId ?? null,
   }));
 
   const reconSplynxRows: ReconSplynxRow[] = splynxRows.map((row) => ({
@@ -134,6 +148,7 @@ export async function runReconciliation(opts: { month: string }): Promise<Reconc
     email: row.customerEmail ?? '',
     amountNaira: row.amountNaira,
     paidAt: toIso(row.paidAt),
+    customerId: row.customerId ?? null,
   }));
 
   // Duplicate Paystack references within the month.
@@ -173,9 +188,15 @@ export async function runReconciliation(opts: { month: string }): Promise<Reconc
     }
 
     const classification = classifyReconciliation(ps, reconSplynxRows);
-    // Resolve the matched Splynx row id for the link.
-    const splynxMatch = matchByReference(ps, reconSplynxRows) ?? matchByEmailAmountDate(ps, reconSplynxRows);
-    const method = matchByReference(ps, reconSplynxRows) ? 'reference' : 'fallback';
+    // Resolve the matched Splynx row id for the link. Priority: reference →
+    // customer-id golden key → email+amount+day. Method names match the tiers
+    // in the reconciliation design doc (reference / metadata / fallback).
+    const byRef = matchByReference(ps, reconSplynxRows);
+    const byMeta = byRef ? null : matchByCustomerIdAmountDate(ps, reconSplynxRows);
+    const byEmail = byRef || byMeta ? null : matchByEmailAmountDate(ps, reconSplynxRows);
+    const splynxMatch = byRef ?? byMeta ?? byEmail;
+    const method = byRef ? 'reference' : byMeta ? 'metadata' : 'fallback';
+    const confidence = method === 'reference' ? 1.0 : method === 'metadata' ? 0.9 : 0.8;
 
     if (classification.kind === 'matched' && splynxMatch) {
       matched++;
@@ -183,7 +204,7 @@ export async function runReconciliation(opts: { month: string }): Promise<Reconc
         paystackReference: ps.reference,
         splynxLedgerId: splynxMatch.id,
         method,
-        confidence: method === 'reference' ? 1.0 : 0.8,
+        confidence,
         paystackAmountNaira: ps.amountNaira,
         splynxAmountNaira: splynxMatch.amountNaira,
         varianceNaira: 0,
@@ -197,7 +218,7 @@ export async function runReconciliation(opts: { month: string }): Promise<Reconc
         paystackReference: ps.reference,
         splynxLedgerId: splynxMatch.id,
         method,
-        confidence: method === 'reference' ? 1.0 : 0.8,
+        confidence,
         paystackAmountNaira: ps.amountNaira,
         splynxAmountNaira: splynxMatch.amountNaira,
         varianceNaira: classification.varianceNaira,
@@ -219,7 +240,7 @@ export async function runReconciliation(opts: { month: string }): Promise<Reconc
       // Last chance: same customer + same amount but a different day — that is
       // a date mismatch (e.g. timezone drift between Splynx and Paystack), not
       // a missing payment. Previously these were miscounted as paystack-only.
-      const dateMatch = matchByEmailAmount(ps, reconSplynxRows);
+      const dateMatch = matchByCustomerIdAmount(ps, reconSplynxRows) ?? matchByEmailAmount(ps, reconSplynxRows);
       if (dateMatch && !linkedLedgerIds.has(dateMatch.id)) {
         dateMismatch++;
         await upsertLink({

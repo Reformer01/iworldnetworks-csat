@@ -22,7 +22,7 @@ import { KeyboardShortcuts } from '@/components/admin/KeyboardShortcuts';
 export interface NavItem {
   name: string;
   href: string;
-  // Accepts Lucide or Phosphor icon components (both take className).
+  // Accepts Lucide icon components (single icon family project-wide).
   icon: React.ComponentType<{ className?: string }>;
 }
 

@@ -298,9 +298,12 @@ export function summarize(rows: IncomeRow[]): IncomeSummary {
   };
 }
 
+/** Month window in Africa/Lagos wall-clock (UTC+1, no DST): a payment made
+ * in September WAT belongs to September even when its UTC instant falls on
+ * Aug 31 or Oct 1. Name kept for callers; bounds are WAT, not UTC. */
 export function monthBoundsUTC(month: string): { start: number; end: number } {
   const [y, m] = month.split('-').map(Number);
-  return { start: Date.UTC(y, m - 1, 1), end: Date.UTC(y, m, 1) - 1 };
+  return { start: Date.UTC(y, m - 1, 1) - 3600000, end: Date.UTC(y, m, 1) - 3600001 };
 }
 
 /** Inclusive [from, to] window for YYYY-MM-DD bounds. Null when either is malformed. */

@@ -13,9 +13,11 @@ import type { MirrorCustomerDoc, MirrorInvoiceDoc } from '@/lib/splynx-mirror-ty
 
 const enabled = process.env.CUSTOMERS_DB_WRITE === '1';
 
-function toBigInt(v: number | null | undefined): bigint | null {
-  if (v === null || v === undefined) return null;
-  return BigInt(v);
+function toBigInt(v: number | string | null | undefined): bigint | null {
+  if (v === null || v === undefined || v === '') return null;
+  const n = typeof v === 'string' ? Number(v) : v;
+  if (!Number.isFinite(n)) return null;
+  return BigInt(Math.trunc(n));
 }
 
 export function mapCustomer(doc: MirrorCustomerDoc) {
@@ -71,12 +73,13 @@ export function mapCustomer(doc: MirrorCustomerDoc) {
 }
 
 export function mapInvoice(doc: MirrorInvoiceDoc) {
+  const total = Number(doc.total);
   return {
     invoiceId: String(doc.invoiceId),
-    customerId: String(doc.customerId),
+    customerId: doc.customerId == null ? '' : String(doc.customerId),
     number: doc.number,
     title: doc.title,
-    total: doc.total,
+    total: Number.isFinite(total) ? total : 0,
     dueDate: toBigInt(doc.dueDate),
     date: toBigInt(doc.date),
     status: doc.status,

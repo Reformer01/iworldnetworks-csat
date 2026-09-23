@@ -864,6 +864,9 @@ model PaystackTransaction {
   customerName  String?
   gatewayResponse String? @db.Text
   paidAt        DateTime?
+  // Golden join key: Splynx customer id from Paystack metadata.customer_id
+  // (portal.iwn.ng splynx_paystack_addon). Backfilled from raw.metadata.
+  splynxCustomerId String?
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
   raw           Json?
@@ -875,6 +878,7 @@ model PaystackTransaction {
   @@index([status])
   @@index([paidAt])
   @@index([customerEmail])
+  @@index([splynxCustomerId])
   @@index([reference])
   @@index([channel])
 }

@@ -132,8 +132,8 @@ export default function IncomeReportPage() {
       <div className="max-w-7xl mx-auto px-4 py-6">
         <div className="flex items-start justify-between gap-4 mb-6">
           <div>
-            <h1 className="text-2xl font-display font-bold text-primary uppercase tracking-tight">Monthly Income Report</h1>
-            <p className="text-sm text-muted-foreground">Transaction data from Splynx — classified by customer type</p>
+            <h1 className="text-[26px] font-medium tracking-[-0.03em] text-primary">Monthly Income Report</h1>
+            <p className="mt-0.5 text-[13px] text-muted-foreground">Transaction data from Splynx — classified by customer type</p>
           </div>
           <Button variant="outline" onClick={exportCsv} disabled={!data?.rows.length}>
             <Download className="w-4 h-4 mr-2" />
@@ -244,18 +244,18 @@ export default function IncomeReportPage() {
               ['Discounts', fmt(s.discounts)],
               ['Others', fmt(s.others)],
             ].map(([k, v]) => (
-              <div key={k} className="bg-white rounded-2xl border p-4 whisper-shadow">
-                <div className="font-mono text-[10px] uppercase tracking-widest text-muted-foreground font-bold">{k}</div>
-                <div className="font-mono font-bold text-sm mt-1 truncate">{v}</div>
+              <div key={k} className="bg-white rounded-xl border p-4 card-shadow">
+                <div className="text-[11px] font-medium uppercase tracking-[0.08em] text-muted-foreground">{k}</div>
+                <div className="tabular font-bold text-sm mt-1 truncate">{v}</div>
               </div>
             ))}
           </div>
         )}
 
-        <div className="bg-white rounded-2xl border overflow-hidden whisper-shadow">
+        <div className="bg-white rounded-xl border overflow-hidden card-shadow">
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
-              <thead className="bg-muted/40 text-[11px] font-mono uppercase tracking-widest">
+              <thead className="bg-muted/40 text-[11px] uppercase tracking-[0.06em] text-muted-foreground font-medium">
                 <tr>
                   <th className="text-left px-3 py-3">Date</th>
                   <th className="text-left px-3 py-3">Customer</th>
@@ -295,7 +295,7 @@ export default function IncomeReportPage() {
                       <td className="px-3 py-2 font-medium leading-tight whitespace-nowrap">{r.customer}</td>
                       <td className="px-3 py-2 text-xs text-muted-foreground whitespace-nowrap">{r.email}</td>
                       <td className="px-3 py-2 font-mono text-xs whitespace-nowrap">{r.reference}</td>
-                      <td className="px-3 py-2 text-right font-mono">{fmt(r.amount)}</td>
+                      <td className="px-3 py-2 text-right font-mono tabular">{fmt(r.amount)}</td>
                       <td className="px-3 py-2 text-right font-mono">{r.enterprise ? fmt(r.enterprise) : '—'}</td>
                       <td className="px-3 py-2 text-right font-mono">{r.isNew}</td>
                       <td className="px-3 py-2 text-right font-mono">{r.residential ? fmt(r.residential) : '—'}</td>
@@ -303,7 +303,7 @@ export default function IncomeReportPage() {
                       <td className="px-3 py-2 text-right font-mono">{r.discounts ? fmt(r.discounts) : '—'}</td>
                       <td className="px-3 py-2 text-right font-mono">{r.others ? fmt(r.others) : '—'}</td>
                       <td className="px-3 py-2 text-right font-mono">{fmt(r.tax)}</td>
-                      <td className="px-3 py-2 text-right font-mono font-semibold">{fmt(r.balance)}</td>
+                      <td className="px-3 py-2 text-right font-mono tabular font-semibold">{fmt(r.balance)}</td>
                       <td className="px-3 py-2 whitespace-nowrap">{r.region}</td>
                       <td className="px-3 py-2 font-mono text-xs">{r.remark}</td>
                       <td className="px-3 py-2 max-w-[260px] truncate" title={r.note}>

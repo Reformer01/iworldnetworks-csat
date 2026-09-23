@@ -526,7 +526,14 @@ export default function BtsAuditPage() {
                 ? 'bg-red-50 border-red-200 text-red-700 hover:bg-red-100' 
                 : 'bg-amber-50 border-amber-200 text-amber-700 hover:bg-amber-100'
             )}
-            onClick={() => setAttentionOnly(true)}
+            onClick={() => {
+              setAttentionOnly(true);
+              // The grid sits far below the banner — scroll it into view so the
+              // filter visibly takes effect instead of appearing dead.
+              requestAnimationFrame(() => {
+                document.getElementById('tower-grid')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+              });
+            }}
             role="alert"
           >
             <div className="flex items-center gap-3">
@@ -648,8 +655,9 @@ export default function BtsAuditPage() {
             </p>
           </SectionCard>
         ) : (
-          <div 
-            className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4 md:gap-5"
+          <div
+            id="tower-grid"
+            className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4 md:gap-5 scroll-mt-4"
             role="list"
             aria-label="Tower list"
           >

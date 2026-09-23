@@ -44,28 +44,39 @@ function toDate(value: Date | string | null | undefined): Date | null {
   return Number.isNaN(d.getTime()) ? null : d;
 }
 
+// Africa/Lagos has no DST (UTC+1 year-round). Paystack/Splynx timestamps are
+// WAT wall-clock; bucketing in UTC silently moves late-night transactions
+// into the previous UTC day (and month at boundaries).
+const WAT_OFFSET_MS = 60 * 60 * 1000;
+
 function monthKeyOf(value: Date | string | null | undefined): string | null {
   const d = toDate(value);
   if (!d) return null;
-  return `${d.getUTCFullYear()}-${String(d.getUTCMonth() + 1).padStart(2, '0')}`;
+  const w = new Date(d.getTime() + WAT_OFFSET_MS);
+  return `${w.getUTCFullYear()}-${String(w.getUTCMonth() + 1).padStart(2, '0')}`;
 }
 
 function dateKeyOf(value: Date | string | null | undefined): string | null {
   const d = toDate(value);
   if (!d) return null;
-  return d.toISOString().slice(0, 10);
+  return new Date(d.getTime() + WAT_OFFSET_MS).toISOString().slice(0, 10);
 }
 
 function round2(n: number): number {
   return Math.round(n * 100) / 100;
 }
 
-export function extractRegion(row: PaystackAggregateTransaction): string | null {
+export function extractRegion(row: PaystackAggregateTransaction, regionByEmail?: Map<string, string>): string | null {
   const raw = row.raw as Record<string, unknown> | null | undefined;
   const meta = raw?.metadata as Record<string, unknown> | undefined;
+  // Explicit per-transaction metadata wins; the customer record is the fallback.
   const candidates = [meta?.region, meta?.state, raw?.region, (raw as Record<string, unknown> | undefined)?.productSegment];
   for (const c of candidates) {
     if (typeof c === 'string' && c.trim()) return c.trim();
+  }
+  if (row.customerEmail) {
+    const mapped = regionByEmail?.get(row.customerEmail.trim().toLowerCase());
+    if (mapped) return mapped;
   }
   return null;
 }
@@ -83,6 +94,7 @@ export function extractSegment(row: PaystackAggregateTransaction): string | null
 export function filterPaystackTransactions(
   rows: PaystackAggregateTransaction[],
   filters: PaystackTransactionFilters,
+  regionByEmail?: Map<string, string>,
 ): PaystackAggregateTransaction[] {
   const status = (filters.status || '').trim().toLowerCase();
   const channel = (filters.channel || '').trim().toLowerCase();
@@ -96,7 +108,7 @@ export function filterPaystackTransactions(
     if (status && (row.status || '').toLowerCase() !== status) return false;
     if (channel && (row.channel || '').toLowerCase() !== channel) return false;
     if (region) {
-      const r = extractRegion(row);
+      const r = extractRegion(row, regionByEmail);
       if (!r || r.toLowerCase() !== region) return false;
     }
     if (segment) {
@@ -114,6 +126,7 @@ export function filterPaystackTransactions(
 
 export interface PaystackOverviewPayload {
   month: string;
+  attemptedCount: number;
   kpis: {
     collectedNaira: number;
     successCount: number;
@@ -139,10 +152,12 @@ export function buildPaystackOverview(
   transactions: PaystackAggregateTransaction[],
   links: PaystackAggregateLink[],
   month: string,
+  regionByEmail?: Map<string, string>,
 ): PaystackOverviewPayload {
   // Filter to the requested month BEFORE capping so the cap can never drop
   // rows out of the displayed month when the table grows large.
   const monthRows = transactions.filter((row) => monthKeyOf(row.paidAt) === month).slice(0, PAYSTACK_AGGREGATE_CAP);
+  const attemptedCount = monthRows.length;
   const successRows = monthRows.filter((row) => (row.status || '').toLowerCase() === 'success');
 
   const collectedNaira = round2(successRows.reduce((sum, row) => sum + (row.amount || 0) / 100, 0));
@@ -183,7 +198,7 @@ export function buildPaystackOverview(
 
   const regionMap = new Map<string, { collectedNaira: number; count: number }>();
   for (const row of successRows) {
-    const key = extractRegion(row) ?? 'Unknown';
+    const key = extractRegion(row, regionByEmail) ?? 'Unknown';
     const entry = regionMap.get(key) ?? { collectedNaira: 0, count: 0 };
     entry.collectedNaira = round2(entry.collectedNaira + (row.amount || 0) / 100);
     entry.count += 1;
@@ -211,6 +226,7 @@ export function buildPaystackOverview(
 
   return {
     month,
+    attemptedCount,
     kpis: { collectedNaira, successCount, successRate, unmatchedNaira, refundedNaira, disputeCount },
     series,
     channels,

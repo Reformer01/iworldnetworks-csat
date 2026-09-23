@@ -1,4 +1,20 @@
 import { formatNairaNgn } from './FinanceKpiCards';
+import { StatusChip } from '@/components/ui/status-chip';
+
+function payStatusTone(status: string): 'green' | 'red' | 'amber' | 'slate' {
+  const s = (status || '').toLowerCase();
+  if (s === 'success' || s === 'paid') return 'green';
+  if (s === 'failed') return 'red';
+  if (s === 'abandoned' || s === 'pending') return 'amber';
+  return 'slate';
+}
+
+function reconTone(status: string | null | undefined): 'green' | 'amber' | 'slate' {
+  const s = (status || '').toLowerCase();
+  if (s === 'matched') return 'green';
+  if (s === 'mismatch' || s === 'missing') return 'amber';
+  return 'slate';
+}
 
 export interface FinanceTransactionRow {
   reference: string;
@@ -27,10 +43,10 @@ export function TransactionsTable({ rows }: { rows: FinanceTransactionRow[] }) {
     );
   }
   return (
-    <div className="overflow-x-auto rounded-2xl border border-border bg-white whisper-shadow">
+    <div className="overflow-x-auto rounded-xl border border-border bg-white card-shadow">
       <table className="w-full min-w-[860px] text-left" aria-label="Transactions">
         <thead>
-          <tr className="border-b font-mono text-[10px] uppercase font-bold opacity-60 whitespace-nowrap">
+          <tr className="border-b text-[11px] uppercase tracking-[0.06em] text-muted-foreground font-medium whitespace-nowrap">
             <th scope="col" className="px-3 py-2.5">
               Reference
             </th>
@@ -63,12 +79,12 @@ export function TransactionsTable({ rows }: { rows: FinanceTransactionRow[] }) {
               <td className="max-w-[180px] truncate px-3 py-2.5 text-xs" title={row.customerEmail || row.customer || ''}>
                 {row.customer || row.customerEmail || '—'}
               </td>
-              <td className="whitespace-nowrap px-3 py-2.5 text-right font-mono text-xs font-bold text-emerald-700">
+              <td className="whitespace-nowrap px-3 py-2.5 text-right font-mono tabular text-xs font-bold text-emerald-700">
                 {formatNairaNgn(row.amountNaira)}
               </td>
               <td className="whitespace-nowrap px-3 py-2.5 font-mono text-[11px]">{(row.channel || 'unknown').toLowerCase()}</td>
-              <td className="whitespace-nowrap px-3 py-2.5 font-mono text-[11px]">{(row.status || 'unknown').toLowerCase()}</td>
-              <td className="whitespace-nowrap px-3 py-2.5 font-mono text-[11px]">{(row.reconStatus || '—').toLowerCase()}</td>
+              <td className="whitespace-nowrap px-3 py-2.5"><StatusChip tone={payStatusTone(row.status)} label={(row.status || 'unknown').toLowerCase()} /></td>
+              <td className="whitespace-nowrap px-3 py-2.5"><StatusChip tone={reconTone(row.reconStatus)} label={(row.reconStatus || '—').toLowerCase()} /></td>
               <td className="whitespace-nowrap px-3 py-2.5 text-right font-mono text-[11px]">{formatVariance(row.varianceNaira)}</td>
             </tr>
           ))}

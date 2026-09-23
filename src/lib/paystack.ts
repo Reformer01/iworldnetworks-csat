@@ -1,5 +1,6 @@
 import { prisma } from '@/lib/prisma';
 import { logInfo, logWarn, logError } from '@/lib/logger';
+import { extractSplynxCustomerId } from '@/lib/finance/paystack-normalize';
 
 function getPaystackEnv() {
   return {
@@ -119,6 +120,7 @@ export async function syncPaystackTransactions(opts?: {
             : typeof raw.dispute === 'object' && raw.dispute !== null
               ? ((raw.dispute as { status?: unknown }).status as string) || null
               : null;
+      const splynxCustomerId = extractSplynxCustomerId(tx);
       try {
         await prisma.paystackTransaction.upsert({
           where: { reference: tx.reference },
@@ -135,6 +137,7 @@ export async function syncPaystackTransactions(opts?: {
             netNaira,
             refundedNaira,
             disputeStatus,
+            splynxCustomerId,
             paidAt,
             raw: tx as unknown as never,
           },
@@ -152,6 +155,7 @@ export async function syncPaystackTransactions(opts?: {
             netNaira,
             refundedNaira,
             disputeStatus,
+            splynxCustomerId,
             paidAt,
             raw: tx as unknown as never,
           },

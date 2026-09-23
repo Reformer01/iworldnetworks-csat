@@ -13,8 +13,17 @@ vi.mock('@/lib/prisma', () => ({
 vi.mock('../paystack-reconcile', () => ({
   classifyReconciliation: vi.fn(),
   matchByReference: vi.fn(),
+  matchByCustomerIdAmountDate: vi.fn(),
+  matchByCustomerIdAmount: vi.fn(),
   matchByEmailAmountDate: vi.fn(),
   matchByEmailAmount: vi.fn(),
+  watMonthBounds: vi.fn((month: string) => {
+    const [y, m] = month.split('-').map(Number);
+    return {
+      start: new Date(Date.UTC(y, m - 1, 1) - 3600000),
+      end: new Date(Date.UTC(y, m, 1) - 3600001),
+    };
+  }),
 }));
 
 const { prisma } = await import('@/lib/prisma');

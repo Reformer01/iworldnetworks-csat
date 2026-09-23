@@ -1,4 +1,5 @@
 import { createHmac, timingSafeEqual } from 'crypto';
+import { extractSplynxCustomerId } from './paystack-normalize';
 
 export const PAYSTACK_SUPPORTED_WEBHOOK_EVENTS = ['charge.success', 'charge.failed', 'refund.processed', 'charge.disputed'] as const;
 
@@ -37,6 +38,7 @@ export interface PaystackWebhookTransaction {
   netNaira: number | null;
   refundedNaira: number;
   disputeStatus: string | null;
+  splynxCustomerId: string | null;
   raw: unknown;
 }
 
@@ -88,6 +90,7 @@ export function extractWebhookTransaction(data: unknown): PaystackWebhookTransac
     netNaira: typeof feesKobo === 'number' ? (amountKobo - feesKobo) / 100 : null,
     refundedNaira: typeof refundedKobo === 'number' ? refundedKobo / 100 : 0,
     disputeStatus,
+    splynxCustomerId: extractSplynxCustomerId(tx),
     raw: data,
   };
 }

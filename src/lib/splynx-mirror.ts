@@ -1344,6 +1344,7 @@ export async function runHourlySync(db: Firestore, baseUrl: string, now = Date.n
     customersUpserted: 0,
     customersMarkedDeleted: 0,
     invoicesUpserted: 0,
+    invoicesFailed: 0,
     reminders15: 0,
     reminders30: 0,
     churnSent: 0,

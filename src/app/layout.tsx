@@ -1,5 +1,5 @@
 import type { Metadata } from 'next';
-import { Be_Vietnam_Pro, Manrope, JetBrains_Mono } from 'next/font/google';
+import { Be_Vietnam_Pro, Manrope, JetBrains_Mono, Geist, Geist_Mono } from 'next/font/google';
 import './globals.css';
 import { FirebaseClientProvider } from '@/firebase';
 import { FirebaseErrorListener } from '@/components/FirebaseErrorListener';
@@ -28,6 +28,20 @@ const jetbrainsMono = JetBrains_Mono({
   subsets: ['latin'],
   weight: ['500', '700'],
   variable: '--font-jetbrains-mono',
+  display: 'swap',
+});
+
+// Incident-hub type voice: Geist for UI/metrics (falls back to Manrope),
+// Geist Mono for tabular figures (falls back to JetBrains Mono).
+const geistSans = Geist({
+  subsets: ['latin'],
+  variable: '--font-geist-sans',
+  display: 'swap',
+});
+
+const geistMono = Geist_Mono({
+  subsets: ['latin'],
+  variable: '--font-geist-mono',
   display: 'swap',
 });
 
@@ -62,7 +76,7 @@ export default function RootLayout({
         <link href="https://api.fontshare.com/v2/css?f[]=satoshi@400,500,700,900&display=swap" rel="stylesheet" />
       </head>
       <body
-        className={`${beVietnamPro.variable} ${manrope.variable} ${jetbrainsMono.variable} font-body antialiased selection:bg-secondary/20 min-h-screen`}
+        className={`${beVietnamPro.variable} ${manrope.variable} ${jetbrainsMono.variable} ${geistSans.variable} ${geistMono.variable} font-body antialiased selection:bg-secondary/20 min-h-screen`}
         suppressHydrationWarning
       >
         <ThemeProvider>

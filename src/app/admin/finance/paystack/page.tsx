@@ -18,7 +18,7 @@ function currentMonth(): string {
 
 function Section({ title, sub, children }: { title: string; sub?: string; children: React.ReactNode }) {
   return (
-    <section className="rounded-2xl border border-border bg-white p-4 whisper-shadow md:p-5">
+    <section className="rounded-xl border border-border bg-white p-4 card-shadow md:p-5">
       <h2 className="font-display text-sm font-black uppercase tracking-tight">{title}</h2>
       {sub && <p className="mt-0.5 font-mono text-[10px] font-bold uppercase tracking-widest opacity-60">{sub}</p>}
       <div className="mt-3">{children}</div>
@@ -250,7 +250,7 @@ export default function PaystackOverviewPage() {
     );
   }
 
-  const attempted = data.series.reduce((sum, p) => sum + p.count, 0);
+  const attempted = data.attemptedCount ?? data.series.reduce((sum, p) => sum + p.count, 0);
   const matchedNaira = Math.max(0, Math.round((data.kpis.collectedNaira - data.kpis.unmatchedNaira) * 100) / 100);
   const funnel: FunnelStage[] = [
     {
@@ -279,8 +279,8 @@ export default function PaystackOverviewPage() {
     <div>
       <header className="mb-5 flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
         <div>
-          <h1 className="font-display text-2xl font-black uppercase tracking-tight md:text-3xl">Paystack Overview</h1>
-          <p className="mt-1 font-mono text-[10px] font-bold uppercase tracking-widest opacity-60">
+          <h1 className="text-[26px] font-medium tracking-[-0.03em]">Paystack Overview</h1>
+          <p className="mt-0.5 text-[13px] text-muted-foreground">
             Collections, channels, and reconciliation for {data.month}
           </p>
         </div>

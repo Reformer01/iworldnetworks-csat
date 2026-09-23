@@ -37,10 +37,27 @@ export async function GET(request: NextRequest) {
       prisma.paystackReconciliationLink.findMany({ take: OVERVIEW_CAP }),
     ]);
 
+    // Region attribution comes from the customer record (city/state), not
+    // Paystack metadata — payments never carry a region.
+    const customers = await prisma.customer.findMany({
+      where: { deleted: false },
+      select: { email: true, billingEmail: true, city: true, state: true },
+    });
+    const regionByEmail = new Map<string, string>();
+    for (const c of customers) {
+      const region = (c.state || c.city || '').trim();
+      if (!region) continue;
+      for (const e of [c.email, c.billingEmail]) {
+        const key = (e || '').trim().toLowerCase();
+        if (key && !regionByEmail.has(key)) regionByEmail.set(key, region);
+      }
+    }
+
     const payload = buildPaystackOverview(
       transactions as unknown as Parameters<typeof buildPaystackOverview>[0],
       links as unknown as Parameters<typeof buildPaystackOverview>[1],
       month,
+      regionByEmail,
     );
     return success(payload);
   } catch (err: unknown) {

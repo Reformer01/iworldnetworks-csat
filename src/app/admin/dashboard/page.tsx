@@ -10,6 +10,7 @@ import FeedbackQuote from '@/components/FeedbackQuote';
 import { DateRangePicker } from '@/components/ui/date-range-picker';
 import { XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend, AreaChart, Area } from 'recharts';
 import { cn } from '@/lib/utils';
+import { Reveal } from '@/components/ui/reveal';
 import { AdminLayout } from '@/components/layout/AdminLayout';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Button } from '@/components/ui/button';
@@ -437,9 +438,11 @@ export default function AdminDashboard() {
   return (
     <AdminLayout>
       <>
+      <Reveal index={0}>
       <header className="flex flex-col md:flex-row justify-between items-start md:items-center gap-6 mb-12">
         <div>
-          <h1 className="text-3xl font-display font-bold text-primary uppercase tracking-tight">Admin Dashboard</h1>
+          <h1 className="text-[26px] font-medium tracking-[-0.03em] text-primary">Admin Dashboard</h1>
+          <p className="mt-0.5 text-[13px] text-muted-foreground">Satisfaction, resolution and regional pulse at a glance.</p>
         </div>
         <div className="flex items-center gap-4 flex-wrap">
           <Select
@@ -497,6 +500,7 @@ export default function AdminDashboard() {
           </div>
         </div>
       </header>
+      </Reveal>
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-5 mb-12">
         {[
@@ -543,25 +547,26 @@ export default function AdminDashboard() {
             detail: 'Issues resolved',
           },
         ].map((item, i) => (
+          <Reveal key={i} index={Math.min(i + 1, 4)}>
           <div
-            key={i}
-            className="bg-white p-6 rounded-2xl whisper-shadow border border-border group hover:border-secondary transition-all min-h-[184px]"
+            className="bg-white p-6 rounded-xl card-shadow border border-border group hover:border-secondary transition-all min-h-[184px]"
           >
             <div className="mb-5">
               <item.icon className={cn('w-6 h-6', item.color)} />
             </div>
-            <p className="font-mono text-[10px] uppercase text-on-surface-variant mb-1 font-bold">{item.label}</p>
+            <p className="text-[11px] font-medium uppercase tracking-[0.08em] text-muted-foreground mb-1">{item.label}</p>
             <div className="flex items-baseline gap-1">
-              <span className="text-4xl font-mono font-black text-primary">{item.value}</span>
+              <span className="text-4xl font-display font-bold tabular tracking-tight text-primary">{item.value}</span>
               <span className="text-xl font-display text-on-surface-variant font-bold">{item.unit}</span>
             </div>
-            <p className="mt-4 font-mono text-[9px] text-on-surface-variant/60 uppercase font-bold tracking-wider">{item.detail}</p>
+            <p className="mt-4 text-[11px] text-muted-foreground uppercase tracking-wide">{item.detail}</p>
           </div>
+          </Reveal>
         ))}
       </div>
 
       <div className="grid grid-cols-12 gap-gutter mb-12">
-        <div className="col-span-12 lg:col-span-8 bg-white p-8 rounded-2xl whisper-shadow border border-border h-[400px]">
+        <div className="col-span-12 lg:col-span-8 bg-white p-8 rounded-xl card-shadow border border-border h-[400px]">
           <h3 className="font-display font-bold text-lg uppercase tracking-tight mb-8">Satisfaction Over Time</h3>
           <div className="h-64">
             <ResponsiveContainer width="100%" height="100%">
@@ -610,7 +615,7 @@ export default function AdminDashboard() {
           </div>
         </div>
 
-        <div className="col-span-12 lg:col-span-4 bg-white p-8 rounded-2xl whisper-shadow border border-border">
+        <div className="col-span-12 lg:col-span-4 bg-white p-8 rounded-xl card-shadow border border-border">
           <h3 className="font-display font-bold text-lg uppercase tracking-tight mb-8">Regional Pulse</h3>
           <div className="space-y-6">
             {regionItems.map((reg) => {
@@ -658,7 +663,7 @@ export default function AdminDashboard() {
         </div>
       </div>
 
-      <div className="bg-white rounded-2xl whisper-shadow border border-border p-8 mb-12">
+      <div className="bg-white rounded-xl card-shadow border border-border p-8 mb-12">
         <div className="flex items-center gap-3 mb-8">
           <Activity className="w-5 h-5 text-secondary" />
           <h3 className="font-display font-bold text-lg uppercase tracking-tight">Team Performance</h3>
@@ -696,7 +701,7 @@ export default function AdminDashboard() {
         </div>
       </div>
 
-      <div className="bg-white rounded-2xl whisper-shadow border border-border p-8 mb-24">
+      <div className="bg-white rounded-xl card-shadow border border-border p-8 mb-24">
         <div className="flex items-center gap-3 mb-8">
           <History className="w-5 h-5 text-secondary" />
           <h3 className="font-display font-bold text-lg uppercase tracking-tight">Recent Activity</h3>

@@ -4,6 +4,7 @@ import type { NextRequest } from 'next/server';
 const mocks = vi.hoisted(() => ({
   findTransactions: vi.fn(),
   findLinks: vi.fn(),
+  findCustomers: vi.fn(),
   verifyAdmin: vi.fn(),
 }));
 
@@ -11,6 +12,7 @@ vi.mock('@/lib/prisma', () => ({
   prisma: {
     paystackTransaction: { findMany: mocks.findTransactions },
     paystackReconciliationLink: { findMany: mocks.findLinks },
+    customer: { findMany: mocks.findCustomers },
   },
 }));
 vi.mock('@/lib/admin-auth', () => ({ verifyAdminToken: mocks.verifyAdmin }));
@@ -39,6 +41,7 @@ describe('GET /api/admin/finance/paystack/overview', () => {
     vi.clearAllMocks();
     mocks.findTransactions.mockResolvedValue([]);
     mocks.findLinks.mockResolvedValue([]);
+    mocks.findCustomers.mockResolvedValue([]);
   });
 
   it('returns 401 for missing auth', async () => {
