@@ -1,17 +1,50 @@
 'use client';
 
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
 import { usePathname, useRouter } from 'next/navigation';
-import { ArrowLeft, Menu, LogOut, ShieldAlert, Send, Bell } from 'lucide-react';
+import { ArrowLeft, ChevronsUpDown, Globe, LogOut, Search, ShieldAlert, Send, Bell } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
+import { Separator } from '@/components/ui/separator';
+import {
+  Sidebar,
+  SidebarContent,
+  SidebarFooter,
+  SidebarGroup,
+  SidebarGroupContent,
+  SidebarGroupLabel,
+  SidebarHeader,
+  SidebarInset,
+  SidebarMenu,
+  SidebarMenuButton,
+  SidebarMenuItem,
+  SidebarProvider,
+  SidebarRail,
+  SidebarTrigger,
+} from '@/components/ui/sidebar';
+import {
+  CommandDialog,
+  CommandEmpty,
+  CommandGroup,
+  CommandInput,
+  CommandItem,
+  CommandList,
+} from '@/components/ui/command';
 import { cn } from '@/lib/utils';
 import { useAuth, useUser } from '@/firebase';
 import { signOut, sendEmailVerification } from 'firebase/auth';
 import { useToast } from '@/hooks/use-toast';
 import { isAllowedDomain } from '@/lib/admin-config';
-import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from '@/components/ui/sheet';
 import { PlaceHolderImages } from '@/lib/placeholder-images';
 import { KeyboardShortcuts } from '@/components/admin/KeyboardShortcuts';
 
@@ -28,19 +61,20 @@ export interface NavItem {
 
 interface DashboardLayoutProps {
   children: React.ReactNode;
-  /** Navigation items shown in sidebar and mobile menu. */
+  /** Navigation items shown in sidebar and command palette. */
   navItems: NavItem[];
   /** If set, shows a "← label" link in the header that points to href. */
   backLink?: { href: string; label: string };
-  /** Text shown in the footer beside the logo. */
+  /** Text shown in the sidebar footer below the user card. */
   footerLabel?: string;
   /** Section groupings for the sidebar. Each group has a label and a list of
    *  nav item hrefs that belong to it. Items not in any group appear at the
    *  top without a heading. */
   navGroups?: { label: string; hrefs: string[] }[];
-  /** If true, show a "Public Portal" link instead of "Back to Admin". */
+  /** If true, show a "Public Portal" link in the user menu. */
   showPublicPortal?: boolean;
 }
+
 
 /* ------------------------------------------------------------------ */
 /*  Component                                                          */
@@ -101,38 +135,59 @@ export function DashboardLayout({
     }
   }, [user, loading, router]);
 
+  useEffect(() => {
+    if (!loading && user && !isAllowedDomain(user.email || '')) {
+      signOut(auth!).then(() => router.push('/admin/login'));
+    }
+  }, [user, loading, router, auth]);
+
+  /* ---- Impersonation banner ------------------------------------- */
+
+  const [impersonation, setImpersonation] = useState<{
+    adminEmail: string;
+    targetName: string;
+    targetCustomerId: string;
+  } | null>(null);
+
+  useEffect(() => {
+    try {
+      const raw = sessionStorage.getItem('csat-impersonation');
+      if (raw) setImpersonation(JSON.parse(raw));
+    } catch {
+      /* skip */
+    }
+  }, []);
+
+  /* ---- Loading / verification gates ------------------------------ */
+
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-background">
-        <div className="flex flex-col items-center gap-4">
-          <div className="w-12 h-12 border-4 border-secondary/20 border-t-secondary rounded-full animate-spin" />
-          <p className="font-mono text-[10px] text-on-surface-variant uppercase animate-pulse font-bold">Initializing Session</p>
-        </div>
+      <div className="flex h-screen items-center justify-center bg-background">
+        <div className="h-8 w-8 animate-spin rounded-full border-2 border-muted border-t-foreground" />
       </div>
     );
   }
 
   if (!user) return null;
 
-  if (!user.emailVerified || !isAllowedDomain(user.email || '')) {
+  if (!user.emailVerified) {
     return (
-      <div className="min-h-screen bg-background flex items-center justify-center p-6">
-        <div className="max-w-md w-full bg-white rounded-3xl p-10 whisper-shadow border border-border text-center flex flex-col items-center gap-8">
-          <div className="w-16 h-16 bg-destructive/10 rounded-full flex items-center justify-center">
-            <ShieldAlert className="w-8 h-8 text-destructive" />
+      <div className="flex min-h-screen items-center justify-center bg-background p-6">
+        <div className="w-full max-w-md rounded-xl border bg-card p-10 text-center shadow-sm">
+          <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-secondary/10">
+            <Send className="h-5 w-5 text-secondary" />
           </div>
-          <div className="space-y-2">
-            <h2 className="font-display text-2xl font-bold text-primary">Action Required</h2>
-            <p className="text-on-surface-variant text-sm">
-              Your account <strong>{user.email}</strong> is not yet verified or authorized for this regional node.
-            </p>
-          </div>
-          <div className="w-full space-y-3">
-            <Button onClick={handleSendVerification} className="w-full bg-secondary text-white rounded-full py-6 font-bold flex gap-2">
-              <Send className="w-4 h-4" /> Resend Verification Link
+          <h2 className="mb-2 font-headline text-xl font-semibold tracking-tight">Verify your email</h2>
+          <p className="mb-6 text-sm text-muted-foreground">
+            We sent a verification link to <span className="font-semibold text-foreground">{user.email}</span>. Please
+            verify before continuing.
+          </p>
+          <div className="space-y-3">
+            <Button onClick={handleSendVerification} className="w-full">
+              Resend Verification Email
             </Button>
-            <Button onClick={handleLogout} variant="ghost" className="w-full rounded-full py-6 font-bold text-on-surface-variant">
-              Sign Out & Try Again
+            <Button variant="outline" onClick={handleLogout} className="w-full">
+              Sign Out
             </Button>
           </div>
         </div>
@@ -140,223 +195,330 @@ export function DashboardLayout({
     );
   }
 
-  /* ---- Nav helpers ----------------------------------------------- */
+  /* ---- Nav model ------------------------------------------------- */
 
-  const isActive = (href: string) => pathname === href;
+  const isActive = (href: string) => pathname === href || pathname.startsWith(href + '/');
+  const current = navItems.find((i) => isActive(i.href));
 
-  const sidebarItemClass = (active: boolean) =>
-    cn(
-      'flex items-center gap-3 py-3 px-4 xl:px-6 transition-all group min-w-0',
-      active
-        ? 'text-primary font-bold active-pill bg-surface-container-low'
-        : 'text-on-surface-variant hover:bg-surface-container-low font-bold',
-    );
+  const groupedHrefs = new Set((navGroups ?? []).flatMap((g) => g.hrefs));
+  const ungrouped = navItems.filter((i) => !groupedHrefs.has(i.href));
 
-  const sidebarIconClass = (active: boolean) =>
-    cn('w-5 h-5 shrink-0 transition-colors', active ? 'text-secondary' : 'group-hover:text-secondary');
+  const userName = user.displayName || user.email?.split('@')[0] || 'User';
+  const userInitials = userName
+    .split(/\s+/)
+    .map((p) => p[0])
+    .join('')
+    .slice(0, 2)
+    .toUpperCase();
 
-  const mobileItemClass = (active: boolean) =>
-    cn(
-      'flex items-center gap-4 py-3 px-6 transition-all group rounded-xl',
-      active ? 'text-primary font-bold active-pill bg-surface-container-low' : 'text-on-surface-variant hover:bg-surface-container-low',
-    );
-
-  /* ---- Grouped sidebar nav --------------------------------------- */
-
-  const renderSidebarNav = () => {
-    if (!navGroups || navGroups.length === 0) {
-      return navItems.map((item) => (
-        <Link key={item.href} href={item.href} className={sidebarItemClass(isActive(item.href))} title={item.name}>
-          <item.icon className={sidebarIconClass(isActive(item.href))} />
-          <span className="font-mono text-[11px] uppercase tracking-wider font-bold truncate min-w-0">{item.name}</span>
-        </Link>
-      ));
-    }
-
-    // Build a set of hrefs already placed in a group
-    const grouped = new Set(navGroups.flatMap((g) => g.hrefs));
-    const ungrouped = navItems.filter((item) => !grouped.has(item.href));
-
-    return (
-      <>
-        {/* Ungrouped items first */}
-        {ungrouped.map((item) => (
-          <Link key={item.href} href={item.href} className={sidebarItemClass(isActive(item.href))}>
-            <item.icon className={sidebarIconClass(isActive(item.href))} />
-            <span className="font-accent text-[13px] uppercase tracking-wider font-medium">{item.name}</span>
-          </Link>
-        ))}
-
-        {/* Grouped items */}
-        {navGroups.map((group) => {
-          const items = group.hrefs.map((href) => navItems.find((item) => item.href === href)).filter(Boolean) as NavItem[];
-          if (items.length === 0) return null;
-          return (
-            <div key={group.label} className="mt-4 min-w-0">
-              <p className="font-mono text-[9px] uppercase tracking-widest text-on-surface-variant/50 font-bold px-4 xl:px-6 mb-2 truncate">
-                {group.label}
-              </p>
-              {items.map((item) => (
-                <Link key={item.href} href={item.href} className={sidebarItemClass(isActive(item.href))} title={item.name}>
-                  <item.icon className={sidebarIconClass(isActive(item.href))} />
-                  <span className="font-mono text-[11px] uppercase tracking-wider font-bold truncate min-w-0">{item.name}</span>
-                </Link>
-              ))}
-            </div>
-          );
-        })}
-      </>
-    );
-  };
+  const logo = PlaceHolderImages.find((i) => i.id === 'logo-black')?.imageUrl || '/logo-mark.svg';
 
   /* ---- Render ---------------------------------------------------- */
 
   return (
-    <div className="bg-background min-h-screen flex flex-col">
-      <KeyboardShortcuts />
-      {/* ===== HEADER ===== */}
-      <header className="fixed top-0 w-full z-50 h-14 flex items-center px-4 md:px-6 pt-[env(safe-area-inset-top)]">
-        <div className="flex items-center gap-3 w-full max-w-screen-2xl mx-auto">
-          {/* Back link or Public Portal */}
-          {backLink ? (
-            <Link
-              href={backLink.href}
-              className="flex items-center gap-2 text-on-surface-variant hover:text-secondary transition-colors font-mono text-[10px] uppercase font-bold shrink-0"
-            >
-              <ArrowLeft className="w-3.5 h-3.5" />
-              <span className="hidden sm:inline">{backLink.label}</span>
-            </Link>
-          ) : showPublicPortal ? (
-            <Link
-              href="/"
-              className="flex items-center gap-2 text-on-surface-variant hover:text-secondary transition-colors font-mono text-[10px] uppercase font-bold shrink-0"
-            >
-              <ArrowLeft className="w-3.5 h-3.5" />
-              <span className="hidden sm:inline">Public Portal</span>
-            </Link>
-          ) : null}
+    <SidebarProvider>
+      <div className="flex h-svh w-full overflow-hidden bg-background">
+        <Sidebar collapsible="icon">
+          {/* Brand */}
+          <SidebarHeader>
+            <SidebarMenu>
+              <SidebarMenuItem>
+                <SidebarMenuButton size="lg" asChild>
+                  <Link href={navItems[0]?.href ?? '/'}>
+                    <span className="flex aspect-square size-8 items-center justify-center overflow-hidden rounded-lg bg-primary">
+                      <Image src={logo} alt="I-World" width={32} height={32} className="size-5 object-contain invert" />
+                    </span>
+                    <span className="grid flex-1 text-left text-sm leading-tight">
+                      <span className="truncate font-headline font-semibold tracking-tight">I-World Networks</span>
+                      <span className="truncate text-xs text-muted-foreground">Operations Console</span>
+                    </span>
+                  </Link>
+                </SidebarMenuButton>
+              </SidebarMenuItem>
+            </SidebarMenu>
+          </SidebarHeader>
 
-          <div className="h-5 w-px bg-border mx-1 hidden first:md:hidden sm:block" />
+          {/* Nav */}
+          <SidebarContent>
+            {ungrouped.length > 0 && (
+              <SidebarGroup>
+                <SidebarGroupContent>
+                  <SidebarMenu>
+                    {ungrouped.map((item) => (
+                      <SidebarMenuItem key={item.href}>
+                        <SidebarMenuButton asChild isActive={isActive(item.href)} tooltip={item.name}>
+                          <Link href={item.href}>
+                            <item.icon />
+                            <span>{item.name}</span>
+                          </Link>
+                        </SidebarMenuButton>
+                      </SidebarMenuItem>
+                    ))}
+                  </SidebarMenu>
+                </SidebarGroupContent>
+              </SidebarGroup>
+            )}
+            {(navGroups ?? []).map((group) => {
+              const items = navItems.filter((i) => group.hrefs.includes(i.href));
+              if (items.length === 0) return null;
+              return (
+                <SidebarGroup key={group.label}>
+                  <SidebarGroupLabel>{group.label}</SidebarGroupLabel>
+                  <SidebarGroupContent>
+                    <SidebarMenu>
+                      {items.map((item) => (
+                        <SidebarMenuItem key={item.href}>
+                          <SidebarMenuButton asChild isActive={isActive(item.href)} tooltip={item.name}>
+                            <Link href={item.href}>
+                              <item.icon />
+                              <span>{item.name}</span>
+                            </Link>
+                          </SidebarMenuButton>
+                        </SidebarMenuItem>
+                      ))}
+                    </SidebarMenu>
+                  </SidebarGroupContent>
+                </SidebarGroup>
+              );
+            })}
+          </SidebarContent>
 
-          {/* Logo */}
-          <Link href="/" className="flex items-center shrink-0">
-            <Image src="/logo.png" alt="I-World Logo" width={90} height={27} className="h-6 w-auto object-contain" priority />
-          </Link>
 
-          {/* Section label */}
-          {backLink && (
-            <span className="font-mono text-[10px] text-secondary font-bold uppercase tracking-widest ml-1 hidden sm:inline">
-              / {backLink.label}
-            </span>
-          )}
-
-          {/* Desktop actions */}
-          <div className="ml-auto flex items-center gap-3">
-            <NotificationBell />
-            {/* User email display */}
-            <span className="hidden lg:block text-on-surface-variant/70 font-mono text-[10px] uppercase font-medium truncate max-w-[180px]">
-              {user?.email}
-            </span>
-            <button
-              onClick={handleLogout}
-              className="hidden lg:flex items-center gap-1.5 text-on-surface-variant hover:text-destructive transition-colors font-mono text-[10px] uppercase font-bold"
-            >
-              <LogOut className="w-3.5 h-3.5" />
-              Sign Out
-            </button>
-
-            {/* Mobile hamburger */}
-            <div className="lg:hidden">
-              <Sheet>
-                <SheetTrigger asChild>
-                  <Button variant="ghost" size="icon" className="h-11 w-11">
-                    <Menu className="w-5 h-5" />
-                  </Button>
-                </SheetTrigger>
-                <SheetContent side="left" className="w-[280px] p-0 border-r border-border">
-                  <div className="h-full flex flex-col pt-10">
-                    <SheetHeader className="px-6 mb-8 text-left">
-                      <SheetTitle className="text-left">
-                        <Image src="/logo.png" alt="I-World Logo" width={100} height={30} className="h-6 w-auto object-contain" />
-                      </SheetTitle>
-                    </SheetHeader>
-                    {/* User email in mobile menu */}
-                    <div className="px-6 mb-4 border-b border-border">
-                      <p className="font-mono text-[10px] text-on-surface-variant/70 uppercase font-medium truncate">{user?.email}</p>
-                    </div>
-                    <nav className="flex-1 space-y-1">
-                      {backLink && (
-                        <Link
-                          href={backLink.href}
-                          className="flex items-center gap-3 py-3 px-6 text-on-surface-variant hover:bg-surface-container-low rounded-xl font-mono text-[10px] uppercase font-bold tracking-wider transition-all"
-                        >
-                          <ArrowLeft className="w-3.5 h-3.5" />
-                          {backLink.label}
-                        </Link>
-                      )}
-                      {showPublicPortal && !backLink && (
-                        <Link
-                          href="/"
-                          className="flex items-center gap-3 py-3 px-6 text-on-surface-variant hover:bg-surface-container-low rounded-xl font-mono text-[10px] uppercase font-bold tracking-wider transition-all"
-                        >
-                          <ArrowLeft className="w-3.5 h-3.5" />
+          {/* User + footer label */}
+          <SidebarFooter>
+            <SidebarMenu>
+              <SidebarMenuItem>
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <SidebarMenuButton
+                      size="lg"
+                      className="data-[state=open]:bg-sidebar-accent data-[state=open]:text-sidebar-accent-foreground"
+                    >
+                      <Avatar className="h-8 w-8 rounded-lg">
+                        {avatar && <AvatarImage src={avatar.imageUrl} alt={userName} />}
+                        <AvatarFallback className="rounded-lg bg-primary text-[11px] font-semibold text-primary-foreground">
+                          {userInitials}
+                        </AvatarFallback>
+                      </Avatar>
+                      <span className="grid flex-1 text-left text-sm leading-tight">
+                        <span className="truncate font-semibold">{userName}</span>
+                        <span className="truncate text-xs text-muted-foreground">{user.email}</span>
+                      </span>
+                      <ChevronsUpDown className="ml-auto size-4" />
+                    </SidebarMenuButton>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent
+                    className="w-[--radix-dropdown-menu-trigger-width] min-w-56 rounded-lg"
+                    side="top"
+                    align="end"
+                    sideOffset={4}
+                  >
+                    <DropdownMenuLabel className="p-0 font-normal">
+                      <div className="flex items-center gap-2 px-1 py-1.5 text-left text-sm">
+                        <Avatar className="h-8 w-8 rounded-lg">
+                          {avatar && <AvatarImage src={avatar.imageUrl} alt={userName} />}
+                          <AvatarFallback className="rounded-lg bg-primary text-[11px] font-semibold text-primary-foreground">
+                            {userInitials}
+                          </AvatarFallback>
+                        </Avatar>
+                        <div className="grid flex-1 text-left text-sm leading-tight">
+                          <span className="truncate font-semibold">{userName}</span>
+                          <span className="truncate text-xs text-muted-foreground">{user.email}</span>
+                        </div>
+                      </div>
+                    </DropdownMenuLabel>
+                    <DropdownMenuSeparator />
+                    {showPublicPortal && (
+                      <DropdownMenuItem asChild>
+                        <Link href="/">
+                          <Globe />
                           Public Portal
                         </Link>
-                      )}
-                      {(backLink || showPublicPortal) && <div className="h-px bg-border my-2" />}
-                      {navItems.map((item) => (
-                        <Link key={item.href} href={item.href} className={mobileItemClass(isActive(item.href))}>
-                          <item.icon
-                            className={cn('w-4 h-4', isActive(item.href) ? 'text-white' : 'group-hover:text-secondary transition-colors')}
-                          />
-                          <span className="font-mono text-[10px] uppercase tracking-wider font-bold">{item.name}</span>
+                      </DropdownMenuItem>
+                    )}
+                    {backLink && (
+                      <DropdownMenuItem asChild>
+                        <Link href={backLink.href}>
+                          <ArrowLeft />
+                          {backLink.label}
                         </Link>
-                      ))}
-                    </nav>
-                    <div className="px-6 pb-6 pt-4 border-t border-border">
-                      <button
-                        onClick={handleLogout}
-                        className="flex items-center gap-2 text-destructive hover:text-destructive/80 transition-colors font-mono text-[10px] uppercase font-bold"
-                      >
-                        <LogOut className="w-3.5 h-3.5" />
-                        Sign Out
-                      </button>
-                    </div>
-                  </div>
-                </SheetContent>
-              </Sheet>
+                      </DropdownMenuItem>
+                    )}
+                    {(showPublicPortal || backLink) && <DropdownMenuSeparator />}
+                    <DropdownMenuItem onClick={handleLogout}>
+                      <LogOut />
+                      Log out
+                    </DropdownMenuItem>
+                  </DropdownMenuContent>
+                </DropdownMenu>
+              </SidebarMenuItem>
+            </SidebarMenu>
+            <p className="px-2 pb-1 font-mono text-[9px] uppercase tracking-wider text-muted-foreground group-data-[collapsible=icon]:hidden">
+              {footerLabel}
+            </p>
+          </SidebarFooter>
+          <SidebarRail />
+        </Sidebar>
+
+
+
+        <SidebarInset className="min-w-0">
+          {/* Header */}
+          <header className="sticky top-0 z-20 flex h-14 shrink-0 items-center gap-2 border-b bg-background/95 px-4 backdrop-blur supports-[backdrop-filter]:bg-background/60">
+            <SidebarTrigger className="-ml-1" />
+            <Separator orientation="vertical" className="mr-2 h-4" />
+            {backLink && (
+              <Link
+                href={backLink.href}
+                className="hidden items-center gap-1.5 text-xs font-medium text-muted-foreground transition-colors hover:text-foreground sm:flex"
+              >
+                <ArrowLeft className="h-3.5 w-3.5" /> {backLink.label}
+              </Link>
+            )}
+            <span className="truncate font-headline text-sm font-semibold tracking-tight">
+              {current?.name ?? 'Dashboard'}
+            </span>
+
+            <div className="ml-auto flex items-center gap-1">
+              <SearchCommand navItems={navItems} navGroups={navGroups} />
+              <NotificationBell />
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button variant="ghost" size="icon" className="rounded-full">
+                    <Avatar className="h-8 w-8 rounded-full">
+                      {avatar && <AvatarImage src={avatar.imageUrl} alt={userName} />}
+                      <AvatarFallback className="rounded-full bg-primary text-[11px] font-semibold text-primary-foreground">
+                        {userInitials}
+                      </AvatarFallback>
+                    </Avatar>
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end" className="w-56 rounded-lg">
+                  <DropdownMenuLabel className="font-normal">
+                    <p className="text-sm font-semibold">{userName}</p>
+                    <p className="truncate text-xs text-muted-foreground">{user.email}</p>
+                  </DropdownMenuLabel>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem onClick={handleLogout}>
+                    <LogOut />
+                    Log out
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
             </div>
-          </div>
-        </div>
-      </header>
+          </header>
 
-      {/* ===== SIDEBAR (desktop only) ===== */}
-      <aside className="fixed left-0 top-0 h-full w-60 xl:w-64 bg-background border-r border-border pt-16 pb-8 flex-col z-40 hidden lg:flex">
-        <div className="px-4 xl:px-6 mb-8 min-w-0">
-          <h2 className="font-display text-sm font-bold text-primary uppercase tracking-tight truncate">I-World Networks</h2>
-        </div>
-        <nav className="flex-1 space-y-1 overflow-y-auto overflow-x-hidden">{renderSidebarNav()}</nav>
-      </aside>
+          {/* Impersonation banner */}
+          {impersonation && (
+            <div className="flex items-center justify-between gap-2 bg-amber-50 px-4 py-1.5 text-[11px] text-amber-900">
+              <span className="flex items-center gap-1.5">
+                <ShieldAlert className="h-3.5 w-3.5" /> Viewing as <b>{impersonation.targetName}</b> (#
+                {impersonation.targetCustomerId})
+              </span>
+              <button
+                onClick={() => {
+                  sessionStorage.removeItem('csat-impersonation');
+                  setImpersonation(null);
+                }}
+                className="font-semibold hover:underline"
+              >
+                Exit
+              </button>
+            </div>
+          )}
 
-      {/* ===== MAIN CONTENT ===== */}
-      <main className="lg:ml-60 xl:ml-64 pt-16 px-4 md:px-6 flex-1 min-w-0">
-        <div className="max-w-screen-2xl mx-auto py-6 md:py-8 min-w-0">{children}</div>
-      </main>
-
-      {/* ===== FOOTER ===== */}
-      <footer className="lg:ml-60 xl:ml-64 bg-background border-t border-border py-6">
-        <div className="max-w-screen-2xl mx-auto px-4 md:px-6 flex justify-between items-center">
-          <Image src="/logo.png" alt="I-World Networks" width={110} height={33} className="h-6 w-auto object-contain" />
-          <span className="font-mono text-[9px] text-on-surface-variant uppercase font-bold">{footerLabel}</span>
-        </div>
-      </footer>
-    </div>
+          {/* Content */}
+          <main className="flex-1 overflow-y-auto">{children}</main>
+        </SidebarInset>
+      </div>
+      <KeyboardShortcuts />
+    </SidebarProvider>
   );
 }
 
+/* ------------------------------------------------------------------ */
+/*  Command palette (⌘K / Ctrl+K)                                     */
+/* ------------------------------------------------------------------ */
+
+function SearchCommand({
+  navItems,
+  navGroups,
+}: {
+  navItems: NavItem[];
+  navGroups?: { label: string; hrefs: string[] }[];
+}) {
+  const router = useRouter();
+  const [open, setOpen] = useState(false);
+
+  useEffect(() => {
+    const down = (e: KeyboardEvent) => {
+      if (e.key === 'k' && (e.metaKey || e.ctrlKey)) {
+        e.preventDefault();
+        setOpen((o) => !o);
+      }
+    };
+    document.addEventListener('keydown', down);
+    return () => document.removeEventListener('keydown', down);
+  }, []);
+
+  const run = (href: string) => {
+    setOpen(false);
+    router.push(href);
+  };
+
+  const groups = useMemo(() => {
+    const groupedHrefs = new Set((navGroups ?? []).flatMap((g) => g.hrefs));
+    const ungrouped = navItems.filter((i) => !groupedHrefs.has(i.href));
+    const list: { label: string; items: NavItem[] }[] = [];
+    if (ungrouped.length > 0) list.push({ label: 'Pages', items: ungrouped });
+    for (const g of navGroups ?? []) {
+      const items = navItems.filter((i) => g.hrefs.includes(i.href));
+      if (items.length > 0) list.push({ label: g.label, items });
+    }
+    return list;
+  }, [navItems, navGroups]);
+
+  return (
+    <>
+      <Button
+        variant="outline"
+        onClick={() => setOpen(true)}
+        className="relative h-8 w-8 justify-start p-0 text-sm text-muted-foreground sm:w-56 sm:px-3"
+      >
+        <Search className="h-4 w-4 sm:mr-2" />
+        <span className="hidden sm:inline-flex">Search…</span>
+        <kbd className="pointer-events-none absolute right-1.5 top-1/2 hidden -translate-y-1/2 select-none items-center gap-1 rounded border bg-muted px-1.5 font-mono text-[10px] font-medium sm:flex">
+          <span className="text-xs">⌘</span>K
+        </kbd>
+      </Button>
+      <CommandDialog open={open} onOpenChange={setOpen}>
+        <CommandInput placeholder="Search pages…" />
+        <CommandList>
+          <CommandEmpty>No results found.</CommandEmpty>
+          {groups.map((group) => (
+            <CommandGroup key={group.label} heading={group.label}>
+              {group.items.map((item) => (
+                <CommandItem key={item.href} value={item.name} onSelect={() => run(item.href)}>
+                  <item.icon />
+                  <span>{item.name}</span>
+                </CommandItem>
+              ))}
+            </CommandGroup>
+          ))}
+        </CommandList>
+      </CommandDialog>
+    </>
+  );
+}
+
+
+/* ------------------------------------------------------------------ */
+/*  Notification bell                                                  */
+/* ------------------------------------------------------------------ */
+
 /**
- * Notification bell — polls /api/admin/notifications for the signed-in
- * staff member's action items (due follow-ups, high-risk customers, etc.).
+ * Polls /api/admin/notifications for the signed-in staff member's action
+ * items (due follow-ups, high-risk customers, etc.).
  */
 function NotificationBell() {
   const auth = useAuth();
@@ -388,40 +550,47 @@ function NotificationBell() {
     };
   }, [loading, user]);
 
-  const color = (severity: string) => (severity === 'critical' ? 'bg-red-500' : severity === 'warning' ? 'bg-amber-400' : 'bg-secondary');
+  const color = (severity: string) =>
+    severity === 'critical' ? 'bg-red-500' : severity === 'warning' ? 'bg-amber-400' : 'bg-secondary';
 
   return (
     <div className="relative">
-      <button
+      <Button
+        variant="ghost"
+        size="icon"
         onClick={() => setOpen((o) => !o)}
-        className="relative hidden md:flex items-center justify-center h-8 w-8 rounded-full text-on-surface-variant hover:bg-surface-container-low transition-colors"
+        className="relative"
         aria-label={`Notifications${items.length ? ` (${items.length})` : ''}`}
       >
-        <Bell className="w-4 h-4" />
+        <Bell className="h-4 w-4" />
         {items.length > 0 && (
-          <span className="absolute -top-0.5 -right-0.5 min-w-[16px] h-4 px-1 rounded-full bg-destructive text-white text-[9px] font-mono font-bold flex items-center justify-center">
+          <span className="absolute -top-0.5 -right-0.5 flex h-4 min-w-[16px] items-center justify-center rounded-full bg-destructive px-1 font-mono text-[9px] font-bold text-white">
             {items.length}
           </span>
         )}
-      </button>
+      </Button>
       {open && (
         <>
           <div className="fixed inset-0 z-40" onClick={() => setOpen(false)} aria-hidden="true" />
-          <div className="absolute right-0 top-10 z-50 w-80 bg-white border border-border whisper-shadow rounded-2xl p-3 space-y-2 max-h-[70vh] overflow-y-auto">
-            <p className="font-mono text-[9px] uppercase tracking-widest text-on-surface-variant font-bold px-2 pt-1">Notifications</p>
-            {items.length === 0 && <p className="font-mono text-[11px] opacity-40 px-2 py-4 text-center">You&apos;re all caught up.</p>}
+          <div className="absolute right-0 top-10 z-50 max-h-[70vh] w-80 space-y-2 overflow-y-auto rounded-xl border bg-card p-3 shadow-lg">
+            <p className="px-2 pt-1 font-mono text-[9px] font-bold uppercase tracking-widest text-muted-foreground">
+              Notifications
+            </p>
+            {items.length === 0 && (
+              <p className="px-2 py-4 text-center font-mono text-[11px] opacity-40">You&apos;re all caught up.</p>
+            )}
             {items.map((n) => (
               <a
                 key={n.type + n.title}
                 href={n.href}
                 onClick={() => setOpen(false)}
-                className="block p-3 rounded-xl border border-border/60 hover:bg-surface-container-low transition-colors"
+                className="block rounded-lg border border-border/60 p-3 transition-colors hover:bg-accent"
               >
                 <div className="flex items-start gap-2.5">
-                  <span className={cn('w-2 h-2 rounded-full mt-1.5 shrink-0', color(n.severity))} />
+                  <span className={cn('mt-1.5 h-2 w-2 shrink-0 rounded-full', color(n.severity))} />
                   <div>
-                    <p className="text-xs font-bold text-primary">{n.title}</p>
-                    <p className="text-[11px] text-on-surface-variant mt-0.5">{n.body}</p>
+                    <p className="text-xs font-bold text-foreground">{n.title}</p>
+                    <p className="mt-0.5 text-[11px] text-muted-foreground">{n.body}</p>
                   </div>
                 </div>
               </a>
@@ -432,3 +601,4 @@ function NotificationBell() {
     </div>
   );
 }
+

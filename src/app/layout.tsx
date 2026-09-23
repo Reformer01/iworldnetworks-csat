@@ -1,47 +1,32 @@
 import type { Metadata } from 'next';
-import { Be_Vietnam_Pro, Manrope, JetBrains_Mono, Geist, Geist_Mono } from 'next/font/google';
+import { Inter, Space_Grotesk, JetBrains_Mono } from 'next/font/google';
 import './globals.css';
 import { FirebaseClientProvider } from '@/firebase';
 import { FirebaseErrorListener } from '@/components/FirebaseErrorListener';
 import { Toaster } from '@/components/ui/toaster';
 import { ThemeProvider } from '@/components/ThemeProvider';
 
-// Admin typography (strategic pairing):
-//   Display/headings  -> Be Vietnam Pro (strong, geometric, corporate)
-//   Body/UI           -> Manrope (clean, highly legible at small sizes)
-//   Accent/labels     -> Satoshi via Fontshare (loaded in <head> below)
-const beVietnamPro = Be_Vietnam_Pro({
+// Dashboard typography (shadcn-admin / fintech pairing):
+//   UI/body          -> Inter (neutral, highly legible at small sizes)
+//   Display/headings -> Space Grotesk (geometric, technical voice)
+//   Metrics/code     -> JetBrains Mono (tabular figures)
+const inter = Inter({
   subsets: ['latin'],
-  weight: ['400', '500', '600', '700', '800'],
-  variable: '--font-display-family',
+  variable: '--font-inter',
   display: 'swap',
 });
 
-const manrope = Manrope({
+const spaceGrotesk = Space_Grotesk({
   subsets: ['latin'],
-  weight: ['400', '500', '600', '700', '800'],
-  variable: '--font-body-family',
+  weight: ['400', '500', '600', '700'],
+  variable: '--font-space-grotesk',
   display: 'swap',
 });
 
 const jetbrainsMono = JetBrains_Mono({
   subsets: ['latin'],
-  weight: ['500', '700'],
+  weight: ['400', '500', '700'],
   variable: '--font-jetbrains-mono',
-  display: 'swap',
-});
-
-// Incident-hub type voice: Geist for UI/metrics (falls back to Manrope),
-// Geist Mono for tabular figures (falls back to JetBrains Mono).
-const geistSans = Geist({
-  subsets: ['latin'],
-  variable: '--font-geist-sans',
-  display: 'swap',
-});
-
-const geistMono = Geist_Mono({
-  subsets: ['latin'],
-  variable: '--font-geist-mono',
   display: 'swap',
 });
 
@@ -71,12 +56,8 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en" suppressHydrationWarning>
-      <head>
-        {/* Satoshi (Fontshare) — accent/label face */}
-        <link href="https://api.fontshare.com/v2/css?f[]=satoshi@400,500,700,900&display=swap" rel="stylesheet" />
-      </head>
       <body
-        className={`${beVietnamPro.variable} ${manrope.variable} ${jetbrainsMono.variable} ${geistSans.variable} ${geistMono.variable} font-body antialiased selection:bg-secondary/20 min-h-screen`}
+        className={`${inter.variable} ${spaceGrotesk.variable} ${jetbrainsMono.variable} font-body antialiased selection:bg-secondary/20 min-h-screen`}
         suppressHydrationWarning
       >
         <ThemeProvider>

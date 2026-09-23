@@ -63,7 +63,10 @@ interface StaffPerf {
 
 // Business date is truth — prefer editable date over immutable createdAt.
 // Module-level (hoisted) so every memo below can use it regardless of order.
-export function effectiveRecordMonth(r: { date?: string; createdAt?: number }): string | null {
+// NOTE: Next.js route-type validation requires page modules to export ONLY
+// the default component (+ route config); non-component exports break
+// `tsc` via the generated `.next/types` validator, so this stays private.
+function effectiveRecordMonth(r: { date?: string; createdAt?: number }): string | null {
   if (r.date && /^\d{4}-\d{2}-\d{2}/.test(r.date)) return r.date.slice(0, 7);
   const ts = r.createdAt ? Number(r.createdAt) : null;
   if (!ts || !Number.isFinite(ts)) return null;
@@ -71,7 +74,7 @@ export function effectiveRecordMonth(r: { date?: string; createdAt?: number }): 
   return `${d.getUTCFullYear()}-${String(d.getUTCMonth() + 1).padStart(2, '0')}`;
 }
 
-export function monthLabel(ym: string): string {
+function monthLabel(ym: string): string {
   const [y, m] = ym.split('-').map(Number);
   if (!y || !m) return ym;
   return new Date(Date.UTC(y, m - 1, 1)).toLocaleDateString('en-NG', { month: 'short', year: 'numeric', timeZone: 'UTC' });
