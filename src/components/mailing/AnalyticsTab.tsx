@@ -70,14 +70,15 @@ function MetricCard({
   label: string;
   value: string | number;
   sub?: string;
+  /** Tailwind text-* colour class for the icon (e.g. 'text-emerald-600'). */
   color?: string;
 }) {
   return (
     <div className="bg-white p-5 rounded-2xl whisper-shadow border border-border">
       <div className="flex items-center gap-3 mb-2">
-        <div className={cn('w-9 h-9 rounded-full flex items-center justify-center', color || 'bg-secondary/10')}>
-          <Icon className={cn('w-4 h-4', color ? 'text-white' : 'text-secondary')} />
-        </div>
+        {/* Icon colours are passed as Tailwind text-* classes — no coloured chip
+            background behind the icon (design pass 2026-09-23). */}
+        <Icon className={cn('w-4 h-4 shrink-0', color || 'text-secondary')} />
         <p className="font-mono text-[9px] uppercase tracking-widest font-bold text-on-surface-variant/60">{label}</p>
       </div>
       <p className="font-mono text-2xl font-bold text-primary">{value}</p>
@@ -166,21 +167,21 @@ export function AnalyticsTab() {
           label="Open Rate"
           value={`${overall.openRate}%`}
           sub={`${overall.totalOpens} total opens`}
-          color="bg-emerald-500"
+          color="text-emerald-600"
         />
         <MetricCard
           icon={MousePointerClick}
           label="Click Rate"
           value={`${overall.clickRate}%`}
           sub={`${overall.totalClicks} total clicks`}
-          color="bg-sky-500"
+          color="text-sky-600"
         />
         <MetricCard
           icon={TrendingUp}
           label="Engagement"
           value={`${overall.openRate + overall.clickRate}%`}
           sub="Open + Click rate"
-          color="bg-violet-500"
+          color="text-violet-600"
         />
       </div>
 

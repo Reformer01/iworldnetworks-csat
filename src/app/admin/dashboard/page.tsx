@@ -506,7 +506,6 @@ export default function AdminDashboard() {
               unit: '%',
               icon: Users,
               color: 'text-secondary',
-              chip: 'bg-secondary/10',
               detail: 'Average rating',
             },
             {
@@ -515,7 +514,6 @@ export default function AdminDashboard() {
               unit: '%',
               icon: Activity,
               color: 'text-green-600',
-              chip: 'bg-green-500/10',
               detail: `${metrics.networkResponses} network responses`,
             },
             {
@@ -524,7 +522,6 @@ export default function AdminDashboard() {
               unit: '%',
               icon: TrendingUp,
               color: 'text-green-600',
-              chip: 'bg-green-500/10',
               detail: `Based on ${metrics.total} feedbacks`,
             },
             {
@@ -535,7 +532,6 @@ export default function AdminDashboard() {
               unit: metrics.fcrResponses > 0 ? '%' : '',
               icon: CheckCircle2,
               color: 'text-orange-500',
-              chip: 'bg-orange-500/10',
               detail: metrics.fcrResponses > 0 ? 'Fixed on first try' : 'Not asked on form yet',
             },
             {
@@ -544,14 +540,13 @@ export default function AdminDashboard() {
               unit: '%',
               icon: CheckCircle,
               color: 'text-green-600',
-              chip: 'bg-green-500/10',
               detail: 'Issues resolved',
             },
           ].map((item, i) => (
             <Reveal key={i} index={Math.min(i + 1, 4)}>
               <div className="rounded-xl border bg-card p-5 shadow-[0_1px_2px_rgba(0,0,0,0.04)] transition-shadow hover:shadow-[0_8px_24px_-12px_rgba(68,133,21,0.25)]">
-                <div className={cn('flex h-9 w-9 items-center justify-center rounded-lg', item.chip)}>
-                  <item.icon className={cn('h-4 w-4', item.color)} />
+                <div className="flex h-9 w-9 items-center justify-center">
+                  <item.icon className={cn('h-5 w-5', item.color)} />
                 </div>
                 <p className="mt-4 text-[11px] font-medium uppercase tracking-[0.08em] text-muted-foreground">{item.label}</p>
                 <p className="mt-1 font-headline text-3xl font-semibold tabular-nums tracking-tight text-foreground">

@@ -174,8 +174,8 @@ export function DashboardLayout({
     return (
       <div className="flex min-h-screen items-center justify-center bg-background p-6">
         <div className="w-full max-w-md rounded-xl border bg-card p-10 text-center shadow-sm">
-          <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-secondary/10">
-            <Send className="h-5 w-5 text-secondary" />
+          <div className="mb-4 flex h-12 w-12 items-center justify-center">
+            <Send className="h-6 w-6 text-secondary" />
           </div>
           <h2 className="mb-2 font-headline text-xl font-semibold tracking-tight">Verify your email</h2>
           <p className="mb-6 text-sm text-muted-foreground">
