@@ -76,7 +76,9 @@ function KpiCard({ label, value, icon: Icon, color }: { label: string; value: st
       </div>
       <div className="min-w-0">
         <p className="font-mono text-[9px] uppercase tracking-widest font-bold text-on-surface-variant">{label}</p>
-        <p className="font-display text-lg xl:text-xl font-bold text-primary break-words" title={value}>{value}</p>
+        <p className="font-display text-lg xl:text-xl font-bold text-primary break-words" title={value}>
+          {value}
+        </p>
       </div>
     </SectionCard>
   );
@@ -126,9 +128,8 @@ const SORT_OPTIONS: Array<{ value: SortField; label: string }> = [
 // Calculate health score (same as TowerCard). Sync health tracks the live
 // customer roster, not the frozen UISP device clock (see devices banner).
 function calculateHealthScore(tower: TowerAuditRow): number {
-  const deviceUptime = tower.deviceCount && tower.deviceCount > 0
-    ? ((tower.deviceCount - (tower.deviceOutageCount ?? 0)) / tower.deviceCount) * 100
-    : 100;
+  const deviceUptime =
+    tower.deviceCount && tower.deviceCount > 0 ? ((tower.deviceCount - (tower.deviceOutageCount ?? 0)) / tower.deviceCount) * 100 : 100;
   const mrrUtilization = tower.mrrTotal > 0 ? (tower.activeMrr / tower.mrrTotal) * 100 : 100;
   let syncScore = 100;
   const syncClock = tower.rosterSyncAt ?? tower.lastSyncAt;
@@ -141,7 +142,7 @@ function calculateHealthScore(tower: TowerAuditRow): number {
     else syncScore = 0;
   }
   const statusScore = tower.status === 'active' ? 100 : tower.status === null ? 50 : 0;
-  return Math.round(deviceUptime * 0.40 + mrrUtilization * 0.30 + syncScore * 0.20 + statusScore * 0.10);
+  return Math.round(deviceUptime * 0.4 + mrrUtilization * 0.3 + syncScore * 0.2 + statusScore * 0.1);
 }
 
 export default function BtsAuditPage() {
@@ -157,7 +158,9 @@ export default function BtsAuditPage() {
   const [sortDir, setSortDir] = useState<SortDir>('desc');
   const [showSortMenu, setShowSortMenu] = useState(false);
   const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' } | null>(null);
-  const [devicesMeta, setDevicesMeta] = useState<{ devicesSyncAt: number | null; devicesStale: boolean; uispConfigured: boolean } | null>(null);
+  const [devicesMeta, setDevicesMeta] = useState<{ devicesSyncAt: number | null; devicesStale: boolean; uispConfigured: boolean } | null>(
+    null,
+  );
   const [compareIds, setCompareIds] = useState<Set<string>>(new Set());
   const [showComparison, setShowComparison] = useState(false);
   const modalRef = useRef<HTMLDivElement>(null);
@@ -251,7 +254,7 @@ export default function BtsAuditPage() {
           cmp = (a.activeMrr ?? 0) - (b.activeMrr ?? 0);
           break;
         case 'lastSync':
-          cmp = ((a.rosterSyncAt ?? a.lastSyncAt) ?? 0) - ((b.rosterSyncAt ?? b.lastSyncAt) ?? 0);
+          cmp = (a.rosterSyncAt ?? a.lastSyncAt ?? 0) - (b.rosterSyncAt ?? b.lastSyncAt ?? 0);
           break;
         case 'outages':
           cmp = (a.deviceOutageCount ?? 0) - (b.deviceOutageCount ?? 0);
@@ -279,18 +282,27 @@ export default function BtsAuditPage() {
 
   // Alert level
   const alertLevel = useMemo(() => {
-    const criticalCount = towers.filter(t => 
-      t.status === 'disabled' || t.status === 'down' || 
-      (t.deviceOutageCount != null && t.deviceOutageCount > 5)
+    const criticalCount = towers.filter(
+      (t) => t.status === 'disabled' || t.status === 'down' || (t.deviceOutageCount != null && t.deviceOutageCount > 5),
     ).length;
     // Device-telemetry staleness is reported by the devices banner, not as a
     // per-tower warning — the roster clock is the warning signal here.
-    const warningCount = towers.filter(t => {
+    const warningCount = towers.filter((t) => {
       const rosterClock = t.rosterSyncAt ?? t.lastSyncAt;
-      return (rosterClock && (Date.now() - rosterClock) > 86400000) || t.suspended;
+      return (rosterClock && Date.now() - rosterClock > 86400000) || t.suspended;
     }).length;
-    if (criticalCount > 0) return { level: 'critical' as const, count: criticalCount, message: `${criticalCount} tower${criticalCount > 1 ? 's' : ''} with critical issues` };
-    if (warningCount > 0) return { level: 'warning' as const, count: warningCount, message: `${warningCount} tower${warningCount > 1 ? 's' : ''} with warnings` };
+    if (criticalCount > 0)
+      return {
+        level: 'critical' as const,
+        count: criticalCount,
+        message: `${criticalCount} tower${criticalCount > 1 ? 's' : ''} with critical issues`,
+      };
+    if (warningCount > 0)
+      return {
+        level: 'warning' as const,
+        count: warningCount,
+        message: `${warningCount} tower${warningCount > 1 ? 's' : ''} with warnings`,
+      };
     return { level: 'healthy' as const, count: 0, message: 'All towers healthy' };
   }, [towers]);
 
@@ -299,46 +311,77 @@ export default function BtsAuditPage() {
     setTimeout(() => setToast(null), 3000);
   }, []);
 
-  const toggleCompare = useCallback((tower: TowerAuditRow) => {
-    setCompareIds(prev => {
-      const next = new Set(prev);
-      if (next.has(tower.towerId)) {
-        next.delete(tower.towerId);
-      } else if (next.size < 3) {
-        next.add(tower.towerId);
-      } else {
-        showToast('Maximum 3 towers for comparison', 'error');
-      }
-      return next;
-    });
-  }, [showToast]);
+  const toggleCompare = useCallback(
+    (tower: TowerAuditRow) => {
+      setCompareIds((prev) => {
+        const next = new Set(prev);
+        if (next.has(tower.towerId)) {
+          next.delete(tower.towerId);
+        } else if (next.size < 3) {
+          next.add(tower.towerId);
+        } else {
+          showToast('Maximum 3 towers for comparison', 'error');
+        }
+        return next;
+      });
+    },
+    [showToast],
+  );
 
   const compareTowers = useMemo(() => {
-    return towers.filter(t => compareIds.has(t.towerId));
+    return towers.filter((t) => compareIds.has(t.towerId));
   }, [towers, compareIds]);
 
   const exportCsv = () => {
     try {
-      const rows = [['Tower','Region','Total Customers','Active','Potential MRC','Active MRC','Opportunity','By AccountType (Potential)','By AccountType (Active)','By ServicePlan','Customer MRR']];
-      filtered.forEach(t => rows.push([
-        t.towerName, t.region, String(t.customers.total), String(t.customers.active),
-        String(t.mrrTotal), String(t.activeMrr), String(t.mrrTotal - t.activeMrr),
-        JSON.stringify(t.mrrByAccountType), JSON.stringify(t.activeMrrByAccountType),
-        JSON.stringify((t.customers as unknown as {byServicePlan:Record<string,number>}).byServicePlan || {}),
-        JSON.stringify(t.customers.customerDetails.map((customer) => ({
-          customerId: customer.customerId,
-          customerName: customer.customerName,
-          lifecycle: customer.lifecycle,
-          accountType: customer.accountType,
-          servicePlan: customer.servicePlan,
-          potentialMrr: customer.potentialMrr,
-          activeMrr: customer.activeMrr,
-        })))
-      ]));
-      const csv = rows.map(r => r.map(v => `"${String(v).replace(/"/g,'""')}"`).join(',')).join('\n');
-      const blob = new Blob([csv], {type:'text/csv'});
+      const rows = [
+        [
+          'Tower',
+          'Region',
+          'Total Customers',
+          'Active',
+          'Potential MRC',
+          'Active MRC',
+          'Opportunity',
+          'By AccountType (Potential)',
+          'By AccountType (Active)',
+          'By ServicePlan',
+          'Customer MRR',
+        ],
+      ];
+      filtered.forEach((t) =>
+        rows.push([
+          t.towerName,
+          t.region,
+          String(t.customers.total),
+          String(t.customers.active),
+          String(t.mrrTotal),
+          String(t.activeMrr),
+          String(t.mrrTotal - t.activeMrr),
+          JSON.stringify(t.mrrByAccountType),
+          JSON.stringify(t.activeMrrByAccountType),
+          JSON.stringify((t.customers as unknown as { byServicePlan: Record<string, number> }).byServicePlan || {}),
+          JSON.stringify(
+            t.customers.customerDetails.map((customer) => ({
+              customerId: customer.customerId,
+              customerName: customer.customerName,
+              lifecycle: customer.lifecycle,
+              accountType: customer.accountType,
+              servicePlan: customer.servicePlan,
+              potentialMrr: customer.potentialMrr,
+              activeMrr: customer.activeMrr,
+            })),
+          ),
+        ]),
+      );
+      const csv = rows.map((r) => r.map((v) => `"${String(v).replace(/"/g, '""')}"`).join(',')).join('\n');
+      const blob = new Blob([csv], { type: 'text/csv' });
       const url = URL.createObjectURL(blob);
-      const a = document.createElement('a'); a.href=url; a.download=`bts-audit-${new Date().toISOString().slice(0,10)}.csv`; a.click(); URL.revokeObjectURL(url);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `bts-audit-${new Date().toISOString().slice(0, 10)}.csv`;
+      a.click();
+      URL.revokeObjectURL(url);
       showToast(`Exported ${filtered.length} towers to CSV`);
     } catch {
       showToast('Failed to export CSV', 'error');
@@ -366,26 +409,34 @@ export default function BtsAuditPage() {
       lines.push(`Active MRC: ${fmtNaira(kpis.activeMrr)}`);
       lines.push(`Revenue Opportunity: ${fmtNaira(kpis.opportunity)}`);
       lines.push(`Needs Attention: ${kpis.attentionCount}`);
-      lines.push(`Avg Health: ${filtered.length > 0 ? Math.round(filtered.reduce((acc, t) => acc + calculateHealthScore(t), 0) / filtered.length) : 0}`);
+      lines.push(
+        `Avg Health: ${filtered.length > 0 ? Math.round(filtered.reduce((acc, t) => acc + calculateHealthScore(t), 0) / filtered.length) : 0}`,
+      );
       lines.push('');
       lines.push('=== TOP 10 TOWERS BY MRR ===');
       lines.push('Tower,Region,Customers,Active,MRR,Active MRR,Health');
-      top10.forEach(t => {
-        lines.push(`${t.towerName},${t.region},${t.customers.total},${t.customers.active},${t.mrrTotal},${t.activeMrr},${calculateHealthScore(t)}`);
+      top10.forEach((t) => {
+        lines.push(
+          `${t.towerName},${t.region},${t.customers.total},${t.customers.active},${t.mrrTotal},${t.activeMrr},${calculateHealthScore(t)}`,
+        );
       });
       lines.push('');
       lines.push('=== BOTTOM 10 TOWERS BY MRR ===');
       lines.push('Tower,Region,Customers,Active,MRR,Active MRR,Health');
-      bottom10.forEach(t => {
-        lines.push(`${t.towerName},${t.region},${t.customers.total},${t.customers.active},${t.mrrTotal},${t.activeMrr},${calculateHealthScore(t)}`);
+      bottom10.forEach((t) => {
+        lines.push(
+          `${t.towerName},${t.region},${t.customers.total},${t.customers.active},${t.mrrTotal},${t.activeMrr},${calculateHealthScore(t)}`,
+        );
       });
       if (attentionTowers.length > 0) {
         lines.push('');
         lines.push(`=== TOWERS NEEDING ATTENTION (${attentionTowers.length}) ===`);
         lines.push('Tower,Region,Status,Devices,Outages,Roster Sync,Devices Sync');
-        attentionTowers.forEach(t => {
+        attentionTowers.forEach((t) => {
           const roster = t.rosterSyncAt ?? t.lastSyncAt;
-          lines.push(`${t.towerName},${t.region},${t.status || 'unknown'},${t.deviceCount ?? 0},${t.deviceOutageCount ?? 0},${roster ? relTime(roster) : '—'},${t.lastSyncAt ? relTime(t.lastSyncAt) : '—'}`);
+          lines.push(
+            `${t.towerName},${t.region},${t.status || 'unknown'},${t.deviceCount ?? 0},${t.deviceOutageCount ?? 0},${roster ? relTime(roster) : '—'},${t.lastSyncAt ? relTime(t.lastSyncAt) : '—'}`,
+          );
         });
       }
       const csv = lines.join('\n');
@@ -432,16 +483,16 @@ export default function BtsAuditPage() {
                   <button
                     onClick={() => setShowSortMenu(!showSortMenu)}
                     className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-surface-container-low border border-border/40 font-mono text-[10px] uppercase font-bold text-on-surface-variant/70 hover:bg-surface-container transition-colors"
-                    aria-label={`Sort by ${SORT_OPTIONS.find(o => o.value === sortField)?.label}`}
+                    aria-label={`Sort by ${SORT_OPTIONS.find((o) => o.value === sortField)?.label}`}
                     aria-expanded={showSortMenu}
                     aria-haspopup="listbox"
                   >
                     <ArrowUpDown className="w-3 h-3" aria-hidden="true" />
-                    {SORT_OPTIONS.find(o => o.value === sortField)?.label}
+                    {SORT_OPTIONS.find((o) => o.value === sortField)?.label}
                     <ChevronDown className={cn('w-3 h-3 transition-transform', showSortMenu && 'rotate-180')} aria-hidden="true" />
                   </button>
                   {showSortMenu && (
-                    <div 
+                    <div
                       className="absolute right-0 top-full mt-1 w-48 bg-white rounded-xl border border-border shadow-lg z-50 py-1"
                       role="listbox"
                       aria-label="Sort options"
@@ -460,7 +511,7 @@ export default function BtsAuditPage() {
                           }}
                           className={cn(
                             'w-full px-3 py-2 text-left font-mono text-xs hover:bg-surface-container-low transition-colors flex items-center justify-between',
-                            sortField === option.value && 'bg-surface-container-low font-bold text-primary'
+                            sortField === option.value && 'bg-surface-container-low font-bold text-primary',
                           )}
                           role="option"
                           aria-selected={sortField === option.value}
@@ -519,12 +570,12 @@ export default function BtsAuditPage() {
 
         {/* Alert Banner */}
         {alertLevel.level !== 'healthy' && !loading && (
-          <div 
+          <div
             className={cn(
               'mb-6 px-4 py-3 rounded-xl border flex items-center justify-between cursor-pointer transition-colors',
-              alertLevel.level === 'critical' 
-                ? 'bg-red-50 border-red-200 text-red-700 hover:bg-red-100' 
-                : 'bg-amber-50 border-amber-200 text-amber-700 hover:bg-amber-100'
+              alertLevel.level === 'critical'
+                ? 'bg-red-50 border-red-200 text-red-700 hover:bg-red-100'
+                : 'bg-amber-50 border-amber-200 text-amber-700 hover:bg-amber-100',
             )}
             onClick={() => {
               setAttentionOnly(true);
@@ -540,7 +591,9 @@ export default function BtsAuditPage() {
               <AlertTriangle className="w-5 h-5" aria-hidden="true" />
               <span className="font-mono text-xs font-bold">{alertLevel.message}</span>
             </div>
-            <span className="inline-flex items-center gap-1 font-mono text-[10px] uppercase font-bold opacity-70">Show affected <ChevronRight className="w-3 h-3" /></span>
+            <span className="inline-flex items-center gap-1 font-mono text-[10px] uppercase font-bold opacity-70">
+              Show affected <ChevronRight className="w-3 h-3" />
+            </span>
           </div>
         )}
         {alertLevel.level === 'healthy' && !loading && (
@@ -553,49 +606,48 @@ export default function BtsAuditPage() {
         {/* Device-telemetry banner: UISP device data is frozen while the UISP
             sync has no API token. Customer roster/MRR cards stay live via the
             Splynx sync — this banner says so instead of flagging all towers. */}
-        {devicesMeta?.devicesStale && !loading && (() => {
-          const rosterSyncAt = towers.reduce<number | null>(
-            (max, t) => {
+        {devicesMeta?.devicesStale &&
+          !loading &&
+          (() => {
+            const rosterSyncAt = towers.reduce<number | null>((max, t) => {
               const c = t.rosterSyncAt ?? t.lastSyncAt;
               return c != null && (max == null || c > max) ? c : max;
-            },
-            null,
-          );
-          return (
-            <div className="mb-6 px-4 py-3 rounded-xl border bg-sky-50 border-sky-200 text-sky-800 flex items-center gap-3">
-              <Wifi className="w-5 h-5 shrink-0" aria-hidden="true" />
-              <span className="font-mono text-xs font-bold">
-                Device telemetry frozen since {relTime(devicesMeta.devicesSyncAt)}
-                {devicesMeta.uispConfigured
-                  ? ' — UISP sync is delayed.'
-                  : ' — UISP API token not configured.'}{' '}
-                Customer roster is live{rosterSyncAt ? ` (updated ${relTime(rosterSyncAt)})` : ''}.
-              </span>
-            </div>
-          );
-        })()}
+            }, null);
+            return (
+              <div className="mb-6 px-4 py-3 rounded-xl border bg-sky-50 border-sky-200 text-sky-800 flex items-center gap-3">
+                <Wifi className="w-5 h-5 shrink-0" aria-hidden="true" />
+                <span className="font-mono text-xs font-bold">
+                  Device telemetry frozen since {relTime(devicesMeta.devicesSyncAt)}
+                  {devicesMeta.uispConfigured ? ' — UISP sync is delayed.' : ' — UISP API token not configured.'} Customer roster is live
+                  {rosterSyncAt ? ` (updated ${relTime(rosterSyncAt)})` : ''}.
+                </span>
+              </div>
+            );
+          })()}
 
         {/* KPI Cards */}
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 md:gap-4 mb-6">
           <KpiCard label="Towers" value={kpis.towers.toLocaleString()} icon={RadioTower} color="bg-secondary" />
           <KpiCard label="Total Customers" value={kpis.totalCustomers.toLocaleString()} icon={Users} color="bg-sky-500" />
           <KpiCard label="Active" value={kpis.activeCustomers.toLocaleString()} icon={CheckCircle2} color="bg-emerald-500" />
-          <KpiCard 
-            label="Needs Attention" 
-            value={kpis.attentionCount.toLocaleString()} 
-            icon={Zap} 
-            color={kpis.attentionCount > 0 ? 'bg-red-500' : 'bg-emerald-500'} 
+          <KpiCard
+            label="Needs Attention"
+            value={kpis.attentionCount.toLocaleString()}
+            icon={Zap}
+            color={kpis.attentionCount > 0 ? 'bg-red-500' : 'bg-emerald-500'}
           />
         </div>
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 md:gap-4 mb-6">
           <KpiCard label="Potential MRC" value={fmtNaira(kpis.totalMrr)} icon={DollarSign} color="bg-slate-700" />
           <KpiCard label="Active MRC" value={fmtNaira(kpis.activeMrr)} icon={DollarSign} color="bg-emerald-600" />
           <KpiCard label="Revenue Opportunity" value={fmtNaira(kpis.opportunity)} icon={TrendingUp} color="bg-orange-500" />
-          <KpiCard 
-            label="Avg Health" 
-            value={filtered.length > 0 ? `${Math.round(filtered.reduce((acc, t) => acc + calculateHealthScore(t), 0) / filtered.length)}` : '—'} 
-            icon={CheckCircle2} 
-            color="bg-indigo-500" 
+          <KpiCard
+            label="Avg Health"
+            value={
+              filtered.length > 0 ? `${Math.round(filtered.reduce((acc, t) => acc + calculateHealthScore(t), 0) / filtered.length)}` : '—'
+            }
+            icon={CheckCircle2}
+            color="bg-indigo-500"
           />
         </div>
 
@@ -613,15 +665,15 @@ export default function BtsAuditPage() {
             )}
           </div>
           <div className="flex items-center gap-2">
-            <button 
+            <button
               onClick={exportReport}
               className="flex items-center gap-1.5 px-4 py-2 rounded-full bg-surface-container-low border border-border/40 font-mono text-[10px] uppercase font-bold text-on-surface-variant hover:bg-surface-container transition-colors"
             >
               <FileText className="w-3.5 h-3.5" aria-hidden="true" />
               Export Report
             </button>
-            <button 
-              onClick={exportCsv} 
+            <button
+              onClick={exportCsv}
               className="px-4 py-2 rounded-full bg-secondary text-white font-mono text-[10px] uppercase font-bold hover:bg-secondary/90 transition-colors"
               aria-label={`Export ${filtered.length} towers to CSV`}
             >
@@ -640,7 +692,7 @@ export default function BtsAuditPage() {
           <SectionCard className="flex flex-col items-center justify-center h-64 text-center">
             <AlertTriangle className="w-10 h-10 text-red-500 mb-3" aria-hidden="true" />
             <p className="font-mono text-[11px] text-on-surface-variant uppercase font-bold tracking-widest">{error}</p>
-            <button 
+            <button
               onClick={fetchAudit}
               className="mt-4 px-4 py-2 rounded-xl bg-surface-container-low border border-border/40 font-mono text-[10px] uppercase font-bold text-on-surface-variant hover:bg-surface-container transition-colors"
             >
@@ -663,30 +715,21 @@ export default function BtsAuditPage() {
           >
             {filtered.map((t) => (
               <div key={t.towerId} role="listitem">
-                <TowerCard
-                  tower={t}
-                  onClick={setSelected}
-                  isComparing={compareIds.has(t.towerId)}
-                  onCompareToggle={toggleCompare}
-                />
+                <TowerCard tower={t} onClick={setSelected} isComparing={compareIds.has(t.towerId)} onCompareToggle={toggleCompare} />
               </div>
             ))}
           </div>
         )}
 
         {/* Detail Panel (redesigned with tabs, sparklines, timeline) */}
-        {selected && (
-          <TowerDetailPanel tower={selected} onClose={() => setSelected(null)} />
-        )}
+        {selected && <TowerDetailPanel tower={selected} onClose={() => setSelected(null)} />}
 
         {/* Comparison Modal */}
-        {showComparison && compareTowers.length >= 2 && (
-          <TowerComparison towers={compareTowers} onClose={() => setShowComparison(false)} />
-        )}
+        {showComparison && compareTowers.length >= 2 && <TowerComparison towers={compareTowers} onClose={() => setShowComparison(false)} />}
 
         {/* Toast Notification */}
         {toast && (
-          <div 
+          <div
             className="fixed bottom-4 right-4 z-50 px-4 py-3 rounded-xl shadow-lg font-mono text-sm font-bold text-white transition-all"
             style={{ backgroundColor: toast.type === 'success' ? '#10b981' : '#ef4444' }}
             role="alert"

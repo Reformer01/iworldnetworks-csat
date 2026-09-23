@@ -117,17 +117,11 @@ export default function AdminDashboard() {
   const allRegions = useMemo(() => regionBreakdown(filteredFeedbacks), [filteredFeedbacks]);
   const regionTotalPages = Math.max(1, Math.ceil(allRegions.length / REGION_PAGE_SIZE));
   const safeRegionPage = Math.min(regionPage, regionTotalPages);
-  const regionItems = allRegions.slice(
-    (safeRegionPage - 1) * REGION_PAGE_SIZE,
-    safeRegionPage * REGION_PAGE_SIZE,
-  );
+  const regionItems = allRegions.slice((safeRegionPage - 1) * REGION_PAGE_SIZE, safeRegionPage * REGION_PAGE_SIZE);
 
   const activityTotalPages = Math.max(1, Math.ceil(filteredFeedbacks.length / ACTIVITY_PAGE_SIZE));
   const safeActivityPage = Math.min(activityPage, activityTotalPages);
-  const activityItems = filteredFeedbacks.slice(
-    (safeActivityPage - 1) * ACTIVITY_PAGE_SIZE,
-    safeActivityPage * ACTIVITY_PAGE_SIZE,
-  );
+  const activityItems = filteredFeedbacks.slice((safeActivityPage - 1) * ACTIVITY_PAGE_SIZE, safeActivityPage * ACTIVITY_PAGE_SIZE);
   const activityStart = filteredFeedbacks.length === 0 ? 0 : (safeActivityPage - 1) * ACTIVITY_PAGE_SIZE + 1;
   const activityEnd = Math.min(safeActivityPage * ACTIVITY_PAGE_SIZE, filteredFeedbacks.length);
 
@@ -236,8 +230,8 @@ export default function AdminDashboard() {
       const deptFeedbacks = filteredFeedbacks.filter((f: FeedbackDoc) => f.category === dept.category);
       const total = deptFeedbacks.length;
 
-      const ratingsArray = deptFeedbacks.flatMap(
-        (f: FeedbackDoc) => Object.values(f.ratings || {}).filter((v): v is number => typeof v === 'number'),
+      const ratingsArray = deptFeedbacks.flatMap((f: FeedbackDoc) =>
+        Object.values(f.ratings || {}).filter((v): v is number => typeof v === 'number'),
       );
       const avg = ratingsArray.length > 0 ? (ratingsArray.reduce((a, b) => a + b, 0) / ratingsArray.length).toFixed(1) + '/5' : '—';
 
@@ -438,393 +432,394 @@ export default function AdminDashboard() {
   return (
     <AdminLayout>
       <>
-      <Reveal index={0}>
-      <header className="flex flex-col md:flex-row justify-between items-start md:items-center gap-6 mb-12">
-        <div>
-          <h1 className="text-[26px] font-medium tracking-[-0.03em] text-primary">Admin Dashboard</h1>
-          <p className="mt-0.5 text-[13px] text-muted-foreground">Satisfaction, resolution and regional pulse at a glance.</p>
-        </div>
-        <div className="flex items-center gap-4 flex-wrap">
-          <Select
-            value={dateRange ? 'custom' : timeRange}
-            onValueChange={(val) => {
-              if (val !== 'custom') {
-                setTimeRange(isTimeRange(val) ? val : '30d');
-                setDateRange(undefined);
-              }
-            }}
-          >
-            <SelectTrigger className="w-[180px] rounded-full font-mono text-[10px] uppercase font-bold bg-white border-border">
-              <SelectValue placeholder="Time Range" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="7d">Last 7 Days</SelectItem>
-              <SelectItem value="30d">Last 30 Days</SelectItem>
-              <SelectItem value="90d">Last Quarter</SelectItem>
-              <SelectItem value="1y">Last Year</SelectItem>
-            </SelectContent>
-          </Select>
-          <DateRangePicker
-            from={dateRange?.from}
-            to={dateRange?.to}
-            onSelect={(range) => {
-              setDateRange(range);
-              if (range?.from || range?.to) setTimeRange('30d');
-            }}
-          />
-          <Button
-            onClick={handleGeneratePdfReport}
-            disabled={isGeneratingReport}
-            className="rounded-full bg-secondary text-white font-mono text-[10px] uppercase font-bold px-8 shadow-lg hover:scale-105 transition-transform"
-          >
-            {isGeneratingReport ? <Loader2 className="w-3 h-3 animate-spin mr-2" /> : <FileDown className="w-3 h-3 mr-2" />}
-            Download PDF Report
-          </Button>
-          <div className="flex items-center gap-2">
-            {([
-              ['customers', 'Customers CSV'],
-              ['invoices', 'Invoices CSV'],
-              ['plans', 'Plans CSV'],
-            ] as const).map(([kind, label]) => (
-              <Button
-                key={kind}
-                onClick={() => handleCsvExport(kind)}
-                disabled={csvExporting !== null}
-                variant="outline"
-                className="rounded-full font-mono text-[10px] uppercase font-bold px-6"
-              >
-                {csvExporting === kind ? <Loader2 className="w-3 h-3 animate-spin mr-2" /> : <FileDown className="w-3 h-3 mr-2" />}
-                {label}
-              </Button>
-            ))}
-          </div>
-        </div>
-      </header>
-      </Reveal>
-
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-5 mb-12">
-        {[
-          {
-            label: 'Overall Score',
-            value: metrics.overallSatisfaction,
-            unit: '%',
-            icon: Users,
-            color: 'text-secondary',
-            detail: 'Average rating',
-          },
-          {
-            label: 'Network Score',
-            value: metrics.networkSatisfaction,
-            unit: '%',
-            icon: Activity,
-            color: 'text-green-600',
-            detail: `${metrics.networkResponses} network responses`,
-          },
-          {
-            label: 'Would Recommend',
-            value: metrics.nps,
-            unit: '%',
-            icon: TrendingUp,
-            color: 'text-green-600',
-            detail: `Based on ${metrics.total} feedbacks`,
-          },
-          {
-            // The form never asks an FCR question, so 0 answers is "no data",
-            // not "nobody fixed first try" — show a dash instead of 0%.
-            label: 'Resolved First Time',
-            value: metrics.fcrResponses > 0 ? metrics.ces : '—',
-            unit: metrics.fcrResponses > 0 ? '%' : '',
-            icon: CheckCircle2,
-            color: 'text-orange-500',
-            detail: metrics.fcrResponses > 0 ? 'Fixed on first try' : 'Not asked on form yet',
-          },
-          {
-            label: 'Resolved Issues',
-            value: metrics.resolvedRate,
-            unit: '%',
-            icon: CheckCircle,
-            color: 'text-green-600',
-            detail: 'Issues resolved',
-          },
-        ].map((item, i) => (
-          <Reveal key={i} index={Math.min(i + 1, 4)}>
-          <div
-            className="bg-white p-6 rounded-xl card-shadow border border-border group hover:border-secondary transition-all min-h-[184px]"
-          >
-            <div className="mb-5">
-              <item.icon className={cn('w-6 h-6', item.color)} />
+        <Reveal index={0}>
+          <header className="flex flex-col md:flex-row justify-between items-start md:items-center gap-6 mb-12">
+            <div>
+              <h1 className="text-[26px] font-medium tracking-[-0.03em] text-primary">Admin Dashboard</h1>
+              <p className="mt-0.5 text-[13px] text-muted-foreground">Satisfaction, resolution and regional pulse at a glance.</p>
             </div>
-            <p className="text-[11px] font-medium uppercase tracking-[0.08em] text-muted-foreground mb-1">{item.label}</p>
-            <div className="flex items-baseline gap-1">
-              <span className="text-4xl font-display font-bold tabular tracking-tight text-primary">{item.value}</span>
-              <span className="text-xl font-display text-on-surface-variant font-bold">{item.unit}</span>
-            </div>
-            <p className="mt-4 text-[11px] text-muted-foreground uppercase tracking-wide">{item.detail}</p>
-          </div>
-          </Reveal>
-        ))}
-      </div>
-
-      <div className="grid grid-cols-12 gap-gutter mb-12">
-        <div className="col-span-12 lg:col-span-8 bg-white p-8 rounded-xl card-shadow border border-border h-[400px]">
-          <h3 className="font-display font-bold text-lg uppercase tracking-tight mb-8">Satisfaction Over Time</h3>
-          <div className="h-64">
-            <ResponsiveContainer width="100%" height="100%">
-              <AreaChart data={chartData}>
-                <defs>
-                  <linearGradient id="colorOverallSatisfaction" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="5%" stopColor="#448515" stopOpacity={0.1} />
-                    <stop offset="95%" stopColor="#448515" stopOpacity={0} />
-                  </linearGradient>
-                  <linearGradient id="colorNetworkSatisfaction" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="5%" stopColor="#111827" stopOpacity={0.08} />
-                    <stop offset="95%" stopColor="#111827" stopOpacity={0} />
-                  </linearGradient>
-                </defs>
-                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#eee" />
-                <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{ fontSize: 10, fill: '#666' }} />
-                <YAxis hide domain={[0, 100]} />
-                <Tooltip contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 10px 15px -3px rgba(0,0,0,0.1)' }} />
-                <Legend
-                  verticalAlign="top"
-                  height={24}
-                  iconType="circle"
-                  wrapperStyle={{ fontSize: 10, fontWeight: 700, textTransform: 'uppercase' }}
-                />
-                <Area
-                  type="monotone"
-                  dataKey="overallSatisfaction"
-                  name="Overall"
-                  stroke="#448515"
-                  fill="url(#colorOverallSatisfaction)"
-                  strokeWidth={3}
-                  connectNulls
-                />
-                <Area
-                  type="monotone"
-                  dataKey="networkSatisfaction"
-                  name="Network"
-                  stroke="#111827"
-                  fill="url(#colorNetworkSatisfaction)"
-                  strokeWidth={2}
-                  strokeDasharray="6 4"
-                  connectNulls
-                />
-              </AreaChart>
-            </ResponsiveContainer>
-          </div>
-        </div>
-
-        <div className="col-span-12 lg:col-span-4 bg-white p-8 rounded-xl card-shadow border border-border">
-          <h3 className="font-display font-bold text-lg uppercase tracking-tight mb-8">Regional Pulse</h3>
-          <div className="space-y-6">
-            {regionItems.map((reg) => {
-              const percent = metrics.total > 0 ? (reg.count / metrics.total) * 100 : 0;
-              return (
-                <div key={reg.name} className="space-y-2">
-                  <div className="flex justify-between font-mono text-[10px] font-bold uppercase">
-                    <span>{reg.name}</span>
-                    <span className="text-secondary">{reg.count} Feedbacks</span>
-                  </div>
-                  <div className="w-full bg-muted h-1.5 rounded-full overflow-hidden">
-                    <div className="bg-primary h-full" style={{ width: `${percent}%` }}></div>
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-          {regionTotalPages > 1 && (
-            <div className="flex items-center justify-between pt-6">
-              <Button
-                variant="outline"
-                size="sm"
-                className="rounded-full font-mono text-[10px] uppercase font-bold px-4"
-                disabled={safeRegionPage <= 1}
-                onClick={() => setRegionPage((p) => Math.max(1, p - 1))}
-                aria-label="Previous regions page"
+            <div className="flex items-center gap-4 flex-wrap">
+              <Select
+                value={dateRange ? 'custom' : timeRange}
+                onValueChange={(val) => {
+                  if (val !== 'custom') {
+                    setTimeRange(isTimeRange(val) ? val : '30d');
+                    setDateRange(undefined);
+                  }
+                }}
               >
-                Prev
-              </Button>
-              <span className="font-mono text-[10px] font-bold text-on-surface-variant/60" aria-live="polite">
-                {safeRegionPage} of {regionTotalPages}
-              </span>
+                <SelectTrigger className="w-[180px] rounded-full font-mono text-[10px] uppercase font-bold bg-white border-border">
+                  <SelectValue placeholder="Time Range" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="7d">Last 7 Days</SelectItem>
+                  <SelectItem value="30d">Last 30 Days</SelectItem>
+                  <SelectItem value="90d">Last Quarter</SelectItem>
+                  <SelectItem value="1y">Last Year</SelectItem>
+                </SelectContent>
+              </Select>
+              <DateRangePicker
+                from={dateRange?.from}
+                to={dateRange?.to}
+                onSelect={(range) => {
+                  setDateRange(range);
+                  if (range?.from || range?.to) setTimeRange('30d');
+                }}
+              />
               <Button
-                variant="outline"
-                size="sm"
-                className="rounded-full font-mono text-[10px] uppercase font-bold px-4"
-                disabled={safeRegionPage >= regionTotalPages}
-                onClick={() => setRegionPage((p) => Math.min(regionTotalPages, p + 1))}
-                aria-label="Next regions page"
+                onClick={handleGeneratePdfReport}
+                disabled={isGeneratingReport}
+                className="rounded-full bg-secondary text-white font-mono text-[10px] uppercase font-bold px-8 shadow-lg hover:scale-105 transition-transform"
               >
-                Next
+                {isGeneratingReport ? <Loader2 className="w-3 h-3 animate-spin mr-2" /> : <FileDown className="w-3 h-3 mr-2" />}
+                Download PDF Report
               </Button>
-            </div>
-          )}
-        </div>
-      </div>
-
-      <div className="bg-white rounded-xl card-shadow border border-border p-8 mb-12">
-        <div className="flex items-center gap-3 mb-8">
-          <Activity className="w-5 h-5 text-secondary" />
-          <h3 className="font-display font-bold text-lg uppercase tracking-tight">Team Performance</h3>
-        </div>
-        <div className="overflow-x-auto">
-          <table className="w-full text-left border-collapse">
-            <thead>
-              <tr className="border-b border-border/80 font-mono text-[10px] text-on-surface-variant font-bold uppercase tracking-widest">
-                <th className="pb-4">Department</th>
-                <th className="pb-4 text-center">Total</th>
-                <th className="pb-4 text-center">Avg Rating</th>
-                <th className="pb-4 text-right">Resolved</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-border/40 font-body text-sm">
-              {departmentBreakdown.map((dept, index) => (
-                <tr key={index} className="hover:bg-surface-container-lowest transition-colors">
-                  <td className="py-4 font-bold text-primary">{dept.name}</td>
-                  <td className="py-4 text-center font-mono font-bold">{dept.total}</td>
-                  <td className="py-4 text-center font-mono font-bold text-secondary">{dept.avgRating}</td>
-                  <td className="py-4 text-right font-mono">
-                    <span
-                      className={cn(
-                        'px-3 py-1 rounded-full text-[10px] font-bold font-mono',
-                        dept.actioned > 0 ? 'bg-green-100 text-green-600' : 'bg-slate-100 text-slate-500',
-                      )}
-                    >
-                      {dept.actioned} Resolved
-                    </span>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      </div>
-
-      <div className="bg-white rounded-xl card-shadow border border-border p-8 mb-24">
-        <div className="flex items-center gap-3 mb-8">
-          <History className="w-5 h-5 text-secondary" />
-          <h3 className="font-display font-bold text-lg uppercase tracking-tight">Recent Activity</h3>
-        </div>
-        <div className="space-y-4">
-          {activityItems.map((f: FeedbackDoc) => (
-            <div
-              key={f.id}
-              className="group p-6 border border-border rounded-xl hover:border-secondary transition-all flex flex-col md:flex-row justify-between items-start md:items-center gap-6 bg-surface-container-lowest"
-            >
-              <div className="flex-1">
-                <div className="flex items-center gap-3 mb-2">
-                  <span
-                    className={cn(
-                      'px-3 py-1 rounded-full text-[10px] font-mono font-bold uppercase',
-                      f.status === 'resolved'
-                        ? 'bg-green-100 text-green-600'
-                        : f.status === 'open'
-                          ? 'bg-emerald-50 text-emerald-600 border border-emerald-200/50'
-                          : 'bg-green-50 text-green-600 border border-green-200/50',
-                    )}
+              <div className="flex items-center gap-2">
+                {(
+                  [
+                    ['customers', 'Customers CSV'],
+                    ['invoices', 'Invoices CSV'],
+                    ['plans', 'Plans CSV'],
+                  ] as const
+                ).map(([kind, label]) => (
+                  <Button
+                    key={kind}
+                    onClick={() => handleCsvExport(kind)}
+                    disabled={csvExporting !== null}
+                    variant="outline"
+                    className="rounded-full font-mono text-[10px] uppercase font-bold px-6"
                   >
-                    {f.status}
-                  </span>
-                  <span className="font-mono text-[10px] text-on-surface-variant uppercase font-bold">{f.category}</span>
-                  <span className="text-[10px] text-on-surface-variant/40">{new Date(f.timestamp ?? 0).toLocaleDateString()}</span>
-                </div>
-                <p className="font-bold text-primary mb-1">
-                  {f.customerName} <span className="font-mono text-[10px] font-normal opacity-40 ml-2">({f.location})</span>
-                </p>
-                <FeedbackQuote feedback={f} className="text-sm text-on-surface-variant line-clamp-2" />
-                {f.resolutionNotes && (
-                  <div className="mt-4 p-4 bg-muted rounded-xl text-xs font-mono border-l-4 border-secondary shadow-sm">
-                    <div className="flex items-center gap-2 mb-2 text-secondary font-bold uppercase tracking-wider">
-                      <CheckCircle2 className="w-3 h-3" />
-                      Action Taken
-                    </div>
-                    {f.resolutionNotes}
-                  </div>
-                )}
-              </div>
-              <div className="flex items-center gap-3">
-                <Dialog>
-                  <DialogTrigger asChild>
-                    <Button
-                      variant="outline"
-                      className="rounded-full px-6 font-mono text-[10px] uppercase font-bold"
-                      onClick={() => {
-                        setResNotes(f.resolutionNotes || '');
-                      }}
-                    >
-                      <MessageSquare className="w-3 h-3 mr-2" /> Review
-                    </Button>
-                  </DialogTrigger>
-                  <DialogContent className="max-w-md rounded-3xl">
-                    <DialogHeader>
-                      <DialogTitle className="font-display uppercase tracking-tight">Handle Feedback</DialogTitle>
-                      <DialogDescription className="sr-only">Review and resolve this customer feedback entry.</DialogDescription>
-                    </DialogHeader>
-                    <div className="space-y-6 py-4">
-                      <div className="p-4 bg-muted rounded-xl text-sm">
-                        <FeedbackQuote feedback={f} />
-                      </div>
-                      <div className="space-y-2">
-                        <label className="font-mono text-[10px] uppercase font-bold text-on-surface-variant">Resolution Notes</label>
-                        <Textarea
-                          placeholder="What was done to resolve this issue?"
-                          className="min-h-[120px] rounded-2xl"
-                          value={resNotes}
-                          onChange={(e) => setResNotes(e.target.value)}
-                        />
-                      </div>
-                    </div>
-                    <DialogFooter className="flex gap-2">
-                      <Button
-                        variant="outline"
-                        className="rounded-full font-mono text-[10px] uppercase font-bold"
-                        onClick={() => handleUpdateStatus(f.id, 'escalated')}
-                      >
-                        Escalate
-                      </Button>
-                      <Button
-                        className="rounded-full bg-secondary text-white font-mono text-[10px] uppercase font-bold px-8"
-                        onClick={() => handleUpdateStatus(f.id, 'resolved')}
-                      >
-                        <CheckCircle2 className="w-3 h-3 mr-2" /> Mark Resolved
-                      </Button>
-                    </DialogFooter>
-                  </DialogContent>
-                </Dialog>
+                    {csvExporting === kind ? <Loader2 className="w-3 h-3 animate-spin mr-2" /> : <FileDown className="w-3 h-3 mr-2" />}
+                    {label}
+                  </Button>
+                ))}
               </div>
             </div>
+          </header>
+        </Reveal>
+
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-5 mb-12">
+          {[
+            {
+              label: 'Overall Score',
+              value: metrics.overallSatisfaction,
+              unit: '%',
+              icon: Users,
+              color: 'text-secondary',
+              detail: 'Average rating',
+            },
+            {
+              label: 'Network Score',
+              value: metrics.networkSatisfaction,
+              unit: '%',
+              icon: Activity,
+              color: 'text-green-600',
+              detail: `${metrics.networkResponses} network responses`,
+            },
+            {
+              label: 'Would Recommend',
+              value: metrics.nps,
+              unit: '%',
+              icon: TrendingUp,
+              color: 'text-green-600',
+              detail: `Based on ${metrics.total} feedbacks`,
+            },
+            {
+              // The form never asks an FCR question, so 0 answers is "no data",
+              // not "nobody fixed first try" — show a dash instead of 0%.
+              label: 'Resolved First Time',
+              value: metrics.fcrResponses > 0 ? metrics.ces : '—',
+              unit: metrics.fcrResponses > 0 ? '%' : '',
+              icon: CheckCircle2,
+              color: 'text-orange-500',
+              detail: metrics.fcrResponses > 0 ? 'Fixed on first try' : 'Not asked on form yet',
+            },
+            {
+              label: 'Resolved Issues',
+              value: metrics.resolvedRate,
+              unit: '%',
+              icon: CheckCircle,
+              color: 'text-green-600',
+              detail: 'Issues resolved',
+            },
+          ].map((item, i) => (
+            <Reveal key={i} index={Math.min(i + 1, 4)}>
+              <div className="bg-white p-6 rounded-xl card-shadow border border-border group hover:border-secondary transition-all min-h-[184px]">
+                <div className="mb-5">
+                  <item.icon className={cn('w-6 h-6', item.color)} />
+                </div>
+                <p className="text-[11px] font-medium uppercase tracking-[0.08em] text-muted-foreground mb-1">{item.label}</p>
+                <div className="flex items-baseline gap-1">
+                  <span className="text-4xl font-display font-bold tabular tracking-tight text-primary">{item.value}</span>
+                  <span className="text-xl font-display text-on-surface-variant font-bold">{item.unit}</span>
+                </div>
+                <p className="mt-4 text-[11px] text-muted-foreground uppercase tracking-wide">{item.detail}</p>
+              </div>
+            </Reveal>
           ))}
-          {activityTotalPages > 1 && !allFeedbacksLoading && (
-            <div className="flex flex-col sm:flex-row items-center justify-between gap-3 pt-4">
-              <p className="font-mono text-[10px] uppercase tracking-widest font-bold text-on-surface-variant/60">
-                Showing {activityStart}–{activityEnd} of {filteredFeedbacks.length}
-              </p>
-              <div className="flex items-center gap-1.5">
+        </div>
+
+        <div className="grid grid-cols-12 gap-gutter mb-12">
+          <div className="col-span-12 lg:col-span-8 bg-white p-8 rounded-xl card-shadow border border-border h-[400px]">
+            <h3 className="font-display font-bold text-lg uppercase tracking-tight mb-8">Satisfaction Over Time</h3>
+            <div className="h-64">
+              <ResponsiveContainer width="100%" height="100%">
+                <AreaChart data={chartData}>
+                  <defs>
+                    <linearGradient id="colorOverallSatisfaction" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="5%" stopColor="#448515" stopOpacity={0.1} />
+                      <stop offset="95%" stopColor="#448515" stopOpacity={0} />
+                    </linearGradient>
+                    <linearGradient id="colorNetworkSatisfaction" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="5%" stopColor="#111827" stopOpacity={0.08} />
+                      <stop offset="95%" stopColor="#111827" stopOpacity={0} />
+                    </linearGradient>
+                  </defs>
+                  <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#eee" />
+                  <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{ fontSize: 10, fill: '#666' }} />
+                  <YAxis hide domain={[0, 100]} />
+                  <Tooltip contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 10px 15px -3px rgba(0,0,0,0.1)' }} />
+                  <Legend
+                    verticalAlign="top"
+                    height={24}
+                    iconType="circle"
+                    wrapperStyle={{ fontSize: 10, fontWeight: 700, textTransform: 'uppercase' }}
+                  />
+                  <Area
+                    type="monotone"
+                    dataKey="overallSatisfaction"
+                    name="Overall"
+                    stroke="#448515"
+                    fill="url(#colorOverallSatisfaction)"
+                    strokeWidth={3}
+                    connectNulls
+                  />
+                  <Area
+                    type="monotone"
+                    dataKey="networkSatisfaction"
+                    name="Network"
+                    stroke="#111827"
+                    fill="url(#colorNetworkSatisfaction)"
+                    strokeWidth={2}
+                    strokeDasharray="6 4"
+                    connectNulls
+                  />
+                </AreaChart>
+              </ResponsiveContainer>
+            </div>
+          </div>
+
+          <div className="col-span-12 lg:col-span-4 bg-white p-8 rounded-xl card-shadow border border-border">
+            <h3 className="font-display font-bold text-lg uppercase tracking-tight mb-8">Regional Pulse</h3>
+            <div className="space-y-6">
+              {regionItems.map((reg) => {
+                const percent = metrics.total > 0 ? (reg.count / metrics.total) * 100 : 0;
+                return (
+                  <div key={reg.name} className="space-y-2">
+                    <div className="flex justify-between font-mono text-[10px] font-bold uppercase">
+                      <span>{reg.name}</span>
+                      <span className="text-secondary">{reg.count} Feedbacks</span>
+                    </div>
+                    <div className="w-full bg-muted h-1.5 rounded-full overflow-hidden">
+                      <div className="bg-primary h-full" style={{ width: `${percent}%` }}></div>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+            {regionTotalPages > 1 && (
+              <div className="flex items-center justify-between pt-6">
                 <Button
                   variant="outline"
                   size="sm"
                   className="rounded-full font-mono text-[10px] uppercase font-bold px-4"
-                  disabled={safeActivityPage <= 1}
-                  onClick={() => setActivityPage((p) => Math.max(1, p - 1))}
-                  aria-label="Previous activity page"
+                  disabled={safeRegionPage <= 1}
+                  onClick={() => setRegionPage((p) => Math.max(1, p - 1))}
+                  aria-label="Previous regions page"
                 >
                   Prev
                 </Button>
-                {(() => {
-                  const pages: Array<number | '…'> = [];
-                  for (let p = 1; p <= activityTotalPages; p++) {
-                    if (p === 1 || p === activityTotalPages || Math.abs(p - safeActivityPage) <= 1) {
-                      const prev = pages[pages.length - 1];
-                      if (typeof prev === 'number' && p - prev > 1) pages.push('…');
-                      pages.push(p);
+                <span className="font-mono text-[10px] font-bold text-on-surface-variant/60" aria-live="polite">
+                  {safeRegionPage} of {regionTotalPages}
+                </span>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="rounded-full font-mono text-[10px] uppercase font-bold px-4"
+                  disabled={safeRegionPage >= regionTotalPages}
+                  onClick={() => setRegionPage((p) => Math.min(regionTotalPages, p + 1))}
+                  aria-label="Next regions page"
+                >
+                  Next
+                </Button>
+              </div>
+            )}
+          </div>
+        </div>
+
+        <div className="bg-white rounded-xl card-shadow border border-border p-8 mb-12">
+          <div className="flex items-center gap-3 mb-8">
+            <Activity className="w-5 h-5 text-secondary" />
+            <h3 className="font-display font-bold text-lg uppercase tracking-tight">Team Performance</h3>
+          </div>
+          <div className="overflow-x-auto">
+            <table className="w-full text-left border-collapse">
+              <thead>
+                <tr className="border-b border-border/80 font-mono text-[10px] text-on-surface-variant font-bold uppercase tracking-widest">
+                  <th className="pb-4">Department</th>
+                  <th className="pb-4 text-center">Total</th>
+                  <th className="pb-4 text-center">Avg Rating</th>
+                  <th className="pb-4 text-right">Resolved</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-border/40 font-body text-sm">
+                {departmentBreakdown.map((dept, index) => (
+                  <tr key={index} className="hover:bg-surface-container-lowest transition-colors">
+                    <td className="py-4 font-bold text-primary">{dept.name}</td>
+                    <td className="py-4 text-center font-mono font-bold">{dept.total}</td>
+                    <td className="py-4 text-center font-mono font-bold text-secondary">{dept.avgRating}</td>
+                    <td className="py-4 text-right font-mono">
+                      <span
+                        className={cn(
+                          'px-3 py-1 rounded-full text-[10px] font-bold font-mono',
+                          dept.actioned > 0 ? 'bg-green-100 text-green-600' : 'bg-slate-100 text-slate-500',
+                        )}
+                      >
+                        {dept.actioned} Resolved
+                      </span>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <div className="bg-white rounded-xl card-shadow border border-border p-8 mb-24">
+          <div className="flex items-center gap-3 mb-8">
+            <History className="w-5 h-5 text-secondary" />
+            <h3 className="font-display font-bold text-lg uppercase tracking-tight">Recent Activity</h3>
+          </div>
+          <div className="space-y-4">
+            {activityItems.map((f: FeedbackDoc) => (
+              <div
+                key={f.id}
+                className="group p-6 border border-border rounded-xl hover:border-secondary transition-all flex flex-col md:flex-row justify-between items-start md:items-center gap-6 bg-surface-container-lowest"
+              >
+                <div className="flex-1">
+                  <div className="flex items-center gap-3 mb-2">
+                    <span
+                      className={cn(
+                        'px-3 py-1 rounded-full text-[10px] font-mono font-bold uppercase',
+                        f.status === 'resolved'
+                          ? 'bg-green-100 text-green-600'
+                          : f.status === 'open'
+                            ? 'bg-emerald-50 text-emerald-600 border border-emerald-200/50'
+                            : 'bg-green-50 text-green-600 border border-green-200/50',
+                      )}
+                    >
+                      {f.status}
+                    </span>
+                    <span className="font-mono text-[10px] text-on-surface-variant uppercase font-bold">{f.category}</span>
+                    <span className="text-[10px] text-on-surface-variant/40">{new Date(f.timestamp ?? 0).toLocaleDateString()}</span>
+                  </div>
+                  <p className="font-bold text-primary mb-1">
+                    {f.customerName} <span className="font-mono text-[10px] font-normal opacity-40 ml-2">({f.location})</span>
+                  </p>
+                  <FeedbackQuote feedback={f} className="text-sm text-on-surface-variant line-clamp-2" />
+                  {f.resolutionNotes && (
+                    <div className="mt-4 p-4 bg-muted rounded-xl text-xs font-mono border-l-4 border-secondary shadow-sm">
+                      <div className="flex items-center gap-2 mb-2 text-secondary font-bold uppercase tracking-wider">
+                        <CheckCircle2 className="w-3 h-3" />
+                        Action Taken
+                      </div>
+                      {f.resolutionNotes}
+                    </div>
+                  )}
+                </div>
+                <div className="flex items-center gap-3">
+                  <Dialog>
+                    <DialogTrigger asChild>
+                      <Button
+                        variant="outline"
+                        className="rounded-full px-6 font-mono text-[10px] uppercase font-bold"
+                        onClick={() => {
+                          setResNotes(f.resolutionNotes || '');
+                        }}
+                      >
+                        <MessageSquare className="w-3 h-3 mr-2" /> Review
+                      </Button>
+                    </DialogTrigger>
+                    <DialogContent className="max-w-md rounded-3xl">
+                      <DialogHeader>
+                        <DialogTitle className="font-display uppercase tracking-tight">Handle Feedback</DialogTitle>
+                        <DialogDescription className="sr-only">Review and resolve this customer feedback entry.</DialogDescription>
+                      </DialogHeader>
+                      <div className="space-y-6 py-4">
+                        <div className="p-4 bg-muted rounded-xl text-sm">
+                          <FeedbackQuote feedback={f} />
+                        </div>
+                        <div className="space-y-2">
+                          <label className="font-mono text-[10px] uppercase font-bold text-on-surface-variant">Resolution Notes</label>
+                          <Textarea
+                            placeholder="What was done to resolve this issue?"
+                            className="min-h-[120px] rounded-2xl"
+                            value={resNotes}
+                            onChange={(e) => setResNotes(e.target.value)}
+                          />
+                        </div>
+                      </div>
+                      <DialogFooter className="flex gap-2">
+                        <Button
+                          variant="outline"
+                          className="rounded-full font-mono text-[10px] uppercase font-bold"
+                          onClick={() => handleUpdateStatus(f.id, 'escalated')}
+                        >
+                          Escalate
+                        </Button>
+                        <Button
+                          className="rounded-full bg-secondary text-white font-mono text-[10px] uppercase font-bold px-8"
+                          onClick={() => handleUpdateStatus(f.id, 'resolved')}
+                        >
+                          <CheckCircle2 className="w-3 h-3 mr-2" /> Mark Resolved
+                        </Button>
+                      </DialogFooter>
+                    </DialogContent>
+                  </Dialog>
+                </div>
+              </div>
+            ))}
+            {activityTotalPages > 1 && !allFeedbacksLoading && (
+              <div className="flex flex-col sm:flex-row items-center justify-between gap-3 pt-4">
+                <p className="font-mono text-[10px] uppercase tracking-widest font-bold text-on-surface-variant/60">
+                  Showing {activityStart}–{activityEnd} of {filteredFeedbacks.length}
+                </p>
+                <div className="flex items-center gap-1.5">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="rounded-full font-mono text-[10px] uppercase font-bold px-4"
+                    disabled={safeActivityPage <= 1}
+                    onClick={() => setActivityPage((p) => Math.max(1, p - 1))}
+                    aria-label="Previous activity page"
+                  >
+                    Prev
+                  </Button>
+                  {(() => {
+                    const pages: Array<number | '…'> = [];
+                    for (let p = 1; p <= activityTotalPages; p++) {
+                      if (p === 1 || p === activityTotalPages || Math.abs(p - safeActivityPage) <= 1) {
+                        const prev = pages[pages.length - 1];
+                        if (typeof prev === 'number' && p - prev > 1) pages.push('…');
+                        pages.push(p);
+                      }
                     }
-                  }
-                  return pages;
-                })()
-                  .map((p, i) =>
+                    return pages;
+                  })().map((p, i) =>
                     p === '…' ? (
-                      <span key={`gap-${i}`} className="font-mono text-[10px] text-on-surface-variant/40 px-1">…</span>
+                      <span key={`gap-${i}`} className="font-mono text-[10px] text-on-surface-variant/40 px-1">
+                        …
+                      </span>
                     ) : (
                       <Button
                         key={p}
@@ -842,33 +837,33 @@ export default function AdminDashboard() {
                       </Button>
                     ),
                   )}
-                <Button
-                  variant="outline"
-                  size="sm"
-                  className="rounded-full font-mono text-[10px] uppercase font-bold px-4"
-                  disabled={safeActivityPage >= activityTotalPages}
-                  onClick={() => setActivityPage((p) => Math.min(activityTotalPages, p + 1))}
-                  aria-label="Next activity page"
-                >
-                  Next
-                </Button>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="rounded-full font-mono text-[10px] uppercase font-bold px-4"
+                    disabled={safeActivityPage >= activityTotalPages}
+                    onClick={() => setActivityPage((p) => Math.min(activityTotalPages, p + 1))}
+                    aria-label="Next activity page"
+                  >
+                    Next
+                  </Button>
+                </div>
               </div>
-            </div>
-          )}
-          {allFeedbacksLoading && (
-            <div className="py-20 text-center">
-              <div className="w-8 h-8 border-4 border-secondary/20 border-t-secondary rounded-full animate-spin mx-auto" />
-            </div>
-          )}
-          {!allFeedbacksLoading && filteredFeedbacks.length === 0 && (
-            <div className="py-20 text-center border-2 border-dashed border-border rounded-xl">
-              <p className="font-mono text-sm text-on-surface-variant opacity-40 uppercase font-bold tracking-widest">
-                No feedback found for this period
-              </p>
-            </div>
-          )}
+            )}
+            {allFeedbacksLoading && (
+              <div className="py-20 text-center">
+                <div className="w-8 h-8 border-4 border-secondary/20 border-t-secondary rounded-full animate-spin mx-auto" />
+              </div>
+            )}
+            {!allFeedbacksLoading && filteredFeedbacks.length === 0 && (
+              <div className="py-20 text-center border-2 border-dashed border-border rounded-xl">
+                <p className="font-mono text-sm text-on-surface-variant opacity-40 uppercase font-bold tracking-widest">
+                  No feedback found for this period
+                </p>
+              </div>
+            )}
+          </div>
         </div>
-      </div>
       </>
     </AdminLayout>
   );

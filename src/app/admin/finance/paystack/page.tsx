@@ -280,9 +280,7 @@ export default function PaystackOverviewPage() {
       <header className="mb-5 flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
         <div>
           <h1 className="text-[26px] font-medium tracking-[-0.03em]">Paystack Overview</h1>
-          <p className="mt-0.5 text-[13px] text-muted-foreground">
-            Collections, channels, and reconciliation for {data.month}
-          </p>
+          <p className="mt-0.5 text-[13px] text-muted-foreground">Collections, channels, and reconciliation for {data.month}</p>
         </div>
         <div className="flex items-center gap-2">
           <input
