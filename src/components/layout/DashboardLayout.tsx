@@ -211,7 +211,7 @@ export function DashboardLayout({
     .slice(0, 2)
     .toUpperCase();
 
-  const logo = PlaceHolderImages.find((i) => i.id === 'logo-black')?.imageUrl || '/logo-mark.svg';
+  const logo = PlaceHolderImages.find((i) => i.id === 'logo-black')?.imageUrl || '/logo.png';
 
   /* ---- Render ---------------------------------------------------- */
 
