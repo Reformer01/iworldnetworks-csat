@@ -6,6 +6,7 @@ import { useAuth, useUser } from '@/firebase';
 import { useCustomers, exportCustomersCsv, exportOverdueCustomersCsv, triggerSplynxSync, type CustomerRecord } from '@/hooks/use-customers';
 import { useToast } from '@/hooks/use-toast';
 import { cn } from '@/lib/utils';
+import { iconToneClass } from '@/lib/icon-tone';
 import { Button } from '@/components/ui/button';
 import { MobileToolbar } from '@/components/admin/MobileToolbar';
 import { Input } from '@/components/ui/input';
@@ -52,13 +53,11 @@ function KpiCard({
 }) {
   return (
     <SectionCard className="flex items-center gap-3 md:gap-4 p-4 md:p-5 min-w-0">
-      <div className={cn('w-10 h-10 md:w-11 md:h-11 rounded-full flex items-center justify-center shrink-0', color)}>
-        <Icon className="w-5 h-5 text-white" />
-      </div>
+      <Icon className={cn('size-5 shrink-0', iconToneClass(color))} aria-hidden="true" />
       <div className="min-w-0 flex-1">
-        <p className="font-mono text-[9px] uppercase tracking-widest font-bold text-on-surface-variant truncate">{label}</p>
-        <p className="font-display text-lg xl:text-xl font-bold text-primary break-words" title={value}>{value}</p>
-        {sub && <p className="font-mono text-[9px] text-on-surface-variant/60 font-bold uppercase tracking-widest truncate" title={sub}>{sub}</p>}
+        <p className="truncate text-xs font-medium uppercase tracking-wide text-muted-foreground">{label}</p>
+        <p className="font-headline text-lg font-semibold tabular-nums break-words xl:text-xl" title={value}>{value}</p>
+        {sub && <p className="truncate text-xs font-medium uppercase tracking-wide text-muted-foreground/70" title={sub}>{sub}</p>}
       </div>
     </SectionCard>
   );

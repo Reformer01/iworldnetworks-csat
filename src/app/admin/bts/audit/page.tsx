@@ -4,6 +4,7 @@ import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react'
 import { SalesLayout } from '@/components/layout/SalesLayout';
 import { useAuth, useUser } from '@/firebase';
 import { cn, toLocalDateString } from '@/lib/utils';
+import { iconToneClass } from '@/lib/icon-tone';
 import { Input } from '@/components/ui/input';
 import { MobileToolbar } from '@/components/admin/MobileToolbar';
 import { TowerCard, towerNeedsAttention } from '@/components/admin/TowerCard';
@@ -71,12 +72,10 @@ function SectionCard({ children, className }: { children: React.ReactNode; class
 function KpiCard({ label, value, icon: Icon, color }: { label: string; value: string; icon: React.ElementType; color: string }) {
   return (
     <SectionCard className="flex items-center gap-4 p-5">
-      <div className={cn('w-11 h-11 rounded-full flex items-center justify-center shrink-0', color)}>
-        <Icon className="w-5 h-5 text-white" aria-hidden="true" />
-      </div>
+      <Icon className={cn('size-5 shrink-0', iconToneClass(color))} aria-hidden="true" />
       <div className="min-w-0">
-        <p className="font-mono text-[9px] uppercase tracking-widest font-bold text-on-surface-variant">{label}</p>
-        <p className="font-display text-lg xl:text-xl font-bold text-primary break-words" title={value}>
+        <p className="truncate text-xs font-medium uppercase tracking-wide text-muted-foreground">{label}</p>
+        <p className="font-headline text-lg font-semibold tabular-nums break-words xl:text-xl" title={value}>
           {value}
         </p>
       </div>

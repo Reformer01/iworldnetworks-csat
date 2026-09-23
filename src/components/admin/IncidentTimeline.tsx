@@ -47,10 +47,10 @@ const SEVERITY_STYLES: Record<string, string> = {
   info: 'bg-emerald-100 text-emerald-700 border-emerald-200',
 };
 
-const SEVERITY_DOT: Record<string, string> = {
-  critical: 'bg-red-500',
-  warning: 'bg-amber-500',
-  info: 'bg-emerald-500',
+const SEVERITY_TONE: Record<string, string> = {
+  critical: 'text-red-600',
+  warning: 'text-amber-600',
+  info: 'text-emerald-600',
 };
 
 function fmtDate(ms: number | string | Date): string {
@@ -142,9 +142,9 @@ export function IncidentTimeline({ towerId, towerName }: IncidentTimelineProps) 
             {/* Timeline line */}
             {i < incidents.length - 1 && <div className="absolute left-[11px] top-6 bottom-0 w-0.5 bg-border/40" aria-hidden="true" />}
 
-            {/* Severity dot */}
-            <div className={cn('w-6 h-6 rounded-full flex items-center justify-center shrink-0 z-10', SEVERITY_DOT[incident.severity])}>
-              <Icon className="w-3 h-3 text-white" aria-hidden="true" />
+            {/* Severity marker - bare icon, no coloured chip */}
+            <div className="relative z-10 flex size-6 shrink-0 items-center justify-center">
+              <Icon className={cn('size-4', SEVERITY_TONE[incident.severity] ?? 'text-muted-foreground')} aria-hidden="true" />
             </div>
 
             {/* Content */}

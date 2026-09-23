@@ -36,6 +36,23 @@
     --sidebar-accent-foreground: 95 73% 22%;
     --sidebar-border: 240 5.9% 90%;
     --sidebar-ring: 95 73% 30%;
+
+    /* Chart series palette (used directly in SVG attrs as var(--chart-N)).
+       Mirrors the reference dashboards: brand series first, then ink/slate
+       comparison series, then two accent hues. */
+    --chart-1: #448515;
+    --chart-2: #18181b;
+    --chart-3: #a1a1aa;
+    --chart-4: #0ea5e9;
+    --chart-5: #f43f5e;
+  }
+
+  .dark {
+    --chart-1: #86c232;
+    --chart-2: #e4e4e7;
+    --chart-3: #71717a;
+    --chart-4: #38bdf8;
+    --chart-5: #fb7185;
   }
 }
 

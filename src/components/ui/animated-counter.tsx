@@ -1,6 +1,6 @@
 'use client';
 import React from 'react';
-import { cn } from '@/lib/utils';
+import { iconToneClass } from '@/lib/icon-tone';
 
 export function AnimatedCounter({
   label,
@@ -19,17 +19,15 @@ export function AnimatedCounter({
 }) {
   void samples;
   return (
-    <div className="bg-white p-4 rounded-2xl whisper-shadow border flex items-center gap-3">
-      <div className={cn('w-10 h-10 rounded-xl flex items-center justify-center shrink-0', color)}>
-        {Icon ? <Icon className="w-5 h-5 text-white" /> : null}
-      </div>
+    <div className="flex items-center gap-3 rounded-xl border border-border bg-card p-4 shadow-sm">
+      {Icon ? <Icon className={`size-5 shrink-0 ${iconToneClass(color)}`} aria-hidden="true" /> : null}
       <div className="min-w-0">
-        <p className="font-mono text-[9px] uppercase tracking-widest font-bold opacity-60 truncate">{label}</p>
-        <p className="font-display text-lg xl:text-xl font-black break-words" title={value.toLocaleString()}>
+        <p className="truncate text-xs font-medium uppercase tracking-wide text-muted-foreground">{label}</p>
+        <p className="font-headline text-lg font-semibold tabular-nums break-words xl:text-xl" title={value.toLocaleString()}>
           {value.toLocaleString()}
         </p>
         {sub && (
-          <p className="font-mono text-[10px] opacity-60 break-words" title={sub}>
+          <p className="text-xs text-muted-foreground break-words" title={sub}>
             {sub}
           </p>
         )}

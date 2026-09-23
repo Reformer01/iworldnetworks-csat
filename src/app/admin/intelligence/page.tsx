@@ -3,6 +3,7 @@
 import React, { useMemo, useState } from 'react';
 import { useIntelligence } from '@/hooks/use-intelligence';
 import { cn } from '@/lib/utils';
+import { iconToneClass } from '@/lib/icon-tone';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
@@ -56,21 +57,19 @@ function KpiCard({
 }) {
   return (
     <SectionCard className="flex items-center gap-3 md:gap-4 p-4 min-w-0">
-      <div className={cn('w-10 h-10 md:w-11 md:h-11 rounded-xl flex items-center justify-center shrink-0', color)}>
-        <Icon className="w-5 h-5 text-white" />
-      </div>
+      <Icon className={cn('size-5 shrink-0', iconToneClass(color))} aria-hidden="true" />
       <div className="min-w-0 flex-1">
-        <p className="font-mono text-[9px] uppercase tracking-widest font-bold text-on-surface-variant truncate">{label}</p>
-        <p className="font-display text-lg xl:text-xl font-black text-primary break-words" title={value}>
+        <p className="truncate text-xs font-medium uppercase tracking-wide text-muted-foreground">{label}</p>
+        <p className="font-headline text-lg font-semibold tabular-nums break-words xl:text-xl" title={value}>
           {value}
         </p>
         {sub && (
-          <p className="font-mono text-[10px] font-bold text-on-surface-variant/70 truncate" title={sub}>
+          <p className="truncate text-xs text-muted-foreground" title={sub}>
             {sub}
           </p>
         )}
         {hint && (
-          <p className="font-mono text-[9px] text-on-surface-variant/50 truncate" title={hint}>
+          <p className="truncate text-xs text-muted-foreground/70" title={hint}>
             {hint}
           </p>
         )}
@@ -291,9 +290,7 @@ export default function IntelligencePage() {
           {/* KPI ROW 2: coverage, engagement — now with animated counters */}
           <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-6">
             <SectionCard className="p-4 flex items-center gap-3">
-              <div className="w-10 h-10 rounded-xl bg-emerald-600 flex items-center justify-center shrink-0">
-                <RadioTower className="w-5 h-5 text-white" />
-              </div>
+              <RadioTower className="size-5 shrink-0 text-emerald-600" aria-hidden="true" />
               <div>
                 <p className="font-mono text-[9px] uppercase tracking-widest font-bold opacity-60">Coverage</p>
                 <p className="font-display text-xl font-black">

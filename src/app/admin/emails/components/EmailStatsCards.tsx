@@ -2,6 +2,7 @@
 
 import React from 'react';
 import { cn } from '@/lib/utils';
+import { iconToneClass } from '@/lib/icon-tone';
 import { Clock3, Loader2, CheckCircle2, XCircle, Hourglass } from 'lucide-react';
 import type { EmailStats } from '@/hooks/use-emails';
 
@@ -17,13 +18,11 @@ function StatCard({
   color: string;
 }) {
   return (
-    <div className={cn('bg-white p-5 rounded-2xl whisper-shadow border border-border flex items-center gap-4')}>
-      <div className={cn('w-11 h-11 rounded-full flex items-center justify-center shrink-0', color)}>
-        <Icon className="w-5 h-5 text-white" />
-      </div>
+    <div className={cn('flex items-center gap-4 rounded-xl border border-border bg-card p-5 shadow-sm')}>
+      <Icon className={cn('size-5 shrink-0', iconToneClass(color))} aria-hidden="true" />
       <div className="min-w-0">
-        <p className="font-mono text-[9px] uppercase tracking-widest font-bold text-on-surface-variant">{label}</p>
-        <p className="font-display text-lg xl:text-xl font-bold text-primary break-words" title={value.toLocaleString()}>{value.toLocaleString()}</p>
+        <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">{label}</p>
+        <p className="font-headline text-lg font-semibold tabular-nums break-words xl:text-xl" title={value.toLocaleString()}>{value.toLocaleString()}</p>
       </div>
     </div>
   );
