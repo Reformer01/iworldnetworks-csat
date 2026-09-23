@@ -2,12 +2,16 @@
 
 import React, { useMemo, useState } from 'react';
 import { AdminLayout } from '@/components/layout/AdminLayout';
-import { Search, UsersRound, AlertTriangle, MessageSquare, TrendingUp } from 'lucide-react';
-import { Area, AreaChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
+import { Search, UsersRound, AlertTriangle, MessageSquare, Star, Activity } from 'lucide-react';
 import { useAdminFeedbacks } from '@/hooks/use-admin-feedbacks';
 import { cn } from '@/lib/utils';
 import { staffRoster, type FeedbackCategory, type StaffProfile } from '@/lib/staff';
 import FeedbackQuote from '@/components/FeedbackQuote';
+import { PageHeader } from '@/components/ui/page-header';
+import { StatCard, StatCardGrid } from '@/components/ui/stat-card';
+import { ChartCard } from '@/components/ui/chart-card';
+import { TrendAreaChart } from '@/components/charts/trend-area-chart';
+import { EmptyState } from '@/components/ui/empty-state';
 
 import type { JsonValue } from '@/lib/feedback-types';
 
@@ -169,49 +173,96 @@ export default function StaffPerformancePage() {
     };
   }, [staffAnalytics]);
 
+  /** Daily average satisfaction across all staff-linked feedback. */
+  const satisfactionTrend = useMemo(() => {
+    const feedbackList = (feedbacks || []) as FeedbackRecord[];
+    if (feedbackList.length === 0) return [];
+
+    const groups: Record<string, { total: number; count: number }> = {};
+    for (const f of feedbackList) {
+      if (!f.staffName) continue;
+      const date = new Date(f.timestamp ?? 0);
+      const label = date.toLocaleDateString([], { month: 'short', day: 'numeric' });
+      const values = Object.values(f.ratings || {}).filter((v): v is number => typeof v === 'number' && Number.isFinite(v));
+      if (values.length === 0) continue;
+      const pct = Math.round((values.reduce((s, v) => s + v, 0) / (values.length * 5)) * 100);
+      if (!groups[label]) groups[label] = { total: 0, count: 0 };
+      groups[label].total += pct;
+      groups[label].count += 1;
+    }
+
+    return Object.entries(groups)
+      .map(([name, d]) => ({ name, satisfaction: Math.round(d.total / d.count) }))
+      .reverse();
+  }, [feedbacks]);
+
   return (
     <AdminLayout>
-      <div className="max-w-container-max mx-auto pb-24">
-        <header className="flex flex-col lg:flex-row lg:items-end justify-between gap-8 mb-12">
-          <div>
-            <div className="flex items-center gap-2 mb-3">
-              <UsersRound className="w-4 h-4 text-secondary" />
-              <span className="font-mono text-[10px] uppercase tracking-widest text-on-surface-variant font-bold">Staff Intelligence</span>
-            </div>
-            <h1 className="font-display text-xl md:text-2xl text-primary tracking-tight font-black uppercase">Staff Performance</h1>
-            <p className="text-on-surface-variant mt-3 max-w-2xl text-sm">
-              Search agents, technicians, and billing staff, then review the feedback tied directly to each person.
-            </p>
-          </div>
+      <div className="space-y-6 pb-24">
+        <PageHeader
+          eyebrow="Staff Intelligence"
+          title="Staff Performance"
+          description="Search agents, technicians, and billing staff, then review the feedback tied directly to each person."
+        />
 
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 w-full lg:w-auto">
-            {[
-              { label: 'Staff', value: overallStats.totalStaff },
-              { label: 'Active', value: overallStats.activeStaff },
-              { label: 'Feedback', value: overallStats.totalFeedback },
-              { label: 'Avg', value: overallStats.avgRating > 0 ? overallStats.avgRating.toFixed(1) : '0.0' },
-            ].map((item) => (
-              <div key={item.label} className="bg-white border border-border rounded-xl p-4 min-w-[120px]">
-                <p className="font-mono text-[9px] uppercase text-on-surface-variant font-bold">{item.label}</p>
-                <p className="font-mono text-2xl font-black text-primary mt-1">{item.value}</p>
-              </div>
-            ))}
-          </div>
-        </header>
+        <StatCardGrid columns={4}>
+          <StatCard label="Total Staff" value={overallStats.totalStaff} icon={UsersRound} detail="In roster" />
+          <StatCard label="Active" value={overallStats.activeStaff} icon={Activity} detail="With feedback" />
+          <StatCard label="Feedback" value={overallStats.totalFeedback} icon={MessageSquare} detail="Total entries" />
+          <StatCard
+            label="Avg Rating"
+            value={overallStats.avgRating > 0 ? overallStats.avgRating.toFixed(1) : '0.0'}
+            icon={Star}
+            detail="Across active staff"
+          />
+        </StatCardGrid>
 
-        <div className="grid grid-cols-12 gap-gutter items-start">
-          <section className="col-span-12 xl:col-span-7">
-            <div className="relative max-w-xl mb-8 group">
-              <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-on-surface-variant/50" />
+        {/* Satisfaction trend — full width */}
+        <ChartCard
+          title="Satisfaction over time"
+          description="Daily average score across all staff-linked feedback."
+          legend={[
+            {
+              label: 'Satisfaction',
+              color: 'var(--chart-1)',
+              value: `${overallStats.avgRating > 0 ? Math.round((overallStats.avgRating / 5) * 100) : 0}%`,
+            },
+          ]}
+          footer={`${overallStats.totalFeedback} total responses`}
+          loading={loading}
+        >
+          {satisfactionTrend.length === 0 ? (
+            <EmptyState
+              title="No feedback yet"
+              description="Staff satisfaction data will appear here once feedback is submitted."
+              className="border-0"
+            />
+          ) : (
+            <TrendAreaChart
+              data={satisfactionTrend}
+              xKey="name"
+              height={280}
+              yDomain={[0, 100]}
+              yTickFormatter={(v) => `${v}%`}
+              valueFormatter={(v) => `${v}%`}
+              series={[{ key: 'satisfaction', label: 'Satisfaction', color: 'var(--chart-1)' }]}
+            />
+          )}
+        </ChartCard>
+
+        <div className="grid grid-cols-12 gap-4 items-start">
+          <section className="col-span-12 xl:col-span-7 space-y-4">
+            <div className="relative max-w-xl group">
+              <Search className="absolute left-4 top-1/2 -translate-y-1/2 size-4 text-muted-foreground" />
               <input
-                className="w-full bg-surface-container-low border border-border rounded-xl py-4 pl-12 pr-4 outline-none focus:ring-2 focus:ring-secondary transition-all font-bold"
+                className="w-full bg-card border border-border rounded-xl py-3 pl-12 pr-4 outline-none focus:ring-2 focus:ring-ring transition-all text-sm font-medium"
                 placeholder="Search by name, role, department, region or ID..."
                 value={search}
                 onChange={(event) => setSearch(event.target.value)}
               />
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               {filteredStaff.map((item) => {
                 const isSelected = selectedStaff?.staff.id === item.staff.id;
                 const initials = getInitials(item.staff.name);
@@ -228,22 +279,24 @@ export default function StaffPerformancePage() {
                     type="button"
                     onClick={() => setSelectedStaffId(item.staff.id)}
                     className={cn(
-                      'text-left bg-white p-6 rounded-2xl whisper-shadow border transition-all hover:-translate-y-0.5 hover:border-secondary',
-                      isSelected ? 'border-secondary ring-2 ring-secondary/10' : 'border-border',
+                      'text-left bg-card p-5 rounded-xl border shadow-sm transition-all hover:-translate-y-0.5 hover:border-ring/50',
+                      isSelected ? 'border-ring ring-2 ring-ring/10' : 'border-border',
                     )}
                   >
-                    <div className="flex items-center gap-4 mb-6">
+                    <div className="flex items-center gap-3 mb-4">
                       <div
                         className={cn(
-                          'w-14 h-14 rounded-full border flex items-center justify-center font-mono font-black',
-                          isSelected ? 'bg-secondary text-white border-secondary' : 'bg-surface-container-low text-secondary border-border',
+                          'size-11 rounded-full border flex items-center justify-center font-mono font-bold text-sm',
+                          isSelected
+                            ? 'bg-secondary text-secondary-foreground border-secondary'
+                            : 'bg-muted text-muted-foreground border-border',
                         )}
                       >
                         {initials}
                       </div>
                       <div className="min-w-0">
-                        <p className="font-bold text-primary truncate">{item.staff.name}</p>
-                        <p className="font-mono text-[11px] text-on-surface-variant uppercase truncate">
+                        <p className="font-semibold text-sm text-foreground truncate">{item.staff.name}</p>
+                        <p className="text-xs text-muted-foreground truncate">
                           {item.staff.role} {item.staff.region ? `| ${item.staff.region}` : ''}
                         </p>
                       </div>
@@ -251,27 +304,36 @@ export default function StaffPerformancePage() {
 
                     <div className="flex justify-between items-end gap-4">
                       <div>
-                        <p className="font-mono text-[9px] text-on-surface-variant uppercase tracking-widest mb-1">Avg Rating</p>
-                        <p className={cn('font-mono text-[30px] leading-none font-black', isSelected ? 'text-secondary' : 'text-primary')}>
+                        <p className="text-[10px] text-muted-foreground uppercase tracking-widest mb-0.5">Avg Rating</p>
+                        <p
+                          className={cn(
+                            'font-headline text-2xl font-semibold leading-none tabular-nums',
+                            isSelected ? 'text-secondary' : 'text-foreground',
+                          )}
+                        >
                           {item.avgRating > 0 ? item.avgRating.toFixed(2) : '0.00'}
                         </p>
                       </div>
                       <div className="text-right">
-                        <p className="font-mono text-[9px] text-on-surface-variant uppercase tracking-widest mb-1">Feedback</p>
-                        <p className="font-mono text-sm font-bold text-primary">{item.feedbackCount} entries</p>
+                        <p className="text-[10px] text-muted-foreground uppercase tracking-widest mb-0.5">Feedback</p>
+                        <p className="text-sm font-medium text-foreground">{item.feedbackCount} entries</p>
                       </div>
                     </div>
 
-                    <div className="mt-5 pt-4 border-t border-border/60 flex gap-2 flex-wrap">
-                      <span className="px-3 py-1 bg-surface-container-low rounded-full font-mono text-[9px] text-on-surface-variant uppercase font-bold">
+                    <div className="mt-4 pt-3 border-t border-border/60 flex gap-2 flex-wrap">
+                      <span className="px-2.5 py-0.5 bg-muted rounded-full text-[10px] text-muted-foreground uppercase font-medium">
                         {item.staff.department}
                       </span>
                       {tags.map((tag) => (
                         <span
                           key={tag}
                           className={cn(
-                            'px-3 py-1 rounded-full font-mono text-[9px] uppercase font-bold',
-                            tag === 'Needs Review' ? 'bg-destructive/10 text-destructive' : 'bg-secondary/10 text-secondary',
+                            'px-2.5 py-0.5 rounded-full text-[10px] uppercase font-medium',
+                            tag === 'Top Performer'
+                              ? 'bg-emerald-50 text-emerald-700 dark:bg-emerald-500/10 dark:text-emerald-400'
+                              : tag === 'Needs Review'
+                                ? 'bg-rose-50 text-rose-700 dark:bg-rose-500/10 dark:text-rose-400'
+                                : 'bg-muted text-muted-foreground',
                           )}
                         >
                           {tag}
@@ -283,13 +345,15 @@ export default function StaffPerformancePage() {
               })}
 
               {loading && (
-                <div className="md:col-span-2 p-12 text-center">
-                  <div className="w-8 h-8 border-4 border-secondary/20 border-t-secondary rounded-full animate-spin mx-auto" />
+                <div className="col-span-full bg-card border border-border rounded-xl p-8 text-center text-sm text-muted-foreground animate-pulse">
+                  Loading staff feedback...
                 </div>
               )}
+
               {!loading && filteredStaff.length === 0 && (
-                <div className="md:col-span-2 border-2 border-dashed border-border rounded-2xl p-12 text-center">
-                  <p className="font-mono text-xs uppercase text-on-surface-variant font-bold">No matching staff found</p>
+                <div className="col-span-full bg-card border border-border rounded-xl p-8 text-center">
+                  <AlertTriangle className="size-5 text-muted-foreground mx-auto mb-2" />
+                  <p className="text-sm text-muted-foreground font-medium">No staff found matching that search</p>
                 </div>
               )}
             </div>
@@ -297,133 +361,129 @@ export default function StaffPerformancePage() {
 
           <aside className="col-span-12 xl:col-span-5">
             {selectedStaff && (
-              <div className="sticky top-28 space-y-6">
-                <section className="bg-white p-8 rounded-3xl whisper-shadow border border-border">
-                  <div className="flex justify-between items-start gap-4 mb-8">
+              <div className="sticky top-28 space-y-4">
+                {/* Staff overview */}
+                <div className="rounded-xl border border-border bg-card p-5 shadow-sm">
+                  <div className="flex items-start justify-between gap-3 mb-5">
                     <div>
-                      <h2 className="font-display text-2xl font-bold text-primary">{selectedStaff.staff.name}</h2>
-                      <p className="font-mono text-[10px] uppercase text-secondary font-bold tracking-widest mt-1">
-                        {selectedStaff.staff.role} Analytics
-                      </p>
+                      <p className="text-[10px] text-muted-foreground uppercase tracking-widest font-medium mb-1">Selected Staff</p>
+                      <h2 className="font-headline text-lg font-semibold tracking-tight text-foreground">{selectedStaff.staff.name}</h2>
+                      <p className="text-xs text-muted-foreground">{selectedStaff.staff.role}</p>
                     </div>
-                    <span className="px-4 py-2 bg-primary text-white rounded-full font-mono text-[10px] uppercase font-bold">
+                    <span className="px-2.5 py-0.5 bg-muted rounded-full text-[10px] text-muted-foreground uppercase font-medium">
                       {selectedStaff.staff.department}
                     </span>
                   </div>
 
-                  <div className="grid grid-cols-3 gap-3 mb-8">
-                    {[
-                      { label: 'Avg', value: selectedStaff.avgRating > 0 ? selectedStaff.avgRating.toFixed(2) : '0.00' },
-                      { label: 'Entries', value: selectedStaff.feedbackCount },
-                      { label: 'Resolved', value: `${selectedStaff.resolvedRate}%` },
-                    ].map((item) => (
-                      <div key={item.label} className="bg-surface-container-low p-4 rounded-xl">
-                        <p className="font-mono text-[9px] uppercase text-on-surface-variant font-bold">{item.label}</p>
-                        <p className="font-mono text-xl font-black text-primary mt-1">{item.value}</p>
-                      </div>
-                    ))}
-                  </div>
-
-                  <div className="mb-8">
-                    <div className="flex justify-between items-center mb-4">
-                      <p className="font-mono text-[10px] uppercase tracking-widest text-on-surface-variant font-bold">Performance Trend</p>
-                      <div className="flex items-center gap-1 text-secondary font-mono text-[10px] font-bold">
-                        <TrendingUp className="w-3 h-3" />
-                        {selectedStaff.trend.length} points
-                      </div>
+                  <div className="grid grid-cols-3 gap-3">
+                    <div className="bg-muted/50 rounded-lg p-3">
+                      <p className="text-[10px] text-muted-foreground uppercase tracking-widest mb-1">Avg</p>
+                      <p className="font-headline text-xl font-semibold tabular-nums">
+                        {selectedStaff.avgRating > 0 ? selectedStaff.avgRating.toFixed(1) : '0.0'}
+                      </p>
                     </div>
-                    <div className="h-36">
-                      <ResponsiveContainer width="100%" height="100%">
-                        <AreaChart data={selectedStaff.trend}>
-                          <defs>
-                            <linearGradient id="staffTrend" x1="0" y1="0" x2="0" y2="1">
-                              <stop offset="5%" stopColor="#448515" stopOpacity={0.18} />
-                              <stop offset="95%" stopColor="#448515" stopOpacity={0} />
-                            </linearGradient>
-                          </defs>
-                          <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#eee" />
-                          <XAxis dataKey="date" hide />
-                          <YAxis domain={[0, 5]} hide />
-                          <Tooltip contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 10px 15px -3px rgba(0,0,0,0.1)' }} />
-                          <Area type="monotone" dataKey="score" stroke="#448515" fill="url(#staffTrend)" strokeWidth={3} connectNulls />
-                        </AreaChart>
-                      </ResponsiveContainer>
+                    <div className="bg-muted/50 rounded-lg p-3">
+                      <p className="text-[10px] text-muted-foreground uppercase tracking-widest mb-1">Entries</p>
+                      <p className="font-headline text-xl font-semibold tabular-nums">{selectedStaff.feedbackCount}</p>
+                    </div>
+                    <div className="bg-muted/50 rounded-lg p-3">
+                      <p className="text-[10px] text-muted-foreground uppercase tracking-widest mb-1">Resolved</p>
+                      <p className="font-headline text-xl font-semibold tabular-nums">{selectedStaff.resolvedRate}%</p>
                     </div>
                   </div>
+                </div>
 
-                  <div className="space-y-5">
-                    <p className="font-mono text-[10px] uppercase tracking-widest text-on-surface-variant font-bold">
-                      Competency Breakdown
-                    </p>
+                {/* Performance trend chart */}
+                <ChartCard title="Performance Trend" description="Average rating over recent feedback">
+                  {selectedStaff.trend.length === 0 ? (
+                    <EmptyState title="No trend data" description="No feedback entries for this staff member yet." className="border-0" />
+                  ) : (
+                    <TrendAreaChart
+                      data={selectedStaff.trend}
+                      xKey="date"
+                      height={200}
+                      yDomain={[0, 5]}
+                      yTickFormatter={(v) => v.toFixed(0)}
+                      valueFormatter={(v) => `${v.toFixed(1)}/5`}
+                      series={[{ key: 'score', label: 'Avg Score', color: 'var(--chart-1)' }]}
+                    />
+                  )}
+                </ChartCard>
+
+                {/* Competency breakdown */}
+                <div className="rounded-xl border border-border bg-card p-5 shadow-sm">
+                  <div className="flex items-center justify-between mb-4">
+                    <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Competency Breakdown</p>
+                  </div>
+                  <div className="space-y-3">
                     {selectedStaff.competency.map((dimension) => {
-                      const score = Number(dimension.score.toFixed(1));
-                      const width = Math.min(100, Math.max(0, (score / 5) * 100));
-
+                      const width = Math.min(100, Math.round((dimension.score / 5) * 100));
                       return (
-                        <div key={dimension.key} className="space-y-2">
-                          <div className="flex justify-between font-mono text-[11px]">
-                            <span>{dimension.label}</span>
-                            <span className="font-bold">{score > 0 ? `${score}/5.0` : 'No data'}</span>
+                        <div key={dimension.key}>
+                          <div className="flex justify-between items-center text-xs mb-1">
+                            <span className="font-medium text-foreground">{dimension.label}</span>
+                            <span className="font-medium text-muted-foreground tabular-nums">
+                              {dimension.score > 0 ? dimension.score.toFixed(1) : '0.0'}
+                            </span>
                           </div>
-                          <div className="h-1.5 bg-surface-container-high rounded-full overflow-hidden">
-                            <div className="h-full bg-secondary rounded-full" style={{ width: `${width}%` }} />
+                          <div className="h-1.5 bg-muted rounded-full overflow-hidden">
+                            <div className="h-full bg-secondary rounded-full transition-all" style={{ width: `${width}%` }} />
                           </div>
                         </div>
                       );
                     })}
                   </div>
-                </section>
+                </div>
 
-                <section className="bg-white p-8 rounded-3xl whisper-shadow border border-border">
-                  <div className="flex items-center justify-between mb-6">
-                    <p className="font-mono text-[10px] uppercase tracking-widest text-on-surface-variant font-bold">Recent Feedback</p>
-                    <MessageSquare className="w-4 h-4 text-on-surface-variant/50" />
+                {/* Recent feedback */}
+                <div className="rounded-xl border border-border bg-card p-5 shadow-sm">
+                  <div className="flex items-center justify-between mb-4">
+                    <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Recent Feedback</p>
+                    <MessageSquare className="size-4 text-muted-foreground" />
                   </div>
-                  <div className="space-y-4 max-h-[420px] overflow-y-auto pr-1">
+                  <div className="space-y-3 max-h-[420px] overflow-y-auto pr-1">
                     {selectedStaff.feedbacks.slice(0, 8).map((feedback) => {
                       const score = average(getNumericRatings(feedback, getDimensions(selectedStaff.staff)));
 
                       return (
-                        <div key={feedback.id} className="bg-surface-container-low p-4 rounded-xl">
-                          <div className="flex justify-between items-start gap-4 mb-2">
+                        <div key={feedback.id} className="bg-muted/40 p-4 rounded-lg">
+                          <div className="flex justify-between items-start gap-3 mb-2">
                             <div>
-                              <p className="font-bold text-primary text-sm">{feedback.customerName || 'Customer'}</p>
-                              <p className="font-mono text-[9px] text-on-surface-variant uppercase">
+                              <p className="font-medium text-sm text-foreground">{feedback.customerName || 'Customer'}</p>
+                              <p className="text-[10px] text-muted-foreground uppercase">
                                 {feedback.category} | {feedback.location || 'Unknown region'}
                               </p>
                             </div>
                             <span
                               className={cn(
-                                'px-2 py-1 rounded-full font-mono text-[8px] uppercase font-bold',
+                                'px-2 py-0.5 rounded-full text-[10px] uppercase font-medium',
                                 feedback.status === 'resolved'
-                                  ? 'bg-green-100 text-green-600'
+                                  ? 'bg-emerald-50 text-emerald-700 dark:bg-emerald-500/10 dark:text-emerald-400'
                                   : feedback.status === 'open'
-                                    ? 'bg-emerald-50 text-emerald-600'
-                                    : 'bg-blue-100 text-blue-600',
+                                    ? 'bg-amber-50 text-amber-700 dark:bg-amber-500/10 dark:text-amber-400'
+                                    : 'bg-muted text-muted-foreground',
                               )}
                             >
                               {feedback.status || 'open'}
                             </span>
                           </div>
-                          <FeedbackQuote feedback={feedback} className="text-[13px] text-on-surface-variant leading-relaxed" />
-                          <div className="flex items-center justify-between mt-3 font-mono text-[9px] text-on-surface-variant/70 font-bold">
+                          <FeedbackQuote feedback={feedback} className="text-xs text-muted-foreground leading-relaxed" />
+                          <div className="flex items-center justify-between mt-2 text-[10px] text-muted-foreground">
                             <span>{formatDate(feedback.timestamp, feedback.serviceDate)}</span>
-                            <span>Rating: {score > 0 ? score.toFixed(1) : '0.0'}/5</span>
+                            <span className="tabular-nums">Rating: {score > 0 ? score.toFixed(1) : '0.0'}/5</span>
                           </div>
                         </div>
                       );
                     })}
 
                     {selectedStaff.feedbacks.length === 0 && (
-                      <div className="border-2 border-dashed border-border rounded-xl p-8 text-center">
-                        <AlertTriangle className="w-6 h-6 text-on-surface-variant/40 mx-auto mb-3" />
-                        <p className="font-mono text-[10px] uppercase text-on-surface-variant font-bold">
-                          No feedback tied to this staff member yet
-                        </p>
+                      <div className="border-2 border-dashed border-border rounded-xl p-6 text-center">
+                        <AlertTriangle className="size-5 text-muted-foreground mx-auto mb-2" />
+                        <p className="text-xs text-muted-foreground font-medium">No feedback tied to this staff member yet</p>
                       </div>
                     )}
                   </div>
-                </section>
+                </div>
               </div>
             )}
           </aside>

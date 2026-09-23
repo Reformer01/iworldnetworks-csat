@@ -3,6 +3,7 @@
 import * as React from 'react';
 import { Area, AreaChart, CartesianGrid, XAxis, YAxis, type DotProps } from 'recharts';
 
+import { cn } from '@/lib/utils';
 import { ChartContainer, ChartTooltip, ChartTooltipContent, type ChartConfig } from '@/components/ui/chart';
 
 export type TrendSeries = {
@@ -62,7 +63,7 @@ export function TrendAreaChart({
   }, [series]);
 
   return (
-    <ChartContainer config={config} className={className} style={{ height }}>
+    <ChartContainer config={config} className={cn('aspect-auto', className)} style={{ height }}>
       <AreaChart data={data} margin={{ top: 8, right: 8, bottom: 0, left: 0 }}>
         <defs>
           {series.map((s, index) => {
