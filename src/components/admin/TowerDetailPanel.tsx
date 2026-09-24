@@ -32,6 +32,13 @@ interface TowerDetailPanelProps {
   onClose: () => void;
 }
 
+function historyRows(payload: unknown): TrendData[] {
+  if (!payload || typeof payload !== 'object') return [];
+  const body = payload as { data?: unknown };
+  const rows = Array.isArray(body.data) ? body.data : [];
+  return rows.filter((row): row is TrendData => !!row && typeof row === 'object');
+}
+
 export function TowerDetailPanel({ tower, onClose }: TowerDetailPanelProps) {
   const auth = useAuth();
   const { user } = useUser(auth);
@@ -50,9 +57,9 @@ export function TowerDetailPanel({ tower, onClose }: TowerDetailPanelProps) {
         `/api/admin/bts/audit/history?towerId=${encodeURIComponent(tower.towerId)}&type=${type}&limit=30`,
         { headers: { Authorization: `Bearer ${token}` } },
       )));
-      if (responses[0].ok) setCustomerTrend((await responses[0].json()).data || []);
-      if (responses[1].ok) setMrrTrend((await responses[1].json()).data || []);
-      if (responses[2].ok) setHealthTrend((await responses[2].json()).data || []);
+      if (responses[0].ok) setCustomerTrend(historyRows(await responses[0].json()));
+      if (responses[1].ok) setMrrTrend(historyRows(await responses[1].json()));
+      if (responses[2].ok) setHealthTrend(historyRows(await responses[2].json()));
     } catch {
       // History is supplementary; current audit data remains usable.
     } finally {
